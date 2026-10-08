@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from Pukaar.api.routers import pukaar, alerts, cap, demo_inject, runtime, sites, sync, pukaar
+from Pukaar.api.routers import alerts, cap, demo_inject, pukaar, runtime, sites, sync
 from Pukaar.db.database import init_db
 from Pukaar.services.storage import get_fixture_dir, get_upload_dir
 
@@ -35,7 +35,6 @@ app.mount("/fixtures", StaticFiles(directory=str(get_fixture_dir())), name="fixt
 for router in (
     runtime.router,
     sites.router,
-    pukaar.router,
     pukaar.router,
     alerts.router,
     sync.router,
