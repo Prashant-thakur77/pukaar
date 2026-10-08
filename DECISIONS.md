@@ -210,3 +210,16 @@ Removed (read into settings but never used):
 
 Kept: `PUKAAR_FEWSHOT_COUNT` (read by the few-shot adapter),
 `PUKAAR_ENABLE_DEMO_INJECT` (gates the demo router that becomes `replay`).
+
+### Group (f): old documentation
+
+- `MAIN_IDEA.md`: Spanish pitch for the Argentina LiteRT/Raspberry Pi product.
+  PLAN.md 5 allows removing it. Removed.
+- `frontend/README.md`: the unmodified Vite template README. Removed.
+- `backend/README.md`: described the Raspberry Pi camera node, LiteRT
+  profiles and deleted scripts. `pyproject.toml` declares it as the package
+  readme, so it is rewritten to describe what the backend is today.
+- The root `README.md` is written in step 5.
+- `Project.md` is equally out of date (old submission criteria, links to
+  deleted docs), but PLAN.md does not name it, so rule 11 keeps it. Listed
+  under "Unsure, kept".
