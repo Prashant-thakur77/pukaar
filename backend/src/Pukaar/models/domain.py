@@ -35,7 +35,6 @@ class VolunteerReport(SQLModel, table=True):
     audio_path: Optional[str] = None
     transcript_text: str
     offline_created: bool = False
-    sync_status: str = "pending"
 
 
 class ParsedObservation(SQLModel, table=True):
@@ -70,7 +69,6 @@ class HydrometSnapshot(SQLModel, table=True):
     signal_score: float = 0.0
     summary: str = ""
     raw_payload: str = "{}"
-    sync_status: str = "pending"
 
 
 class FusedAlert(SQLModel, table=True):
@@ -84,7 +82,6 @@ class FusedAlert(SQLModel, table=True):
     summary: str
     decision_trace: str
     local_alarm_triggered: bool = False
-    sync_status: str = "pending"
     reasoning_summary: Optional[str] = None
     reasoning_chain: Optional[str] = None
     reasoning_model: Optional[str] = None
@@ -103,7 +100,6 @@ class Incident(SQLModel, table=True):
     close_reason: Optional[str] = None
     evidence_window_minutes: int = 45
     summary: str = ""
-    sync_status: str = "pending"
 
 
 class ActuationRecord(SQLModel, table=True):
@@ -116,17 +112,3 @@ class ActuationRecord(SQLModel, table=True):
     status: str = "pending"
     error: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    sync_status: str = "pending"
-
-
-class SyncQueueItem(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    entity_type: str
-    entity_id: int
-    payload: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = None
-    status: str = "pending"
-    attempts: int = 0
-    last_error: Optional[str] = None
-    synced_at: Optional[datetime] = None

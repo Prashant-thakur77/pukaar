@@ -10,12 +10,11 @@ from fastapi import BackgroundTasks, UploadFile
 from sqlmodel import Session, SQLModel, select
 
 from Pukaar.api import deps
-from Pukaar.api.routers.sync import flush_sync
 from Pukaar.api.routers.pukaar import create_report
 from Pukaar.core import settings as settings_module
-from Pukaar.db.database import central_engine, edge_engine, init_db
+from Pukaar.db.database import edge_engine, init_db
 from Pukaar.main import app
-from Pukaar.models.domain import FusedAlert, Site, SyncQueueItem, VolunteerReport
+from Pukaar.models.domain import FusedAlert, Site, VolunteerReport
 from Pukaar.models.domain import HydrometSnapshot
 from Pukaar.services.storage import get_upload_dir
 
@@ -43,11 +42,10 @@ def reset_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     deps.is_online = True
     monkeypatch.setattr(deps.llm_client, "structure_observation", lambda *_args, **_kwargs: None)
 
-    for engine in (edge_engine, central_engine):
-        with Session(engine) as session:
-            for table in reversed(SQLModel.metadata.sorted_tables):
-                session.exec(table.delete())
-            session.commit()
+    with Session(edge_engine) as session:
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            session.exec(table.delete())
+        session.commit()
 
     upload_dir = get_upload_dir()
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -96,7 +94,7 @@ def test_connectivity():
 
 
 
-def test_report_and_sync():
+def test_report_creates_alert():
     async def run_flow():
         with Session(edge_engine) as edge_session:
             payload = await create_report(
@@ -113,32 +111,17 @@ def test_report_and_sync():
             report_id = payload["report"].id
             assert payload["parsed"].parser_source == "rules"
             assert payload["alert"].level in {"orange", "red"}
+            return report_id
 
-        with Session(edge_engine) as edge_session, Session(central_engine) as central_session:
-            sync_payload = await flush_sync(edge_session=edge_session, central_session=central_session)
-            return report_id, sync_payload
-
-    report_id, sync_payload = anyio.run(run_flow)
-    assert sync_payload["queued"] >= 3
-    assert sync_payload["flushed"] == sync_payload["queued"]
-    assert sync_payload["failed"] == 0
+    report_id = anyio.run(run_flow)
 
     with Session(edge_engine) as session:
-        queue_items = session.exec(select(SyncQueueItem)).all()
-        assert len(queue_items) == sync_payload["queued"]
-        assert all(item.status == "synced" for item in queue_items)
-
-        edge_report = session.get(VolunteerReport, report_id)
-        assert edge_report is not None
-        assert edge_report.sync_status == "synced"
-
-    with Session(central_engine) as session:
-        central_report = session.get(VolunteerReport, report_id)
-        assert central_report is not None
-        assert central_report.sync_status == "synced"
-        central_alert = session.exec(select(FusedAlert)).first()
-        assert central_alert is not None
-        assert central_alert.sync_status == "synced"
+        report = session.get(VolunteerReport, report_id)
+        assert report is not None
+        assert report.offline_created is True
+        alert = session.exec(select(FusedAlert)).first()
+        assert alert is not None
+        assert alert.site_id == "test-site"
 
 
 

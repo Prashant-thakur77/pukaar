@@ -64,7 +64,7 @@ describe('AppStore', () => {
 
     await useAppStore.getState().flushQueue();
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     const reportCall = fetchMock.mock.calls[0];
     expect(reportCall[0]).toContain('/api/reports');
 
@@ -76,7 +76,6 @@ describe('AppStore', () => {
     expect((formData.get('photo') as File).name).toBe('flood.jpg');
     expect(formData.get('audio')).toBeInstanceOf(File);
     expect((formData.get('audio') as File).name).toBe('note.mp3');
-    expect(fetchMock.mock.calls[1][0]).toContain('/api/sync/flush');
     expect(idb.deleteReportOffline).toHaveBeenCalledWith(1);
   });
 

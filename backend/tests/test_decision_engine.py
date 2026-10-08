@@ -6,10 +6,8 @@ from datetime import datetime, timedelta
 import pytest
 from sqlmodel import Session, SQLModel, select
 
-from Pukaar.api.deps import enqueue_entity
-from Pukaar.api.routers.sync import flush_sync
 from Pukaar.core import settings as settings_module
-from Pukaar.db.database import central_engine, edge_engine, init_db
+from Pukaar.db.database import edge_engine, init_db
 from Pukaar.models.domain import (
     ActuationRecord,
     FusedAlert,
@@ -17,7 +15,6 @@ from Pukaar.models.domain import (
     Incident,
     ParsedObservation,
     Site,
-    SyncQueueItem,
     VolunteerReport,
 )
 from Pukaar.services import actuators as actuators_module
@@ -32,21 +29,19 @@ init_db()
 def _reset_state(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PUKAAR_ACTUATORS_ENABLED", "true")
     settings_module.get_settings.cache_clear()
-    for engine in (edge_engine, central_engine):
-        with Session(engine) as session:
-            for table in reversed(SQLModel.metadata.sorted_tables):
-                session.exec(table.delete())
-            session.commit()
+    with Session(edge_engine) as session:
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            session.exec(table.delete())
+        session.commit()
     with Session(edge_engine) as session:
         session.add(Site(id="site-a", name="Puente A", region="Demo", lat=-32.95, lng=-60.64))
         session.commit()
     reset_recorded_calls()
     yield
-    for engine in (edge_engine, central_engine):
-        with Session(engine) as session:
-            for table in reversed(SQLModel.metadata.sorted_tables):
-                session.exec(table.delete())
-            session.commit()
+    with Session(edge_engine) as session:
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            session.exec(table.delete())
+        session.commit()
     with Session(edge_engine) as session:
         session.add(Site(id="test-site", name="Puente Test", region="Zona Demo", lat=-32.95, lng=-60.64))
         session.commit()
@@ -269,8 +264,7 @@ def test_orange_selection_is_constrained_to_recommended_pending_actuators(monkey
     assert fired_names == ["notify_app", "send_radio_payload"]
 
 
-@pytest.mark.anyio
-async def test_central_integration_flow_and_idempotent_sync():
+def test_report_and_hydromet_flow_escalates_and_actuates():
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
         report, parsed = _report_pair(
@@ -299,31 +293,12 @@ async def test_central_integration_flow_and_idempotent_sync():
             )
         )
         session.flush()
-        enqueue_entity(session, "volunteer_report", report)
-        enqueue_entity(session, "parsed_observation", parsed)
-        for snapshot in session.exec(select(HydrometSnapshot)).all():
-            enqueue_entity(session, "hydromet_snapshot", snapshot)
 
-        alert = recompute_site_alert(session, "site-a", None, now=now)
-        enqueue_entity(session, "fused_alert", alert)
-        if alert.incident_id:
-            incident = session.get(Incident, alert.incident_id)
-            assert incident is not None
-            enqueue_entity(session, "incident", incident)
-        for record in session.exec(select(ActuationRecord)).all():
-            enqueue_entity(session, "actuation_record", record)
+        recompute_site_alert(session, "site-a", None, now=now)
         session.commit()
 
-    with Session(edge_engine) as edge_session, Session(central_engine) as central_session:
-        first = await flush_sync(edge_session=edge_session, central_session=central_session)
-        second = await flush_sync(edge_session=edge_session, central_session=central_session)
-
-    assert first["failed"] == 0
-    assert first["flushed"] >= 7
-    assert second == {"queued": 0, "flushed": 0, "failed": 0}
-    with Session(central_engine) as session:
+    with Session(edge_engine) as session:
         assert session.exec(select(FusedAlert)).first().level == "red"
         assert len(session.exec(select(FusedAlert)).all()) == 1
-        assert len(session.exec(select(SyncQueueItem)).all()) == 0
         assert session.exec(select(Incident)).first().lifecycle_state == "escalated"
         assert len(session.exec(select(ActuationRecord)).all()) == 3

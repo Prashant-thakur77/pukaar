@@ -14,7 +14,6 @@ settings = get_settings()
 settings.data_dir.mkdir(parents=True, exist_ok=True)
 settings.upload_dir.mkdir(parents=True, exist_ok=True)
 settings.edge_db_path.parent.mkdir(parents=True, exist_ok=True)
-settings.central_db_path.parent.mkdir(parents=True, exist_ok=True)
 
 _sqlite_connect_args = {"check_same_thread": False, "timeout": 30}
 # Pool sized for burst load (20+ concurrent /reports under offline-flush replay).
@@ -27,20 +26,12 @@ edge_engine = create_engine(
     connect_args=_sqlite_connect_args,
     **_pool_kwargs,
 )
-central_engine = create_engine(
-    f"sqlite:///{settings.central_db_path}",
-    echo=False,
-    connect_args=_sqlite_connect_args,
-    **_pool_kwargs,
-)
 
 
 
 def init_db() -> None:
     SQLModel.metadata.create_all(edge_engine)
-    SQLModel.metadata.create_all(central_engine)
     _sync_missing_columns(edge_engine)
-    _sync_missing_columns(central_engine)
 
 
 
@@ -59,11 +50,6 @@ def session_scope() -> Iterator[Session]:
     finally:
         session.close()
 
-
-
-def get_central_session():
-    with Session(central_engine) as session:
-        yield session
 
 
 def _sync_missing_columns(engine: Engine) -> None:

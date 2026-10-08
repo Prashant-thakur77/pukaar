@@ -11,13 +11,11 @@ import os
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlmodel import Session, select
+from sqlmodel import Session
 
-from Pukaar.api.deps import enqueue_entity, llm_client
+from Pukaar.api.deps import llm_client
 from Pukaar.db.database import get_session
 from Pukaar.models.domain import (
-    ActuationRecord,
-    Incident,
     ParsedObservation,
     Site,
     VolunteerReport,
@@ -80,7 +78,6 @@ async def inject_volunteer_report(
     )
     session.add(report)
     session.flush()
-    enqueue_entity(session, "volunteer_report", report)
 
     parsed = ParsedObservation(
         volunteer_report_id=report.id or 0,
@@ -99,19 +96,8 @@ async def inject_volunteer_report(
     )
     session.add(parsed)
     session.flush()
-    enqueue_entity(session, "parsed_observation", parsed)
 
     alert = recompute_site_alert(session, payload.site_id, llm_client)
-    session.flush()
-    enqueue_entity(session, "fused_alert", alert)
-    if alert.incident_id is not None:
-        incident = session.get(Incident, alert.incident_id)
-        if incident is not None:
-            enqueue_entity(session, "incident", incident)
-    for record in session.exec(
-        select(ActuationRecord).where(ActuationRecord.alert_id == alert.id)
-    ).all():
-        enqueue_entity(session, "actuation_record", record)
     session.commit()
     session.refresh(parsed)
     session.refresh(alert)

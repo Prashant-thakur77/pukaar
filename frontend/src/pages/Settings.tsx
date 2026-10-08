@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { API_BASE, useAppStore } from '../store';
-import { CheckCircle2, Cpu, ServerCrash, UploadCloud, Waves } from 'lucide-react';
+import { API_BASE } from '../store';
+import { CheckCircle2, Cpu, ServerCrash, Waves } from 'lucide-react';
 
 interface RuntimeStatus {
   is_online: boolean;
@@ -21,8 +21,6 @@ interface RuntimeStatus {
 export default function Settings() {
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { syncStatus, fetchSyncStatus, flushQueue, queueCount } = useAppStore();
-  const [isFlushing, setIsFlushing] = useState(false);
 
   useEffect(() => {
     const loadRuntime = async () => {
@@ -39,20 +37,7 @@ export default function Settings() {
     };
 
     loadRuntime();
-    fetchSyncStatus();
-    const interval = setInterval(fetchSyncStatus, 8000);
-    return () => clearInterval(interval);
-  }, [fetchSyncStatus]);
-
-  const onFlush = async () => {
-    setIsFlushing(true);
-    try {
-      await flushQueue();
-      await fetchSyncStatus();
-    } finally {
-      setIsFlushing(false);
-    }
-  };
+  }, []);
 
   return (
     <div className="space-y-6 pb-20">
@@ -64,35 +49,6 @@ export default function Settings() {
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-
-      <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-            <UploadCloud className="w-5 h-5 text-blue-600" /> Sync status
-          </h3>
-          <button
-            onClick={onFlush}
-            disabled={isFlushing || queueCount === 0}
-            className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {isFlushing ? 'Flushing...' : `Flush queue (${queueCount})`}
-          </button>
-        </div>
-        <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
-          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
-            <div className="text-xs uppercase tracking-wide text-yellow-700 font-semibold">Pending</div>
-            <div className="mt-1 text-xl font-bold text-yellow-900">{syncStatus?.pending ?? 0}</div>
-          </div>
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3">
-            <div className="text-xs uppercase tracking-wide text-green-700 font-semibold">Sincronizado</div>
-            <div className="mt-1 text-xl font-bold text-green-900">{syncStatus?.synced ?? 0}</div>
-          </div>
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-            <div className="text-xs uppercase tracking-wide text-red-700 font-semibold">Failed</div>
-            <div className="mt-1 text-xl font-bold text-red-900">{syncStatus?.failed ?? 0}</div>
-          </div>
-        </div>
-      </section>
 
       <section className="grid gap-4 md:grid-cols-2">
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">

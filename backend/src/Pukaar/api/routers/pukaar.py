@@ -8,13 +8,12 @@ from sqlmodel import Session, select
 
 from Pukaar.api.deps import (
     asr_client,
-    enqueue_entity,
     get_decision_runtime,
     image_assessor,
     text_structurer,
 )
 from Pukaar.db.database import get_session, session_scope
-from Pukaar.models.domain import ActuationRecord, Incident, ParsedObservation, Site, VolunteerReport
+from Pukaar.models.domain import ParsedObservation, Site, VolunteerReport
 from Pukaar.services.decision_engine import recompute_site_alert
 from Pukaar.services.report_structuring import structure_report, structured_result_to_json
 from Pukaar.services.storage import persist_upload
@@ -63,7 +62,6 @@ async def create_report(
     )
     session.add(report)
     session.flush()
-    enqueue_entity(session, "volunteer_report", report)
 
     structured = structure_report(effective_transcript, site, text_structurer)
     parsed = ParsedObservation(
@@ -83,17 +81,8 @@ async def create_report(
     )
     session.add(parsed)
     session.flush()
-    enqueue_entity(session, "parsed_observation", parsed)
 
     alert = recompute_site_alert(session, site_id, get_decision_runtime())
-    session.flush()
-    enqueue_entity(session, "fused_alert", alert)
-    if alert.incident_id is not None:
-        incident = session.get(Incident, alert.incident_id)
-        if incident is not None:
-            enqueue_entity(session, "incident", incident)
-    for record in session.exec(select(ActuationRecord).where(ActuationRecord.alert_id == alert.id)).all():
-        enqueue_entity(session, "actuation_record", record)
     session.commit()
     session.refresh(report)
     session.refresh(parsed)
