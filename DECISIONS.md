@@ -240,3 +240,29 @@ national-schema export route. `POST /alerts/{id}/export-sinagir` lost its only
 caller (the site page button) in group (a), so it and
 `tests/test_sinagir_export.py` are removed. The CAP builder keeps its
 SINAGIR-named fields until CAP moves to Hindi/India (stretch).
+
+## Unsure, kept
+
+Kept because PLAN.md does not say to delete them and something still uses
+them, or because removing them is a decision for the human or a later
+milestone:
+
+| Item | Why kept |
+|---|---|
+| `Project.md` | Out of date (old submission criteria, Argentina, LiteRT), but a root file PLAN.md does not name (rule 11). Human to delete or rewrite. |
+| `LICENSE` (CC BY 4.0) | Root file PLAN.md does not name. CC BY is a content licence, unusual for code; human decision. |
+| `backend/Dockerfile` | Dev image, still valid. PLAN.md 4a builds a two-target Lambda Dockerfile in M2 that may replace or adapt it. |
+| `scripts/dev.sh`, `dev.ps1`, `setup.sh`, `setup.ps1`, `seed.ps1` | Still work. PLAN.md asks for `dev.sh` to be rewritten and for `make` targets; that is milestone work. |
+| `/api/settings/connectivity` and `deps.is_online` | PLAN.md 5 drops the connectivity routes, but `Layout.tsx` uses them to decide online/offline. Removing them needs the UI change in M7. |
+| `/api/settings/runtime` | Reports local-model and Open-Meteo status for the Settings page. PLAN.md 5a replaces it with `/health` service checks in M4. |
+| `lxml`, `orjson` | Not imported, but PLAN.md 5a lists both under "Keep". |
+| `services/reasoning.deserialize_chain`, `services/action_guard.guarded_model_action` | Only tests call them; both belong to modules PLAN.md keeps. |
+| `services/predictive.forecast_short_term` | No caller after the camera removal; PLAN.md 5 keeps it for the discharge forecast. |
+| `api/routers/demo_inject.py` | PLAN.md 5 turns it into `replay`. |
+| `services/historical_context.py` (SQLite FTS, three seed rows about Silverado CA and a test site) | PLAN.md 5 keeps `validate_context_citations` and moves past events to DynamoDB. |
+| Hard-coded demo data in `pages/Dashboard.tsx` (`DEMO_ALERT` still mentions a critical line, LoRa, sirens) | PLAN.md 5a/M7 removes it when the console is rebuilt; removing it now leaves the page empty. |
+| Spanish prompts, keyword lists, few-shot examples and UI strings | PLAN.md M4/M6 translates or replaces them. |
+| Argentina bounding box in `services/action_guard.py`, Buenos Aires CAP defaults | PLAN.md M8 and the CAP stretch adapt them. |
+| `/uploads` static mount | Serves stored report media; PLAN.md moves storage to S3 later. |
+| `frontend/public/manifest.webmanifest` | Referenced by `index.html`; overlaps with the manifest vite-plugin-pwa generates. |
+| `docs/Project/video/raw/screenshots/` on the local disk | Git-ignored old media, never committed. Left on disk; it never reaches the remote. |

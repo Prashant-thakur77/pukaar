@@ -214,3 +214,43 @@ forecast. 5 pass.
 | `.rtk/` | Template config for an "RTK" CLI filter tool; only comments. |
 | `scripts/` | dev/setup (sh + ps1), seed.ps1, demo scripts, Pi node scripts (`node_guard.py`, `pi_pukaar_node.py`), local-model scripts, demo_persona_c recording scripts. |
 | root | `PLAN.md`, `MAIN_IDEA.md` (Spanish pitch), `Project.md` (old submission criteria), `LICENSE` (CC BY 4.0), `docker-compose.yml` (backend + Ollama), `.env.example` (Gmail placeholders), `.gitignore`. `backend/uv.lock` locks the current Python deps. |
+
+## 9. After the preparation run
+
+Sections 0-8 describe the code as found. After the fixes and cleanup recorded
+in PROGRESS.md and DECISIONS.md, the repository holds:
+
+- `backend/src/Pukaar/`: `main.py`; `core/settings.py` (local model,
+  photo description, ASR, hydromet, actuators, data paths; no node, Pi or sync
+  settings); `db/database.py` (one SQLite database); `models/domain.py`
+  (`Site`, `SiteExperimentalSettings` with `historical_context_enabled` only,
+  `VolunteerReport`, `ParsedObservation`, `HydrometSnapshot`, `FusedAlert`,
+  `Incident`, `ActuationRecord`); `adapters/` (`llm.py`, `asr.py`,
+  `image_assessment.py` Ollama path only, `text_structuring_fewshot.py` with
+  `FewShotTextStructurer`); `services/` (`decision_engine` without camera
+  rules, `reasoning` without `node_obs`, `report_structuring`, `predictive`
+  (no caller yet), `external_data`, `historical_context`, `actuators` Ollama
+  selection only, `action_guard`, `cap`, `storage` uploads only); routers
+  `runtime`, `sites`, `pukaar` (reports), `alerts`, `cap`, `demo_inject`
+  (report injection only).
+- Routes: `GET /api/health`, `GET /api/settings/runtime`,
+  `GET|POST /api/settings/connectivity`, `GET|POST /api/sites`,
+  `GET /api/sites/{id}`, `GET|PUT /api/sites/{id}/experimental-settings`,
+  `GET|POST /api/sites/{id}/historical-context`,
+  `GET /api/sites/{id}/external-snapshot`,
+  `POST /api/sites/{id}/external-snapshot/refresh`, `POST|GET /api/reports`,
+  `GET /api/alerts`, `GET /api/alerts/{id}`,
+  `GET /api/sites/{id}/operator-summary`, `GET /api/incidents/{id}/timeline`,
+  `POST /api/incidents/{id}/ack`, `POST /api/incidents/{id}/close`,
+  `POST /api/alerts/recompute`, `POST /api/cap/emit` (and `/cap/emit`),
+  env-gated `POST /api/demo/inject-volunteer-report`, static `/uploads`.
+  Gone: camera analysis, calibration, forecast, sync, SINAGIR export,
+  `/fixtures`.
+- Frontend pages: Dashboard (reports + hydromet tiles, reasoning, audit,
+  hard-coded demo fallback), Report, Queue, SiteDetail (hydromet panel only),
+  Settings (model and hydromet status). Calibration page gone. No call to a
+  missing route remains.
+- Tests: backend 53 (all collect and pass), frontend 5.
+- Folders gone: `android/`, `demo-artifacts/`, `notebooks/`, `datasets/`,
+  `shared/`, `fixtures/`, `.design_pkg/`, `.rtk/`, old `docs/`,
+  `docker-compose.yml`, `MAIN_IDEA.md`.
