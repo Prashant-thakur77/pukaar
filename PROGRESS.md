@@ -77,6 +77,33 @@ Commit history note: the tree at `69a3e6e` does not import (it already deletes
 `api/routers/sync.py`); `1eb1cc4` completes the change. History is not
 rewritten.
 
+## Steps 4-6 (preparation run)
+
+- Secrets: `.gitignore` now also covers `.cloud-keys.local`, `.aws/`,
+  `.aws-sam/`, `.venv/`, caches and model weight files. A scan of every
+  tracked file and of the full history found no key or token. The original
+  `.env.example` (in `Starting codebase`) held a personal Gmail address with a
+  placeholder password; no secret.
+- README.md written for Pukaar.
+- `cloud/setup.sh` tested in a clean clone with an empty home directory and a
+  PEP 668 system Python: AWS CLI 1.46, SAM CLI 1.167, backend and frontend
+  installed in 25 s; both test suites pass in that clone.
+
 ## Needs human
 
-(none yet)
+- AWS: the AWS CLI on the preparation machine had no credentials, so the
+  `pukaar-cloud` IAM user was not created. Configure the CLI with an admin
+  identity, create the user with the permissions SAM needs (CloudFormation,
+  Lambda, ECR, DynamoDB, Step Functions, API Gateway, Cognito, S3, EventBridge
+  Scheduler, SQS, SSM, CloudWatch, Amplify, Bedrock, Polly, Transcribe, IAM
+  role management), create one access key, store it in `.cloud-keys.local`
+  (git-ignored), and enter it in the cloud environment (cloud/ENVIRONMENT.md).
+- Cloud network: if `*.amazonaws.com` is not covered by the default allowed
+  domains, add it.
+- `Project.md` (old submission criteria) and `LICENSE` (CC BY 4.0): decide to
+  keep, rewrite or delete; PLAN.md rule 11 stops the agent from doing it.
+- Write the README acknowledgements section before submitting.
+- From PLAN.md 13 (later milestones): Bedrock model access, Telegram bot token
+  in SSM at `/pukaar/telegram_token`, native-speaker review of Hindi text,
+  verifying village coordinates, sourcing any figure quoted, recording the
+  demo video and submitting.
