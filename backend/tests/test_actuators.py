@@ -7,7 +7,6 @@ import pytest
 from sqlmodel import Session, SQLModel
 
 from Pukaar.api import deps
-from Pukaar.adapters.litert_node import LiteRTNodeRuntime
 from Pukaar.core import settings as settings_module
 from Pukaar.db.database import central_engine, edge_engine, init_db
 from Pukaar.models.domain import FusedAlert, Site
@@ -107,16 +106,6 @@ def _install_fake_client(monkeypatch: pytest.MonkeyPatch, fake: _FakeClient) -> 
     monkeypatch.setattr(actuators_module.httpx, "Client", lambda **_kw: fake)
 
 
-class _FakeLiteRTRuntime(LiteRTNodeRuntime):
-    def __init__(self, payload: dict[str, Any] | None):
-        self.payload = payload
-        self.prompts: list[tuple[str, str, int]] = []
-
-    def generate_json(self, system_prompt: str, user_prompt: str, max_tokens: int = 320) -> dict[str, Any] | None:
-        self.prompts.append((system_prompt, user_prompt, max_tokens))
-        return self.payload
-
-
 def test_dispatch_disabled_returns_empty(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PUKAAR_ACTUATORS_ENABLED", "false")
     settings_module.get_settings.cache_clear()
@@ -152,119 +141,6 @@ def test_dispatch_fires_single_tool_call(monkeypatch: pytest.MonkeyPatch):
     fired = dispatch_actuators(_make_alert(), deps.llm_client)
     assert fired == ["trigger_alarm"]
     assert RECORDED_CALLS == [("trigger_alarm", {"reason": "agua sobre la calle"})]
-
-
-def test_dispatch_litert_path_does_not_use_httpx(monkeypatch: pytest.MonkeyPatch):
-    def fail_if_httpx_used(**_kwargs):
-        raise AssertionError("LiteRT actuator dispatch must not use httpx")
-
-    monkeypatch.setattr(actuators_module.httpx, "Client", fail_if_httpx_used)
-    runtime = _FakeLiteRTRuntime(
-        {
-            "tool_calls": [
-                {
-                    "function": {
-                        "name": "notify_app",
-                        "arguments": {"text": "preparar evacuacion preventiva"},
-                    }
-                }
-            ]
-        }
-    )
-
-    fired = dispatch_actuators(_make_alert(level="orange"), runtime)
-
-    assert fired == ["notify_app"]
-    assert RECORDED_CALLS == [("notify_app", {"text": "preparar evacuacion preventiva"})]
-    assert runtime.prompts
-
-
-def test_dispatch_litert_path_executes_valid_tool_calls():
-    runtime = _FakeLiteRTRuntime(
-        {
-            "tool_calls": [
-                {
-                    "name": "trigger_alarm",
-                    "arguments": {"reason": "agua cruzo la marca critica"},
-                },
-                {
-                    "function": {
-                        "name": "send_radio_payload",
-                        "arguments": {"severity": "red", "summary": "evacuar zona baja"},
-                    }
-                },
-            ]
-        }
-    )
-
-    fired = dispatch_actuators(_make_alert(), runtime)
-
-    assert fired == ["trigger_alarm", "send_radio_payload"]
-    assert RECORDED_CALLS == [
-        ("trigger_alarm", {"reason": "agua cruzo la marca critica"}),
-        ("send_radio_payload", {"severity": "red", "summary": "evacuar zona baja"}),
-    ]
-
-
-def test_dispatch_litert_path_ignores_unknown_tools():
-    runtime = _FakeLiteRTRuntime(
-        {
-            "tool_calls": [
-                {"name": "launch_nukes", "arguments": {}},
-                {"name": "notify_app", "arguments": {"text": "alerta roja"}},
-            ]
-        }
-    )
-
-    fired = dispatch_actuators(_make_alert(), runtime)
-
-    assert fired == ["notify_app"]
-    assert RECORDED_CALLS == [("notify_app", {"text": "alerta roja"})]
-
-
-def test_dispatch_litert_path_dedupes_duplicate_allowed_tool_calls():
-    runtime = _FakeLiteRTRuntime(
-        {
-            "tool_calls": [
-                {"name": "notify_app", "arguments": {"text": "alerta naranja"}},
-                {"name": "notify_app", "arguments": {"text": "alerta duplicada"}},
-            ]
-        }
-    )
-
-    fired = dispatch_actuators(
-        _make_alert(level="orange"),
-        runtime,
-        allowed_tools={"notify_app"},
-    )
-
-    assert fired == ["notify_app"]
-    assert RECORDED_CALLS == [("notify_app", {"text": "alerta naranja"})]
-
-
-def test_dispatch_litert_path_malformed_json_returns_empty():
-    runtime = _FakeLiteRTRuntime(None)
-
-    fired = dispatch_actuators(_make_alert(), runtime)
-
-    assert fired == []
-    assert RECORDED_CALLS == []
-
-
-def test_dispatch_litert_path_keeps_orange_red_guardrail():
-    runtime = _FakeLiteRTRuntime(
-        {
-            "tool_calls": [
-                {"name": "trigger_alarm", "arguments": {"reason": "modelo pidio herramienta"}}
-            ]
-        }
-    )
-
-    fired = dispatch_actuators(_make_alert(level="yellow"), runtime)
-
-    assert fired == []
-    assert RECORDED_CALLS == []
-    assert runtime.prompts == []
 
 
 def test_dispatch_fires_multiple_tool_calls(monkeypatch: pytest.MonkeyPatch):

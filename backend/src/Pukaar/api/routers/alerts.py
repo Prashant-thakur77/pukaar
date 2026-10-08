@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
-from Pukaar.api.deps import pukaar_node_runtime, enqueue_entity
+from Pukaar.api.deps import enqueue_entity, get_decision_runtime
 from Pukaar.db.database import get_session
 from Pukaar.models.domain import ActuationRecord, FusedAlert, HydrometSnapshot, Incident, ParsedObservation, Site, SyncQueueItem, VolunteerReport
 from Pukaar.schemas.api import RecomputeRequest
@@ -271,7 +271,7 @@ async def recompute_alerts(
         alert = recompute_site_alert(
             session,
             site_id,
-            pukaar_node_runtime,
+            get_decision_runtime(),
             use_historical_context=payload.use_historical_context,
         )
         session.flush()

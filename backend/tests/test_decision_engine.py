@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 import pytest
 from sqlmodel import Session, SQLModel, select
 
-from Pukaar.adapters.litert_node import LiteRTNodeRuntime
 from Pukaar.api.deps import enqueue_entity
 from Pukaar.api.routers.sync import flush_sync
 from Pukaar.core import settings as settings_module
@@ -21,6 +20,7 @@ from Pukaar.models.domain import (
     SyncQueueItem,
     VolunteerReport,
 )
+from Pukaar.services import actuators as actuators_module
 from Pukaar.services.actuators import RECORDED_CALLS, reset_recorded_calls
 from Pukaar.services.decision_engine import level_from_score, recompute_site_alert, temporal_weight
 
@@ -78,6 +78,27 @@ def _report_pair(site_id: str, observed_at: datetime, score: float, text: str = 
         summary=text,
     )
     return report, parsed
+
+
+class _FakeDecisionLLM:
+    model_name = "fake-llm"
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    def generate_text(self, *_args, **_kwargs):
+        return self.text
+
+
+def _stub_tool_selection(monkeypatch: pytest.MonkeyPatch, body: dict | None) -> list[str]:
+    calls: list[str] = []
+
+    def fake_selection(alert, _llm):
+        calls.append(alert.level)
+        return body
+
+    monkeypatch.setattr(actuators_module, "_call_ollama_tool_selection", fake_selection)
+    return calls
 
 
 def _add_report(session: Session, site_id: str, observed_at: datetime, score: float) -> None:
@@ -164,24 +185,10 @@ def test_incident_reused_and_actuators_idempotent():
     assert [name for name, _payload in RECORDED_CALLS] == ["trigger_alarm", "send_radio_payload", "notify_app"]
 
 
-def test_malformed_litert_actuator_selection_uses_deterministic_fallback():
-    class MalformedLiteRTRuntime(LiteRTNodeRuntime):
-        def __init__(self):
-            self.json_calls = 0
-
-        @property
-        def model_name(self) -> str:
-            return "fake-litert"
-
-        def generate_text(self, *_args, **_kwargs):
-            return "Resumen: alerta roja por nodo. Cadena: nodo -> regla -> actuar"
-
-        def generate_json(self, *_args, **_kwargs):
-            self.json_calls += 1
-            return None
-
+def test_malformed_actuator_selection_uses_deterministic_fallback(monkeypatch: pytest.MonkeyPatch):
+    selection_calls = _stub_tool_selection(monkeypatch, None)
     now = datetime(2026, 5, 14, 12, 0, 0)
-    runtime = MalformedLiteRTRuntime()
+    runtime = _FakeDecisionLLM("Resumen: alerta roja por reporte. Cadena: reporte -> regla -> actuar")
     with Session(edge_engine) as session:
         _add_report(session, "site-a", now - timedelta(minutes=2), 0.92)
         alert = recompute_site_alert(session, "site-a", runtime, now=now)
@@ -192,7 +199,7 @@ def test_malformed_litert_actuator_selection_uses_deterministic_fallback():
         session.commit()
 
     assert level == "red"
-    assert runtime.json_calls == 1
+    assert selection_calls == ["red"]
     assert record_types == [
         "trigger_alarm",
         "send_radio_payload",
@@ -206,22 +213,18 @@ def test_malformed_litert_actuator_selection_uses_deterministic_fallback():
     ]
 
 
-def test_partial_litert_actuator_selection_completes_recommended_fallback():
-    class PartialLiteRTRuntime(LiteRTNodeRuntime):
-        @property
-        def model_name(self) -> str:
-            return "fake-litert"
-
-        def generate_text(self, *_args, **_kwargs):
-            return "Resumen: alerta roja por nodo. Cadena: nodo -> regla -> actuar"
-
-        def generate_json(self, *_args, **_kwargs):
-            return {"tool_calls": [{"name": "notify_app", "arguments": {"text": "alerta roja"}}]}
+def test_partial_actuator_selection_completes_recommended_fallback(monkeypatch: pytest.MonkeyPatch):
+    _stub_tool_selection(
+        monkeypatch,
+        {"tool_calls": [{"name": "notify_app", "arguments": {"text": "alerta roja"}}]},
+    )
 
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
         _add_report(session, "site-a", now - timedelta(minutes=2), 0.92)
-        alert = recompute_site_alert(session, "site-a", PartialLiteRTRuntime(), now=now)
+        alert = recompute_site_alert(
+            session, "site-a", _FakeDecisionLLM("Resumen: alerta roja. Cadena: reporte -> actuar"), now=now
+        )
         level = alert.level
         records = session.exec(select(ActuationRecord)).all()
         record_types = [record.actuator_type for record in records]
@@ -236,27 +239,23 @@ def test_partial_litert_actuator_selection_completes_recommended_fallback():
     assert fired_names.count("notify_app") == 1
 
 
-def test_orange_litert_selection_is_constrained_to_recommended_pending_actuators():
-    class OverreachingLiteRTRuntime(LiteRTNodeRuntime):
-        @property
-        def model_name(self) -> str:
-            return "fake-litert"
-
-        def generate_text(self, *_args, **_kwargs):
-            return "Resumen: alerta naranja por dos fuentes. Cadena: corroborar -> preparar"
-
-        def generate_json(self, *_args, **_kwargs):
-            return {
-                "tool_calls": [
-                    {"name": "trigger_alarm", "arguments": {"reason": "modelo pidio sirena"}},
-                    {"name": "notify_app", "arguments": {"text": "alerta naranja"}},
-                ]
-            }
+def test_orange_selection_is_constrained_to_recommended_pending_actuators(monkeypatch: pytest.MonkeyPatch):
+    _stub_tool_selection(
+        monkeypatch,
+        {
+            "tool_calls": [
+                {"name": "trigger_alarm", "arguments": {"reason": "modelo pidio sirena"}},
+                {"name": "notify_app", "arguments": {"text": "alerta naranja"}},
+            ]
+        },
+    )
 
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
         _add_report(session, "site-a", now - timedelta(minutes=2), 0.72)
-        alert = recompute_site_alert(session, "site-a", OverreachingLiteRTRuntime(), now=now)
+        alert = recompute_site_alert(
+            session, "site-a", _FakeDecisionLLM("Resumen: alerta naranja. Cadena: corroborar -> preparar"), now=now
+        )
         level = alert.level
         records = session.exec(select(ActuationRecord)).all()
         record_types = [record.actuator_type for record in records]

@@ -111,24 +111,17 @@ def _parse_json_block(text: str) -> dict | None:
 class PukaarAIImageAssessmentAdapter:
     """Calls Pukaar AI through Ollama's `/api/chat` with one optimized image."""
 
-    def __init__(self, runtime: object | None = None, *, force_embedded: bool = False) -> None:
+    def __init__(self) -> None:
         self.settings = get_settings()
-        self.runtime = runtime
-        self.force_embedded = force_embedded
 
     @property
     def model_name(self) -> str:
-        if self.runtime is not None and self.force_embedded:
-            return str(getattr(self.runtime, "model_name", self.settings.pukaar_multimodal_model))
         return self.settings.pukaar_multimodal_model
 
     def assess(self, image_path: str | Path) -> ImageAssessmentResult | None:
         path = Path(image_path)
         if not path.exists():
             return None
-
-        if self.runtime is not None and self.force_embedded:
-            return self._assess_embedded(path)
 
         if not self.settings.llm_enabled:
             return None
@@ -148,33 +141,6 @@ class PukaarAIImageAssessmentAdapter:
         if result is None and fallback:
             result = self._call_model(fallback, encoded)
         return result
-
-    def _assess_embedded(self, path: Path) -> ImageAssessmentResult | None:
-        if self.runtime is None:
-            return None
-        payload = self.runtime.generate_multimodal_json(
-            FEW_SHOT_SYSTEM,
-            _build_user_prompt(),
-            [path],
-            max_tokens=256,
-        )
-        if not isinstance(payload, dict):
-            return None
-        description = str(payload.get("description_es", "")).strip()
-        if not description:
-            return None
-        try:
-            confidence = float(payload.get("confidence", 0.5))
-        except (TypeError, ValueError):
-            confidence = 0.5
-        return ImageAssessmentResult(
-            description_es=description,
-            water_visible=bool(payload.get("water_visible", False)),
-            infrastructure_at_risk=bool(payload.get("infrastructure_at_risk", False)),
-            confidence=max(0.0, min(1.0, confidence)),
-            raw_model_output=json.dumps(payload, ensure_ascii=True),
-            model_name=self.model_name,
-        )
 
     def _ollama_chat_url(self) -> str:
         return self.settings.pukaar_multimodal_base_url.rstrip("/").removesuffix("/v1") + "/api/chat"

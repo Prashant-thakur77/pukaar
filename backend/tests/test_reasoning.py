@@ -79,7 +79,7 @@ def test_reasoning_uses_llm_output():
 
 def test_reasoning_uses_runtime_model_name_property():
     class FakeRuntime:
-        model_name = "pukaar-model-2b.litertlm"
+        model_name = "fake-model-id"
 
         def generate_text(self, *a, **k):
             return "Se emite amarillo por waterline_ratio=0.52 y trend=rising.\nCadena: mirar ratio -> confirmar tendencia -> escalar"
@@ -92,7 +92,7 @@ def test_reasoning_uses_runtime_model_name_property():
         rules_fired=["node=0.52", "volunteer=0.50"],
         llm=FakeRuntime(),
     )
-    assert block.model_name == "pukaar-model-2b.litertlm"
+    assert block.model_name == "fake-model-id"
     assert len(block.llm_chain_of_thought) == 3
 
 

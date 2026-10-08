@@ -7,7 +7,6 @@ from sqlmodel import SQLModel, Session, select
 
 from Pukaar.adapters.asr import FasterWhisperASRAdapter
 from Pukaar.adapters.image_assessment import PukaarAIImageAssessmentAdapter
-from Pukaar.adapters.litert_node import LiteRTNodeRuntime
 from Pukaar.adapters.llm import OpenAICompatibleLLM
 from Pukaar.adapters.text_structuring_fewshot import FewShotTextStructurer
 from Pukaar.models.domain import SyncQueueItem
@@ -15,7 +14,6 @@ from Pukaar.services.external_data import ExternalDataService
 
 
 llm_client = OpenAICompatibleLLM()
-pukaar_node_runtime = LiteRTNodeRuntime()
 text_structurer = FewShotTextStructurer(llm_client)
 image_assessor = PukaarAIImageAssessmentAdapter()
 asr_client = FasterWhisperASRAdapter()
@@ -24,7 +22,7 @@ external_data_service = ExternalDataService()
 is_online = True
 
 
-def get_decision_runtime() -> OpenAICompatibleLLM | LiteRTNodeRuntime:
+def get_decision_runtime() -> OpenAICompatibleLLM:
     """Runtime used for alert reasoning and actuator tool selection."""
     return llm_client
 
