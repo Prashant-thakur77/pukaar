@@ -9,8 +9,7 @@
  *
  * Components exposed:
  *   - RiskBanner          full-bleed severity strip (the "5-second read")
- *   - SignalFusionRow     three-input fusion tile row (camera / volunteer / hydromet)
- *   - EvidencePanel       evidence frame + Pukaar AI narration overlay (placeholder OK)
+ *   - SignalFusionRow     fusion tile row (volunteer / hydromet)
  *   - PukaarAIReasoning      reasoning_summary block (Spanish, monospace meta)
  *   - AuditTrace          deterministic rule trace, numbered
  *   - ActionRail          four function-calling buttons (emit_cap_xml, …)
@@ -119,7 +118,7 @@ export function RiskBanner({ level, score, siteName, region, summary, isDemo }: 
 // SignalFusionRow — three tiles showing the inputs the decision engine fused.
 // ──────────────────────────────────────────────────────────────────────────
 export interface SignalInput {
-  source: 'camera' | 'volunteer' | 'hydromet';
+  source: 'volunteer' | 'hydromet';
   score: number;             // 0..1 contribution to the fused score
   status: 'ok' | 'stale' | 'missing';
   detail: string;            // short ES descriptor
@@ -128,7 +127,6 @@ export interface SignalInput {
 }
 
 const SIGNAL_META: Record<SignalInput['source'], { label: string; icon: typeof Activity; mono: string }> = {
-  camera:    { label: 'Fixed camera',      icon: Eye,        mono: 'cv_node' },
   volunteer: { label: 'Volunteer report',  icon: UserCheck,  mono: 'vol_report' },
   hydromet:  { label: 'Hydromet',          icon: CloudRain,  mono: 'hydromet' },
 };
@@ -184,102 +182,6 @@ export function SignalFusionRow({ inputs }: { inputs: SignalInput[] }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// EvidencePanel — frame + Pukaar AI narration. Falls back to a labeled placeholder.
-// ──────────────────────────────────────────────────────────────────────────
-interface EvidencePanelProps {
-  frameUrl?: string | null;
-  description?: string | null;
-  model?: string | null;
-  confidence?: number | null;
-  frameLabel?: string | null;
-}
-
-export function EvidencePanel({ frameUrl, description, model, confidence, frameLabel }: EvidencePanelProps) {
-  return (
-    <div className="rounded-lg overflow-hidden border border-slate-800 bg-slate-950 relative">
-      <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
-        <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
-          Evidence frame
-        </div>
-        <span className="text-xs font-mono text-slate-500">
-          {frameLabel ?? (frameUrl ? 'cv_node/last_frame.jpg' : 'sample/demo - no real frame')}
-        </span>
-      </div>
-
-      <div className="relative" style={{ aspectRatio: '16 / 9', minHeight: 260 }}>
-        {frameUrl ? (
-          <img src={frameUrl} alt="Evidence frame" className="w-full h-full object-cover" />
-        ) : (
-          /* Placeholder frame: muddy turbid-water gradient + ROI + critical line */
-          <>
-            <div
-              className="absolute"
-              style={{
-                inset: 0,
-                background:
-                  'linear-gradient(180deg, #4a5568 0%, #2d3748 35%, #5b5234 60%, #6b5b3a 100%)',
-              }}
-            />
-            <svg
-              viewBox="0 0 700 280"
-              preserveAspectRatio="none"
-              className="absolute"
-              style={{ inset: 0, width: '100%', height: '100%' }}
-            >
-              <polygon
-                points="60,150 640,150 620,260 80,260"
-                fill="none"
-                stroke="#22C55E"
-                strokeWidth="2"
-                strokeDasharray="6 4"
-              />
-              <line x1="40" y1="120" x2="660" y2="120" stroke="#EF4444" strokeWidth="2" />
-              <text
-                x="48"
-                y="112"
-                fontFamily="Consolas, Monaco, monospace"
-                fontSize="11"
-                fill="#EF4444"
-                fontWeight="600"
-              >
-                critical line · y=120
-              </text>
-              <text x="68" y="172" fontFamily="Consolas, Monaco, monospace" fontSize="10" fill="#22C55E">
-                ROI
-              </text>
-            </svg>
-            <div
-              className="absolute"
-              style={{ top: 8, right: 12 }}
-            >
-              <span className="cc-demo-badge">placeholder</span>
-            </div>
-          </>
-        )}
-
-        {description && (
-          <div className="absolute" style={{ left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.72)' }}>
-            <div className="px-4 py-2 text-white">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-semibold uppercase tracking-wider text-amber-300">
-                  Pukaar AI · {model ?? 'local'}
-                </span>
-                {typeof confidence === 'number' && (
-                  <span className="text-xs font-mono text-amber-300">
-                    conf {(confidence * 100).toFixed(0)}%
-                  </span>
-                )}
-              </div>
-              <p className="text-sm leading-snug mt-1">{description}</p>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -607,134 +509,6 @@ export function IncidentTimeline({ events }: { events: TimelineEvent[] }) {
         </div>
       </div>
     </div>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// NodeProfileCard — header for the Persona A fixed-node screen. Surfaces
-// what the operator needs to know about the local runtime BEFORE they look
-// at numbers: which hardware, which model, where it runs, when last seen.
-// ──────────────────────────────────────────────────────────────────────────
-export interface NodeProfileProps {
-  siteName: string;
-  hardware?: string;            // e.g. "Raspberry Pi 5 · 8 GB"
-  model?: string;               // e.g. "pukaar-model:2b"
-  runtime?: string;              // e.g. "LiteRT-LM" / "Ollama"
-  reachable?: boolean;
-  lastRunAgoSeconds?: number | null;
-}
-
-export function NodeProfileCard({
-  siteName,
-  hardware = 'Raspberry Pi 5 · 8 GB',
-  model = 'pukaar-model:2b',
-  runtime = 'LiteRT-LM',
-  reachable = true,
-  lastRunAgoSeconds,
-}: NodeProfileProps) {
-  return (
-    <div className="bg-slate-900 text-slate-300 border border-slate-800 rounded-lg p-5">
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <div className="text-xs uppercase tracking-widest text-slate-400 font-bold">
-          Local node · profile
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${reachable ? 'bg-green-500' : 'bg-red-600'}`} />
-          <span className={`text-xs font-semibold uppercase tracking-wider ${reachable ? 'text-green-300' : 'text-red-600'}`}>
-            {reachable ? 'no cloud · available' : 'no cloud · unavailable'}
-          </span>
-        </div>
-      </div>
-      <div className="flex items-baseline gap-3 flex-wrap">
-        <div className="text-2xl font-bold text-white leading-tight">{siteName}</div>
-      </div>
-      <div className="grid mt-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-        <div>
-          <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Hardware</div>
-          <div className="text-sm font-mono text-slate-200 mt-1">{hardware}</div>
-        </div>
-        <div>
-          <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Model</div>
-          <div className="text-sm font-mono text-amber-300 mt-1">{model}</div>
-        </div>
-        <div>
-          <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Runtime</div>
-          <div className="text-sm font-mono text-slate-200 mt-1">{runtime}</div>
-        </div>
-        <div>
-          <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Last run</div>
-          <div className="text-sm font-mono text-slate-200 mt-1">
-            {lastRunAgoSeconds == null ? '—' : formatAge(lastRunAgoSeconds)}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// NodeMetricsCard — observation + latency metrics. Renders "no medido
-// todavía" placeholders for fields the backend hasn't measured yet —
-// demo-honest, no fake numbers.
-// ──────────────────────────────────────────────────────────────────────────
-export interface NodeMetric {
-  k: string;            // label (es)
-  v: string | null;     // value, or null → "no medido todavía"
-  hint?: string;        // optional sub-label / unit context
-  tone?: 'fired' | 'idle' | 'unmeasured';
-}
-
-export function NodeMetricsCard({ title = 'Node metrics', metrics }: { title?: string; metrics: NodeMetric[] }) {
-  return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg">
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-        <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
-          {title}
-        </div>
-        <span className="text-xs font-mono text-slate-500">
-          {metrics.filter((m) => m.v !== null).length} / {metrics.length} measured
-        </span>
-      </div>
-      <div className="divide-y divide-slate-800">
-        {metrics.map((m, i) => {
-          const isMissing = m.v === null;
-          const valueColor = isMissing
-            ? 'text-slate-500'
-            : m.tone === 'fired'
-            ? 'text-red-600'
-            : 'text-slate-100';
-          return (
-            <div key={i} className="px-4 py-3 flex items-baseline justify-between gap-3">
-              <div className="flex flex-col">
-                <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">{m.k}</span>
-                {m.hint && <span className="text-xs text-slate-500 mt-1">{m.hint}</span>}
-              </div>
-              <span className={`text-sm font-mono font-semibold tabular-nums ${valueColor}`}>
-                {isMissing ? 'not yet measured' : m.v}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// HandoffNote — small "feeds into /comando" affordance shown at the
-// bottom of SiteDetail so the operator + the camera understand the link
-// between the node screen and the fused command center.
-// ──────────────────────────────────────────────────────────────────────────
-export function HandoffNote({ href = '/' , label = 'Fused result at /command' }: { href?: string; label?: string }) {
-  return (
-    <a
-      href={href}
-      className="inline-flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-100 transition-colors"
-    >
-      <span className="w-2 h-2 rounded-full bg-orange-500" />
-      {label}
-      <span className="font-mono text-xs opacity-70">→</span>
-    </a>
   );
 }
 

@@ -160,7 +160,7 @@ describe('AppStore', () => {
     expect(useAppStore.getState().siteSettings['test-site'].historical_context_enabled).toBe(true);
   });
 
-  it('fetches historical context and forecast for a site', async () => {
+  it('fetches historical context for a site', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -177,24 +177,6 @@ describe('AppStore', () => {
             },
           ],
         }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          forecast: {
-            horizon_minutes: 60,
-            expected_level: 0.82,
-            trend_per_hour: 0.2,
-            acceleration_per_hour2: 0.01,
-            risk: 'high',
-            status: 'ok',
-            confidence: 0.7,
-            critical_threshold: 0.8,
-            minutes_to_threshold: 48,
-            projected_points: [{ minute: 0, level: 0.6 }, { minute: 60, level: 0.82 }],
-            uncertainty_band: [{ minute: 0, low: 0.6, high: 0.6 }, { minute: 60, low: 0.76, high: 0.88 }],
-          },
-        }),
       } as Response);
 
     const hits = await useAppStore.getState().fetchSiteHistoricalContext('test-site', {
@@ -204,9 +186,5 @@ describe('AppStore', () => {
     expect(hits[0].id).toBe(3);
     expect(String(fetchMock.mock.calls[0][0])).toContain('water_level=0.68');
     expect(useAppStore.getState().siteHistoricalContext['test-site'][0].rank).toBe(0.91);
-
-    const forecast = await useAppStore.getState().fetchSiteForecast('test-site');
-    expect(forecast?.expected_level).toBe(0.82);
-    expect(useAppStore.getState().siteForecasts['test-site'].minutes_to_threshold).toBe(48);
   });
 });
