@@ -75,8 +75,3 @@ export async function deleteReportOffline(id: number) {
   const db = await dbPromise;
   await db.delete('reports', id);
 }
-
-export async function clearOfflineReports() {
-  const db = await dbPromise;
-  await db.clear('reports');
-}

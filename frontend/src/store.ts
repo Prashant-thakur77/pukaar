@@ -67,17 +67,6 @@ export interface HistoricalContextHit {
   rank: number;
 }
 
-export interface CapEmitRequest {
-  site_id?: string;
-  lat?: number;
-  lon?: number;
-  severity?: 'minor' | 'moderate' | 'severe';
-  headline?: string;
-  instruction?: string;
-  summary?: string;
-  areaDesc?: string;
-}
-
 interface AppState {
   isOnline: boolean;
   sites: Site[];
@@ -94,7 +83,6 @@ interface AppState {
   checkConnectivity: () => Promise<void>;
   updateQueueCount: () => Promise<void>;
   flushQueue: () => Promise<void>;
-  emitCap: (payload: CapEmitRequest) => Promise<string>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -245,17 +233,5 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     await updateQueueCount();
-  },
-
-  emitCap: async (payload) => {
-    const res = await fetch(`${API_BASE}/cap/emit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload ?? {}),
-    });
-    if (!res.ok) {
-      throw new Error(`CAP emit failed: ${res.status}`);
-    }
-    return res.text();
   },
 }));

@@ -8,14 +8,13 @@ from fastapi.staticfiles import StaticFiles
 
 from Pukaar.api.routers import alerts, cap, demo_inject, pukaar, runtime, sites
 from Pukaar.db.database import init_db
-from Pukaar.services.storage import get_fixture_dir, get_upload_dir
+from Pukaar.services.storage import get_upload_dir
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
     get_upload_dir()
-    get_fixture_dir().mkdir(parents=True, exist_ok=True)
     yield
 
 
@@ -28,9 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-get_fixture_dir().mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(get_upload_dir())), name="uploads")
-app.mount("/fixtures", StaticFiles(directory=str(get_fixture_dir())), name="fixtures")
 
 for router in (
     runtime.router,
@@ -45,8 +42,3 @@ app.include_router(cap.router)
 
 if demo_inject.demo_inject_enabled():
     app.include_router(demo_inject.router, prefix="/api")
-
-
-# Backward-compatible aliases for older tests/scripts that import from main.py.
-is_online = True
-
