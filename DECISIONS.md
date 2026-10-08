@@ -174,3 +174,20 @@ every script and the setup use npm with `package-lock.json`), and
 `backend/data/.gitkeep` (the backend creates `data/` at start-up). Media,
 screenshots, notebooks, editor folders and build output were already removed
 in group (a) or were never tracked.
+
+### Group (d): unused dependencies
+
+Removed (no remaining file imports them):
+- Python runtime: `litert-lm-api` (LiteRT runtime removed), `aiofiles` (never
+  imported; PLAN.md 5a also drops it).
+- Python dev: `pytest-asyncio`, `trio` (no async test functions remain; the
+  tests drive coroutines with `anyio.run`, which FastAPI already installs).
+- npm: `zod`, `tailwindcss`, `@tailwindcss/vite` (Tailwind was never wired into
+  Vite; `index.css` defines its own classes), `vitest-fetch-mock`,
+  `@testing-library/react`, `@testing-library/dom`.
+
+Kept: `lxml` and `orjson` are not imported, but PLAN.md 5a lists both under
+"Keep". `uvicorn` and `python-multipart` are not imported but are used at run
+time (server command; FastAPI form parsing). `faster-whisper` and `sqlmodel`
+are still imported; M4 and M1 replace them. `@types/node` is used through
+`tsconfig.node.json`.
