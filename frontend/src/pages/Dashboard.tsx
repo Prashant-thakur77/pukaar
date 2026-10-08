@@ -1,22 +1,13 @@
-/* Dashboard.tsx — Persona C Backend & Fusion command center.
+/* Dashboard.tsx — operator command center.
  *
- * Single-view "tablero de comando" optimized for 1440x900 screen recording:
+ * Layout:
+ *   RiskBanner (level · score · site · summary)       <- 5-second read
+ *   Left:  signal fusion, historical-context toggle, reasoning, audit trace
+ *   Right: CAP status, operator actions, offline queue
+ *   Full width: incident timeline, monitored sites
  *
- *   ┌─────────────────────────────────────────────────────────────────┐
- *   │ RiskBanner (level · score · site · summary)                    │   <- 5-second read
- *   ├──────────────────────────────────────┬──────────────────────────┤
- *   │ Fusión de señales (3 tiles)          │ Estado CAP v1.2          │
- *   │                                      │ Acciones del operador    │
- *   │ Razonamiento de Pukaar AI                │ Cola offline · sync      │
- *   │ Traza de auditoría determinística    │                          │
- *   ├──────────────────────────────────────┴──────────────────────────┤
- *   │ Línea de tiempo del incidente                                  │
- *   └─────────────────────────────────────────────────────────────────┘
- *
- * When there is no active alert from the backend, we render a clearly-labeled
- * demo-safe sample state so the recording always has something to show.
- * The demo state is rendered with a "DEMO · sample state" badge — this is
- * not a fake backend, it's clearly-labeled mock data for screen capture.
+ * When there is no active alert from the backend, the page renders a
+ * hard-coded sample state marked with a "Demo · sample state" badge.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -120,7 +111,7 @@ const DEMO_CAP = {
 };
 
 // ──────────────────────────────────────────────────────────────────────────
-// Dashboard (Persona C command center)
+// Dashboard
 // ──────────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const {

@@ -16,9 +16,9 @@ settings.upload_dir.mkdir(parents=True, exist_ok=True)
 settings.edge_db_path.parent.mkdir(parents=True, exist_ok=True)
 
 _sqlite_connect_args = {"check_same_thread": False, "timeout": 30}
-# Pool sized for burst load (20+ concurrent /reports under offline-flush replay).
-# Default SQLAlchemy pool_size=5/max_overflow=10 exhausts when RAG/forecast paths
-# hold extra short-lived sessions per request.
+# Pool sized for burst load (20+ concurrent /reports when a browser flushes its
+# offline queue). Default SQLAlchemy pool_size=5/max_overflow=10 exhausts when
+# requests hold extra short-lived sessions.
 _pool_kwargs = {"pool_size": 20, "max_overflow": 40, "pool_timeout": 30, "pool_recycle": 1800}
 edge_engine = create_engine(
     f"sqlite:///{settings.edge_db_path}",

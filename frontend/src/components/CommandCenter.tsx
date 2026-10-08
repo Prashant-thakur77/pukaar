@@ -1,7 +1,7 @@
 /* CommandCenter.tsx
  *
- * Persona C operator-dashboard helpers. All visuals follow the "Defensa Civil
- * emergency operations center" style: dense, monospace metrics, hard-edged
+ * Operator-dashboard helpers. All visuals follow an "emergency operations
+ * center" style: dense, monospace metrics, hard-edged
  * panels on slate-900, severity colors carried verbatim from the FusedAlert
  * scale. None of these components hit the network — they render whatever the
  * parent passes in. The dashboard uses real store data when available and
