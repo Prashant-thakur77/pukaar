@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from Pukaar.api.routers import alerts, cap, demo_inject, pukaar, runtime, sites, sync
+from Pukaar.api.routers import alerts, cap, demo_inject, pukaar, runtime, sites
 from Pukaar.db.database import init_db
 from Pukaar.services.storage import get_fixture_dir, get_upload_dir
 
@@ -37,7 +37,6 @@ for router in (
     sites.router,
     pukaar.router,
     alerts.router,
-    sync.router,
     cap.router,
 ):
     app.include_router(router, prefix="/api")

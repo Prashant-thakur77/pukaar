@@ -5,10 +5,10 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
-from Pukaar.api.deps import enqueue_entity, external_data_service, get_decision_runtime
+from Pukaar.api.deps import external_data_service, get_decision_runtime
 from Pukaar.api.serializers import serialize_external_snapshot, site_payload
 from Pukaar.db.database import get_session
-from Pukaar.models.domain import FusedAlert, HydrometSnapshot, Site, SiteExperimentalSettings
+from Pukaar.models.domain import HydrometSnapshot, Site, SiteExperimentalSettings
 from Pukaar.schemas.api import ExternalSnapshotResponse, HistoricalContextUpsert, SiteExperimentalSettingsPayload
 from Pukaar.services.decision_engine import recompute_site_alert
 from Pukaar.services.historical_context import HistoricalContextDocument, retrieve_historical_context, upsert_historical_context
@@ -151,10 +151,7 @@ async def refresh_external_snapshot(site_id: str, session: Session = Depends(get
 
     session.add(snapshot)
     session.flush()
-    enqueue_entity(session, "hydromet_snapshot", snapshot)
-    alert: FusedAlert = recompute_site_alert(session, site_id, get_decision_runtime())
-    session.flush()
-    enqueue_entity(session, "fused_alert", alert)
+    recompute_site_alert(session, site_id, get_decision_runtime())
     session.commit()
     session.refresh(snapshot)
     return serialize_external_snapshot(snapshot)

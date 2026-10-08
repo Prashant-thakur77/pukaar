@@ -18,6 +18,7 @@ backend/.venv/
 backend/.pytest_cache/
 backend/.uv-cache/
 backend/data/*.db
+backend/data/*.sqlite
 backend/data/models/
 backend/data/litert-cache/
 backend/data/uploads/

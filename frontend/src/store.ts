@@ -45,12 +45,6 @@ export interface FusedAlert {
   reasoning_model?: string | null;
 }
 
-export interface SyncStatus {
-  pending: number;
-  synced: number;
-  failed: number;
-}
-
 export interface SiteExperimentalSettings {
   site_id: string;
   historical_context_enabled: boolean;
@@ -89,7 +83,6 @@ interface AppState {
   sites: Site[];
   alerts: FusedAlert[];
   queueCount: number;
-  syncStatus: SyncStatus | null;
   siteSettings: Record<string, SiteExperimentalSettings>;
   siteHistoricalContext: Record<string, HistoricalContextHit[]>;
   setOnline: (status: boolean) => void;
@@ -101,7 +94,6 @@ interface AppState {
   checkConnectivity: () => Promise<void>;
   updateQueueCount: () => Promise<void>;
   flushQueue: () => Promise<void>;
-  fetchSyncStatus: () => Promise<void>;
   emitCap: (payload: CapEmitRequest) => Promise<string>;
 }
 
@@ -110,7 +102,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   sites: [],
   alerts: [],
   queueCount: 0,
-  syncStatus: null,
   siteSettings: {},
   siteHistoricalContext: {},
 
@@ -248,30 +239,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     if (successCount > 0) {
-      try {
-        await fetch(`${API_BASE}/sync/flush`, { method: 'POST' });
-      } catch (err) {
-        console.error('Failed to flush backend sync queue', err);
-      }
-
       await updateQueueCount();
       alert(`Successfully sent ${successCount} reports from queue.`);
       return;
     }
 
     await updateQueueCount();
-  },
-
-  fetchSyncStatus: async () => {
-    try {
-      const res = await fetch(`${API_BASE}/sync/status`);
-      if (res.ok) {
-        const data = (await res.json()) as SyncStatus;
-        set({ syncStatus: data });
-      }
-    } catch (err) {
-      console.error('Failed to fetch sync status', err);
-    }
   },
 
   emitCap: async (payload) => {

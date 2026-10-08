@@ -7,9 +7,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
-from Pukaar.api.deps import enqueue_entity, get_decision_runtime
+from Pukaar.api.deps import get_decision_runtime
 from Pukaar.db.database import get_session
-from Pukaar.models.domain import ActuationRecord, FusedAlert, HydrometSnapshot, Incident, ParsedObservation, Site, SyncQueueItem, VolunteerReport
+from Pukaar.models.domain import ActuationRecord, FusedAlert, HydrometSnapshot, Incident, ParsedObservation, Site, VolunteerReport
 from Pukaar.schemas.api import RecomputeRequest
 from Pukaar.services.decision_engine import recompute_site_alert
 from Pukaar.services.historical_context import render_historical_context, retrieve_historical_context
@@ -33,15 +33,6 @@ def _trace_rules(trace: Any) -> list[Any]:
         if isinstance(rules, list):
             return rules
     return []
-
-
-def _enqueue_decision_side_effects(session: Session, alert: FusedAlert) -> None:
-    if alert.incident_id is not None:
-        incident = session.get(Incident, alert.incident_id)
-        if incident is not None:
-            enqueue_entity(session, "incident", incident)
-    for record in session.exec(select(ActuationRecord).where(ActuationRecord.alert_id == alert.id)).all():
-        enqueue_entity(session, "actuation_record", record)
 
 
 def _alert_payload(alert: FusedAlert, *, include_historical_context: bool = False) -> dict[str, Any]:
@@ -172,11 +163,6 @@ async def get_site_operator_summary(site_id: str, session: Session = Depends(get
     latest_actuation = session.exec(
         select(ActuationRecord).where(ActuationRecord.site_id == site_id).order_by(ActuationRecord.created_at.desc())
     ).first()
-    sync_items = session.exec(select(SyncQueueItem)).all()
-    sync_counts = {"pending": 0, "synced": 0, "failed": 0}
-    for item in sync_items:
-        sync_counts[item.status] = sync_counts.get(item.status, 0) + 1
-
     return {
         "site": site,
         "current_level": latest_alert.level if latest_alert else "green",
@@ -188,7 +174,6 @@ async def get_site_operator_summary(site_id: str, session: Session = Depends(get
             "parsed_observation": latest_parsed,
             "hydromet": latest_hydromet,
         },
-        "sync": sync_counts,
         "latest_actuation": latest_actuation,
     }
 
@@ -231,7 +216,6 @@ async def acknowledge_incident(
     incident.updated_at = incident.acknowledged_at
     session.add(incident)
     session.flush()
-    enqueue_entity(session, "incident", incident)
     session.commit()
     session.refresh(incident)
     return incident
@@ -254,7 +238,6 @@ async def close_incident(
     incident.close_reason = reason
     session.add(incident)
     session.flush()
-    enqueue_entity(session, "incident", incident)
     session.commit()
     session.refresh(incident)
     return incident
@@ -275,8 +258,6 @@ async def recompute_alerts(
             use_historical_context=payload.use_historical_context,
         )
         session.flush()
-        enqueue_entity(session, "fused_alert", alert)
-        _enqueue_decision_side_effects(session, alert)
         results.append({"site_id": site_id, "score": alert.score, "level": alert.level})
     session.commit()
     return {"recomputed": len(results), "items": results}

@@ -11,7 +11,7 @@ from sqlmodel import Session, SQLModel
 from Pukaar.api import deps
 from Pukaar.api.routers.pukaar import create_report
 from Pukaar.core import settings as settings_module
-from Pukaar.db.database import central_engine, edge_engine, init_db
+from Pukaar.db.database import edge_engine, init_db
 from Pukaar.models.domain import Site
 from Pukaar.services.storage import get_upload_dir
 
@@ -25,11 +25,10 @@ def _reset_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     settings_module.get_settings.cache_clear()
     deps.is_online = True
     monkeypatch.setattr(deps.llm_client, "structure_observation", lambda *_a, **_k: None)
-    for engine in (edge_engine, central_engine):
-        with Session(engine) as session:
-            for table in reversed(SQLModel.metadata.sorted_tables):
-                session.exec(table.delete())
-            session.commit()
+    with Session(edge_engine) as session:
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            session.exec(table.delete())
+        session.commit()
     upload_dir = get_upload_dir()
     upload_dir.mkdir(parents=True, exist_ok=True)
     for file_path in upload_dir.iterdir():

@@ -8,7 +8,7 @@ from sqlmodel import Session, SQLModel
 
 from Pukaar.api import deps
 from Pukaar.core import settings as settings_module
-from Pukaar.db.database import central_engine, edge_engine, init_db
+from Pukaar.db.database import edge_engine, init_db
 from Pukaar.models.domain import FusedAlert, Site
 from Pukaar.services import actuators as actuators_module
 from Pukaar.services.actuators import (
@@ -27,11 +27,10 @@ def _reset_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PUKAAR_UPLOAD_DIR", str(tmp_path / "uploads"))
     settings_module.get_settings.cache_clear()
     deps.is_online = True
-    for engine in (edge_engine, central_engine):
-        with Session(engine) as session:
-            for table in reversed(SQLModel.metadata.sorted_tables):
-                session.exec(table.delete())
-            session.commit()
+    with Session(edge_engine) as session:
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            session.exec(table.delete())
+        session.commit()
     upload_dir = get_upload_dir()
     upload_dir.mkdir(parents=True, exist_ok=True)
     with Session(edge_engine) as session:

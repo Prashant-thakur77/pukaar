@@ -20,7 +20,6 @@ class Settings:
     data_dir: Path
     upload_dir: Path
     edge_db_path: Path
-    central_db_path: Path
     llm_enabled: bool
     llm_base_url: str
     llm_model: str
@@ -53,7 +52,6 @@ def get_settings() -> Settings:
     upload_dir = Path(os.environ.get("PUKAAR_UPLOAD_DIR", str(data_dir / "uploads")))
 
     edge_db_path = Path(os.environ.get("PUKAAR_EDGE_DB_PATH", str(data_dir / "edge.db")))
-    central_db_path = Path(os.environ.get("PUKAAR_CENTRAL_DB_PATH", str(data_dir / "central.db")))
     asr_model_cache_dir = Path(
         os.environ.get("PUKAAR_ASR_MODEL_CACHE_DIR", str(data_dir / "whisper-models"))
     )
@@ -65,7 +63,6 @@ def get_settings() -> Settings:
         data_dir=data_dir,
         upload_dir=upload_dir,
         edge_db_path=edge_db_path,
-        central_db_path=central_db_path,
         llm_enabled=_as_bool("PUKAAR_LLM_ENABLED", True),
         llm_base_url=os.environ.get("PUKAAR_LLM_BASE_URL", "http://127.0.0.1:11434/v1"),
         llm_model=os.environ.get("PUKAAR_LLM_MODEL", "pukaar-model:2b"),
