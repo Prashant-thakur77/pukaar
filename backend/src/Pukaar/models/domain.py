@@ -19,9 +19,6 @@ class Site(SQLModel, table=True):
 class SiteExperimentalSettings(SQLModel, table=True):
     site_id: str = Field(primary_key=True)
     historical_context_enabled: bool = False
-    forecast_enabled: bool = True
-    forecast_horizon_minutes: int = 60
-    forecast_critical_threshold: float = 0.8
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 

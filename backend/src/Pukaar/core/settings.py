@@ -15,8 +15,6 @@ def _as_bool(name: str, default: bool) -> bool:
 
 @dataclass(frozen=True)
 class Settings:
-    project_root: Path
-    backend_root: Path
     data_dir: Path
     upload_dir: Path
     edge_db_path: Path
@@ -39,15 +37,12 @@ class Settings:
     asr_model_size: str
     asr_model_cache_dir: Path
     pukaar_image_enabled: bool
-    image_max_tokens: int
-    image_timeout_seconds: float
     actuators_enabled: bool
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     backend_root = Path(__file__).resolve().parents[3]
-    project_root = backend_root.parent
     data_dir = Path(os.environ.get("PUKAAR_DATA_DIR", str(backend_root / "data")))
     upload_dir = Path(os.environ.get("PUKAAR_UPLOAD_DIR", str(data_dir / "uploads")))
 
@@ -58,8 +53,6 @@ def get_settings() -> Settings:
     pukaar_multimodal_enabled_default = _as_bool("PUKAAR_MULTIMODAL_ENABLED", True)
 
     return Settings(
-        project_root=project_root,
-        backend_root=backend_root,
         data_dir=data_dir,
         upload_dir=upload_dir,
         edge_db_path=edge_db_path,
@@ -96,7 +89,5 @@ def get_settings() -> Settings:
         asr_model_size=os.environ.get("PUKAAR_ASR_MODEL_SIZE", "tiny"),
         asr_model_cache_dir=asr_model_cache_dir,
         pukaar_image_enabled=_as_bool("Pukaar_IMAGE_ENABLED", pukaar_multimodal_enabled_default),
-        image_max_tokens=int(os.environ.get("PUKAAR_IMAGE_MAX_TOKENS", "256")),
-        image_timeout_seconds=float(os.environ.get("PUKAAR_IMAGE_TIMEOUT_SECONDS", "300")),
         actuators_enabled=_as_bool("PUKAAR_ACTUATORS_ENABLED", True),
     )

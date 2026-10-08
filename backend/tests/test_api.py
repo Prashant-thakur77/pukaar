@@ -177,8 +177,6 @@ def test_external_snapshot_refresh_serializes_response(monkeypatch: pytest.Monke
 def test_site_experimental_settings_and_historical_context():
     response = request("PUT", "/api/sites/test-site/experimental-settings", json={
         "historical_context_enabled": True,
-        "forecast_enabled": True,
-        "forecast_critical_threshold": 0.7,
     })
     assert response.status_code == 200
     assert response.json()["historical_context_enabled"] is True
