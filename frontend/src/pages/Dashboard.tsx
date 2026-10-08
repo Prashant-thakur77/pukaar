@@ -30,7 +30,7 @@ import {
   CapStatusCard,
   EmptyCommandCenter,
   EvidencePanel,
-  Pukaar AIReasoning,
+  PukaarAIReasoning,
   IncidentTimeline,
   OfflineSyncCard,
   RiskBanner,
@@ -475,7 +475,7 @@ export default function Dashboard() {
           </SectionPanel>
 
           {activeAlert.reasoning_summary && (
-            <Pukaar AIReasoning
+            <PukaarAIReasoning
               summary={activeAlert.reasoning_summary}
               chain={reasoningChain}
               model={CENTRAL_NODE_MODEL}
