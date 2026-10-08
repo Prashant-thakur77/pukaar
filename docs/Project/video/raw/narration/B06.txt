@@ -1,1 +1,0 @@
-In disaster response, a red badge is not enough. Every non-green alert carries a Pukaar AI-produced reasoning summary in Spanish, plus a deterministic rule trace, the curated frames, and the runner that produced it. Operators see why the alert fired and what evidence to review first.
