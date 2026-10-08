@@ -11,7 +11,7 @@
  *   - RiskBanner          full-bleed severity strip (the "5-second read")
  *   - SignalFusionRow     three-input fusion tile row (camera / volunteer / hydromet)
  *   - EvidencePanel       evidence frame + Pukaar AI narration overlay (placeholder OK)
- *   - Pukaar AIReasoning      reasoning_summary block (Spanish, monospace meta)
+ *   - PukaarAIReasoning      reasoning_summary block (Spanish, monospace meta)
  *   - AuditTrace          deterministic rule trace, numbered
  *   - ActionRail          four function-calling buttons (emit_cap_xml, …)
  *   - CapStatusCard       CAP v1.2 export state + last receipt
@@ -285,15 +285,15 @@ export function EvidencePanel({ frameUrl, description, model, confidence, frameL
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Pukaar AIReasoning — reasoning_summary block + optional numbered chain.
+// PukaarAIReasoning — reasoning_summary block + optional numbered chain.
 // ──────────────────────────────────────────────────────────────────────────
-interface Pukaar AIReasoningProps {
+interface PukaarAIReasoningProps {
   summary: string;
   chain?: string[];
   model?: string | null;
 }
 
-export function Pukaar AIReasoning({ summary, chain, model }: Pukaar AIReasoningProps) {
+export function PukaarAIReasoning({ summary, chain, model }: PukaarAIReasoningProps) {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">

@@ -25,8 +25,8 @@ def test_cap_xml_has_required_oasis_and_sinagir_fields():
     assert root.tag == f"{{{CAP_NS}}}alert"
     assert root.findtext("cap:status", namespaces=ns) == "Actual"
     assert root.findtext("cap:info/cap:severity", namespaces=ns) == "Severe"
-    assert root.findtext("cap:info/cap:language", namespaces=ns) == "es-AR"
-    assert root.findtext("cap:info/cap:area/cap:geocode/cap:valueName", namespaces=ns) == "SINAGIR/SINAME sitio"
+    assert root.findtext("cap:info/cap:language", namespaces=ns) == "en-US"
+    assert root.findtext("cap:info/cap:area/cap:geocode/cap:valueName", namespaces=ns) == "SINAGIR/SINAME site"
     assert root.findtext("cap:info/cap:parameter/cap:valueName", namespaces=ns) == "pukaar-signature-sha256"
 
 

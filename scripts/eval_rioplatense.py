@@ -5,7 +5,7 @@ Runs the held-out test split (split='test') through each adapter and reports
 per-field accuracy. Paths:
 
   - rules: backend/.../services/report_structuring._fallback_parse
-  - fewshot: Pukaar AIFewShotTextStructurer (requires local Ollama + pukaar-model:2b)
+  - fewshot: FewShotTextStructurer (requires local Ollama + pukaar-model:2b)
   - openai: optional reference (requires OPENAI_API_KEY, single run)
 
 Usage:
@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT / "backend" / "src"))
 
 from Pukaar.services.report_structuring import _fallback_parse  # noqa: E402
 from Pukaar.adapters.llm import OpenAICompatibleLLM  # noqa: E402
-from Pukaar.adapters.text_structuring_pukaar-ai_fewshot import Pukaar AIFewShotTextStructurer  # noqa: E402
+from Pukaar.adapters.text_structuring_fewshot import FewShotTextStructurer  # noqa: E402
 
 FIELDS = ("water_level_category", "trend", "road_status", "bridge_status", "urgency")
 
@@ -54,7 +54,7 @@ def run_rules(transcript: str) -> dict:
     }
 
 
-def run_fewshot(transcript: str, fewshot: Pukaar AIFewShotTextStructurer) -> dict | None:
+def run_fewshot(transcript: str, fewshot: FewShotTextStructurer) -> dict | None:
     out = fewshot.structure_observation(transcript, {"site_name": "demo", "region": "demo"})
     if not out:
         return None
@@ -93,7 +93,7 @@ def main() -> int:
         if not health.reachable:
             print(f"## fewshot — SKIPPED (LLM unreachable: {health.detail})\n")
         else:
-            fewshot = Pukaar AIFewShotTextStructurer(llm)
+            fewshot = FewShotTextStructurer(llm)
             preds = [run_fewshot(t, fewshot) for t in transcripts]
             covered = sum(1 for p in preds if p is not None)
             acc = score(preds, gold)

@@ -454,7 +454,7 @@ def test_litert_runtime_returns_none_when_reuse_retry_fails(monkeypatch, tmp_pat
 def test_litert_runner_parses_json_payload(monkeypatch, tmp_path: Path):
     from datetime import datetime
 
-    from Pukaar.adapters.video_assessment import LiteRTPukaar AIRunner
+    from Pukaar.adapters.video_assessment import LiteRTPukaarAIRunner
     from Pukaar.services.pukaar_assessment import AssessmentArtifactPack, EvidenceFrame, TemporalEvidencePack
 
     image_path = tmp_path / "synthetic.jpg"
@@ -510,7 +510,7 @@ def test_litert_runner_parses_json_payload(monkeypatch, tmp_path: Path):
         ),
     )
 
-    verdict = LiteRTPukaar AIRunner(FakeRuntime()).assess(pack)
+    verdict = LiteRTPukaarAIRunner(FakeRuntime()).assess(pack)
 
     assert verdict is not None
     assert verdict.assessment_level == "orange"
@@ -522,7 +522,7 @@ def test_litert_runner_parses_json_payload(monkeypatch, tmp_path: Path):
 def test_litert_runner_retries_invalid_payload(monkeypatch, tmp_path: Path):
     from datetime import datetime
 
-    from Pukaar.adapters.video_assessment import LiteRTPukaar AIRunner
+    from Pukaar.adapters.video_assessment import LiteRTPukaarAIRunner
     from Pukaar.services.pukaar_assessment import AssessmentArtifactPack, EvidenceFrame, TemporalEvidencePack
 
     image_path = tmp_path / "synthetic.jpg"
@@ -580,7 +580,7 @@ def test_litert_runner_retries_invalid_payload(monkeypatch, tmp_path: Path):
     )
     runtime = FakeRuntime()
 
-    verdict = LiteRTPukaar AIRunner(runtime).assess(pack)
+    verdict = LiteRTPukaarAIRunner(runtime).assess(pack)
 
     assert runtime.calls == 2
     assert verdict is not None

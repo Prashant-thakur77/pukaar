@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from Pukaar.adapters.image_assessment import (
-    Pukaar AIImageAssessmentAdapter,
+    PukaarAIImageAssessmentAdapter,
     _parse_json_block,
 )
 from Pukaar.core.settings import get_settings
@@ -32,7 +32,7 @@ def test_parse_json_block_rejects_junk():
 
 
 def test_adapter_returns_none_for_missing_path(tmp_path: Path):
-    adapter = Pukaar AIImageAssessmentAdapter()
+    adapter = PukaarAIImageAssessmentAdapter()
     assert adapter.assess(tmp_path / "missing.jpg") is None
 
 
@@ -45,7 +45,7 @@ def test_adapter_handles_http_error(monkeypatch, tmp_path: Path):
         raise httpx.ConnectError("offline")
 
     monkeypatch.setattr(httpx.Client, "post", boom)
-    adapter = Pukaar AIImageAssessmentAdapter()
+    adapter = PukaarAIImageAssessmentAdapter()
     assert adapter.assess(img) is None
 
 
@@ -69,7 +69,7 @@ def test_adapter_parses_success(monkeypatch, tmp_path: Path):
         return FakeResponse()
 
     monkeypatch.setattr(httpx.Client, "post", fake_post)
-    adapter = Pukaar AIImageAssessmentAdapter()
+    adapter = PukaarAIImageAssessmentAdapter()
     result = adapter.assess(img)
     assert result is not None
     assert result.water_visible is True
@@ -94,7 +94,7 @@ def test_adapter_uses_embedded_runtime_when_present(monkeypatch, tmp_path: Path)
                 "confidence": 0.74,
             }
 
-    adapter = Pukaar AIImageAssessmentAdapter(runtime=FakeRuntime(), force_embedded=True)
+    adapter = PukaarAIImageAssessmentAdapter(runtime=FakeRuntime(), force_embedded=True)
     result = adapter.assess(img)
 
     assert result is not None
