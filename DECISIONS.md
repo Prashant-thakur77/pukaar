@@ -223,3 +223,12 @@ Kept: `PUKAAR_FEWSHOT_COUNT` (read by the few-shot adapter),
 - `Project.md` is equally out of date (old submission criteria, links to
   deleted docs), but PLAN.md does not name it, so rule 11 keeps it. Listed
   under "Unsure, kept".
+
+### Group (g): stale comments
+
+Comment and docstring text that described removed code: the "Persona C"
+recording notes and Spanish layout diagram on the dashboard, the database pool
+comment citing the offline sync and forecast paths, the Dockerfile's
+`docker compose` notes, and the notifier docstring naming the Android client.
+No TODO or FIXME comments referred to removed code. The Spanish prompts and
+keyword lists are code, not comments, and PLAN.md M4 replaces them.

@@ -1,5 +1,5 @@
 # Dev Dockerfile for the Pukaar FastAPI backend.
-# Optimized for fast iteration with `docker compose up`, not for production size.
+# Optimized for fast iteration, not for production size.
 
 FROM python:3.11-slim
 
@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir uv
 WORKDIR /app
 
 COPY pyproject.toml ./
-# Install dependencies first (cache-friendly). Source is bind-mounted in dev.
+# Install dependencies first (cache-friendly).
 RUN uv pip install --system -e .[dev] || pip install -e .[dev] || true
 
 COPY . .

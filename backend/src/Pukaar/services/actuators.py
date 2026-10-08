@@ -69,8 +69,8 @@ class LoraFileRadioActuator:
 
 
 class InAppBannerNotifier:
-    """Default in-app notifier: would normally push to FCM / the running
-    Android client. Here we just log and record."""
+    """Default in-app notifier: would normally push to the operator app.
+    Here we just log and record."""
 
     def fire(self, payload: dict[str, Any]) -> None:
         text = str(payload.get("text", "")).strip() or "(mensaje vacio)"
