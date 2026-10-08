@@ -88,6 +88,6 @@ def get_settings() -> Settings:
         asr_enabled=_as_bool("PUKAAR_ASR_ENABLED", True),
         asr_model_size=os.environ.get("PUKAAR_ASR_MODEL_SIZE", "tiny"),
         asr_model_cache_dir=asr_model_cache_dir,
-        pukaar_image_enabled=_as_bool("Pukaar_IMAGE_ENABLED", pukaar_multimodal_enabled_default),
+        pukaar_image_enabled=_as_bool("PUKAAR_IMAGE_ENABLED", pukaar_multimodal_enabled_default),
         actuators_enabled=_as_bool("PUKAAR_ACTUATORS_ENABLED", True),
     )
