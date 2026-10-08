@@ -48,9 +48,6 @@ export interface FusedAlert {
 export interface SiteExperimentalSettings {
   site_id: string;
   historical_context_enabled: boolean;
-  forecast_enabled: boolean;
-  forecast_horizon_minutes: number;
-  forecast_critical_threshold: number;
   updated_at: string;
 }
 

@@ -130,9 +130,6 @@ describe('AppStore', () => {
         json: async () => ({
           site_id: 'test-site',
           historical_context_enabled: false,
-          forecast_enabled: true,
-          forecast_horizon_minutes: 60,
-          forecast_critical_threshold: 0.8,
           updated_at: '2026-05-18T10:00:00',
         }),
       } as Response)
@@ -141,9 +138,6 @@ describe('AppStore', () => {
         json: async () => ({
           site_id: 'test-site',
           historical_context_enabled: true,
-          forecast_enabled: true,
-          forecast_horizon_minutes: 60,
-          forecast_critical_threshold: 0.8,
           updated_at: '2026-05-18T10:01:00',
         }),
       } as Response);

@@ -191,3 +191,22 @@ Kept: `lxml` and `orjson` are not imported, but PLAN.md 5a lists both under
 time (server command; FastAPI form parsing). `faster-whisper` and `sqlmodel`
 are still imported; M4 and M1 replace them. `@types/node` is used through
 `tsconfig.node.json`.
+
+### Group (e): unused settings and environment variables
+
+Removed (read into settings but never used):
+- `Settings.project_root`, `Settings.backend_root` (the latter stays as a local
+  default for `PUKAAR_DATA_DIR`).
+- `Settings.image_max_tokens` / `PUKAAR_IMAGE_MAX_TOKENS` and
+  `Settings.image_timeout_seconds` / `PUKAAR_IMAGE_TIMEOUT_SECONDS`; the image
+  adapter uses the `PUKAAR_MULTIMODAL_*` values.
+- Per-site `forecast_enabled`, `forecast_horizon_minutes`,
+  `forecast_critical_threshold` (table columns, request schema, frontend type):
+  their only consumer was the `/sites/{id}/forecast` route removed in group
+  (a). `historical_context_enabled` stays; the dashboard toggle uses it.
+- `.env.example` held `GMAIL_USER` and `GMAIL_APP_PASSWORD`, which no code
+  reads. It now lists the variables the code does read. PLAN.md 5 asks for a
+  Pukaar `.env.example`; the `PUKAAR_*` AWS settings arrive with M1-M4.
+
+Kept: `PUKAAR_FEWSHOT_COUNT` (read by the few-shot adapter),
+`PUKAAR_ENABLE_DEMO_INJECT` (gates the demo router that becomes `replay`).

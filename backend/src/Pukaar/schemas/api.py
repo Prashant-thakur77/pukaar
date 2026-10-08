@@ -33,9 +33,6 @@ class HistoricalContextUpsert(BaseModel):
 
 class SiteExperimentalSettingsPayload(BaseModel):
     historical_context_enabled: bool | None = None
-    forecast_enabled: bool | None = None
-    forecast_horizon_minutes: int | None = Field(default=None, ge=15, le=180)
-    forecast_critical_threshold: float | None = Field(default=None, ge=0.1, le=1.5)
 
 
 class ExternalSnapshotResponse(BaseModel):
