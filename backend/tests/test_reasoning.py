@@ -18,7 +18,6 @@ def test_reasoning_green_skips_llm():
     block = generate_alert_reasoning(
         level="green",
         fused_score=0.0,
-        node_obs=None,
         volunteer_parsed=None,
         hydromet=None,
         rules_fired=[],
@@ -32,7 +31,6 @@ def test_reasoning_fallback_when_llm_none():
     block = generate_alert_reasoning(
         level="red",
         fused_score=0.9,
-        node_obs={"waterline_ratio": 0.8, "rise_velocity": 0.3, "crossed_critical_line": True, "confidence": 0.9},
         volunteer_parsed=None,
         hydromet=None,
         rules_fired=["node=0.80", "crossed_critical_line"],
@@ -51,7 +49,6 @@ def test_reasoning_fallback_when_llm_returns_none(monkeypatch):
     block = generate_alert_reasoning(
         level="orange",
         fused_score=0.7,
-        node_obs=None,
         volunteer_parsed={"water_level_category": "high", "trend": "rising", "road_status": "blocked", "bridge_status": "unknown", "urgency": "high", "summary": "x"},
         hydromet=None,
         rules_fired=["volunteer=0.70"],
@@ -70,7 +67,6 @@ def test_reasoning_uses_llm_output():
     block = generate_alert_reasoning(
         level="red",
         fused_score=0.9,
-        node_obs={"waterline_ratio": 0.8, "rise_velocity": 0.3, "crossed_critical_line": True, "confidence": 0.9},
         volunteer_parsed=None,
         hydromet=None,
         rules_fired=["node=0.80"],
@@ -91,7 +87,6 @@ def test_reasoning_uses_runtime_model_name_property():
     block = generate_alert_reasoning(
         level="yellow",
         fused_score=0.52,
-        node_obs={"waterline_ratio": 0.52, "rise_velocity": 0.08, "crossed_critical_line": False, "confidence": 0.76},
         volunteer_parsed={"water_level_category": "medium", "trend": "rising", "road_status": "caution", "bridge_status": "unknown", "urgency": "normal", "summary": "x"},
         hydromet=None,
         rules_fired=["node=0.52", "volunteer=0.50"],

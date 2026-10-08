@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 
 from Pukaar.api.deps import pukaar_node_runtime, enqueue_entity
 from Pukaar.db.database import get_session
-from Pukaar.models.domain import ActuationRecord, FusedAlert, HydrometSnapshot, Incident, NodeObservation, ParsedObservation, Site, SyncQueueItem, VolunteerReport
+from Pukaar.models.domain import ActuationRecord, FusedAlert, HydrometSnapshot, Incident, ParsedObservation, Site, SyncQueueItem, VolunteerReport
 from Pukaar.schemas.api import RecomputeRequest
 from Pukaar.services.decision_engine import recompute_site_alert
 from Pukaar.services.historical_context import render_historical_context, retrieve_historical_context
@@ -51,16 +51,7 @@ def _alert_payload(alert: FusedAlert, *, include_historical_context: bool = Fals
     trace = _parsed_json(alert.decision_trace, {})
     if not isinstance(trace, dict):
         trace = {"legacy_trace": trace}
-    current_level = None
-    evidence = trace.get("evidence")
-    if isinstance(evidence, list):
-        for event in evidence:
-            if isinstance(event, dict) and event.get("source") == "node":
-                event_payload = event.get("payload")
-                if isinstance(event_payload, dict):
-                    current_level = event_payload.get("waterline_ratio")
-                    break
-    hits = retrieve_historical_context(alert.site_id, current_level=float(current_level or 0.0))
+    hits = retrieve_historical_context(alert.site_id, current_level=0.0)
     trace["historical_context"] = {
         "enabled": True,
         "mode": "edge-rag-sqlite",
@@ -165,9 +156,6 @@ async def get_site_operator_summary(site_id: str, session: Session = Depends(get
         .where(Incident.closed_at.is_(None))
         .order_by(Incident.updated_at.desc())
     ).first()
-    latest_node = session.exec(
-        select(NodeObservation).where(NodeObservation.site_id == site_id).order_by(NodeObservation.ended_at.desc())
-    ).first()
     latest_report = session.exec(
         select(VolunteerReport).where(VolunteerReport.site_id == site_id).order_by(VolunteerReport.created_at.desc())
     ).first()
@@ -196,7 +184,6 @@ async def get_site_operator_summary(site_id: str, session: Session = Depends(get
         "active_incident": active_incident,
         "latest_alert": latest_alert,
         "latest_evidence": {
-            "node": latest_node,
             "volunteer_report": latest_report,
             "parsed_observation": latest_parsed,
             "hydromet": latest_hydromet,

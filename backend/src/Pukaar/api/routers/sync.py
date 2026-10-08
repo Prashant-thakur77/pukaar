@@ -8,12 +8,10 @@ from sqlmodel import SQLModel, Session, func, select
 
 from Pukaar.db.database import get_central_session, get_session
 from Pukaar.models.domain import (
-    PukaarAssessmentArtifact,
     ActuationRecord,
     FusedAlert,
     HydrometSnapshot,
     Incident,
-    NodeObservation,
     ParsedObservation,
     SyncQueueItem,
     VolunteerReport,
@@ -42,9 +40,7 @@ async def flush_sync(
         "fused_alert": FusedAlert,
         "incident": Incident,
         "actuation_record": ActuationRecord,
-        "node_observation": NodeObservation,
         "hydromet_snapshot": HydrometSnapshot,
-        "pukaar_assessment_artifact": PukaarAssessmentArtifact,
     }
 
     try:

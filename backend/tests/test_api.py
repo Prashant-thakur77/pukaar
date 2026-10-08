@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 
@@ -9,17 +7,15 @@ import anyio
 import httpx
 import pytest
 from fastapi import BackgroundTasks, UploadFile
-from PIL import Image, ImageDraw
 from sqlmodel import Session, SQLModel, select
 
 from Pukaar.api import deps
-from Pukaar.api.routers.pukaar import analyze_node
 from Pukaar.api.routers.sync import flush_sync
 from Pukaar.api.routers.pukaar import create_report
 from Pukaar.core import settings as settings_module
 from Pukaar.db.database import central_engine, edge_engine, init_db
 from Pukaar.main import app
-from Pukaar.models.domain import PukaarAssessmentArtifact, FusedAlert, NodeObservation, Site, SiteCalibration, SyncQueueItem, VolunteerReport
+from Pukaar.models.domain import FusedAlert, Site, SyncQueueItem, VolunteerReport
 from Pukaar.models.domain import HydrometSnapshot
 from Pukaar.services.storage import get_upload_dir
 
@@ -79,14 +75,6 @@ def reset_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         if file_path.is_file():
             file_path.unlink()
 
-
-
-def _build_test_image(path: Path) -> None:
-    image = Image.new("RGB", (320, 240), (200, 210, 220))
-    draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 132, 319, 239), fill=(90, 70, 40))
-    draw.line((0, 95, 319, 95), fill=(245, 245, 245), width=2)
-    image.save(path, format="JPEG")
 
 
 
@@ -181,84 +169,6 @@ def test_report_uploads_are_persisted():
 
 
 
-def test_node_analysis_with_image_media(tmp_path: Path):
-    video_path = tmp_path / "synthetic.jpg"
-    _build_test_image(video_path)
-
-    async def run_flow():
-        with video_path.open("rb") as handle:
-            upload = UploadFile(filename=video_path.name, file=handle)
-            with Session(edge_engine) as edge_session:
-                return await analyze_node(site_id="test-site", video=upload, session=edge_session)
-
-    payload = anyio.run(run_flow)
-    assert payload["observation"]["frames_analyzed"] == 1
-    assert payload["observation"]["evidence_frame_url"].startswith("/uploads/")
-    assert payload["observation"]["assessment_mode"] == "pukaar-ai4-multimodal-v1"
-    assert payload["observation"]["artifact_id"] is not None
-    assert payload["observation"]["runner"]["mode"] in {
-        "litert-multimodal-temporal",
-        "ollama-multimodal-temporal",
-        "multimodal-unavailable-fallback",
-    }
-    assert payload["observation"]["temporal_summary"]
-    assert isinstance(payload["observation"]["reasoning_steps"], list)
-    assert isinstance(payload["observation"]["artifact_refs"], dict)
-    assert payload["alert"].level in {"yellow", "orange", "red"}
-
-    with Session(edge_engine) as session:
-        observation = session.exec(select(NodeObservation)).first()
-        assert observation is not None
-        assert observation.video_path is not None
-        assert observation.sync_status == "pending"
-        assert observation.assessment_artifact_id is not None
-        artifact = session.get(PukaarAssessmentArtifact, observation.assessment_artifact_id)
-        assert artifact is not None
-        assert artifact.frames_analyzed == 1
-        assert artifact.bundle_json
-        assert artifact.verdict_json
-
-
-def test_sample_node_analysis_endpoint(tmp_path: Path):
-    video_path = tmp_path / "sample.jpg"
-    _build_test_image(video_path)
-
-    with Session(edge_engine) as session:
-        session.add(
-            Site(
-                id="sample-site",
-                name="Site with bundled clip",
-                region="Zona Demo",
-                lat=-32.96,
-                lng=-60.65,
-                description="Sitio con sample video",
-                sample_video_path=str(video_path),
-                sample_video_source_url="https://example.com/fixed-cam",
-                sample_frame_path=None,
-                is_active=True,
-            )
-        )
-        session.add(
-            SiteCalibration(
-                site_id="sample-site",
-                roi_polygon=json.dumps([[0, 40], [320, 40], [320, 220], [0, 220]], ensure_ascii=True),
-                critical_line=json.dumps([[0, 95], [320, 95]], ensure_ascii=True),
-                reference_line=json.dumps([[0, 155], [320, 155]], ensure_ascii=True),
-                notes="synthetic calibration",
-            )
-        )
-        session.commit()
-
-    response = request("POST", "/api/sites/sample-site/sample-node-analysis")
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["observation"]["frames_analyzed"] == 1
-    assert payload["observation"]["evidence_frame_url"].startswith("/uploads/")
-    assert payload["observation"]["artifact_id"] is not None
-    assert payload["observation"]["assessment_mode"] == "pukaar-ai4-multimodal-v1"
-    assert payload["sample_video_source_url"] == "https://example.com/fixed-cam"
-
-
 def test_external_snapshot_refresh_serializes_response(monkeypatch: pytest.MonkeyPatch):
     snapshot = HydrometSnapshot(
         site_id="test-site",
@@ -281,7 +191,7 @@ def test_external_snapshot_refresh_serializes_response(monkeypatch: pytest.Monke
     assert payload["summary"] == "rain now 2.0 mm, 12h precip prob 60%"
 
 
-def test_site_experimental_context_and_forecast_endpoints():
+def test_site_experimental_settings_and_historical_context():
     response = request("PUT", "/api/sites/test-site/experimental-settings", json={
         "historical_context_enabled": True,
         "forecast_enabled": True,
@@ -308,44 +218,3 @@ def test_site_experimental_context_and_forecast_endpoints():
     assert payload["enabled"] is True
     assert payload["hits"]
     assert payload["hits"][0]["id"] == stored["id"]
-
-    now = datetime.utcnow()
-    with Session(edge_engine) as session:
-        session.add(
-            NodeObservation(
-                site_id="test-site",
-                source_type="test",
-                started_at=now - timedelta(minutes=30),
-                ended_at=now - timedelta(minutes=30),
-                frames_analyzed=1,
-                waterline_ratio=0.45,
-                rise_velocity=0.0,
-                crossed_critical_line=False,
-                confidence=0.8,
-                decision_trace="{}",
-                severity_score=0.2,
-            )
-        )
-        session.add(
-            NodeObservation(
-                site_id="test-site",
-                source_type="test",
-                started_at=now,
-                ended_at=now,
-                frames_analyzed=1,
-                waterline_ratio=0.62,
-                rise_velocity=0.0,
-                crossed_critical_line=False,
-                confidence=0.8,
-                decision_trace="{}",
-                severity_score=0.4,
-            )
-        )
-        session.commit()
-
-    response = request("GET", "/api/sites/test-site/forecast")
-    assert response.status_code == 200
-    forecast = response.json()["forecast"]
-    assert forecast["critical_threshold"] == 0.7
-    assert forecast["status"] in {"ok", "degraded"}
-    assert forecast["projected_points"]

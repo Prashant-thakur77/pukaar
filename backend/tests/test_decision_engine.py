@@ -16,7 +16,6 @@ from Pukaar.models.domain import (
     FusedAlert,
     HydrometSnapshot,
     Incident,
-    NodeObservation,
     ParsedObservation,
     Site,
     SyncQueueItem,
@@ -55,25 +54,6 @@ def _reset_state(monkeypatch: pytest.MonkeyPatch):
     settings_module.get_settings.cache_clear()
 
 
-def _node(site_id: str, observed_at: datetime, score: float, crossed: bool = False) -> NodeObservation:
-    return NodeObservation(
-        site_id=site_id,
-        source_type="test",
-        started_at=observed_at - timedelta(minutes=2),
-        ended_at=observed_at,
-        frames_analyzed=4,
-        waterline_ratio=0.8 if crossed else 0.4,
-        rise_velocity=0.12 if crossed else 0.02,
-        crossed_critical_line=crossed,
-        confidence=0.8,
-        decision_trace="[]",
-        severity_score=score,
-        assessment_score=score,
-        assessment_level=level_from_score(score),
-        temporal_summary="nivel observado por nodo fijo",
-    )
-
-
 def _report_pair(site_id: str, observed_at: datetime, score: float, text: str = "reporte medio") -> tuple[VolunteerReport, ParsedObservation]:
     report = VolunteerReport(
         site_id=site_id,
@@ -100,6 +80,14 @@ def _report_pair(site_id: str, observed_at: datetime, score: float, text: str = 
     return report, parsed
 
 
+def _add_report(session: Session, site_id: str, observed_at: datetime, score: float) -> None:
+    report, parsed = _report_pair(site_id, observed_at, score)
+    session.add(report)
+    session.flush()
+    parsed.volunteer_report_id = report.id or 0
+    session.add(parsed)
+
+
 def test_level_from_score_thresholds():
     assert level_from_score(0.39) == "green"
     assert level_from_score(0.40) == "yellow"
@@ -117,7 +105,14 @@ def test_temporal_weight_keeps_fresh_evidence_at_full_strength():
 def test_temporal_fusion_escalates_two_medium_sources():
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(minutes=5), 0.5))
+        session.add(
+            HydrometSnapshot(
+                site_id="site-a",
+                created_at=now - timedelta(minutes=5),
+                signal_score=0.5,
+                summary="lluvia moderada",
+            )
+        )
         report, parsed = _report_pair("site-a", now - timedelta(minutes=4), 0.5)
         session.add(report)
         session.flush()
@@ -137,7 +132,7 @@ def test_temporal_fusion_escalates_two_medium_sources():
 def test_old_signal_does_not_keep_alert_high():
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(hours=2), 0.95, crossed=True))
+        _add_report(session, "site-a", now - timedelta(hours=2), 0.95)
         alert = recompute_site_alert(session, "site-a", None, now=now, window_minutes=45)
         level = alert.level
         decision_trace = alert.decision_trace
@@ -150,7 +145,7 @@ def test_old_signal_does_not_keep_alert_high():
 def test_incident_reused_and_actuators_idempotent():
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(minutes=2), 0.9, crossed=True))
+        _add_report(session, "site-a", now - timedelta(minutes=2), 0.92)
         first = recompute_site_alert(session, "site-a", None, now=now)
         first_incident = first.incident_id
         second = recompute_site_alert(session, "site-a", None, now=now + timedelta(minutes=1))
@@ -188,7 +183,7 @@ def test_malformed_litert_actuator_selection_uses_deterministic_fallback():
     now = datetime(2026, 5, 14, 12, 0, 0)
     runtime = MalformedLiteRTRuntime()
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(minutes=2), 0.9, crossed=True))
+        _add_report(session, "site-a", now - timedelta(minutes=2), 0.92)
         alert = recompute_site_alert(session, "site-a", runtime, now=now)
         level = alert.level
         records = session.exec(select(ActuationRecord)).all()
@@ -225,7 +220,7 @@ def test_partial_litert_actuator_selection_completes_recommended_fallback():
 
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(minutes=2), 0.9, crossed=True))
+        _add_report(session, "site-a", now - timedelta(minutes=2), 0.92)
         alert = recompute_site_alert(session, "site-a", PartialLiteRTRuntime(), now=now)
         level = alert.level
         records = session.exec(select(ActuationRecord)).all()
@@ -260,7 +255,7 @@ def test_orange_litert_selection_is_constrained_to_recommended_pending_actuators
 
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(minutes=2), 0.72, crossed=False))
+        _add_report(session, "site-a", now - timedelta(minutes=2), 0.72)
         alert = recompute_site_alert(session, "site-a", OverreachingLiteRTRuntime(), now=now)
         level = alert.level
         records = session.exec(select(ActuationRecord)).all()
@@ -282,7 +277,7 @@ async def test_central_integration_flow_and_idempotent_sync():
         report, parsed = _report_pair(
             "site-a",
             now - timedelta(minutes=8),
-            0.72,
+            0.95,
             "agua supero la marca y hay viviendas afectadas",
         )
         parsed.water_level_category = "critical"
@@ -292,7 +287,6 @@ async def test_central_integration_flow_and_idempotent_sync():
         session.flush()
         parsed.volunteer_report_id = report.id or 0
         session.add(parsed)
-        session.add(_node("site-a", now - timedelta(minutes=4), 0.88, crossed=True))
         session.add(
             HydrometSnapshot(
                 site_id="site-a",
@@ -308,8 +302,6 @@ async def test_central_integration_flow_and_idempotent_sync():
         session.flush()
         enqueue_entity(session, "volunteer_report", report)
         enqueue_entity(session, "parsed_observation", parsed)
-        for node in session.exec(select(NodeObservation)).all():
-            enqueue_entity(session, "node_observation", node)
         for snapshot in session.exec(select(HydrometSnapshot)).all():
             enqueue_entity(session, "hydromet_snapshot", snapshot)
 
