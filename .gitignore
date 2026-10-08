@@ -114,3 +114,24 @@ scripts/send_*outreach*.py
 .design_pkg/package.unzipped
 *Design System*.zip
 *Design System*.tar.gz
+
+# --- Cloud credentials, environments, caches, model files ---
+.cloud-keys.local
+.aws/
+.aws-sam/
+.venv/
+venv/
+.pytest_cache/
+.uv-cache/
+.cache/
+.npm/
+*.tsbuildinfo
+*.gguf
+*.safetensors
+*.onnx
+*.tflite
+*.litertlm
+*.pt
+*.pth
+*.ckpt
+*.h5
