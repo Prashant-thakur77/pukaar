@@ -23,10 +23,7 @@ Push-Location $FrontendDir
 npm install --legacy-peer-deps
 Pop-Location
 
-Write-Host "[3] Fetching demo media assets..."
-& $BackendPython (Join-Path $RepoRoot "scripts\fetch_demo_assets.py")
-
-Write-Host "[4] Seeding data..."
+Write-Host "[3] Seeding data..."
 & $BackendPython -m Pukaar.scripts.seed
 
 Write-Host "Setup complete."

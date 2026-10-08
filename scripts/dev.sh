@@ -52,8 +52,6 @@ if [[ ! -d "$FRONTEND_DIR/node_modules" ]]; then
   )
 fi
 
-"$ROOT_DIR/scripts/run_pukaar-ai_local.sh"
-
 (
   cd "$BACKEND_DIR"
   PYTHONPATH=src python3 -m Pukaar.scripts.seed >/dev/null
