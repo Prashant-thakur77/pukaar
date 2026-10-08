@@ -11,19 +11,15 @@ dependencies = [
     "pydantic",
     "pillow",
     "python-multipart",
-    "aiofiles",
     "httpx",
     "orjson",
     "faster-whisper",
-    "lxml",
-    "litert-lm-api==0.11.0"
+    "lxml"
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
-    "pytest-asyncio",
-    "trio"
+    "pytest"
 ]
 
 [build-system]
