@@ -79,59 +79,6 @@ async def get_alert(alert_id: int, session: Session = Depends(get_session)) -> d
     return payload
 
 
-@router.post("/alerts/{alert_id}/export-sinagir")
-async def export_alert_sinagir(alert_id: int, session: Session = Depends(get_session)) -> dict[str, Any]:
-    alert = session.get(FusedAlert, alert_id)
-    if alert is None:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    site = session.get(Site, alert.site_id)
-    trace = _parsed_json(alert.decision_trace, {})
-    chain = _parsed_json(alert.reasoning_chain, [])
-    incident = session.get(Incident, alert.incident_id) if alert.incident_id else None
-    actuations = session.exec(select(ActuationRecord).where(ActuationRecord.alert_id == alert.id)).all()
-    return {
-        "schema": "sinagir-ready-v1",
-        "disclaimer": "Schema export only. Not submitted to SINAGIR production endpoints.",
-        "event": {
-            "external_id": f"pukaar-alert-{alert.id}",
-            "observed_at": alert.created_at.isoformat() if alert.created_at else None,
-            "site": {
-                "id": alert.site_id,
-                "name": site.name if site else alert.site_id,
-                "region": site.region if site else None,
-                "lat": site.lat if site else None,
-                "lng": site.lng if site else None,
-            },
-            "hazard_type": "inundacion",
-            "severity": {
-                "level": alert.level,
-                "score": alert.score,
-            },
-            "trigger_source": alert.trigger_source,
-            "summary": alert.summary,
-            "explanation": _trace_rules(trace),
-            "decision_trace": trace,
-            "reasoning": {
-                "summary": alert.reasoning_summary,
-                "chain": chain,
-                "model": alert.reasoning_model,
-            },
-            "local_actuation": {
-                "siren_triggered": alert.local_alarm_triggered,
-                "records": [record.model_dump(mode="json") for record in actuations],
-            },
-            "incident": {
-                "id": incident.id,
-                "state": incident.lifecycle_state,
-                "current_level": incident.current_level,
-                "opened_at": incident.opened_at.isoformat() if incident.opened_at else None,
-                "closed_at": incident.closed_at.isoformat() if incident.closed_at else None,
-            } if incident else None,
-            "origin_system": "Pukaar (edge)",
-        },
-    }
-
-
 @router.get("/sites/{site_id}/operator-summary")
 async def get_site_operator_summary(site_id: str, session: Session = Depends(get_session)) -> dict[str, Any]:
     site = session.get(Site, site_id)
