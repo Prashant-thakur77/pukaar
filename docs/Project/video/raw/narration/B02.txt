@@ -1,1 +1,0 @@
-In Argentina's Litoral, when the network goes down, communities still need someone watching the river. We are building Pukaar plus Pukaar: an offline-first flood warning system where Pukaar AI runs close to the evidence, not only in the cloud.
