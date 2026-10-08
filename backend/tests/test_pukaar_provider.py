@@ -9,10 +9,10 @@ import anyio
 import httpx
 import pytest
 
-from Pukaar.adapters.image_assessment import Pukaar AIImageAssessmentAdapter
+from Pukaar.adapters.image_assessment import PukaarAIImageAssessmentAdapter
 from Pukaar.adapters.litert_node import LiteRTNodeHealth, LiteRTNodeRuntime
 from Pukaar.adapters.llm import LLMHealth
-from Pukaar.adapters.video_assessment import LiteRTPukaar AIRunner, OllamaPukaar AIRunner
+from Pukaar.adapters.video_assessment import LiteRTPukaarAIRunner, OllamaPukaarAIRunner
 from Pukaar.api import deps as deps_module
 from Pukaar.api.routers.runtime import get_runtime_status
 from Pukaar.core import settings as settings_module
@@ -66,8 +66,8 @@ def test_deps_select_litert_provider(monkeypatch: pytest.MonkeyPatch, tmp_path: 
 
     runner, assessor = deps_module._build_pukaar_runtime_components()
 
-    assert isinstance(runner, LiteRTPukaar AIRunner)
-    assert isinstance(assessor, Pukaar AIImageAssessmentAdapter)
+    assert isinstance(runner, LiteRTPukaarAIRunner)
+    assert isinstance(assessor, PukaarAIImageAssessmentAdapter)
     assert assessor.runtime is deps_module.pukaar_node_runtime
     assert assessor.force_embedded is True
 
@@ -77,8 +77,8 @@ def test_deps_select_ollama_provider(monkeypatch: pytest.MonkeyPatch):
 
     runner, assessor = deps_module._build_pukaar_runtime_components()
 
-    assert isinstance(runner, OllamaPukaar AIRunner)
-    assert isinstance(assessor, Pukaar AIImageAssessmentAdapter)
+    assert isinstance(runner, OllamaPukaarAIRunner)
+    assert isinstance(assessor, PukaarAIImageAssessmentAdapter)
     assert assessor.runtime is None
     assert assessor.force_embedded is False
 
@@ -149,7 +149,7 @@ def test_ollama_provider_runner_returns_verdict(monkeypatch: pytest.MonkeyPatch,
     )
 
     runner, _assessor = deps_module._build_pukaar_runtime_components()
-    assert isinstance(runner, OllamaPukaar AIRunner)
+    assert isinstance(runner, OllamaPukaarAIRunner)
     verdict = runner.assess(_pack(image_path))
 
     assert verdict is not None

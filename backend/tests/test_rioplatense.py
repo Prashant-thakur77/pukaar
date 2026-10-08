@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from Pukaar.adapters.text_structuring_pukaar-ai_fewshot import (
-    Pukaar AIFewShotTextStructurer,
+from Pukaar.adapters.text_structuring_fewshot import (
+    FewShotTextStructurer,
     _build_user_prompt,
     FEW_SHOT,
 )
@@ -31,7 +31,7 @@ def test_few_shot_parser_handles_llm_none():
     class FakeLLM:
         def generate_text(self, *a, **k):
             return None
-    parser = Pukaar AIFewShotTextStructurer(FakeLLM())
+    parser = FewShotTextStructurer(FakeLLM())
     assert parser.structure_observation("paso la marca", {"site_name": "x"}) is None
 
 
@@ -39,7 +39,7 @@ def test_few_shot_parser_extracts_json():
     class FakeLLM:
         def generate_text(self, *a, **k):
             return 'prefix {"water_level_category":"critical","trend":"rising","road_status":"blocked","bridge_status":"unknown","homes_affected":true,"urgency":"critical","summary":"x","confidence":0.9} tail'
-    parser = Pukaar AIFewShotTextStructurer(FakeLLM())
+    parser = FewShotTextStructurer(FakeLLM())
     out = parser.structure_observation("paso la marca", {"site_name": "x"})
     assert out is not None
     assert out["water_level_category"] == "critical"
@@ -78,7 +78,7 @@ def test_adversarial_phrases_via_fewshot_wiring():
             def generate_text(self, *a, **k):
                 return json.dumps(self._payload)
 
-        parser = Pukaar AIFewShotTextStructurer(FakeLLM(water, road, homes))
+        parser = FewShotTextStructurer(FakeLLM(water, road, homes))
         out = parser.structure_observation(phrase, {"site_name": "x"})
         assert out is not None, phrase
         normalized = _normalize_llm_payload(out)

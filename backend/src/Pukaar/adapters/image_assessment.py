@@ -108,7 +108,7 @@ def _parse_json_block(text: str) -> dict | None:
         return None
 
 
-class Pukaar AIImageAssessmentAdapter:
+class PukaarAIImageAssessmentAdapter:
     """Calls Pukaar AI through Ollama's `/api/chat` with one optimized image."""
 
     def __init__(self, runtime: object | None = None, *, force_embedded: bool = False) -> None:

@@ -82,7 +82,7 @@ class PukaarAssessment:
     decision_trace: list[str]
 
 
-class Pukaar AIAssessmentRunner(Protocol):
+class PukaarAIAssessmentRunner(Protocol):
     def assess(self, pack: TemporalEvidencePack) -> AssessmentVerdict | None: ...
 
 
@@ -323,7 +323,7 @@ class PukaarAssessmentEngine:
     def __init__(
         self,
         builder: MultimodalEvidenceBuilder,
-        runner: Pukaar AIAssessmentRunner,
+        runner: PukaarAIAssessmentRunner,
     ) -> None:
         self.builder = builder
         self.runner = runner

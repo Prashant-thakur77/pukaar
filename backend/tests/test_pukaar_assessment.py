@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw
 
-from Pukaar.adapters.video_assessment import OllamaPukaar AIRunner
+from Pukaar.adapters.video_assessment import OllamaPukaarAIRunner
 from Pukaar.core import settings as settings_module
 from Pukaar.models.domain import Site, SiteCalibration
 from Pukaar.services.pukaar_assessment import (
@@ -199,7 +199,7 @@ def test_ollama_runner_multimodal_mode_parses_json_payload(monkeypatch, tmp_path
     import httpx
 
     monkeypatch.setattr(httpx.Client, "post", fake_post)
-    runner = OllamaPukaar AIRunner(FakeLLM())
+    runner = OllamaPukaarAIRunner(FakeLLM())
     pack = TemporalEvidencePack(
         site_id="test-site",
         site_name="Puente Test",

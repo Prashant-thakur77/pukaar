@@ -100,7 +100,7 @@ def _normalize_verdict_payload(
     )
 
 
-class OllamaPukaar AIRunner:
+class OllamaPukaarAIRunner:
     def __init__(self, llm: OpenAICompatibleLLM) -> None:
         self.llm = llm
         self.settings = getattr(llm, "settings", get_settings())
@@ -213,7 +213,7 @@ class OllamaPukaar AIRunner:
         )
 
 
-class LiteRTPukaar AIRunner:
+class LiteRTPukaarAIRunner:
     def __init__(self, runtime: LiteRTNodeRuntime) -> None:
         self.runtime = runtime
         self.settings = get_settings()
@@ -228,7 +228,7 @@ class LiteRTPukaar AIRunner:
         ]
         if not image_paths:
             return None
-        user_prompt = OllamaPukaar AIRunner._build_user_prompt(pack)
+        user_prompt = OllamaPukaarAIRunner._build_user_prompt(pack)
         payload = None
         for _attempt in range(2):
             payload = self.runtime.generate_multimodal_json(

@@ -6,29 +6,29 @@ from datetime import datetime
 from sqlmodel import SQLModel, Session, select
 
 from Pukaar.adapters.asr import FasterWhisperASRAdapter
-from Pukaar.adapters.image_assessment import Pukaar AIImageAssessmentAdapter
+from Pukaar.adapters.image_assessment import PukaarAIImageAssessmentAdapter
 from Pukaar.adapters.litert_node import LiteRTNodeRuntime
 from Pukaar.adapters.llm import OpenAICompatibleLLM
-from Pukaar.adapters.text_structuring_pukaar-ai_fewshot import Pukaar AIFewShotTextStructurer
-from Pukaar.adapters.video_assessment import LiteRTPukaar AIRunner, OllamaPukaar AIRunner
+from Pukaar.adapters.text_structuring_fewshot import FewShotTextStructurer
+from Pukaar.adapters.video_assessment import LiteRTPukaarAIRunner, OllamaPukaarAIRunner
 from Pukaar.core.settings import get_settings
 from Pukaar.models.domain import SyncQueueItem
 from Pukaar.services.pukaar_assessment import PukaarAssessmentEngine, TemporalEvidenceBuilder
 from Pukaar.services.external_data import ExternalDataService
 
 
-def _build_pukaar_runtime_components() -> tuple[object, Pukaar AIImageAssessmentAdapter]:
+def _build_pukaar_runtime_components() -> tuple[object, PukaarAIImageAssessmentAdapter]:
     settings = get_settings()
     provider = settings.pukaar_node_provider
     if provider == "litert":
         return (
-            LiteRTPukaar AIRunner(pukaar_node_runtime),
-            Pukaar AIImageAssessmentAdapter(runtime=pukaar_node_runtime, force_embedded=True),
+            LiteRTPukaarAIRunner(pukaar_node_runtime),
+            PukaarAIImageAssessmentAdapter(runtime=pukaar_node_runtime, force_embedded=True),
         )
     if provider == "ollama":
         return (
-            OllamaPukaar AIRunner(llm_client),
-            Pukaar AIImageAssessmentAdapter(),
+            OllamaPukaarAIRunner(llm_client),
+            PukaarAIImageAssessmentAdapter(),
         )
     raise ValueError(
         f"Unsupported PUKAAR_NODE_PROVIDER={provider!r}. Expected 'litert' or 'ollama'."
@@ -37,9 +37,9 @@ def _build_pukaar_runtime_components() -> tuple[object, Pukaar AIImageAssessment
 
 llm_client = OpenAICompatibleLLM()
 pukaar_node_runtime = LiteRTNodeRuntime()
-text_structurer = Pukaar AIFewShotTextStructurer(llm_client)
+text_structurer = FewShotTextStructurer(llm_client)
 pukaar_runner, pukaar_image_assessor = _build_pukaar_runtime_components()
-image_assessor = Pukaar AIImageAssessmentAdapter()
+image_assessor = PukaarAIImageAssessmentAdapter()
 asr_client = FasterWhisperASRAdapter()
 external_data_service = ExternalDataService()
 pukaar_engine = PukaarAssessmentEngine(

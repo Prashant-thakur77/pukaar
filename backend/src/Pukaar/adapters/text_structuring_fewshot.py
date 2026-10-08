@@ -221,7 +221,7 @@ def _build_user_prompt(transcript: str, site_context: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-class Pukaar AIFewShotTextStructurer:
+class FewShotTextStructurer:
     """Drop-in alternative to `OpenAICompatibleLLM.structure_observation` with
     a domain-tuned few-shot prompt for Litoral Spanish. Returns the same
     dict-or-None contract so the existing normalization path in
