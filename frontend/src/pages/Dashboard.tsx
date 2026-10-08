@@ -6,7 +6,7 @@
  *   │ RiskBanner (level · score · site · summary)                    │   <- 5-second read
  *   ├──────────────────────────────────────┬──────────────────────────┤
  *   │ Fusión de señales (3 tiles)          │ Estado CAP v1.2          │
- *   │ Frame de evidencia                   │ Acciones del operador    │
+ *   │                                      │ Acciones del operador    │
  *   │ Razonamiento de Pukaar AI                │ Cola offline · sync      │
  *   │ Traza de auditoría determinística    │                          │
  *   ├──────────────────────────────────────┴──────────────────────────┤
@@ -21,15 +21,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Database, TrendingUp } from 'lucide-react';
+import { ArrowRight, Database } from 'lucide-react';
 import { useAppStore } from '../store';
-import type { FusedAlert, HistoricalContextHit, Site, SiteForecast } from '../store';
+import type { FusedAlert, HistoricalContextHit, Site } from '../store';
 import {
   ActionRail,
   AuditTrace,
   CapStatusCard,
   EmptyCommandCenter,
-  EvidencePanel,
   PukaarAIReasoning,
   IncidentTimeline,
   OfflineSyncCard,
@@ -40,36 +39,6 @@ import {
 
 const CENTRAL_NODE_MODEL = 'pukaar-ai4:e26b';
 
-const EVIDENCE_BY_LEVEL: Record<FusedAlert['level'], { frameUrl: string; frameLabel: string; description: string; confidence: number }> = {
-  green: {
-    frameUrl: '/demo_persona_c/nominal.png',
-    frameLabel: 'cv_node/nominal_frame.png',
-    description:
-      'Calm channel conditions. Water remains low against the retaining wall, with dry grass and clear banks visible across the scene.',
-    confidence: 0.82,
-  },
-  yellow: {
-    frameUrl: '/demo_persona_c/watch.png',
-    frameLabel: 'cv_node/watch_frame.png',
-    description:
-      'Water level has risen across the channel and surface flow is stronger, but the bank and access path remain mostly clear.',
-    confidence: 0.84,
-  },
-  orange: {
-    frameUrl: '/demo_persona_c/watch.png',
-    frameLabel: 'cv_node/watch_frame.png',
-    description:
-      'Elevated water covers most of the channel and is approaching the bank. Continued rise would compromise the access path.',
-    confidence: 0.86,
-  },
-  red: {
-    frameUrl: '/demo_persona_c/critical.png',
-    frameLabel: 'cv_node/critical_frame.png',
-    description:
-      'Floodwater has overtopped the bank and spread into the foreground access area. Street-level structures and low ground are exposed.',
-    confidence: 0.91,
-  },
-};
 import type {
   ActionCall,
   AuditEntry,
@@ -117,14 +86,11 @@ const DEMO_ALERT: FusedAlert = {
 };
 
 const DEMO_FUSION: SignalInput[] = [
-  { source: 'camera',    score: 0.87, status: 'ok',    detail: 'Crossed critical line · 126 frames analyzed', ageSeconds: 8 },
   { source: 'volunteer', score: 0.62, status: 'ok',    detail: '"Water already crossed the critical mark and carries mud" · 1 report', ageSeconds: 92 },
   { source: 'hydromet',  score: 0.45, status: 'ok',    detail: 'Open-Meteo · 12.4 mm/h · prob 12h 68%',          ageSeconds: 240 },
 ];
 
 const DEMO_AUDIT: AuditEntry[] = [
-  { rule: 'RULE_CRITICAL_LINE_CROSSED',     outcome: 'fired',     detail: 'CV node observation: waterline_ratio 0.42 crossed calibrated line y=120.' },
-  { rule: 'RULE_RISE_VELOCITY',             outcome: 'fired',     detail: 'rise_velocity 0.0034/frame > threshold 0.0020/frame.' },
   { rule: 'RULE_VOLUNTEER_CORROBORATION',   outcome: 'fired',     detail: '1 volunteer report classified by Pukaar AI with urgency=high in last 5 min.' },
   { rule: 'RULE_HYDROMET_AGREEMENT',        outcome: 'fired',     detail: 'Open-Meteo 12h probability 68% exceeds threshold 50%.' },
   { rule: 'RULE_DUPLICATE_SUPPRESSION',     outcome: 'not_fired', detail: 'No prior active alert found for this site in 30 min window.' },
@@ -135,13 +101,11 @@ const DEMO_TIMELINE_FACTORY = (): TimelineEvent[] => {
   const now = Date.now();
   const t = (deltaSec: number) => new Date(now + deltaSec * 1000).toISOString();
   return [
-    { at: t(-240), kind: 'detect',    label: 'CV detection',            detail: 'Silverado node: rise_velocity > threshold', done: true },
     { at: t(-185), kind: 'volunteer', label: 'Volunteer report',       detail: 'Brigade member Maria G. (Pukaar Android)', done: true },
     { at: t(-145), kind: 'fuse',      label: 'Signal fusion',          detail: 'fused_score = 0.87 · level = red',        done: true },
     { at: t(-90),  kind: 'cap',       label: 'CAP v1.2 emitted',       detail: 'receipt CAP-2026-05-16-0042',             done: true },
     { at: t(-70),  kind: 'siren',     label: 'Siren triggered',        detail: 'GPIO relay low zone',                     done: true },
     { at: t(-30),  kind: 'notify',    label: 'Civil Defense notified', detail: 'Municipal webhook acknowledged',          done: true },
-    { at: t(60),   kind: 'sync',      label: 'Next CV window',         detail: 'Automatic re-analysis in 60s',            done: false },
   ];
 };
 
@@ -167,11 +131,9 @@ export default function Dashboard() {
     fetchSiteExperimentalSettings,
     updateSiteExperimentalSettings,
     fetchSiteHistoricalContext,
-    fetchSiteForecast,
     isOnline,
     queueCount,
     siteSettings,
-    siteForecasts,
     siteHistoricalContext,
   } = useAppStore();
 
@@ -213,8 +175,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!isOnline || !activeSiteId) return;
     fetchSiteExperimentalSettings(activeSiteId);
-    fetchSiteForecast(activeSiteId);
-  }, [activeSiteId, fetchSiteExperimentalSettings, fetchSiteForecast, isOnline]);
+  }, [activeSiteId, fetchSiteExperimentalSettings, isOnline]);
 
   useEffect(() => {
     if (!isOnline || !activeSiteId || !historicalContextEnabled) return;
@@ -244,11 +205,11 @@ export default function Dashboard() {
     if (!liveTrace?.evidence) return DEMO_FUSION;
     const ev: any[] = Array.isArray(liveTrace.evidence) ? liveTrace.evidence : [];
     type Best = { score: number; weighted: number; summary: string; observed: number };
-    const best: Record<'camera'|'volunteer'|'hydromet', Best | null> = {
-      camera: null, volunteer: null, hydromet: null,
+    const best: Record<'volunteer'|'hydromet', Best | null> = {
+      volunteer: null, hydromet: null,
     };
     for (const e of ev) {
-      const src = e.source === 'node' ? 'camera' : (e.source as 'volunteer'|'hydromet'|'camera');
+      const src = e.source as 'volunteer'|'hydromet';
       if (!(src in best)) continue;
       const w = Number(e.weighted_score) || 0;
       const prev = best[src];
@@ -262,12 +223,11 @@ export default function Dashboard() {
       }
     }
     const now = Date.now();
-    const MODEL_BY_SRC: Record<'camera'|'volunteer'|'hydromet', string> = {
-      camera:    'pukaar-ai4:e4b',
+    const MODEL_BY_SRC: Record<'volunteer'|'hydromet', string> = {
       volunteer: 'pukaar-model:2b',
       hydromet:  'open-meteo',
     };
-    return (['camera','volunteer','hydromet'] as const).map((src) => {
+    return (['volunteer','hydromet'] as const).map((src) => {
       const b = best[src];
       if (!b) return {
         source: src, score: 0, status: 'missing' as const,
@@ -290,8 +250,6 @@ export default function Dashboard() {
     const fired: string[] = Array.isArray(liveTrace.rules_fired) ? liveTrace.rules_fired.map(String) : [];
     const has = (needle: string) => fired.some((r) => r.includes(needle));
     const entries: AuditEntry[] = [
-      { rule: 'RULE_NODE_CRITICAL_LINE',     outcome: has('node_critical_line_crossed') ? 'fired' : 'not_fired', detail: 'Fixed camera crossed calibrated critical line.' },
-      { rule: 'RULE_NODE_FAST_RISE',         outcome: has('node_fast_rise') ? 'fired' : 'not_fired',           detail: 'rise_velocity exceeds threshold 0.08/frame.' },
       { rule: 'RULE_VOLUNTEER_MARK_EXCEEDED', outcome: has('volunteer_mark_exceeded') ? 'fired' : 'not_fired', detail: 'Human report confirms water mark exceeded.' },
       { rule: 'RULE_VOLUNTEER_ROAD_CUT',     outcome: has('volunteer_road_cut') ? 'fired' : 'not_fired',       detail: 'Citizen report: road cut / impassable.' },
       { rule: 'RULE_VOLUNTEER_HOMES_AFFECTED', outcome: has('volunteer_homes_affected') ? 'fired' : 'not_fired', detail: 'Citizen report: water inside homes.' },
@@ -341,57 +299,6 @@ export default function Dashboard() {
       },
     ];
   }, [activeSiteId, historicalContextEnabled, liveTrace, siteHistoricalContext]);
-
-  const forecast = useMemo<SiteForecast>(() => {
-    const stored = siteForecasts[activeSiteId];
-    if (stored) return stored;
-    const raw = liveTrace?.forecast;
-    if (raw?.projected_points && Array.isArray(raw.projected_points)) {
-      return {
-        horizon_minutes: Number(raw.horizon_minutes) || 60,
-        expected_level: Number(raw.expected_level) || 0,
-        trend_per_hour: Number(raw.trend_per_hour) || 0,
-        acceleration_per_hour2: Number(raw.acceleration_per_hour2) || 0,
-        risk: String(raw.risk || 'unknown'),
-        status: String(raw.status || 'ok'),
-        confidence: Number(raw.confidence) || 0.45,
-        critical_threshold: Number(raw.critical_threshold) || 0.8,
-        minutes_to_threshold: typeof raw.minutes_to_threshold === 'number' ? raw.minutes_to_threshold : null,
-        warning: raw.warning ? String(raw.warning) : null,
-        projected_points: raw.projected_points.map((point: any) => ({
-          minute: Number(point.minute) || 0,
-          level: Number(point.level) || 0,
-        })),
-        uncertainty_band: Array.isArray(raw.uncertainty_band) ? raw.uncertainty_band.map((point: any) => ({
-          minute: Number(point.minute) || 0,
-          low: Number(point.low) || 0,
-          high: Number(point.high) || 0,
-        })) : [],
-      };
-    }
-    const base = activeAlert.level === 'red' ? 0.82 : activeAlert.level === 'orange' ? 0.68 : activeAlert.level === 'yellow' ? 0.52 : 0.35;
-    const trend = activeAlert.level === 'red' ? 0.18 : activeAlert.level === 'orange' ? 0.14 : 0.08;
-    return {
-      horizon_minutes: 60,
-      expected_level: Math.min(1, base + trend),
-      trend_per_hour: trend,
-      acceleration_per_hour2: activeAlert.level === 'red' ? 0.07 : 0.03,
-      risk: activeAlert.level === 'green' ? 'low' : activeAlert.level === 'yellow' ? 'moderate' : 'high',
-      status: 'demo',
-      confidence: 0.42,
-      critical_threshold: 0.8,
-      minutes_to_threshold: activeAlert.level === 'red' ? 0 : activeAlert.level === 'orange' ? 45 : null,
-      warning: 'Demo projection until enough site measurements are available.',
-      projected_points: [0, 15, 30, 45, 60].map((minute) => ({
-        minute,
-        level: Math.min(1, base + trend * (minute / 60) + 0.5 * 0.05 * (minute / 60) ** 2),
-      })),
-      uncertainty_band: [0, 15, 30, 45, 60].map((minute) => {
-        const level = Math.min(1, base + trend * (minute / 60) + 0.5 * 0.05 * (minute / 60) ** 2);
-        return { minute, low: Math.max(0, level - 0.08), high: level + 0.08 };
-      }),
-    };
-  }, [activeAlert.level, activeSiteId, liveTrace, siteForecasts]);
 
   const toggleHistoricalContext = async (enabled: boolean) => {
     const updated = await updateSiteExperimentalSettings(activeSiteId, {
@@ -464,16 +371,6 @@ export default function Dashboard() {
             settingsLoaded={Boolean(currentSettings)}
           />
 
-          <SectionPanel title="Evidence frame · Pukaar AI narration" meta={CENTRAL_NODE_MODEL}>
-            <EvidencePanel
-              frameUrl={EVIDENCE_BY_LEVEL[activeAlert.level].frameUrl}
-              frameLabel={EVIDENCE_BY_LEVEL[activeAlert.level].frameLabel}
-              description={EVIDENCE_BY_LEVEL[activeAlert.level].description}
-              model={CENTRAL_NODE_MODEL}
-              confidence={EVIDENCE_BY_LEVEL[activeAlert.level].confidence}
-            />
-          </SectionPanel>
-
           {activeAlert.reasoning_summary && (
             <PukaarAIReasoning
               summary={activeAlert.reasoning_summary}
@@ -512,7 +409,6 @@ export default function Dashboard() {
             lastSync={isOnline ? new Date().toLocaleTimeString('en-US') : null}
           />
 
-          <ForecastPanel forecast={forecast} />
         </div>
       </div>
 
@@ -598,97 +494,6 @@ function HistoricalContextPanel({
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function ForecastPanel({
-  forecast,
-}: {
-  forecast: SiteForecast;
-}) {
-  const width = 320;
-  const height = 120;
-  const maxMinute = Math.max(60, ...forecast.projected_points.map((point) => point.minute));
-  const path = forecast.projected_points
-    .map((point, index) => {
-      const x = (point.minute / maxMinute) * width;
-      const y = height - Math.min(1, point.level) * height;
-      return `${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-    })
-    .join(' ');
-
-  const bandPath = forecast.uncertainty_band.length
-    ? [
-        ...forecast.uncertainty_band.map((point, index) => {
-          const x = (point.minute / maxMinute) * width;
-          const y = height - Math.min(1.2, point.high) * height;
-          return `${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-        }),
-        ...[...forecast.uncertainty_band].reverse().map((point) => {
-          const x = (point.minute / maxMinute) * width;
-          const y = height - Math.min(1.2, point.low) * height;
-          return `L ${x.toFixed(1)} ${y.toFixed(1)}`;
-        }),
-        'Z',
-      ].join(' ')
-    : '';
-  const eta = forecast.minutes_to_threshold == null
-    ? '>60m'
-    : forecast.minutes_to_threshold === 0
-      ? 'crossed'
-      : `${forecast.minutes_to_threshold}m`;
-
-  return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-amber-300" />
-          <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
-            Proyeccion a 60 min
-          </div>
-        </div>
-        <span className="text-xs font-mono text-amber-300">{forecast.status} · {forecast.risk}</span>
-      </div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-32" role="img" aria-label="Water level forecast">
-        <line
-          x1="0"
-          y1={height - Math.min(1.2, forecast.critical_threshold) * height}
-          x2={width}
-          y2={height - Math.min(1.2, forecast.critical_threshold) * height}
-          stroke="#ef4444"
-          strokeWidth="1.5"
-          strokeDasharray="5 5"
-        />
-        {bandPath && <path d={bandPath} fill="rgba(245, 158, 11, 0.18)" />}
-        <path d={path} fill="none" stroke="#f59e0b" strokeWidth="3" strokeDasharray="6 5" strokeLinecap="round" />
-        {forecast.projected_points.map((point) => (
-          <circle
-            key={point.minute}
-            cx={(point.minute / maxMinute) * width}
-            cy={height - Math.min(1, point.level) * height}
-            r="3"
-            fill="#fbbf24"
-          />
-        ))}
-      </svg>
-      <div className="grid grid-cols-3 gap-2 text-xs">
-        <div className="cc-metric">
-          <span className="cc-k">level_60m</span>
-          <span className="cc-v">{forecast.expected_level.toFixed(2)}</span>
-        </div>
-        <div className="cc-metric">
-          <span className="cc-k">conf</span>
-          <span className="cc-v">{(forecast.confidence * 100).toFixed(0)}%</span>
-        </div>
-        <div className="cc-metric">
-          <span className="cc-k">eta</span>
-          <span className="cc-v">{eta}</span>
-        </div>
-      </div>
-      {forecast.warning && (
-        <p className="mt-3 text-xs text-slate-400 leading-snug">{forecast.warning}</p>
-      )}
     </div>
   );
 }

@@ -76,27 +76,3 @@ def test_adapter_parses_success(monkeypatch, tmp_path: Path):
     assert result.infrastructure_at_risk is True
     assert 0.79 < result.confidence < 0.81
     assert "puente" in result.description_es.lower()
-
-
-def test_adapter_uses_embedded_runtime_when_present(monkeypatch, tmp_path: Path):
-    monkeypatch.setenv("PUKAAR_MULTIMODAL_VERIFIER_ENABLED", "true")
-    img = tmp_path / "x.jpg"
-    img.write_bytes(b"\x89PNG\r\n\x1a\nfakebytes")
-
-    class FakeRuntime:
-        model_name = "pukaar-model-2b.litertlm"
-
-        def generate_multimodal_json(self, *args, **kwargs):
-            return {
-                "description_es": "Agua alta sobre el cauce.",
-                "water_visible": True,
-                "infrastructure_at_risk": False,
-                "confidence": 0.74,
-            }
-
-    adapter = PukaarAIImageAssessmentAdapter(runtime=FakeRuntime(), force_embedded=True)
-    result = adapter.assess(img)
-
-    assert result is not None
-    assert result.model_name == "pukaar-model-2b.litertlm"
-    assert result.water_visible is True

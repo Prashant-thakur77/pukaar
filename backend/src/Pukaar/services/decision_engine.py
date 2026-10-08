@@ -12,13 +12,11 @@ from Pukaar.models.domain import (
     FusedAlert,
     HydrometSnapshot,
     Incident,
-    NodeObservation,
     ParsedObservation,
     VolunteerReport,
 )
 from Pukaar.services.actuators import ACTUATOR_REGISTRY, dispatch_actuators
 from Pukaar.services.historical_context import render_historical_context, retrieve_historical_context
-from Pukaar.services.predictive import Measurement, forecast_short_term
 from Pukaar.services.reasoning import generate_alert_reasoning, serialize_chain
 
 
@@ -77,17 +75,6 @@ def temporal_weight(observed_at: datetime, now: datetime, window_minutes: int) -
     return max(STALE_DECAY_FLOOR, 1.0 - (age_seconds / window_seconds) * (1.0 - STALE_DECAY_FLOOR))
 
 
-def _node_rules(node: NodeObservation) -> list[str]:
-    rules = [f"node_score={node.severity_score:.2f}"]
-    if node.crossed_critical_line:
-        rules.append("node_critical_line_crossed")
-    if node.rise_velocity > 0.08:
-        rules.append("node_fast_rise")
-    if node.assessment_level:
-        rules.append(f"node_level={node.assessment_level}")
-    return rules
-
-
 def _volunteer_rules(parsed: ParsedObservation) -> list[str]:
     rules = [f"volunteer_score={parsed.severity_score:.2f}"]
     if parsed.water_level_category in {"high", "critical", "above_critical"}:
@@ -141,39 +128,6 @@ def _collect_evidence(
 ) -> list[EvidenceEvent]:
     window_start = now - timedelta(minutes=window_minutes)
     events: list[EvidenceEvent] = []
-
-    nodes = session.exec(
-        select(NodeObservation)
-        .where(NodeObservation.site_id == site_id)
-        .where(NodeObservation.ended_at >= window_start)
-        .order_by(NodeObservation.ended_at.desc())
-    ).all()
-    for node in nodes:
-        raw = normalize_score(node.severity_score)
-        weight = temporal_weight(node.ended_at, now, window_minutes)
-        events.append(
-            EvidenceEvent(
-                source="node",
-                entity_id=node.id,
-                observed_at=node.ended_at,
-                raw_score=raw,
-                weighted_score=raw * weight,
-                weight=weight,
-                summary=node.temporal_summary
-                or f"Node ratio {node.waterline_ratio:.2f} ({'crossed' if node.crossed_critical_line else 'below'} critical)",
-                rules=_node_rules(node),
-                payload={
-                    "waterline_ratio": node.waterline_ratio,
-                    "rise_velocity": node.rise_velocity,
-                    "crossed_critical_line": node.crossed_critical_line,
-                    "confidence": node.confidence,
-                    "temporal_summary": node.temporal_summary,
-                    "runner_name": node.runner_name,
-                    "runner_mode": node.runner_mode,
-                    "fallback_used": node.fallback_used,
-                },
-            )
-        )
 
     reports = session.exec(
         select(VolunteerReport)
@@ -270,14 +224,10 @@ def _score_events(events: list[EvidenceEvent]) -> tuple[float, str, list[str]]:
         rules_fired.append("two_medium_sources_escalate_to_orange")
 
     local_sources = {event.source: event.weighted_score for event in events}
-    if local_sources.get("node", 0.0) < 0.25 and local_sources.get("volunteer", 0.0) >= 0.62:
-        rules_fired.append("contradiction_node_low_volunteer_high")
-    if local_sources.get("hydromet", 0.0) < 0.25 and max(local_sources.get("node", 0.0), local_sources.get("volunteer", 0.0)) >= 0.62:
+    if local_sources.get("hydromet", 0.0) < 0.25 and local_sources.get("volunteer", 0.0) >= 0.62:
         rules_fired.append("local_evidence_stronger_than_hydromet")
 
-    critical_rules = {rule for rule in rules_fired if rule.startswith("volunteer_") or rule == "node_critical_line_crossed"}
-    if "node_critical_line_crossed" in critical_rules:
-        fused_score = max(fused_score, 0.82)
+    critical_rules = {rule for rule in rules_fired if rule.startswith("volunteer_")}
     if critical_rules.intersection(
         {
             "volunteer_mark_exceeded",
@@ -468,12 +418,9 @@ def recompute_site_alert(
     summary = " | ".join(summary_parts[:3]) or "No recent signals available"
 
     representative = {source: event.payload for source, event in latest_by_source.items()}
-    latest_level = None
-    if "node" in latest_by_source:
-        latest_level = float(latest_by_source["node"].payload.get("waterline_ratio") or 0.0)
 
     historical_hits = (
-        retrieve_historical_context(site_id, current_level=latest_level)
+        retrieve_historical_context(site_id)
         if use_historical_context
         else []
     )
@@ -481,7 +428,6 @@ def recompute_site_alert(
     reasoning = generate_alert_reasoning(
         level=level,
         fused_score=weighted_score,
-        node_obs=representative.get("node"),
         volunteer_parsed=representative.get("volunteer"),
         hydromet=representative.get("hydromet"),
         rules_fired=rules_fired,
@@ -492,16 +438,6 @@ def recompute_site_alert(
 
     incident = _upsert_incident(session, site_id, level, summary, window_minutes, events, now)
     trace = _event_trace(events, window_minutes, now, rules_fired)
-    node_measurements = [
-        Measurement(
-            observed_at=event.observed_at,
-            water_level=float(event.payload.get("waterline_ratio") or 0.0),
-        )
-        for event in reversed(events)
-        if event.source == "node"
-    ]
-    if node_measurements:
-        trace["forecast"] = forecast_short_term(node_measurements, horizon_minutes=60).__dict__
     if historical_hits:
         trace["historical_context"] = {
             "enabled": True,

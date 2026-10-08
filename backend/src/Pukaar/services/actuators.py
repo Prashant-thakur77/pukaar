@@ -1,9 +1,7 @@
 """Actuator dispatch via local Pukaar AI tool selection.
 
 When a fused alert is escalated to orange/red, we ask the configured local
-Pukaar AI runtime which actuators to fire. LiteRT production uses strict JSON tool
-selection through ``LiteRTNodeRuntime``; Ollama remains supported as an explicit
-development provider through native ``tool_calls``.
+model (Ollama ``/api/chat`` with native ``tool_calls``) which actuators to fire.
 
 The default implementations are stdout-printing stubs that also append every
 fired call to ``RECORDED_CALLS`` so tests can assert behaviour without going
@@ -17,7 +15,6 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import httpx
 
-from Pukaar.adapters.litert_node import LiteRTNodeRuntime
 from Pukaar.core.settings import get_settings
 
 
@@ -193,35 +190,6 @@ def _ollama_chat_url(base_url: str) -> str:
     return base_url.rstrip("/").removesuffix("/v1") + "/api/chat"
 
 
-def _build_litert_prompts(alert: "FusedAlert") -> tuple[str, str]:
-    system = (
-        "You select actuator tool calls for an offline flood warning node. "
-        "Return only valid JSON, with no markdown and no prose. "
-        "Schema: {\"tool_calls\":[{\"name\":\"trigger_alarm|send_radio_payload|notify_app\","
-        "\"arguments\":{}}]}. "
-        "Use an empty tool_calls array unless the alert level is orange or red. "
-        "Only use the listed tool names. "
-        "Arguments: trigger_alarm needs reason; send_radio_payload needs severity and optional summary; "
-        "notify_app needs text."
-    )
-    user = (
-        f"Alert site_id={alert.site_id!r}, level={alert.level!r}, "
-        f"score={alert.score:.2f}, trigger_source={alert.trigger_source!r}.\n"
-        f"Summary: {alert.summary}\n"
-        "Select the minimal actuator calls now."
-    )
-    return system, user
-
-
-def _call_litert_tool_selection(alert: "FusedAlert", runtime: LiteRTNodeRuntime) -> dict[str, Any] | None:
-    system_prompt, user_prompt = _build_litert_prompts(alert)
-    try:
-        return runtime.generate_json(system_prompt, user_prompt, max_tokens=96)
-    except Exception as exc:
-        _LOGGER.warning("LiteRT actuator selection failed: %s", exc)
-        return None
-
-
 def _call_ollama_tool_selection(
     alert: "FusedAlert",
     llm: "OpenAICompatibleLLM",
@@ -263,7 +231,7 @@ def _tool_calls_from_body(body: dict[str, Any] | None) -> list[Any]:
 
 def dispatch_actuators(
     alert: "FusedAlert",
-    llm: "OpenAICompatibleLLM | LiteRTNodeRuntime",
+    llm: "OpenAICompatibleLLM",
     *,
     allowed_tools: set[str] | None = None,
 ) -> list[str]:
@@ -282,11 +250,7 @@ def dispatch_actuators(
         _LOGGER.info("actuator dispatch guardrail skipped level=%s", alert.level)
         return []
 
-    body = (
-        _call_litert_tool_selection(alert, llm)
-        if isinstance(llm, LiteRTNodeRuntime)
-        else _call_ollama_tool_selection(alert, llm)
-    )
+    body = _call_ollama_tool_selection(alert, llm)
 
     try:
         tool_calls = _tool_calls_from_body(body)

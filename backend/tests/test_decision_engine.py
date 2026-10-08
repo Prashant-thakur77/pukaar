@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 import pytest
 from sqlmodel import Session, SQLModel, select
 
-from Pukaar.adapters.litert_node import LiteRTNodeRuntime
 from Pukaar.api.deps import enqueue_entity
 from Pukaar.api.routers.sync import flush_sync
 from Pukaar.core import settings as settings_module
@@ -16,12 +15,12 @@ from Pukaar.models.domain import (
     FusedAlert,
     HydrometSnapshot,
     Incident,
-    NodeObservation,
     ParsedObservation,
     Site,
     SyncQueueItem,
     VolunteerReport,
 )
+from Pukaar.services import actuators as actuators_module
 from Pukaar.services.actuators import RECORDED_CALLS, reset_recorded_calls
 from Pukaar.services.decision_engine import level_from_score, recompute_site_alert, temporal_weight
 
@@ -55,25 +54,6 @@ def _reset_state(monkeypatch: pytest.MonkeyPatch):
     settings_module.get_settings.cache_clear()
 
 
-def _node(site_id: str, observed_at: datetime, score: float, crossed: bool = False) -> NodeObservation:
-    return NodeObservation(
-        site_id=site_id,
-        source_type="test",
-        started_at=observed_at - timedelta(minutes=2),
-        ended_at=observed_at,
-        frames_analyzed=4,
-        waterline_ratio=0.8 if crossed else 0.4,
-        rise_velocity=0.12 if crossed else 0.02,
-        crossed_critical_line=crossed,
-        confidence=0.8,
-        decision_trace="[]",
-        severity_score=score,
-        assessment_score=score,
-        assessment_level=level_from_score(score),
-        temporal_summary="nivel observado por nodo fijo",
-    )
-
-
 def _report_pair(site_id: str, observed_at: datetime, score: float, text: str = "reporte medio") -> tuple[VolunteerReport, ParsedObservation]:
     report = VolunteerReport(
         site_id=site_id,
@@ -100,6 +80,35 @@ def _report_pair(site_id: str, observed_at: datetime, score: float, text: str = 
     return report, parsed
 
 
+class _FakeDecisionLLM:
+    model_name = "fake-llm"
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    def generate_text(self, *_args, **_kwargs):
+        return self.text
+
+
+def _stub_tool_selection(monkeypatch: pytest.MonkeyPatch, body: dict | None) -> list[str]:
+    calls: list[str] = []
+
+    def fake_selection(alert, _llm):
+        calls.append(alert.level)
+        return body
+
+    monkeypatch.setattr(actuators_module, "_call_ollama_tool_selection", fake_selection)
+    return calls
+
+
+def _add_report(session: Session, site_id: str, observed_at: datetime, score: float) -> None:
+    report, parsed = _report_pair(site_id, observed_at, score)
+    session.add(report)
+    session.flush()
+    parsed.volunteer_report_id = report.id or 0
+    session.add(parsed)
+
+
 def test_level_from_score_thresholds():
     assert level_from_score(0.39) == "green"
     assert level_from_score(0.40) == "yellow"
@@ -117,7 +126,14 @@ def test_temporal_weight_keeps_fresh_evidence_at_full_strength():
 def test_temporal_fusion_escalates_two_medium_sources():
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(minutes=5), 0.5))
+        session.add(
+            HydrometSnapshot(
+                site_id="site-a",
+                created_at=now - timedelta(minutes=5),
+                signal_score=0.5,
+                summary="lluvia moderada",
+            )
+        )
         report, parsed = _report_pair("site-a", now - timedelta(minutes=4), 0.5)
         session.add(report)
         session.flush()
@@ -137,7 +153,7 @@ def test_temporal_fusion_escalates_two_medium_sources():
 def test_old_signal_does_not_keep_alert_high():
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(hours=2), 0.95, crossed=True))
+        _add_report(session, "site-a", now - timedelta(hours=2), 0.95)
         alert = recompute_site_alert(session, "site-a", None, now=now, window_minutes=45)
         level = alert.level
         decision_trace = alert.decision_trace
@@ -150,7 +166,7 @@ def test_old_signal_does_not_keep_alert_high():
 def test_incident_reused_and_actuators_idempotent():
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(minutes=2), 0.9, crossed=True))
+        _add_report(session, "site-a", now - timedelta(minutes=2), 0.92)
         first = recompute_site_alert(session, "site-a", None, now=now)
         first_incident = first.incident_id
         second = recompute_site_alert(session, "site-a", None, now=now + timedelta(minutes=1))
@@ -169,26 +185,12 @@ def test_incident_reused_and_actuators_idempotent():
     assert [name for name, _payload in RECORDED_CALLS] == ["trigger_alarm", "send_radio_payload", "notify_app"]
 
 
-def test_malformed_litert_actuator_selection_uses_deterministic_fallback():
-    class MalformedLiteRTRuntime(LiteRTNodeRuntime):
-        def __init__(self):
-            self.json_calls = 0
-
-        @property
-        def model_name(self) -> str:
-            return "fake-litert"
-
-        def generate_text(self, *_args, **_kwargs):
-            return "Resumen: alerta roja por nodo. Cadena: nodo -> regla -> actuar"
-
-        def generate_json(self, *_args, **_kwargs):
-            self.json_calls += 1
-            return None
-
+def test_malformed_actuator_selection_uses_deterministic_fallback(monkeypatch: pytest.MonkeyPatch):
+    selection_calls = _stub_tool_selection(monkeypatch, None)
     now = datetime(2026, 5, 14, 12, 0, 0)
-    runtime = MalformedLiteRTRuntime()
+    runtime = _FakeDecisionLLM("Resumen: alerta roja por reporte. Cadena: reporte -> regla -> actuar")
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(minutes=2), 0.9, crossed=True))
+        _add_report(session, "site-a", now - timedelta(minutes=2), 0.92)
         alert = recompute_site_alert(session, "site-a", runtime, now=now)
         level = alert.level
         records = session.exec(select(ActuationRecord)).all()
@@ -197,7 +199,7 @@ def test_malformed_litert_actuator_selection_uses_deterministic_fallback():
         session.commit()
 
     assert level == "red"
-    assert runtime.json_calls == 1
+    assert selection_calls == ["red"]
     assert record_types == [
         "trigger_alarm",
         "send_radio_payload",
@@ -211,22 +213,18 @@ def test_malformed_litert_actuator_selection_uses_deterministic_fallback():
     ]
 
 
-def test_partial_litert_actuator_selection_completes_recommended_fallback():
-    class PartialLiteRTRuntime(LiteRTNodeRuntime):
-        @property
-        def model_name(self) -> str:
-            return "fake-litert"
-
-        def generate_text(self, *_args, **_kwargs):
-            return "Resumen: alerta roja por nodo. Cadena: nodo -> regla -> actuar"
-
-        def generate_json(self, *_args, **_kwargs):
-            return {"tool_calls": [{"name": "notify_app", "arguments": {"text": "alerta roja"}}]}
+def test_partial_actuator_selection_completes_recommended_fallback(monkeypatch: pytest.MonkeyPatch):
+    _stub_tool_selection(
+        monkeypatch,
+        {"tool_calls": [{"name": "notify_app", "arguments": {"text": "alerta roja"}}]},
+    )
 
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(minutes=2), 0.9, crossed=True))
-        alert = recompute_site_alert(session, "site-a", PartialLiteRTRuntime(), now=now)
+        _add_report(session, "site-a", now - timedelta(minutes=2), 0.92)
+        alert = recompute_site_alert(
+            session, "site-a", _FakeDecisionLLM("Resumen: alerta roja. Cadena: reporte -> actuar"), now=now
+        )
         level = alert.level
         records = session.exec(select(ActuationRecord)).all()
         record_types = [record.actuator_type for record in records]
@@ -241,27 +239,23 @@ def test_partial_litert_actuator_selection_completes_recommended_fallback():
     assert fired_names.count("notify_app") == 1
 
 
-def test_orange_litert_selection_is_constrained_to_recommended_pending_actuators():
-    class OverreachingLiteRTRuntime(LiteRTNodeRuntime):
-        @property
-        def model_name(self) -> str:
-            return "fake-litert"
-
-        def generate_text(self, *_args, **_kwargs):
-            return "Resumen: alerta naranja por dos fuentes. Cadena: corroborar -> preparar"
-
-        def generate_json(self, *_args, **_kwargs):
-            return {
-                "tool_calls": [
-                    {"name": "trigger_alarm", "arguments": {"reason": "modelo pidio sirena"}},
-                    {"name": "notify_app", "arguments": {"text": "alerta naranja"}},
-                ]
-            }
+def test_orange_selection_is_constrained_to_recommended_pending_actuators(monkeypatch: pytest.MonkeyPatch):
+    _stub_tool_selection(
+        monkeypatch,
+        {
+            "tool_calls": [
+                {"name": "trigger_alarm", "arguments": {"reason": "modelo pidio sirena"}},
+                {"name": "notify_app", "arguments": {"text": "alerta naranja"}},
+            ]
+        },
+    )
 
     now = datetime(2026, 5, 14, 12, 0, 0)
     with Session(edge_engine) as session:
-        session.add(_node("site-a", now - timedelta(minutes=2), 0.72, crossed=False))
-        alert = recompute_site_alert(session, "site-a", OverreachingLiteRTRuntime(), now=now)
+        _add_report(session, "site-a", now - timedelta(minutes=2), 0.72)
+        alert = recompute_site_alert(
+            session, "site-a", _FakeDecisionLLM("Resumen: alerta naranja. Cadena: corroborar -> preparar"), now=now
+        )
         level = alert.level
         records = session.exec(select(ActuationRecord)).all()
         record_types = [record.actuator_type for record in records]
@@ -282,7 +276,7 @@ async def test_central_integration_flow_and_idempotent_sync():
         report, parsed = _report_pair(
             "site-a",
             now - timedelta(minutes=8),
-            0.72,
+            0.95,
             "agua supero la marca y hay viviendas afectadas",
         )
         parsed.water_level_category = "critical"
@@ -292,7 +286,6 @@ async def test_central_integration_flow_and_idempotent_sync():
         session.flush()
         parsed.volunteer_report_id = report.id or 0
         session.add(parsed)
-        session.add(_node("site-a", now - timedelta(minutes=4), 0.88, crossed=True))
         session.add(
             HydrometSnapshot(
                 site_id="site-a",
@@ -308,8 +301,6 @@ async def test_central_integration_flow_and_idempotent_sync():
         session.flush()
         enqueue_entity(session, "volunteer_report", report)
         enqueue_entity(session, "parsed_observation", parsed)
-        for node in session.exec(select(NodeObservation)).all():
-            enqueue_entity(session, "node_observation", node)
         for snapshot in session.exec(select(HydrometSnapshot)).all():
             enqueue_entity(session, "hydromet_snapshot", snapshot)
 

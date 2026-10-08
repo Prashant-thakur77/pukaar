@@ -34,7 +34,6 @@ SYSTEM_PROMPT = (
 
 
 def _render_inputs(
-    node_obs: Optional[dict[str, Any]],
     volunteer_parsed: Optional[dict[str, Any]],
     hydromet: Optional[dict[str, Any]],
     fused_score: float,
@@ -44,16 +43,6 @@ def _render_inputs(
 ) -> str:
     parts: list[str] = []
     parts.append(f"level={level} score={fused_score:.2f}")
-    if node_obs:
-        parts.append(
-            "node "
-            f"waterline_ratio={node_obs.get('waterline_ratio', 0):.2f} "
-            f"rise_velocity={node_obs.get('rise_velocity', 0):.2f} "
-            f"crossed_critical_line={node_obs.get('crossed_critical_line', False)} "
-            f"confidence={node_obs.get('confidence', 0):.2f}"
-        )
-    else:
-        parts.append("node none")
     if volunteer_parsed:
         parts.append(
             "pukaar "
@@ -129,7 +118,6 @@ def _runtime_model_name(llm: object) -> str:
 def generate_alert_reasoning(
     level: str,
     fused_score: float,
-    node_obs: Optional[dict[str, Any]],
     volunteer_parsed: Optional[dict[str, Any]],
     hydromet: Optional[dict[str, Any]],
     rules_fired: list[str],
@@ -154,7 +142,6 @@ def generate_alert_reasoning(
         return _fallback(level, rules_fired)
 
     user_prompt = _render_inputs(
-        node_obs,
         volunteer_parsed,
         hydromet,
         fused_score,
