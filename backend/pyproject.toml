@@ -1,0 +1,31 @@
+[project]
+name = "Pukaar"
+version = "0.1.0"
+description = "Pukaar MVP"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sqlmodel",
+    "pydantic",
+    "pillow",
+    "python-multipart",
+    "aiofiles",
+    "httpx",
+    "orjson",
+    "faster-whisper",
+    "lxml",
+    "litert-lm-api==0.11.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "trio"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,0 +1,129 @@
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <title>reasoning_chain — HyperFrames</title>
+      <link rel="stylesheet" href="_shared.css" />
+      <style>
+        html, body {
+          margin: 0;
+          padding: 0;
+          background: var(--bg);
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+        }
+      </style>
+    </head>
+    <body>
+      <div data-composition-id="reasoning_chain" data-start="0" data-width="1920" data-height="1080" data-duration="25.0" style="width:1920px;height:1080px;position:relative;">
+          <style>.layout { display: grid; grid-template-columns: 1fr 1.1fr; gap: 28px; }
+.panel h3 { margin: 0 0 14px 0; font-size: 16px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.6px; }
+.alert-card {
+  background: linear-gradient(180deg, rgba(239,68,68,0.10), rgba(239,68,68,0.02));
+  border: 1px solid rgba(239,68,68,0.4);
+  border-radius: 14px;
+  padding: 24px;
+}
+.alert-card .level {
+  font-size: 28px; font-weight: 700; color: var(--red);
+  letter-spacing: 0.4px;
+}
+.alert-card .when {
+  font-family: var(--mono); color: var(--muted); font-size: 14px;
+  margin-bottom: 12px;
+}
+.reasoning {
+  font-size: 18px; line-height: 1.55;
+  border-left: 3px solid var(--amber);
+  padding-left: 14px;
+  margin: 16px 0;
+}
+.trace { font-family: var(--mono); font-size: 14px; color: var(--text); }
+.trace .step { display: flex; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.trace .step:last-child { border-bottom: none; }
+.trace .check { color: var(--green); width: 14px; }
+.trace .fail  { color: var(--muted); width: 14px; }
+
+.ev-thumbs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
+.ev-thumbs .frame-thumb { height: 110px; }
+.ribbon { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.headline {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+}</style>
+  <div class="stage">
+  <h1 class="title">Alert · reasoning chain</h1>
+  <p class="subtitle">alert_id: a_2026-05-03_142150_ar-litoral · status: open</p>
+
+  <div class="layout">
+    <div class="panel alert-card">
+      <div class="level">RED · flood_risk</div>
+      <div class="when">2026-05-03 · 14:21:50 ART · sources: fixed_node + volunteer_report + hydromet</div>
+      <p class="headline">Evidence, not just notification.</p>
+
+      <h3>REASONING SUMMARY (es-AR)</h3>
+      <div class="reasoning">
+        "El nivel del agua superó la marca configurada en el nodo fijo y el reporte voluntario confirma riesgo en una zona baja del barrio costero. Recomiendo notificar al operador local."
+      </div>
+
+      <div class="ribbon">
+        <span class="badge red">level: red</span>
+        <span class="badge amber">confidence: high</span>
+        <span class="badge teal">runner: pukaar-ai_node_assessor</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>DETERMINISTIC RULE TRACE</h3>
+      <div class="trace">
+        <div class="step"><span class="check">✓</span><span>node_level == "red"</span></div>
+        <div class="step"><span class="check">✓</span><span>volunteer_report.urgency == "high"</span></div>
+        <div class="step"><span class="check">✓</span><span>hydromet.trend == "rising"</span></div>
+        <div class="step"><span class="check">✓</span><span>fusion_rule: any_red &amp;&amp; any_high → fused_level=red</span></div>
+        <div class="step"><span class="fail">·</span><span>cloud_round_trip_required → false (offline path active)</span></div>
+      </div>
+
+      <h3 style="margin-top: 24px;">CURATED EVIDENCE</h3>
+      <div class="ev-thumbs">
+        <div class="frame-thumb"><span>frame T-30</span><span>marker</span></div>
+        <div class="frame-thumb"><span>frame T</span><span>overlay</span></div>
+        <div class="frame-thumb"><span>roi diff</span><span>opencv</span></div>
+        <div class="frame-thumb"><span>volunteer audio</span><span>7s</span></div>
+      </div>
+
+      <div class="ribbon">
+        <span class="badge muted">audit pack persisted</span>
+        <span class="badge muted">re-openable from /api/alerts/{id}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="watermark">MVP DEMO — public/simulated scenario</div>
+</div>
+
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+      <script>
+        window.__timelines = window.__timelines || {};
+        const tl = gsap.timeline({ paused: true });
+        tl.from("h1.title", { y: 30, opacity: 0, duration: 0.7, ease: "power3.out" }, 0.2);
+tl.from("p.subtitle", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, 0.5);
+tl.from(".alert-card", { x: -60, opacity: 0, duration: 0.8, ease: "power3.out" }, 0.9);
+tl.from(".alert-card .level", { scale: 0.85, opacity: 0, duration: 0.6, ease: "back.out(2)" }, 1.5);
+tl.from(".alert-card .reasoning", { opacity: 0, duration: 0.6, ease: "power2.out" }, 2.2);
+tl.from(".alert-card .ribbon .badge", { y: 16, opacity: 0, duration: 0.4, stagger: 0.1, ease: "expo.out" }, 3.0);
+
+tl.from(".panel:last-child", { x: 60, opacity: 0, duration: 0.8, ease: "power3.out" }, 4.0);
+tl.from(".trace .step", { x: 40, opacity: 0, duration: 0.45, stagger: 0.45, ease: "power3.out" }, 4.8);
+tl.from(".ev-thumbs .frame-thumb", { y: 30, opacity: 0, duration: 0.5, stagger: 0.12, ease: "power3.out" }, 8.5);
+tl.from(".panel:last-child .ribbon .badge", { y: 14, opacity: 0, duration: 0.4, stagger: 0.1, ease: "power2.out" }, 10.0);
+tl.from(".watermark", { opacity: 0, duration: 0.5, ease: "none" }, 0.0);
+
+        // Pad timeline to target duration so the final state holds
+        tl.to({}, { duration: Math.max(0.1, 25.0 - tl.totalDuration()) });
+        window.__timelines["reasoning_chain"] = tl;
+      </script>
+    </body>
+    </html>

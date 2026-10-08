@@ -1,0 +1,47 @@
+{
+  "health": {
+    "status": "ok",
+    "pukaar_node_profile": "raspberry-pi-8gb-multimodal-demo",
+    "llm_enabled": true,
+    "hydromet_enabled": true
+  },
+  "llm": {
+    "reachable": true,
+    "model": "pukaar-model:2b",
+    "detail": "ok"
+  },
+  "pukaar": {
+    "node_profile": "raspberry-pi-8gb-multimodal-demo",
+    "data_dir": "/home/hz/work/Pukaar_local/backend/data",
+    "ffmpeg_bin": "ffmpeg",
+    "multimodal_enabled": true,
+    "multimodal_verifier_enabled": false,
+    "multimodal_base_url": "http://127.0.0.1:11434/v1",
+    "multimodal_model": "pukaar-model:2b",
+    "multimodal_min_interval_seconds": 300,
+    "multimodal_score_threshold": 0.55,
+    "multimodal_confidence_threshold": 0.62,
+    "multimodal_image_max_side": 512,
+    "multimodal_max_frames": 1,
+    "multimodal_frame_sample_seconds": 60,
+    "multimodal_num_ctx": 1024,
+    "multimodal_timeout_seconds": 300.0,
+    "max_curated_frames": 1,
+    "artifact_retention_days": 3
+  }
+}
+{
+  "site_id": "silverado-fixed-cam-usgs",
+  "frames_analyzed": 1,
+  "waterline_ratio": 0.1,
+  "assessment_level": "yellow",
+  "assessment_score": 0.45,
+  "runner": {
+    "name": "pukaar-model:2b",
+    "mode": "ollama-multimodal-temporal"
+  },
+  "fallback_used": false,
+  "alert_level": "yellow",
+  "local_alarm_triggered": false,
+  "evidence_frame_url": "/uploads/pukaar-mm-frame-1-abf87ef5ec914412a92906323aebea0f.jpg"
+}

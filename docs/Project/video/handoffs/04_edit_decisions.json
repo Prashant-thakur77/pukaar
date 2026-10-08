@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "source_edl": "../edit/edl.json",
+  "decisions": [
+    {
+      "id": "D001",
+      "decision": "Keep the edit structured around B01-B08 from timeline.md.",
+      "reason": "The narration, shot list, captions, and claims audit are already organized by block."
+    },
+    {
+      "id": "D002",
+      "decision": "Prefer real Playwright screencasts for B04 and B05, with HyperFrames fallback only if demo capture fails.",
+      "reason": "The video needs proof of product behavior without claiming field deployment."
+    },
+    {
+      "id": "D003",
+      "decision": "Use generated B-roll only as atmosphere or illustrative support.",
+      "reason": "Generated flood scenes cannot be presented as evidence."
+    },
+    {
+      "id": "D004",
+      "decision": "Block final render until claims_qc.md has no class B or C lines.",
+      "reason": "Project credibility depends on no fake metrics or deployment claims."
+    }
+  ]
+}
