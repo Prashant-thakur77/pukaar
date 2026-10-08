@@ -232,3 +232,11 @@ comment citing the offline sync and forecast paths, the Dockerfile's
 `docker compose` notes, and the notifier docstring naming the Android client.
 No TODO or FIXME comments referred to removed code. The Spanish prompts and
 keyword lists are code, not comments, and PLAN.md M4 replaces them.
+
+### Follow-up: national-schema export route
+
+PLAN.md 5 ("Keep and adapt", `api/routers/alerts.py`) says to remove the
+national-schema export route. `POST /alerts/{id}/export-sinagir` lost its only
+caller (the site page button) in group (a), so it and
+`tests/test_sinagir_export.py` are removed. The CAP builder keeps its
+SINAGIR-named fields until CAP moves to Hindi/India (stretch).
