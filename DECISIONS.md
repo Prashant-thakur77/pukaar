@@ -162,3 +162,15 @@ the actuator and adapter protocols (`AlarmActuator`, `RadioActuator`,
 `NotificationActuator`, `AudioTranscriptionAdapter`, `ImageAssessmentAdapter`),
 `services/predictive.forecast_short_term` (M2 feeds it discharge), and the API
 route handlers (registered by decorator).
+
+### Group (c): unused files
+
+No reference in `index.html`, `src/`, the build configs or any script:
+`frontend/src/App.css`, `frontend/src/assets/{hero.png,react.svg,vite.svg}`
+(Vite template leftovers), `frontend/public/sw.js` (vite-plugin-pwa generates
+its own service worker at build time), `frontend/public/icons.svg`,
+`frontend/_persona_c_preview.html`, `frontend/bun.lock` (a Bun lock file;
+every script and the setup use npm with `package-lock.json`), and
+`backend/data/.gitkeep` (the backend creates `data/` at start-up). Media,
+screenshots, notebooks, editor folders and build output were already removed
+in group (a) or were never tracked.

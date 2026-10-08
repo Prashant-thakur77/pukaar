@@ -9,13 +9,6 @@ class ConnectivityStatus(BaseModel):
     is_online: bool
 
 
-class CalibrationPayload(BaseModel):
-    roi_polygon: list[list[int]] | None = None
-    critical_line: list[list[int]] | None = None
-    reference_line: list[list[int]] | None = None
-    notes: str | None = None
-
-
 class RuntimeStatus(BaseModel):
     is_online: bool
     llm: dict[str, Any]

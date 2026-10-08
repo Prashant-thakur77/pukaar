@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from Pukaar.models.domain import HydrometSnapshot, Site
@@ -9,16 +8,6 @@ from Pukaar.schemas.api import ExternalSnapshotResponse
 
 def site_payload(site: Site) -> dict[str, Any]:
     return site.model_dump()
-
-
-def parse_json_object(raw: str | None) -> dict[str, Any]:
-    if not raw:
-        return {}
-    try:
-        value = json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
-    return value if isinstance(value, dict) else {}
 
 
 def serialize_external_snapshot(snapshot: HydrometSnapshot) -> ExternalSnapshotResponse:

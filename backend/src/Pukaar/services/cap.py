@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
 
@@ -78,19 +77,3 @@ def build_cap_xml(event: dict[str, Any]) -> str:
     _cap(geocode, "valueName", "SINAGIR/SINAME site")
     _cap(geocode, "value", event.get("site_id", "demo-site"))
     return ET.tostring(alert, encoding="utf-8", xml_declaration=True).decode("utf-8")
-
-
-def write_cap_sample(path: str | Path) -> None:
-    sample = build_cap_xml(
-        {
-            "site_id": "demo-arroyo",
-            "lat": -34.6037,
-            "lon": -58.3816,
-            "severity": "moderate",
-            "headline": "Preventive creek flood alert",
-            "instruction": "Avoid low crossings and report changes to municipal Civil Defense.",
-            "summary": "Visual node and citizen report agree within the operating window.",
-        }
-    )
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(sample, encoding="utf-8")

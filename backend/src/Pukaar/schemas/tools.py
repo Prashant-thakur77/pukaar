@@ -71,16 +71,3 @@ TOOL_MODELS = {
     "emit_cap": EmitCapArgs,
     "send_lora": SendLoraArgs,
 }
-
-
-TOOL_SCHEMAS: list[dict[str, Any]] = [
-    {
-        "type": "function",
-        "function": {
-            "name": name,
-            "description": f"Strict Pukaar/Pukaar action: {name}",
-            "parameters": model.model_json_schema(),
-        },
-    }
-    for name, model in TOOL_MODELS.items()
-]
