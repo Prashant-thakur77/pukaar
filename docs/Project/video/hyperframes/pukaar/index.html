@@ -1,0 +1,257 @@
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <title>pukaar — HyperFrames</title>
+      <link rel="stylesheet" href="_shared.css" />
+      <style>
+        html, body {
+          margin: 0;
+          padding: 0;
+          background: var(--bg);
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+        }
+      </style>
+    </head>
+    <body>
+      <div data-composition-id="pukaar" data-start="0" data-width="1920" data-height="1080" data-duration="18.0" style="width:1920px;height:1080px;position:relative;">
+            <style>.phone {
+    width: 420px;
+    height: 820px;
+    border-radius: 44px;
+    background: #0e1622;
+    border: 8px solid #1c2638;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+    margin: 18px auto 14px auto;
+  }
+  .notch {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 180px; height: 28px;
+    background: #06090e;
+    border-bottom-left-radius: 18px;
+    border-bottom-right-radius: 18px;
+  }
+  .app {
+    position: absolute;
+    inset: 36px 18px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .app-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 8px;
+  }
+  .app-title { font-weight: 600; font-size: 20px; }
+  .app-status { font-family: var(--mono); font-size: 12px; color: var(--green); }
+
+  .input-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .input-label { font-size: 13px; color: var(--muted); font-family: var(--mono); }
+  .input-text {
+    font-size: 18px;
+    line-height: 1.45;
+    color: var(--text);
+    border-left: 2px solid var(--teal);
+    padding-left: 12px;
+  }
+  .voice-bar {
+    display: flex; gap: 6px; align-items: end; height: 36px;
+  }
+  .voice-bar span {
+    flex: 1;
+    background: linear-gradient(180deg, var(--teal), #1f3a44);
+    border-radius: 2px;
+  }
+  .voice-bar span:nth-child(1)  { height: 30%; }
+  .voice-bar span:nth-child(2)  { height: 75%; }
+  .voice-bar span:nth-child(3)  { height: 50%; }
+  .voice-bar span:nth-child(4)  { height: 90%; }
+  .voice-bar span:nth-child(5)  { height: 60%; }
+  .voice-bar span:nth-child(6)  { height: 80%; }
+  .voice-bar span:nth-child(7)  { height: 40%; }
+  .voice-bar span:nth-child(8)  { height: 70%; }
+  .voice-bar span:nth-child(9)  { height: 55%; }
+  .voice-bar span:nth-child(10) { height: 35%; }
+
+  .send {
+    background: var(--teal);
+    color: #062223;
+    font-weight: 700;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 16px;
+    text-align: center;
+    letter-spacing: 0.4px;
+  }
+
+  .caption {
+    text-align: center;
+    margin-top: 8px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 16px;
+  }
+
+  .stage-header {
+    text-align: center;
+    margin-top: 0;
+  }
+  .stage { padding: 36px 64px; }</style>
+    <style>.layout { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .arrow {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 64px;
+    color: var(--teal);
+    background: var(--bg);
+    border-radius: 50%;
+    width: 96px; height: 96px;
+    display: grid; place-items: center;
+    border: 1px solid var(--line);
+  }
+  .panel h3 { margin: 0 0 12px 0; font-size: 18px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.6px; }
+  .quote { font-size: 22px; line-height: 1.4; color: var(--text); border-left: 3px solid var(--teal); padding-left: 16px; }
+  .meta { margin-top: 18px; color: var(--muted); font-family: var(--mono); font-size: 14px; }
+  .footer-tag {
+    margin-top: 28px;
+    text-align: center;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 16px;
+  }</style>
+    <style>
+      .scene-layer {
+        position: absolute; inset: 0;
+        width: 1920px; height: 1080px;
+      }
+      .scene-a, .scene-b { will-change: opacity; }
+    </style>
+    <div class="scene-layer scene-a">
+      <div class="stage">
+    <div class="stage-header">
+      <h1 class="title">Pukaar — volunteer report</h1>
+      <p class="subtitle">Rioplatense Spanish · offline-capable PWA</p>
+    </div>
+
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="app">
+        <div class="app-header">
+          <div class="app-title">Pukaar</div>
+          <div class="app-status">● ONLINE</div>
+        </div>
+
+        <div class="input-card">
+          <div class="input-label">VOICE TRANSCRIPT</div>
+          <div class="input-text">
+            "Che, el agua ya pasó la marca y viene con barro. Hay familias en la zona baja."
+          </div>
+
+          <div class="input-label">AUDIO</div>
+          <div class="voice-bar">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+
+          <div class="input-label">LOCATION</div>
+          <div style="font-family: var(--mono); font-size: 14px; color: var(--text);">
+            -31.6107, -60.6973 · Santa Fe — barrio costero
+          </div>
+        </div>
+
+        <button class="send">SEND REPORT</button>
+      </div>
+    </div>
+
+    <div class="caption">Illustrative volunteer report · simulated</div>
+    <div class="watermark">MVP DEMO — public/simulated scenario</div>
+  </div>
+    </div>
+    <div class="scene-layer scene-b">
+      <div class="stage">
+    <h1 class="title">Pukaar — structured local report</h1>
+    <p class="subtitle">voice → Pukaar AI structuring → schema</p>
+
+    <div class="layout">
+      <div class="panel">
+        <h3>VOLUNTEER REPORT (RIOPLATENSE)</h3>
+        <div class="quote">
+          "Che, el agua ya pasó la marca y viene con barro. Hay familias en la zona baja."
+        </div>
+        <div class="meta">
+          location: -31.6107, -60.6973 · Santa Fe<br/>
+          channel: voice · duration: 7s<br/>
+          submitted_at: 2026-05-03T14:21:08-03:00
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>STRUCTURED OUTPUT (PUKAAR AI)</h3>
+<pre class="code"><span class="json-punct">{</span>
+  <span class="json-key">"hazard"</span><span class="json-punct">:</span> <span class="json-str">"flood_risk"</span><span class="json-punct">,</span>
+  <span class="json-key">"urgency"</span><span class="json-punct">:</span> <span class="json-str">"high"</span><span class="json-punct">,</span>
+  <span class="json-key">"observed_signals"</span><span class="json-punct">:</span> <span class="json-punct">[</span>
+    <span class="json-str">"water above red marker"</span><span class="json-punct">,</span>
+    <span class="json-str">"muddy flow"</span><span class="json-punct">,</span>
+    <span class="json-str">"families in low area"</span>
+  <span class="json-punct">],</span>
+  <span class="json-key">"recommended_action"</span><span class="json-punct">:</span> <span class="json-str">"notify_local_operator"</span><span class="json-punct">,</span>
+  <span class="json-key">"language"</span><span class="json-punct">:</span> <span class="json-str">"es-AR"</span><span class="json-punct">,</span>
+  <span class="json-key">"runner"</span><span class="json-punct">:</span> <span class="json-str">"pukaar-ai_few_shot · on-device"</span>
+<span class="json-punct">}</span></pre>
+      </div>
+    </div>
+
+    <div class="footer-tag">Structured output schema · illustrative volunteer report (simulated)</div>
+    <div class="watermark">MVP DEMO — public/simulated scenario</div>
+  </div>
+    </div>
+
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+      <script>
+        window.__timelines = window.__timelines || {};
+        const tl = gsap.timeline({ paused: true });
+        // Scene A: input phone (0–7.5s)
+tl.set(".scene-a", { autoAlpha: 1 }, 0);
+tl.set(".scene-b", { autoAlpha: 0 }, 0);
+tl.from(".scene-a .stage-header", { y: 30, opacity: 0, duration: 0.8, ease: "power3.out" }, 0.2);
+tl.from(".scene-a .phone",        { y: 60, opacity: 0, duration: 0.9, ease: "power3.out" }, 0.5);
+tl.from(".scene-a .input-text",   { opacity: 0, duration: 0.7, ease: "power2.out" }, 1.2);
+tl.from(".scene-a .voice-bar span", { scaleY: 0, transformOrigin: "bottom", duration: 0.5, stagger: 0.04, ease: "power2.out" }, 1.6);
+tl.from(".scene-a .send",         { y: 30, opacity: 0, duration: 0.6, ease: "expo.out" }, 2.4);
+
+// Crossfade A -> B at 8.0s
+tl.to(".scene-a", { autoAlpha: 0, duration: 0.6, ease: "power1.inOut" }, 8.0);
+tl.to(".scene-b", { autoAlpha: 1, duration: 0.6, ease: "power1.inOut" }, 8.2);
+
+// Scene B: structured JSON (8.6–18s)
+tl.from(".scene-b .stage > h1.title", { y: 30, opacity: 0, duration: 0.7, ease: "power3.out" }, 8.6);
+tl.from(".scene-b .stage > p.subtitle", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, 8.9);
+tl.from(".scene-b .panel:first-child", { x: -60, opacity: 0, duration: 0.7, ease: "power3.out" }, 9.2);
+tl.from(".scene-b .panel:last-child",  { x:  60, opacity: 0, duration: 0.7, ease: "power3.out" }, 9.5);
+tl.from(".scene-b pre.code", { opacity: 0, duration: 0.6, ease: "power2.out" }, 10.2);
+tl.from(".scene-b .footer-tag", { opacity: 0, duration: 0.5, ease: "power2.out" }, 16.5);
+
+        // Pad timeline to target duration so the final state holds
+        tl.to({}, { duration: Math.max(0.1, 18.0 - tl.totalDuration()) });
+        window.__timelines["pukaar"] = tl;
+      </script>
+    </body>
+    </html>

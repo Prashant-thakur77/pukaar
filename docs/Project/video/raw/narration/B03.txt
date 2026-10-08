@@ -1,0 +1,1 @@
+Pukaar is the human layer. A volunteer sends a local report, in Rioplatense Spanish, even when offline. "Che, el agua ya pasó la marca y viene con barro. Hay familias en la zona baja." Pukaar AI structures that into evidence: hazard, urgency, observed signals, recommended action. This is structured local reporting, not a benchmark result.

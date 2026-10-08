@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Pukaar — End Card</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .stage { display: grid; place-items: center; }
+  .card { text-align: center; max-width: 1280px; }
+  .brand {
+    font-size: 88px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, var(--teal), #c8e1ff 60%, var(--amber));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin: 0 0 14px 0;
+  }
+  .tagline {
+    font-size: 30px;
+    color: var(--text);
+    margin: 0 0 48px 0;
+    font-weight: 400;
+  }
+  .roadmap {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 28px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(62,209,193,0.06);
+    font-family: var(--mono);
+    font-size: 22px;
+    color: var(--text);
+    margin-bottom: 56px;
+  }
+  .roadmap .step { color: var(--text); }
+  .roadmap .step.now { color: var(--teal); }
+  .roadmap .step.next { color: #c8e1ff; }
+  .roadmap .step.later { color: var(--muted); }
+  .roadmap .sep { color: var(--muted); }
+  .repo {
+    font-family: var(--mono);
+    font-size: 22px;
+    color: var(--text);
+    margin: 0 0 8px 0;
+  }
+  .credit {
+    font-family: var(--mono);
+    font-size: 16px;
+    color: var(--muted);
+    letter-spacing: 0.6px;
+  }
+  .laurel {
+    margin-top: 36px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: rgba(230,237,243,0.45);
+    letter-spacing: 0.6px;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="card">
+      <h1 class="brand">Pukaar</h1>
+      <p class="tagline">Local flood intelligence when the network fails.</p>
+      <div class="roadmap">
+        <span class="step now">MVP today</span>
+        <span class="sep">·</span>
+        <span class="step next">Public-data evaluation next</span>
+        <span class="sep">·</span>
+        <span class="step later">Real local data after that</span>
+      </div>
+      <p class="repo"></p>
+      <p class="credit">BUILT FOR THE Pukaar Release · GLOBAL RESILIENCE TRACK</p>
+      <div class="laurel">LITERT PRIZE · ON-DEVICE PUKAAR AI</div>
+    </div>
+    <div class="watermark">MVP DEMO — public/simulated scenario</div>
+  </div>
+</body>
+</html>

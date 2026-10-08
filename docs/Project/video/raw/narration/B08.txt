@@ -1,0 +1,1 @@
+Today, this is an MVP demo on public and simulated scenarios. Next: evaluation on public flood data, then on real local data. Pukaar plus Pukaar. Local flood intelligence that keeps working when the cloud cannot.

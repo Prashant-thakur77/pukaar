@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Pukaar — structured local report</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .arrow {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 64px;
+    color: var(--teal);
+    background: var(--bg);
+    border-radius: 50%;
+    width: 96px; height: 96px;
+    display: grid; place-items: center;
+    border: 1px solid var(--line);
+  }
+  .panel h3 { margin: 0 0 12px 0; font-size: 18px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.6px; }
+  .quote { font-size: 22px; line-height: 1.4; color: var(--text); border-left: 3px solid var(--teal); padding-left: 16px; }
+  .meta { margin-top: 18px; color: var(--muted); font-family: var(--mono); font-size: 14px; }
+  .footer-tag {
+    margin-top: 28px;
+    text-align: center;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <h1 class="title">Pukaar — structured local report</h1>
+    <p class="subtitle">voice → Pukaar AI structuring → schema</p>
+
+    <div class="layout">
+      <div class="panel">
+        <h3>VOLUNTEER REPORT (RIOPLATENSE)</h3>
+        <div class="quote">
+          "Che, el agua ya pasó la marca y viene con barro. Hay familias en la zona baja."
+        </div>
+        <div class="meta">
+          location: -31.6107, -60.6973 · Santa Fe<br/>
+          channel: voice · duration: 7s<br/>
+          submitted_at: 2026-05-03T14:21:08-03:00
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>STRUCTURED OUTPUT (PUKAAR AI)</h3>
+<pre class="code"><span class="json-punct">{</span>
+  <span class="json-key">"hazard"</span><span class="json-punct">:</span> <span class="json-str">"flood_risk"</span><span class="json-punct">,</span>
+  <span class="json-key">"urgency"</span><span class="json-punct">:</span> <span class="json-str">"high"</span><span class="json-punct">,</span>
+  <span class="json-key">"observed_signals"</span><span class="json-punct">:</span> <span class="json-punct">[</span>
+    <span class="json-str">"water above red marker"</span><span class="json-punct">,</span>
+    <span class="json-str">"muddy flow"</span><span class="json-punct">,</span>
+    <span class="json-str">"families in low area"</span>
+  <span class="json-punct">],</span>
+  <span class="json-key">"recommended_action"</span><span class="json-punct">:</span> <span class="json-str">"notify_local_operator"</span><span class="json-punct">,</span>
+  <span class="json-key">"language"</span><span class="json-punct">:</span> <span class="json-str">"es-AR"</span><span class="json-punct">,</span>
+  <span class="json-key">"runner"</span><span class="json-punct">:</span> <span class="json-str">"pukaar-ai_few_shot · on-device"</span>
+<span class="json-punct">}</span></pre>
+      </div>
+    </div>
+
+    <div class="footer-tag">Structured output schema · illustrative volunteer report (simulated)</div>
+    <div class="watermark">MVP DEMO — public/simulated scenario</div>
+  </div>
+</body>
+</html>

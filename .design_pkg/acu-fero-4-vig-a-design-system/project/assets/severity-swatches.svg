@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 96" role="img" aria-label="Severity scale: green, yellow, orange, red">
+  <g font-family="Inter, &#39;Segoe UI&#39;, sans-serif" font-size="13" font-weight="600">
+    <g transform="translate(8 8)">
+      <rect width="104" height="80" rx="8" fill="#DCFCE7" stroke="#BBF7D0"></rect>
+      <text x="14" y="28" fill="#166534">GREEN</text>
+      <text x="14" y="50" fill="#166534" font-weight="400" font-size="11">Nominal</text>
+      <text x="14" y="66" fill="#166534" font-weight="400" font-size="11">alert.level: &#34;green&#34;</text>
+    </g>
+    <g transform="translate(124 8)">
+      <rect width="104" height="80" rx="8" fill="#FEF3C7" stroke="#FDE68A"></rect>
+      <text x="14" y="28" fill="#854D0E">YELLOW</text>
+      <text x="14" y="50" fill="#854D0E" font-weight="400" font-size="11">Watch</text>
+      <text x="14" y="66" fill="#854D0E" font-weight="400" font-size="11">single weak signal</text>
+    </g>
+    <g transform="translate(240 8)">
+      <rect width="104" height="80" rx="8" fill="#FFEDD5" stroke="#FED7AA"></rect>
+      <text x="14" y="28" fill="#9A3412">ORANGE</text>
+      <text x="14" y="50" fill="#9A3412" font-weight="400" font-size="11">Warning</text>
+      <text x="14" y="66" fill="#9A3412" font-weight="400" font-size="11">corroborated</text>
+    </g>
+    <g transform="translate(356 8)">
+      <rect width="104" height="80" rx="8" fill="#FEE2E2" stroke="#FECACA"></rect>
+      <text x="14" y="28" fill="#991B1B">RED</text>
+      <text x="14" y="50" fill="#991B1B" font-weight="400" font-size="11">Critical</text>
+      <text x="14" y="66" fill="#991B1B" font-weight="400" font-size="11">crossed critical line</text>
+    </g>
+  </g>
+</svg>

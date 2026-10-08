@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Offline queue — connectivity loss</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .header-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+  .layout { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 22px; }
+  .panel h3 { margin: 0 0 14px 0; font-size: 16px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.6px; }
+  .qrow {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-family: var(--mono);
+    font-size: 14px;
+  }
+  .qrow .left  { color: var(--text); display: flex; gap: 10px; align-items: center; }
+  .qrow .right { color: var(--muted); }
+  .alert-strip {
+    background: rgba(239,68,68,0.10);
+    border: 1px solid rgba(239,68,68,0.4);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-top: 12px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--red);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .siren-pulse {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 0 6px rgba(239,68,68,0.25);
+  }
+  .toast {
+    background: rgba(34,197,94,0.10);
+    border: 1px solid rgba(34,197,94,0.4);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 14px;
+    margin-top: 10px;
+  }
+  .footer-tag {
+    margin-top: 22px;
+    text-align: center;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="header-row">
+      <div>
+        <h1 class="title">Connectivity loss · offline-first flow</h1>
+        <p class="subtitle">scripts/demo_connectivity.py · live demo</p>
+      </div>
+      <div class="banner-offline">● NETWORK OFFLINE</div>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <h3>VOLUNTEER REPORT QUEUE</h3>
+        <div class="qrow">
+          <div class="left"><span class="badge muted">queued</span><span>vol_report_001 · es-AR</span></div>
+          <div class="right">14:21:08</div>
+        </div>
+        <div class="qrow">
+          <div class="left"><span class="badge muted">queued</span><span>vol_report_002 · es-AR</span></div>
+          <div class="right">14:21:42</div>
+        </div>
+        <div class="qrow">
+          <div class="left"><span class="badge muted">queued</span><span>vol_report_003 · es-AR</span></div>
+          <div class="right">14:22:07</div>
+        </div>
+        <div class="footer-tag" style="margin-top: 14px; text-align: left;">SQLite local store · no data loss</div>
+      </div>
+
+      <div class="panel">
+        <h3>FIXED NODE — KEEPS REASONING</h3>
+        <div class="kv">
+          <div class="k">site</div><div class="v">silverado_fixed_cam</div>
+          <div class="k">runner</div><div class="v">pukaar-ai_node_assessor · local</div>
+          <div class="k">cloud</div><div class="v">unreachable</div>
+          <div class="k">last_assess</div><div class="v">14:21:50 · level=red</div>
+        </div>
+        <div class="alert-strip">
+          <div class="siren-pulse"></div>
+          <div>LOCAL ALERT · audible siren on device · no cloud round-trip</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>RECOVERY (when network returns)</h3>
+        <div class="qrow">
+          <div class="left"><span class="badge green">synced</span><span>vol_report_001</span></div>
+          <div class="right">→ central</div>
+        </div>
+        <div class="qrow">
+          <div class="left"><span class="badge green">synced</span><span>vol_report_002</span></div>
+          <div class="right">→ central</div>
+        </div>
+        <div class="qrow">
+          <div class="left"><span class="badge green">synced</span><span>vol_report_003</span></div>
+          <div class="right">→ central</div>
+        </div>
+        <div class="qrow">
+          <div class="left"><span class="badge green">synced</span><span>node_alert_a_2026-05-03_142150</span></div>
+          <div class="right">→ central</div>
+        </div>
+        <div class="toast">SYNC COMPLETE · queue drained · no data loss</div>
+      </div>
+    </div>
+
+    <div class="footer-tag">Offline-first flow · audible siren on device · queue drains on reconnect</div>
+    <div class="watermark">MVP DEMO — public/simulated scenario</div>
+  </div>
+</body>
+</html>

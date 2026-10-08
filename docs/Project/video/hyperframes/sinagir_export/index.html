@@ -1,0 +1,147 @@
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <title>sinagir_export — HyperFrames</title>
+      <link rel="stylesheet" href="_shared.css" />
+      <style>
+        html, body {
+          margin: 0;
+          padding: 0;
+          background: var(--bg);
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+        }
+      </style>
+    </head>
+    <body>
+      <div data-composition-id="sinagir_export" data-start="0" data-width="1920" data-height="1080" data-duration="15.0" style="width:1920px;height:1080px;position:relative;">
+            <style>.layout { display: grid; grid-template-columns: 1fr 1.4fr; gap: 28px; }
+  .panel h3 { margin: 0 0 14px 0; font-size: 16px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.6px; }
+  .endpoint {
+    font-family: var(--mono);
+    font-size: 18px;
+    background: #0a1018;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: var(--teal);
+    display: flex; gap: 12px; align-items: center;
+  }
+  .endpoint .verb {
+    background: rgba(62,209,193,0.15);
+    color: var(--teal);
+    padding: 4px 10px; border-radius: 6px;
+    border: 1px solid rgba(62,209,193,0.35);
+    font-size: 14px;
+  }
+  .field-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 16px;
+    font-family: var(--mono);
+    font-size: 14px;
+    margin-top: 12px;
+  }
+  .field-list .src { color: var(--muted); }
+  .field-list .dst { color: var(--text); }
+  .arrow { color: var(--teal); }
+  .footer {
+    margin-top: 28px;
+    text-align: center;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 16px;
+  }
+  .pulse {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 8px;
+    background: rgba(62,209,193,0.15);
+    color: var(--teal);
+    border: 1px solid rgba(62,209,193,0.4);
+    font-family: var(--mono);
+    font-size: 14px;
+    letter-spacing: 0.6px;
+  }</style>
+    <div class="stage">
+    <h1 class="title">SINAGIR · export alert package</h1>
+    <p class="subtitle">schema-tagged · auditable · single endpoint</p>
+
+    <div class="layout">
+      <div class="panel">
+        <h3>ENDPOINT</h3>
+        <div class="endpoint">
+          <span class="verb">POST</span>
+          <span>/api/alerts/{id}/export-sinagir</span>
+        </div>
+
+        <h3 style="margin-top: 22px;">FIELD MAPPING</h3>
+        <div class="field-list">
+          <span class="src">internal.fused_level</span>           <span class="dst"><span class="arrow">→</span> sinagir.alert_level</span>
+          <span class="src">internal.event_type</span>            <span class="dst"><span class="arrow">→</span> sinagir.event_category</span>
+          <span class="src">internal.location.geo</span>          <span class="dst"><span class="arrow">→</span> sinagir.geo.point</span>
+          <span class="src">internal.reasoning_summary_es</span>  <span class="dst"><span class="arrow">→</span> sinagir.descripcion</span>
+          <span class="src">internal.rule_trace</span>            <span class="dst"><span class="arrow">→</span> sinagir.evidencia.reglas</span>
+          <span class="src">internal.curated_frames[]</span>      <span class="dst"><span class="arrow">→</span> sinagir.evidencia.adjuntos[]</span>
+          <span class="src">internal.runner</span>                <span class="dst"><span class="arrow">→</span> sinagir.metadata.fuente</span>
+          <span class="src">internal.created_at</span>            <span class="dst"><span class="arrow">→</span> sinagir.timestamp</span>
+        </div>
+
+        <div style="margin-top: 22px;">
+          <span class="pulse">EXPORT · 200 OK</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>EXPORT PAYLOAD</h3>
+<pre class="code"><span class="json-punct">{</span>
+  <span class="json-key">"schema"</span><span class="json-punct">:</span> <span class="json-str">"sinagir.alert.v1"</span><span class="json-punct">,</span>
+  <span class="json-key">"alert_level"</span><span class="json-punct">:</span> <span class="json-str">"rojo"</span><span class="json-punct">,</span>
+  <span class="json-key">"event_category"</span><span class="json-punct">:</span> <span class="json-str">"hidrometeorologico.inundacion"</span><span class="json-punct">,</span>
+  <span class="json-key">"timestamp"</span><span class="json-punct">:</span> <span class="json-str">"2026-05-03T14:21:50-03:00"</span><span class="json-punct">,</span>
+  <span class="json-key">"geo"</span><span class="json-punct">:</span> <span class="json-punct">{</span> <span class="json-key">"point"</span><span class="json-punct">:</span> <span class="json-punct">{</span> <span class="json-key">"lat"</span><span class="json-punct">:</span> <span class="json-num">-31.6107</span><span class="json-punct">,</span> <span class="json-key">"lon"</span><span class="json-punct">:</span> <span class="json-num">-60.6973</span> <span class="json-punct">}</span> <span class="json-punct">},</span>
+  <span class="json-key">"descripcion"</span><span class="json-punct">:</span> <span class="json-str">"El nivel del agua superó la marca y el reporte voluntario confirma riesgo en zona baja."</span><span class="json-punct">,</span>
+  <span class="json-key">"evidencia"</span><span class="json-punct">:</span> <span class="json-punct">{</span>
+    <span class="json-key">"reglas"</span><span class="json-punct">:</span> <span class="json-punct">[</span><span class="json-str">"node_level=red"</span><span class="json-punct">,</span> <span class="json-str">"report_urgency=high"</span><span class="json-punct">,</span> <span class="json-str">"hydromet.trend=rising"</span><span class="json-punct">],</span>
+    <span class="json-key">"adjuntos"</span><span class="json-punct">:</span> <span class="json-punct">[</span><span class="json-str">"frame_T_overlay.jpg"</span><span class="json-punct">,</span> <span class="json-str">"roi_marker_diff.png"</span><span class="json-punct">]</span>
+  <span class="json-punct">},</span>
+  <span class="json-key">"metadata"</span><span class="json-punct">:</span> <span class="json-punct">{</span>
+    <span class="json-key">"fuente"</span><span class="json-punct">:</span> <span class="json-str">"pukaar+pukaar.mvp"</span><span class="json-punct">,</span>
+    <span class="json-key">"runner"</span><span class="json-punct">:</span> <span class="json-str">"pukaar-ai_node_assessor"</span><span class="json-punct">,</span>
+    <span class="json-key">"connectivity"</span><span class="json-punct">:</span> <span class="json-str">"queued_then_synced"</span>
+  <span class="json-punct">}</span>
+<span class="json-punct">}</span></pre>
+      </div>
+    </div>
+
+    <div class="footer">Aligned with Plan Nacional para la Reducción del Riesgo de Desastres 2025–2029</div>
+    <div class="watermark">MVP DEMO — public/simulated scenario</div>
+  </div>
+
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+      <script>
+        window.__timelines = window.__timelines || {};
+        const tl = gsap.timeline({ paused: true });
+        tl.from("h1.title", { y: 30, opacity: 0, duration: 0.7, ease: "power3.out" }, 0.2);
+tl.from("p.subtitle", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, 0.5);
+
+tl.from(".panel:first-child", { x: -50, opacity: 0, duration: 0.8, ease: "power3.out" }, 0.9);
+tl.from(".endpoint", { scale: 0.92, opacity: 0, duration: 0.6, ease: "back.out(1.6)" }, 1.4);
+tl.from(".field-list > *", { x: -20, opacity: 0, duration: 0.35, stagger: 0.08, ease: "power2.out" }, 2.2);
+tl.from(".pulse", { scale: 0.85, opacity: 0, duration: 0.5, ease: "back.out(2)" }, 4.0);
+
+tl.from(".panel:last-child", { x: 50, opacity: 0, duration: 0.8, ease: "power3.out" }, 1.5);
+tl.from(".panel:last-child pre.code", { opacity: 0, duration: 0.7, ease: "power2.out" }, 2.4);
+
+tl.from(".footer", { y: 16, opacity: 0, duration: 0.6, ease: "power2.out" }, 12.0);
+tl.from(".watermark", { opacity: 0, duration: 0.5, ease: "none" }, 0.0);
+
+        // Pad timeline to target duration so the final state holds
+        tl.to({}, { duration: Math.max(0.1, 15.0 - tl.totalDuration()) });
+        window.__timelines["sinagir_export"] = tl;
+      </script>
+    </body>
+    </html>

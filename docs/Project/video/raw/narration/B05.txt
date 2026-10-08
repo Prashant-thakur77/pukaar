@@ -1,0 +1,1 @@
+Now the network is gone. The volunteer report is queued locally. The fixed node keeps reasoning. The alert still fires, with an audible siren on the device itself. When connectivity returns, the queue drains and the central dashboard catches up. No data loss, no silent failure.

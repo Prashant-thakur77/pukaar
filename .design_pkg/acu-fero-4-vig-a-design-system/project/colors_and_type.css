@@ -1,0 +1,206 @@
+/* ============================================================
+ * Pukaar — Design Tokens
+ * ------------------------------------------------------------
+ * Single source for color, type, spacing, radii and shadow tokens
+ * derived from frontend/src/index.css and android/.../PukaarApp.kt
+ * in the prashant/Pukaar repo (main).
+ *
+ * Two surfaces share a spine and differ on which primary anchors
+ * the chrome:
+ *   --primary-web    = #2563EB  (operator console blue)
+ *   --primary-field  = #1476B8  (Android "River")
+ *
+ * Severity (green/yellow/orange/red) is shared across both.
+ * ============================================================ */
+
+/* Fonts — substituted from system stack to Inter / JetBrains Mono
+ * for cross-platform reproduction. See README "Font substitution flag".
+ * Keep weights at 400/500/600/700 — the codebase never goes lighter
+ * than 400 or heavier than 700. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+:root {
+  color-scheme: light;
+
+  /* ------------------------------------------------------------
+   * Brand primary
+   * ------------------------------------------------------------ */
+  --primary:           #2563EB;  /* operator-console blue-600     */
+  --primary-hover:     #1D4ED8;  /* blue-700                       */
+  --primary-soft:      #EFF6FF;  /* blue-50, used on icon tiles    */
+  --primary-soft-text: #1D4ED8;  /* blue-700 on blue-50 ground     */
+  --primary-ring:      rgba(59, 130, 246, 0.35);
+
+  /* Field-app variant (Android). Use these on the volunteer surface. */
+  --field-primary:     #1476B8;  /* River                          */
+  --field-heading:     #0D3B2A;  /* Emerald — text only            */
+  --field-accent:      #B45F22;  /* Clay — warning CTAs            */
+  --field-surface:     #F3E9D2;  /* Sand — page background         */
+
+  /* ------------------------------------------------------------
+   * Neutral spine (Tailwind gray-50 → gray-900)
+   * ------------------------------------------------------------ */
+  --gray-50:  #F9FAFB;
+  --gray-100: #F3F4F6;
+  --gray-200: #E5E7EB;
+  --gray-300: #D1D5DB;
+  --gray-400: #9CA3AF;
+  --gray-500: #6B7280;
+  --gray-600: #4B5563;
+  --gray-700: #374151;
+  --gray-800: #1F2937;
+  --gray-900: #111827;
+
+  /* Semantic neutrals */
+  --bg:         var(--gray-50);
+  --surface:    #FFFFFF;
+  --surface-2:  var(--gray-50);  /* nested cards inside white cards */
+  --border:     var(--gray-200);
+  --border-strong: var(--gray-300);
+  --fg-1:       var(--gray-900); /* headings, primary text */
+  --fg-2:       var(--gray-700); /* body                    */
+  --fg-3:       var(--gray-500); /* meta, captions          */
+  --fg-disabled:var(--gray-400);
+  --fg-inverse: #FFFFFF;
+
+  /* ------------------------------------------------------------
+   * Severity scale (FusedAlert levels — green/yellow/orange/red)
+   * The level name is also the backend value (alert.level).
+   * ------------------------------------------------------------ */
+  --green-bg:     #DCFCE7; --green-border:  #BBF7D0; --green-text:  #166534;
+  --yellow-bg:    #FEF3C7; --yellow-border: #FDE68A; --yellow-text: #854D0E;
+  --orange-bg:    #FFEDD5; --orange-border: #FED7AA; --orange-text: #9A3412;
+  --red-bg:       #FEE2E2; --red-border:    #FECACA; --red-text:    #991B1B;
+
+  /* Solid status banners (full-bleed). Used only at page level. */
+  --banner-offline:  #DC2626; /* red-600 — pulses on the operator console */
+  --banner-synced:   #16A34A; /* green-600 — 2.5s flash on sync drain     */
+
+  /* On-button severity (solid CTA variants used by Report / Analyze) */
+  --orange-cta:        #F97316; --orange-cta-hover: #EA580C;
+  --green-cta:         #22C55E; --green-cta-hover:  #4ADE80;
+  --red-cta:           #EF4444; --red-cta-hover:    #F87171;
+
+  /* Section accents used in icons-only contexts */
+  --accent-amber:  #D97706;  /* Gauge / calibration icon */
+  --accent-cyan:   #0891B2;  /* Waves / hydromet icon    */
+  --accent-purple: #6D28D9;  /* audio-attached chip text */
+  --accent-purple-bg: #F5F3FF;
+
+  /* ------------------------------------------------------------
+   * Typography
+   * ------------------------------------------------------------ */
+  --font-sans: "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, Monaco, "Courier New", monospace;
+
+  --fs-xs:    0.75rem;   /* 12px */
+  --fs-sm:    0.875rem;  /* 14px */
+  --fs-base:  1rem;      /* 16px */
+  --fs-lg:    1.125rem;  /* 18px */
+  --fs-xl:    1.25rem;   /* 20px — page section headings (h2) */
+  --fs-2xl:   1.5rem;    /* 24px — site detail title (h2)     */
+  --fs-3xl:   1.875rem;
+
+  --lh-xs:    1rem;
+  --lh-sm:    1.25rem;
+  --lh-base:  1.5rem;
+  --lh-xl:    1.75rem;
+  --lh-2xl:   2rem;
+
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+
+  /* ------------------------------------------------------------
+   * Spacing (Tailwind 0.25rem step — only the steps the codebase uses)
+   * ------------------------------------------------------------ */
+  --space-1: 0.25rem;   /*  4px */
+  --space-2: 0.5rem;    /*  8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-20: 5rem;     /* 80px — bottom safe area for fixed nav */
+
+  /* Radii */
+  --radius-sm:   0.25rem;  /* tags, badges */
+  --radius:      0.5rem;   /* default — buttons, inputs, list cards */
+  --radius-lg:   0.75rem;  /* section containers */
+  --radius-full: 9999px;   /* pills, chips */
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.12);
+
+  /* Motion — only one, intentionally */
+  --t-fast: 160ms ease;
+}
+
+/* ============================================================
+ * Semantic element styles (h1, h2, h3, p, code, etc)
+ * Use these as a baseline; component CSS may override.
+ * ============================================================ */
+
+html, body { background: var(--bg); color: var(--fg-1); font-family: var(--font-sans); }
+body { margin: 0; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; line-height: var(--lh-base); }
+
+h1 { font-size: var(--fs-2xl); line-height: var(--lh-2xl); font-weight: var(--fw-bold);     color: var(--fg-1); margin: 0; }
+h2 { font-size: var(--fs-xl);  line-height: var(--lh-xl);  font-weight: var(--fw-semibold); color: var(--fg-1); margin: 0; }
+h3 { font-size: var(--fs-base);line-height: var(--lh-base);font-weight: var(--fw-semibold); color: var(--fg-1); margin: 0; }
+p  { font-size: var(--fs-sm);  line-height: var(--lh-sm);  color: var(--fg-2); margin: 0; }
+small, .meta { font-size: var(--fs-xs); line-height: var(--lh-xs); color: var(--fg-3); }
+
+code, pre, .mono { font-family: var(--font-mono); font-size: var(--fs-xs); }
+pre {
+  background: #030712;          /* gray-950 — matches Settings runtime block */
+  color: var(--gray-100);
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { color: var(--primary-hover); }
+
+button { font: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.5; }
+
+/* Reusable component-level utilities */
+.card        { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: var(--space-4); }
+.card-lg     { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: var(--space-5); }
+.card-inner  { background: var(--surface-2); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: var(--space-3); }
+
+.btn         { display: inline-flex; align-items: center; gap: var(--space-2); padding: 0.625rem 1rem; border-radius: var(--radius); font-weight: var(--fw-semibold); font-size: var(--fs-sm); transition: background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast); border: 1px solid transparent; }
+.btn-primary { background: var(--primary); color: var(--fg-inverse); }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-orange  { background: var(--orange-cta); color: var(--fg-inverse); }
+.btn-orange:hover { background: var(--orange-cta-hover); }
+.btn-ghost   { background: var(--surface); color: var(--fg-2); border-color: var(--border-strong); }
+.btn-ghost:hover { color: var(--primary-hover); border-color: #93C5FD; }
+
+.badge       { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0.125rem 0.5rem; border-radius: var(--radius-full); font-size: var(--fs-xs); font-weight: var(--fw-medium); }
+.badge-green { background: var(--green-bg); color: var(--green-text); }
+.badge-gray  { background: var(--gray-100); color: var(--gray-700); }
+
+.field-label { display: block; font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--gray-700); margin-bottom: var(--space-1); }
+.field-input { width: 100%; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 0.625rem 1rem; color: var(--fg-1); font: inherit; outline: none; transition: box-shadow var(--t-fast), border-color var(--t-fast); }
+.field-input:focus { border-color: #3B82F6; box-shadow: 0 0 0 2px var(--primary-ring); }
+
+/* Severity surface — soft-fill card variant */
+.sev          { padding: var(--space-4); border-radius: var(--radius); border: 1px solid; display: flex; gap: var(--space-3); }
+.sev-green  { background: var(--green-bg);  border-color: var(--green-border);  color: var(--green-text); }
+.sev-yellow { background: var(--yellow-bg); border-color: var(--yellow-border); color: var(--yellow-text); }
+.sev-orange { background: var(--orange-bg); border-color: var(--orange-border); color: var(--orange-text); }
+.sev-red    { background: var(--red-bg);    border-color: var(--red-border);    color: var(--red-text); }
+
+/* Page-level solid status banners */
+.banner            { padding: var(--space-2) var(--space-4); font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--fg-inverse); display: flex; align-items: center; justify-content: center; gap: var(--space-2); }
+.banner-offline    { background: var(--banner-offline); animation: pulse 1.8s ease-in-out infinite; }
+.banner-synced     { background: var(--banner-synced); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}

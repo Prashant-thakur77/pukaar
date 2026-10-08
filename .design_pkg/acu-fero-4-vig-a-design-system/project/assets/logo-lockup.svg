@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 72" role="img" aria-label="Pukaar">
+  <title>Pukaar — typographic lockup (substitute)</title>
+  <defs>
+    
+    <symbol id="pulse" viewBox="0 0 24 24" overflow="visible">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+    </symbol>
+  </defs>
+
+  
+  <g transform="translate(8 16)" color="#2563EB">
+    <use href="#pulse" width="40" height="40"></use>
+  </g>
+
+  
+  <g font-family="Inter, &#39;Segoe UI&#39;, Roboto, sans-serif" font-weight="700" font-size="26" fill="#111827">
+    <text x="60" y="44" letter-spacing="-0.02em">Pukaar 4</text>
+  </g>
+  <g font-family="Inter, &#39;Segoe UI&#39;, Roboto, sans-serif" font-weight="400" font-size="26" fill="#6B7280">
+    <text x="208" y="44" letter-spacing="-0.02em">+ Pukaar</text>
+  </g>
+</svg>

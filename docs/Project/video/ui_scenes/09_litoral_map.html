@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Litoral region · node markers</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .stage { padding: 48px 64px; display: flex; flex-direction: column; }
+  .header { margin-bottom: 16px; }
+  .map-wrap {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  svg.map { display: block; width: 100%; height: 100%; }
+
+  /* Argentina silhouette base + Litoral highlight */
+  .ar-base { fill: #182230; stroke: #2a3a52; stroke-width: 2; }
+  .ar-litoral { fill: #1d3848; stroke: var(--teal); stroke-width: 2; }
+  .river { fill: none; stroke: #3a6a8c; stroke-width: 2.5; opacity: 0.85; }
+
+  .node-marker {
+    transform-origin: center;
+  }
+  .node-marker .pulse-ring {
+    fill: none;
+    stroke: var(--teal);
+    stroke-width: 2;
+    opacity: 0.6;
+  }
+  .node-marker.alert .pulse-ring { stroke: var(--red); }
+  .node-marker .dot {
+    fill: var(--teal);
+    stroke: #0b1118;
+    stroke-width: 2;
+  }
+  .node-marker.alert .dot { fill: var(--red); }
+  .node-label {
+    fill: var(--text);
+    font-family: var(--mono);
+    font-size: 16px;
+  }
+  .node-label .meta { fill: var(--muted); font-size: 13px; }
+
+  .legend {
+    position: absolute;
+    left: 28px;
+    bottom: 28px;
+    background: rgba(11,17,24,0.78);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--text);
+    backdrop-filter: blur(6px);
+  }
+  .legend .row { display: flex; align-items: center; gap: 8px; }
+  .legend .row + .row { margin-top: 6px; }
+  .legend .swatch {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 1px solid #0b1118;
+  }
+  .legend .swatch.teal { background: var(--teal); }
+  .legend .swatch.red  { background: var(--red); }
+  .legend .swatch.muted { background: var(--muted); }
+
+  .caption-strip {
+    position: absolute;
+    right: 28px;
+    bottom: 28px;
+    display: flex;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="header">
+      <h1 class="title">Argentina · Litoral region · demo node markers</h1>
+      <p class="subtitle">Aligned with Plan Nacional para la Reducción del Riesgo de Desastres 2025–2029</p>
+    </div>
+
+    <div class="map-wrap">
+      <svg class="map" viewBox="0 0 1600 820" preserveAspectRatio="xMidYMid meet">
+        <!-- Stylised Argentina silhouette (illustrative, not geographic ground truth). -->
+        <path class="ar-base" d="
+          M 820 80
+          L 880 90  L 920 130 L 940 200 L 930 270
+          L 950 330 L 940 400 L 920 470 L 940 540
+          L 930 620 L 905 680 L 870 720 L 850 760
+          L 820 790 L 790 770 L 770 720 L 745 660
+          L 730 600 L 720 540 L 705 470 L 690 400
+          L 700 330 L 720 260 L 730 200 L 750 140
+          L 790 100 Z" />
+
+        <!-- Litoral highlight (NE provinces): a teal-bordered region. -->
+        <path class="ar-litoral" d="
+          M 870 200
+          L 920 200 L 940 260 L 935 330 L 920 400
+          L 900 460 L 880 460 L 870 400 L 860 330 L 855 260 Z" />
+
+        <!-- Paraná + Uruguay rivers (illustrative). -->
+        <path class="river" d="M 905 195 C 902 260, 902 340, 894 420 C 890 470, 884 510, 882 540" />
+        <path class="river" d="M 925 200 C 928 270, 925 350, 918 430 C 912 480, 906 510, 900 540" />
+
+        <!-- Province dots (background). -->
+        <g fill="#3a4a5e">
+          <circle cx="858" cy="240" r="3" />
+          <circle cx="888" cy="225" r="3" />
+          <circle cx="918" cy="245" r="3" />
+          <circle cx="900" cy="305" r="3" />
+          <circle cx="876" cy="345" r="3" />
+          <circle cx="906" cy="385" r="3" />
+        </g>
+
+        <!-- Active node (teal, Resistencia-ish). -->
+        <g class="node-marker" transform="translate(880, 270)">
+          <circle class="pulse-ring" r="22" />
+          <circle class="pulse-ring" r="36" opacity="0.32" />
+          <circle class="dot" r="9" />
+          <text class="node-label" x="20" y="-10">RESISTENCIA-01
+            <tspan class="meta" x="20" dy="18">fixed node · online</tspan>
+          </text>
+        </g>
+
+        <!-- Alert node (red, Santa Fe-ish). -->
+        <g class="node-marker alert" transform="translate(890, 360)">
+          <circle class="pulse-ring" r="26" />
+          <circle class="pulse-ring" r="42" opacity="0.32" />
+          <circle class="dot" r="9" />
+          <text class="node-label" x="20" y="-10">SANTA-FE-02
+            <tspan class="meta" x="20" dy="18">local alert · offline</tspan>
+          </text>
+        </g>
+
+        <!-- Pending sync node (muted). -->
+        <g class="node-marker" transform="translate(900, 430)">
+          <circle class="pulse-ring" r="20" stroke="#8aa0b6" />
+          <circle class="dot" r="8" fill="#8aa0b6" />
+          <text class="node-label" x="20" y="-10" fill="#c8d2e0">PARANÁ-03
+            <tspan class="meta" x="20" dy="18">queued · awaiting sync</tspan>
+          </text>
+        </g>
+      </svg>
+
+      <div class="legend">
+        <div class="row"><span class="swatch teal"></span> Online fixed node</div>
+        <div class="row"><span class="swatch red"></span>  Local alert · offline</div>
+        <div class="row"><span class="swatch muted"></span>Queued volunteer report</div>
+      </div>
+
+      <div class="caption-strip">
+        <span class="badge teal">DEMO MARKERS</span>
+        <span class="badge muted">NOT FIELD DEPLOYMENT</span>
+      </div>
+    </div>
+
+    <div class="watermark">MVP DEMO — public/simulated scenario</div>
+  </div>
+</body>
+</html>

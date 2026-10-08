@@ -1,0 +1,28 @@
+/* Shared styles for design-system preview cards.
+ * Each card is a standalone HTML page sized ~700px wide.
+ * Import tokens from the root colors_and_type.css. */
+@import url("../colors_and_type.css");
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #FFFFFF;
+  font-family: var(--font-sans);
+  color: var(--fg-1);
+}
+body {
+  padding: 24px;
+  box-sizing: border-box;
+}
+.row { display: flex; gap: 12px; align-items: center; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.grid { display: grid; gap: 12px; }
+.muted { color: var(--fg-3); font-size: 12px; }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+.swatch { width: 56px; height: 56px; border-radius: 8px; border: 1px solid rgba(15,23,42,0.08); flex-shrink: 0; }
+.swatch.sm { width: 36px; height: 36px; border-radius: 6px; }
+.swatch.lg { width: 80px; height: 80px; border-radius: 10px; }
+.token-row { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; }
+.token-name { font-size: 13px; font-weight: 600; color: var(--fg-1); }
+.token-meta { font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); }
+.label-eyebrow { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-3); }
