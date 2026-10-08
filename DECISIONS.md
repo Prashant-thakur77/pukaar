@@ -112,3 +112,53 @@ Committed as several commits, each leaving the tests green:
    `fixtures/pukaar_live_demo/` (notebook fixtures), `fixtures/audio/siren.wav`
    (only `demo_connectivity.py` used it), `.design_pkg/`, `.rtk/`, and the old
    contents of `docs/`.
+
+#### Group (a) as carried out
+
+- The LiteRT-only scripts (`litert_benchmark.py`, `litert_smoke.py`,
+  `fetch_litert_model.py`, `run_pukaar_pi8_multimodal_demo.sh`,
+  `run_pukaar_pi16_multimodal_prod.sh`) went out with the LiteRT runtime
+  (part 3) rather than in part 7, because they import or configure it.
+- `test_pukaar_provider.py` went with the camera pipeline (part 1): it tested
+  selection between the LiteRT and Ollama camera runners.
+- The image-description settings kept the values the default Pi 8 GB profile
+  gave them (512 px, 1024 context, 300 s). The default multimodal model was the
+  LiteRT file name `pukaar-model-2b.litertlm`, which the remaining Ollama path
+  cannot load; it is now `pukaar-model:2b`, the model the adapter already fell
+  back to.
+- Report refresh and `/alerts/recompute` used the LiteRT runtime for reasoning;
+  they now use the same runtime as `POST /reports` (`get_decision_runtime()`).
+- `backend/Dockerfile` is kept (see "Unsure, kept").
+- Two commit mistakes, left in history because history is not rewritten:
+  `8821524` also added `backend/data/historical_context.sqlite`, a file the
+  tests generate; `69a3e6e` removes it and ignores `*.sqlite` there, but also
+  picked up the already-staged deletion of `api/routers/sync.py`, so the tree
+  at `69a3e6e` does not import. The next commit (`Remove edge-to-central
+  sync`) completes that change.
+
+### Group (b): dead code
+
+Each item below has no reference left in the repo (checked with a full-text
+search) and PLAN.md has no use for it:
+
+- `api/serializers.parse_json_object` (its only caller was the camera
+  serializer).
+- `services/storage`: `public_asset_url_for_path`, `resolve_local_asset_path`,
+  `persist_frame_image`, `persist_json_artifact`, `get_fixture_dir`, and the
+  `/fixtures` static mount in `main.py` (the `fixtures/` folder is gone and no
+  page asks for `/fixtures/*`).
+- `services/cap.write_cap_sample` (no caller; `build_cap_xml` stays).
+- `schemas/tools.TOOL_SCHEMAS` (no caller; the argument models stay, the
+  action guard uses them).
+- `schemas/api.CalibrationPayload` (calibration routes removed).
+- `main.is_online` ("backward-compatible alias"; every caller uses
+  `deps.is_online`).
+- Frontend: `lib/idb.clearOfflineReports`, and `store.emitCap` with its
+  `CapEmitRequest` type (the only caller was the removed site-page button; the
+  backend CAP route stays as a PLAN.md stretch item).
+
+Kept although only tests or nothing call them, because PLAN.md keeps them:
+the actuator and adapter protocols (`AlarmActuator`, `RadioActuator`,
+`NotificationActuator`, `AudioTranscriptionAdapter`, `ImageAssessmentAdapter`),
+`services/predictive.forecast_short_term` (M2 feeds it discharge), and the API
+route handlers (registered by decorator).
