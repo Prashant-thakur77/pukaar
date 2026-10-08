@@ -100,8 +100,8 @@ rewritten.
   (git-ignored), and enter it in the cloud environment (cloud/ENVIRONMENT.md).
 - Cloud network: if `*.amazonaws.com` is not covered by the default allowed
   domains, add it.
-- `Project.md` (old submission criteria) and `LICENSE` (CC BY 4.0): decide to
-  keep, rewrite or delete; PLAN.md rule 11 stops the agent from doing it.
+- The repository has no licence file (the human deleted `LICENSE` and
+  `Project.md`). Add one before making the repository public if needed.
 - Write the README acknowledgements section before submitting.
 - From PLAN.md 13 (later milestones): Bedrock model access, Telegram bot token
   in SSM at `/pukaar/telegram_token`, native-speaker review of Hindi text,
