@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" font-family="Inter, Segoe UI, Arial, sans-serif" role="img" aria-labelledby="t d">
+  <title id="t">Pukaar architecture on AWS</title>
+  <desc id="d">EventBridge Scheduler triggers the sweep Lambda, which reads Open-Meteo and writes DynamoDB; a level rise starts a Step Functions approval workflow whose Lambda steps use Bedrock, Polly, Cedar and Telegram; officers use the web app on Amplify through API Gateway with Cognito; villagers report through the web app, with Transcribe and Bedrock in a worker Lambda.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#475569"/></marker>
+    <style>
+      .bg{fill:#0b1023}
+      .lane{fill:#121a36;stroke:#24305e;stroke-width:1.5}
+      .box{fill:#ffffff;stroke:#c7d0e8;stroke-width:1.5}
+      .aws{fill:#fff7e8;stroke:#f5a524;stroke-width:2}
+      .ext{fill:#eef6ff;stroke:#7aa7e8;stroke-width:1.5}
+      .t{font-size:15px;font-weight:700;fill:#0f172a}
+      .s{font-size:12px;fill:#475569}
+      .lt{font-size:13px;font-weight:700;letter-spacing:2px;fill:#f5a524}
+      .h{font-size:28px;font-weight:800;fill:#ffffff}
+      .hs{font-size:14px;fill:#c7d0e8}
+      .e{stroke:#94a3b8;stroke-width:2;fill:none;marker-end:url(#a)}
+      .el{font-size:11.5px;fill:#cbd5e1}
+      .crit{fill:#e11d48}
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="760" rx="18"/>
+  <text x="40" y="52" class="h">पुकार · Pukaar on AWS</text>
+  <text x="40" y="78" class="hs">Code decides the level · a person approves · a voice reaches every phone · every decision is audited</text>
+
+  <!-- lanes -->
+  <rect class="lane" x="30" y="100" width="1140" height="170" rx="14"/>
+  <text x="48" y="124" class="lt">1 · WATCH</text>
+  <rect class="lane" x="30" y="285" width="1140" height="215" rx="14"/>
+  <text x="48" y="309" class="lt">2 · APPROVE</text>
+  <rect class="lane" x="30" y="515" width="1140" height="225" rx="14"/>
+  <text x="48" y="539" class="lt">3 · CALL · REPORT</text>
+
+  <!-- watch lane -->
+  <rect class="aws" x="50" y="140" width="190" height="64" rx="10"/><text x="64" y="166" class="t">EventBridge Scheduler</text><text x="64" y="186" class="s">every 15 min · no retries · DLQ</text>
+  <rect class="aws" x="300" y="140" width="190" height="64" rx="10"/><text x="314" y="166" class="t">Lambda · sweep</text><text x="314" y="186" class="s">IMD bands · river percentiles</text>
+  <rect class="ext" x="300" y="216" width="190" height="44" rx="10"/><text x="314" y="243" class="s">Open-Meteo rain + GloFAS flow</text>
+  <rect class="aws" x="560" y="140" width="210" height="64" rx="10"/><text x="574" y="166" class="t">DynamoDB</text><text x="574" y="186" class="s">one table · conditional writes · TTL</text>
+  <rect class="aws" x="840" y="140" width="300" height="64" rx="10"/><text x="854" y="166" class="t">CloudWatch</text><text x="854" y="186" class="s">EMF metrics · 9 alarms · heartbeat · dashboard</text>
+  <path class="e" d="M240,172 H298"/>
+  <path class="e" d="M395,214 V206" />
+  <path class="e" d="M490,172 H558"/>
+
+  <!-- approve lane -->
+  <rect class="aws" x="50" y="325" width="250" height="160" rx="10"/>
+  <text x="64" y="350" class="t">Step Functions</text>
+  <text x="64" y="370" class="s">execution name = alert id</text>
+  <text x="64" y="394" class="s">draft → ask officer (task token)</text>
+  <text x="64" y="412" class="s">approved → deliver → wait → re-send</text>
+  <text x="64" y="430" class="s">timeout → next officer</text>
+  <text x="64" y="448" class="s">… → critical auto-send | expire</text>
+  <text x="64" y="466" class="s"><tspan class="crit">any error → failsafe</tspan></text>
+  <rect class="aws" x="350" y="325" width="200" height="70" rx="10"/><text x="364" y="352" class="t">Lambda · workflow</text><text x="364" y="372" class="s">one function, step dispatch</text>
+  <rect class="aws" x="600" y="325" width="250" height="70" rx="10"/><text x="614" y="352" class="t">Bedrock · Nova + Strands</text><text x="614" y="372" class="s">drafting agent · read-only tools</text>
+  <rect class="box" x="600" y="410" width="250" height="75" rx="10"/><text x="614" y="436" class="t">Draft checker + Hindi template</text><text x="614" y="456" class="s">numbers/places must be in the trace</text><text x="614" y="472" class="s">model down → rule-fallback</text>
+  <rect class="aws" x="900" y="325" width="240" height="70" rx="10"/><text x="914" y="352" class="t">Cedar guard + audit</text><text x="914" y="372" class="s">every route, step and tool call</text>
+  <rect class="aws" x="350" y="410" width="200" height="75" rx="10"/><text x="364" y="436" class="t">Polly · Kajal hi-IN</text><text x="364" y="456" class="s">MP3 → S3 under the alert id</text>
+  <rect class="aws" x="900" y="410" width="240" height="75" rx="10"/><text x="914" y="436" class="t">Cognito + signed link</text><text x="914" y="456" class="s">officer / pradhan groups</text><text x="914" y="472" class="s">30-min single-use HMAC link</text>
+  <path class="e" d="M300,360 H348"/>
+  <path class="e" d="M550,360 H598"/>
+  <path class="e" d="M850,360 H898"/>
+  <path class="e" d="M450,395 V408"/>
+  <path class="e" d="M725,395 V408"/>
+  <path class="e" d="M665,204 C640,260 220,250 175,322"/>
+  <text x="520" y="240" class="el">level rises → StartExecution</text>
+
+  <!-- call lane -->
+  <rect class="aws" x="50" y="560" width="250" height="70" rx="10"/><text x="64" y="587" class="t">Amplify Hosting · web app</text><text x="64" y="607" class="s">landing · live map · console · report</text>
+  <rect class="aws" x="350" y="560" width="230" height="70" rx="10"/><text x="364" y="587" class="t">API Gateway HTTP API</text><text x="364" y="607" class="s">JWT authorizer · CORS · throttling</text>
+  <rect class="aws" x="630" y="560" width="230" height="70" rx="10"/><text x="644" y="587" class="t">Lambda · api (FastAPI)</text><text x="644" y="607" class="s">Lambda Web Adapter · container</text>
+  <rect class="aws" x="910" y="560" width="230" height="70" rx="10"/><text x="924" y="587" class="t">Lambda · worker</text><text x="924" y="607" class="s">reports · replay · DLQ</text>
+  <rect class="aws" x="910" y="650" width="110" height="70" rx="10"/><text x="922" y="680" class="t">Transcribe</text><text x="922" y="700" class="s">hi-IN batch</text>
+  <rect class="aws" x="1030" y="650" width="110" height="70" rx="10"/><text x="1042" y="680" class="t">S3</text><text x="1042" y="700" class="s">audio · photos</text>
+  <rect class="ext" x="50" y="650" width="250" height="70" rx="10"/><text x="64" y="677" class="t">Telegram · villager phones</text><text x="64" y="697" class="s">spoken alert + "मिल गया" button</text>
+  <rect class="box" x="350" y="650" width="510" height="70" rx="10"/><text x="364" y="677" class="t">Ask Pukaar · Bedrock analyst agent</text><text x="364" y="697" class="s">read-only tools → answer + chart + map · numbers only from tool results</text>
+  <path class="e" d="M300,595 H348"/>
+  <path class="e" d="M580,595 H628"/>
+  <path class="e" d="M860,595 H908"/>
+  <path class="e" d="M1015,630 V648"/>
+  <path class="e" d="M745,630 V648"/>
+  <path class="e" d="M350,470 H325 V685 H302"/>
+  <text x="333" y="511" class="el">deliver (Cedar + action guard)</text>
+</svg>

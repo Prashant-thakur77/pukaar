@@ -50,6 +50,10 @@ Three rules hold everywhere:
 
 ## Architecture
 
+![Pukaar architecture on AWS](docs/architecture.svg)
+
+<details><summary>Text version</summary>
+
 ```
  EventBridge Scheduler ──15 min──> Lambda sweep ──> DynamoDB (one table, sparse GSI)
         Open-Meteo forecasts ─────┘      │ level rises
@@ -64,6 +68,8 @@ Three rules hold everywhere:
  Villager phone: Telegram voice alert, "मिल गया"  <── Telegram Bot API
  Villager report: web form -> S3 -> Lambda worker (Transcribe, Bedrock) -> verify -> sweep
 ```
+
+</details>
 
 | AWS service | Used for |
 |---|---|
