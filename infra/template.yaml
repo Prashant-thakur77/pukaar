@@ -1,0 +1,760 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Pukaar flood warning (stack pukaar-<stage>, us-east-1). Interface: docs/CONTRACT.md.
+  Secrets live in SSM SecureString under /pukaar/ and are read at run time, never set here.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedPattern: "^[a-z0-9-]{1,12}$"
+  ApprovalTimeoutSeconds:
+    Type: Number
+    Default: 600
+    MinValue: 30
+    MaxValue: 3600
+    Description: Wait per officer before the next one is asked. Use 60 for filming.
+  AckWaitSeconds:
+    Type: Number
+    Default: 300
+    MinValue: 10
+    MaxValue: 3600
+    Description: Wait after delivery before one re-send to phones that did not acknowledge.
+  WebOrigin:
+    Type: String
+    Default: ""
+    Description: Front-end origin for CORS (https://host, no trailing slash). Empty = the Amplify branch URL.
+  BedrockModelId:
+    Type: String
+    Default: us.amazon.nova-2-lite-v1:0
+  BedrockFallbackRegion:
+    Type: String
+    Default: us-west-2
+    AllowedValues: [us-west-2, us-east-2]
+  Architecture:
+    Type: String
+    Default: x86_64
+    AllowedValues: [x86_64, arm64]
+    Description: Match the build machine so images build without emulation.
+  ReplayEnabled:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+  AlarmEmail:
+    Type: String
+    Default: ""
+    Description: Optional address subscribed to the alarm topic.
+
+Conditions:
+  HasWebOrigin: !Not [!Equals [!Ref WebOrigin, ""]]
+  HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
+
+Globals:
+  Function:
+    Architectures: [!Ref Architecture]
+    Tracing: Active
+    Environment:
+      Variables:
+        PUKAAR_MODE: aws
+        PUKAAR_STAGE: !Ref Stage
+        PUKAAR_TABLE_NAME: !Ref Table
+        PUKAAR_BUCKET: !Ref Bucket
+        # Built from the fixed name (not !Ref) so the workflow function, which the
+        # state machine references, does not form a dependency cycle.
+        PUKAAR_STATE_MACHINE_ARN: !Sub arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:pukaar-approval-${Stage}
+        PUKAAR_AWS_REGION: !Ref AWS::Region
+        PUKAAR_BEDROCK_MODEL_ID: !Ref BedrockModelId
+        PUKAAR_BEDROCK_FALLBACK_REGION: !Ref BedrockFallbackRegion
+        PUKAAR_APPROVAL_TIMEOUT_SECONDS: !Ref ApprovalTimeoutSeconds
+        PUKAAR_ACK_WAIT_SECONDS: !Ref AckWaitSeconds
+        PUKAAR_WEB_URL: !If [HasWebOrigin, !Ref WebOrigin, !Sub "https://main.${AmplifyApp.DefaultDomain}"]
+        PUKAAR_WORKER_FUNCTION: !Sub pukaar-worker-${Stage}
+        PUKAAR_REPLAY_ENABLED: !Ref ReplayEnabled
+        PUKAAR_SSM_PREFIX: /pukaar
+        PUKAAR_DATA_DIR: /var/task/data
+
+Resources:
+  # ---------------------------------------------------------------- storage
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub pukaar-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+        - { AttributeName: gsi1pk, AttributeType: S }
+        - { AttributeName: gsi1sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: gsi1
+          KeySchema:
+            - { AttributeName: gsi1pk, KeyType: HASH }
+            - { AttributeName: gsi1sk, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      TimeToLiveSpecification: { AttributeName: ttl, Enabled: true }
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      SSESpecification: { SSEEnabled: true }
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules: [{ ObjectOwnership: BucketOwnerEnforced }]
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods: [GET, HEAD]
+            AllowedOrigins: [!If [HasWebOrigin, !Ref WebOrigin, !Sub "https://main.${AmplifyApp.DefaultDomain}"]]
+            AllowedHeaders: ["*"]
+            MaxAge: 3000
+
+  BucketTlsOnlyPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Bucket
+      PolicyDocument:
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource: [!GetAtt Bucket.Arn, !Sub "${Bucket.Arn}/*"]
+            Condition: { Bool: { aws:SecureTransport: "false" } }
+
+  # ---------------------------------------------------------------- queues
+  SweepDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub pukaar-sweep-dlq-${Stage}
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  WorkerDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub pukaar-worker-dlq-${Stage}
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  # ---------------------------------------------------------------- log groups
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: { LogGroupName: !Sub "/aws/lambda/pukaar-api-${Stage}", RetentionInDays: 30 }
+  SweepLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: { LogGroupName: !Sub "/aws/lambda/pukaar-sweep-${Stage}", RetentionInDays: 30 }
+  WorkflowLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: { LogGroupName: !Sub "/aws/lambda/pukaar-workflow-${Stage}", RetentionInDays: 30 }
+  WorkerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: { LogGroupName: !Sub "/aws/lambda/pukaar-worker-${Stage}", RetentionInDays: 30 }
+  StateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: { LogGroupName: !Sub "/aws/vendedlogs/states/pukaar-approval-${Stage}", RetentionInDays: 30 }
+
+  # ---------------------------------------------------------------- functions
+  # Each function gets its own SAM-generated role from its Policies list (SAM adds
+  # AWSXrayWriteOnlyAccess for tracing and sqs:SendMessage for the OnFailure DLQ).
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      Dockerfile: backend/Dockerfile
+      DockerContext: ..
+      DockerTag: api
+      DockerBuildTarget: api
+    Properties:
+      PackageType: Image
+      FunctionName: !Sub pukaar-api-${Stage}
+      MemorySize: 2048
+      Timeout: 29
+      LoggingConfig: { LogGroup: !Ref ApiLogGroup }
+      Environment:
+        Variables:
+          # The API cannot reference its own HTTP API (cycle); it derives the URL
+          # from the request when it needs one.
+          PUKAAR_API_URL: ""
+          AWS_LWA_PORT: "8080"
+          AWS_LWA_READINESS_CHECK_PATH: /health
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - S3CrudPolicy: { BucketName: !Ref Bucket }
+        - Statement:
+            - Sid: Bedrock
+              Effect: Allow
+              Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+              Resource:
+                - !Sub arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${BedrockFallbackRegion}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
+            - Sid: Polly
+              Effect: Allow
+              Action: polly:SynthesizeSpeech
+              # SynthesizeSpeech only scopes to lexicons; Pukaar uses none.
+              Resource: "*"
+            - Sid: ApprovalCallbacks
+              Effect: Allow
+              Action: [states:SendTaskSuccess, states:SendTaskFailure, states:SendTaskHeartbeat]
+              # Task-token actions do not support resource-level permissions.
+              Resource: "*"
+            - Sid: InvokeWorker
+              Effect: Allow
+              Action: lambda:InvokeFunction
+              # Built from the name: !GetAtt here would cycle through HttpApi.
+              Resource: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:pukaar-worker-${Stage}
+            - Sid: Secrets
+              Effect: Allow
+              Action: [ssm:GetParameter, ssm:GetParameters]
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/pukaar/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*
+              Condition:
+                StringEquals: { kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com" }
+                ForAnyValue:StringEquals: { kms:ResourceAliases: alias/aws/ssm }
+      Events:
+        # Everything needs a Cognito token unless listed below (docs/CONTRACT.md "Public routes").
+        Proxy: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/{proxy+}", Method: ANY } }
+        Health: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /health, Method: GET, Auth: { Authorizer: NONE } } }
+        Villages: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /villages, Method: GET, Auth: { Authorizer: NONE } } }
+        Village: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/villages/{id}", Method: GET, Auth: { Authorizer: NONE } } }
+        ReportCreate: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /reports, Method: POST, Auth: { Authorizer: NONE } } }
+        AlertAck: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/alerts/{id}/ack", Method: POST, Auth: { Authorizer: NONE } } }
+        AlertAudio: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/alerts/{id}/audio", Method: GET, Auth: { Authorizer: NONE } } }
+        ApprovalGet: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/approval/{token}", Method: GET, Auth: { Authorizer: NONE } } }
+        ApprovalPost: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/approval/{token}", Method: POST, Auth: { Authorizer: NONE } } }
+        TelegramWebhook: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /telegram/webhook, Method: POST, Auth: { Authorizer: NONE } } }
+        PublicOverview: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /public/overview, Method: GET, Auth: { Authorizer: NONE } } }
+        Track: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/track/{code}", Method: GET, Auth: { Authorizer: NONE } } }
+        ReplayStatus: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /replay/status, Method: GET, Auth: { Authorizer: NONE } } }
+
+  SweepFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      Dockerfile: backend/Dockerfile
+      DockerContext: ..
+      DockerTag: worker
+      DockerBuildTarget: worker
+    Properties:
+      PackageType: Image
+      FunctionName: !Sub pukaar-sweep-${Stage}
+      MemorySize: 1024
+      Timeout: 120
+      ImageConfig: { Command: [Pukaar.handlers.sweep.handler] }
+      LoggingConfig: { LogGroup: !Ref SweepLogGroup }
+      Environment:
+        Variables:
+          PUKAAR_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+        DestinationConfig:
+          OnFailure: { Type: SQS, Destination: !GetAtt SweepDLQ.Arn }
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - S3ReadPolicy: { BucketName: !Ref Bucket }
+        - Statement:
+            - Sid: StartApproval
+              Effect: Allow
+              Action: states:StartExecution
+              Resource: !Sub arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:pukaar-approval-${Stage}
+
+  WorkflowFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      Dockerfile: backend/Dockerfile
+      DockerContext: ..
+      DockerTag: worker
+      DockerBuildTarget: worker
+    Properties:
+      PackageType: Image
+      FunctionName: !Sub pukaar-workflow-${Stage}
+      MemorySize: 1024
+      Timeout: 30
+      ImageConfig: { Command: [Pukaar.handlers.workflow.handler] }
+      LoggingConfig: { LogGroup: !Ref WorkflowLogGroup }
+      Environment:
+        Variables:
+          PUKAAR_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - S3CrudPolicy: { BucketName: !Ref Bucket }
+        - Statement:
+            - Sid: Bedrock
+              Effect: Allow
+              Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+              Resource:
+                - !Sub arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${BedrockFallbackRegion}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
+            - Sid: Polly
+              Effect: Allow
+              Action: polly:SynthesizeSpeech
+              # SynthesizeSpeech only scopes to lexicons; Pukaar uses none.
+              Resource: "*"
+            - Sid: Secrets
+              Effect: Allow
+              Action: [ssm:GetParameter, ssm:GetParameters]
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/pukaar/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*
+              Condition:
+                StringEquals: { kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com" }
+                ForAnyValue:StringEquals: { kms:ResourceAliases: alias/aws/ssm }
+
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      Dockerfile: backend/Dockerfile
+      DockerContext: ..
+      DockerTag: worker
+      DockerBuildTarget: worker
+    Properties:
+      PackageType: Image
+      FunctionName: !Sub pukaar-worker-${Stage}
+      MemorySize: 1024
+      Timeout: 900
+      ImageConfig: { Command: [Pukaar.handlers.worker.handler] }
+      LoggingConfig: { LogGroup: !Ref WorkerLogGroup }
+      Environment:
+        Variables:
+          PUKAAR_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+        DestinationConfig:
+          OnFailure: { Type: SQS, Destination: !GetAtt WorkerDLQ.Arn }
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - S3CrudPolicy: { BucketName: !Ref Bucket }
+        - Statement:
+            - Sid: Bedrock
+              Effect: Allow
+              Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+              Resource:
+                - !Sub arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${BedrockFallbackRegion}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
+            - Sid: TranscribeStreaming
+              Effect: Allow
+              Action: [transcribe:StartStreamTranscription, transcribe:StartStreamTranscriptionWebSocket]
+              # Streaming transcription has no resource type to scope to.
+              Resource: "*"
+            - Sid: TranscribeBatch
+              Effect: Allow
+              Action: [transcribe:StartTranscriptionJob, transcribe:GetTranscriptionJob, transcribe:DeleteTranscriptionJob]
+              Resource: !Sub arn:${AWS::Partition}:transcribe:${AWS::Region}:${AWS::AccountId}:transcription-job/pukaar-*
+            - Sid: Polly
+              Effect: Allow
+              Action: polly:SynthesizeSpeech
+              # SynthesizeSpeech only scopes to lexicons; Pukaar uses none.
+              Resource: "*"
+            - Sid: StartApproval
+              Effect: Allow
+              Action: states:StartExecution
+              Resource: !Sub arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:pukaar-approval-${Stage}
+            - Sid: Secrets
+              Effect: Allow
+              Action: [ssm:GetParameter, ssm:GetParameters]
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/pukaar/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*
+              Condition:
+                StringEquals: { kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com" }
+                ForAnyValue:StringEquals: { kms:ResourceAliases: alias/aws/ssm }
+
+  # ---------------------------------------------------------------- schedule
+  SweepScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition: { StringEquals: { aws:SourceAccount: !Ref AWS::AccountId } }
+      Policies:
+        - PolicyName: invoke-sweep
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt SweepFunction.Arn
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt SweepDLQ.Arn
+
+  SweepSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub pukaar-sweep-${Stage}
+      ScheduleExpression: rate(15 minutes)
+      FlexibleTimeWindow: { Mode: "OFF" }
+      State: ENABLED
+      Target:
+        Arn: !GetAtt SweepFunction.Arn
+        RoleArn: !GetAtt SweepScheduleRole.Arn
+        Input: '{"source": "schedule"}'
+        RetryPolicy: { MaximumRetryAttempts: 0, MaximumEventAgeInSeconds: 300 }
+        DeadLetterConfig: { Arn: !GetAtt SweepDLQ.Arn }
+
+  # ---------------------------------------------------------------- workflow
+  ApprovalStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub pukaar-approval-${Stage}
+      Type: STANDARD
+      DefinitionUri: approval.asl.json
+      DefinitionSubstitutions:
+        WorkflowFunctionArn: !GetAtt WorkflowFunction.Arn
+        # Strings; the definition turns them into numbers with States.StringToJson.
+        ApprovalTimeoutSeconds: !Ref ApprovalTimeoutSeconds
+        AckWaitSeconds: !Ref AckWaitSeconds
+      Logging:
+        Level: ERROR
+        IncludeExecutionData: false
+        Destinations:
+          - CloudWatchLogsLogGroup: { LogGroupArn: !GetAtt StateMachineLogGroup.Arn }
+      Tracing: { Enabled: true }
+      Policies:
+        - LambdaInvokePolicy: { FunctionName: !Ref WorkflowFunction }
+        - Statement:
+            - Sid: VendedLogDelivery
+              Effect: Allow
+              # Log delivery APIs do not support resource-level permissions.
+              Action:
+                - logs:CreateLogDelivery
+                - logs:GetLogDelivery
+                - logs:UpdateLogDelivery
+                - logs:DeleteLogDelivery
+                - logs:ListLogDeliveries
+                - logs:PutResourcePolicy
+                - logs:DescribeResourcePolicies
+                - logs:DescribeLogGroups
+              Resource: "*"
+
+  # ---------------------------------------------------------------- auth
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub pukaar-${Stage}
+      UsernameConfiguration: { CaseSensitive: false }
+      AdminCreateUserConfig: { AllowAdminCreateUserOnly: true }
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          TemporaryPasswordValidityDays: 7
+      Schema:
+        - Name: village_ids
+          AttributeDataType: String
+          Mutable: true
+          StringAttributeConstraints: { MinLength: "0", MaxLength: "2048" }
+
+  OfficerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties: { UserPoolId: !Ref UserPool, GroupName: officer, Description: District officers who approve alerts }
+
+  PradhanGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties: { UserPoolId: !Ref UserPool, GroupName: pradhan, Description: Village heads }
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: !Sub pukaar-web-${Stage}
+      GenerateSecret: false
+      ExplicitAuthFlows: [ALLOW_USER_PASSWORD_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+      PreventUserExistenceErrors: ENABLED
+      ReadAttributes: [name, custom:village_ids]
+      # Users must not be able to change their own village_ids.
+      WriteAttributes: [name]
+      IdTokenValidity: 60
+      AccessTokenValidity: 60
+      RefreshTokenValidity: 7
+      TokenValidityUnits: { IdToken: minutes, AccessToken: minutes, RefreshToken: days }
+
+  # ---------------------------------------------------------------- HTTP API
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      Auth:
+        DefaultAuthorizer: Cognito
+        Authorizers:
+          Cognito:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+              audience: [!Ref UserPoolClient]
+      CorsConfiguration:
+        AllowOrigins: [!If [HasWebOrigin, !Ref WebOrigin, !Sub "https://main.${AmplifyApp.DefaultDomain}"]]
+        AllowMethods: [GET, POST, PATCH, OPTIONS]
+        AllowHeaders: [authorization, content-type]
+        MaxAge: 600
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 20
+      RouteSettings:
+        "POST /reports": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 5 }
+
+  # ---------------------------------------------------------------- web hosting
+  AmplifyApp:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: !Sub pukaar-${Stage}
+      Platform: WEB
+      CustomRules:
+        # Single-page app: any path without a file extension serves index.html.
+        - Source: "</^[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest|webp|mp3|wav)$)([^.]+$)/>"
+          Target: /index.html
+          Status: "200"
+
+  AmplifyBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt AmplifyApp.AppId
+      BranchName: main
+      Stage: PRODUCTION
+      EnableAutoBuild: false
+
+  # ---------------------------------------------------------------- alarms
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub pukaar-alarms-${Stage}
+      KmsMasterKeyId: alias/aws/sns
+
+  AlarmEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlarmEmail
+    Properties: { TopicArn: !Ref AlarmTopic, Protocol: email, Endpoint: !Ref AlarmEmail }
+
+  # Pukaar EMF metrics carry dimensions (Purpose, Channel, ...); Metrics Insights
+  # queries aggregate across all of them so the alarms do not depend on the set.
+  ModelErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-model-errors
+      AlarmDescription: Bedrock calls failed in both regions; drafts fell back to the fixed template.
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(ModelError) FROM Pukaar"
+          Period: 300
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  ModelFailoverAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-model-failover
+      AlarmDescription: Bedrock calls failed over to the second region.
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(ModelFailover) FROM Pukaar"
+          Period: 300
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  Api5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-api-5xx
+      Namespace: AWS/ApiGateway
+      MetricName: 5xx
+      Dimensions:
+        - { Name: ApiId, Value: !Ref HttpApi }
+        - { Name: Stage, Value: $default }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  WorkflowFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-approval-failed
+      AlarmDescription: An approval execution failed (even Failsafe or Close did not finish).
+      Namespace: AWS/States
+      MetricName: ExecutionsFailed
+      Dimensions: [{ Name: StateMachineArn, Value: !Ref ApprovalStateMachine }]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  SweepDLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-sweep-dlq
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions: [{ Name: QueueName, Value: !GetAtt SweepDLQ.QueueName }]
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  WorkerDLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-worker-dlq
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions: [{ Name: QueueName, Value: !GetAtt WorkerDLQ.QueueName }]
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  SweepHeartbeatAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-sweep-heartbeat
+      AlarmDescription: No sweep has completed in 30 minutes.
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(SweepCompleted) FROM Pukaar"
+          Period: 1800
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  DeliveryFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-delivery-failed
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(DeliveryFailed) FROM Pukaar"
+          Period: 300
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  UnacknowledgedAlertsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-unacknowledged-alerts
+      AlarmDescription: Delivered alerts still unacknowledged across two sweeps.
+      Metrics:
+        - Id: q
+          Expression: "SELECT MAX(UnacknowledgedAlerts) FROM Pukaar"
+          Period: 900
+          ReturnData: true
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub pukaar-${Stage}
+      DashboardBody: !Sub
+        - |
+          {"widgets": [
+            {"type": "metric", "x": 0, "y": 0, "width": 12, "height": 6, "properties": {
+              "title": "Sweep and alerts", "region": "${AWS::Region}", "period": 900,
+              "metrics": [[{"expression": "SELECT SUM(SweepCompleted) FROM Pukaar", "id": "s1", "label": "SweepCompleted"}],
+                          [{"expression": "SELECT MAX(UnacknowledgedAlerts) FROM Pukaar", "id": "s2", "label": "UnacknowledgedAlerts"}],
+                          [{"expression": "SELECT SUM(ApprovalDecision) FROM Pukaar", "id": "s3", "label": "ApprovalDecision"}]]}},
+            {"type": "metric", "x": 12, "y": 0, "width": 12, "height": 6, "properties": {
+              "title": "Model", "region": "${AWS::Region}", "period": 300,
+              "metrics": [[{"expression": "SELECT SUM(ModelError) FROM Pukaar", "id": "m1", "label": "ModelError"}],
+                          [{"expression": "SELECT SUM(ModelFailover) FROM Pukaar", "id": "m2", "label": "ModelFailover"}],
+                          [{"expression": "SELECT MAX(ModelLatencyMs) FROM Pukaar", "id": "m3", "label": "ModelLatencyMs max", "yAxis": "right"}]]}},
+            {"type": "metric", "x": 0, "y": 6, "width": 12, "height": 6, "properties": {
+              "title": "Delivery", "region": "${AWS::Region}", "period": 300,
+              "metrics": [[{"expression": "SELECT SUM(DeliverySent) FROM Pukaar", "id": "d1", "label": "DeliverySent"}],
+                          [{"expression": "SELECT SUM(DeliveryFailed) FROM Pukaar", "id": "d2", "label": "DeliveryFailed"}]]}},
+            {"type": "metric", "x": 12, "y": 6, "width": 12, "height": 6, "properties": {
+              "title": "Approval workflow", "region": "${AWS::Region}", "stat": "Sum", "period": 300,
+              "metrics": [["AWS/States", "ExecutionsStarted", "StateMachineArn", "${ApprovalStateMachine}"],
+                          ["AWS/States", "ExecutionsSucceeded", "StateMachineArn", "${ApprovalStateMachine}"],
+                          ["AWS/States", "ExecutionsFailed", "StateMachineArn", "${ApprovalStateMachine}"]]}},
+            {"type": "metric", "x": 0, "y": 12, "width": 12, "height": 6, "properties": {
+              "title": "API", "region": "${AWS::Region}", "stat": "Sum", "period": 300,
+              "metrics": [["AWS/ApiGateway", "Count", "ApiId", "${HttpApi}", "Stage", "$default"],
+                          ["AWS/ApiGateway", "4xx", "ApiId", "${HttpApi}", "Stage", "$default"],
+                          ["AWS/ApiGateway", "5xx", "ApiId", "${HttpApi}", "Stage", "$default"]]}},
+            {"type": "metric", "x": 12, "y": 12, "width": 12, "height": 6, "properties": {
+              "title": "Dead-letter queues", "region": "${AWS::Region}", "stat": "Maximum", "period": 300,
+              "metrics": [["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${SweepDLQName}"],
+                          ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${WorkerDLQName}"]]}}
+          ]}
+        - SweepDLQName: !GetAtt SweepDLQ.QueueName
+          WorkerDLQName: !GetAtt WorkerDLQ.QueueName
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  WebUrl:
+    Value: !If [HasWebOrigin, !Ref WebOrigin, !Sub "https://main.${AmplifyApp.DefaultDomain}"]
+  AmplifyAppId:
+    Value: !GetAtt AmplifyApp.AppId
+  AmplifyBranch:
+    Value: !GetAtt AmplifyBranch.BranchName
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient
+  TableName:
+    Value: !Ref Table
+  BucketName:
+    Value: !Ref Bucket
+  StateMachineArn:
+    Value: !Ref ApprovalStateMachine
+  AlarmTopicArn:
+    Value: !Ref AlarmTopic

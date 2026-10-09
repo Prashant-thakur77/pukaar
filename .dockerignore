@@ -1,0 +1,9 @@
+# Build context is the repo root; only backend/ and data/ are needed.
+*
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/README.md
+!backend/src/
+!data/
+**/__pycache__
+**/*.pyc

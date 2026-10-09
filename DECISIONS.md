@@ -249,8 +249,6 @@ milestone:
 
 | Item | Why kept |
 |---|---|
-| `Project.md` | Out of date (old submission criteria, Argentina, LiteRT), but a root file PLAN.md does not name (rule 11). Human to delete or rewrite. |
-| `LICENSE` (CC BY 4.0) | Root file PLAN.md does not name. CC BY is a content licence, unusual for code; human decision. |
 | `backend/Dockerfile` | Dev image, still valid. PLAN.md 4a builds a two-target Lambda Dockerfile in M2 that may replace or adapt it. |
 | `scripts/dev.sh`, `dev.ps1`, `setup.sh`, `setup.ps1`, `seed.ps1` | Still work. PLAN.md asks for `dev.sh` to be rewritten and for `make` targets; that is milestone work. |
 | `/api/settings/connectivity` and `deps.is_online` | PLAN.md 5 drops the connectivity routes, but `Layout.tsx` uses them to decide online/offline. Removing them needs the UI change in M7. |
@@ -266,3 +264,9 @@ milestone:
 | `/uploads` static mount | Serves stored report media; PLAN.md moves storage to S3 later. |
 | `frontend/public/manifest.webmanifest` | Referenced by `index.html`; overlaps with the manifest vite-plugin-pwa generates. |
 | `docs/Project/video/raw/screenshots/` on the local disk | Git-ignored old media, never committed. Left on disk; it never reaches the remote. |
+
+## Human decisions
+
+- 2026-10-09: the human chose to delete `Project.md` and `LICENSE` (CC BY 4.0).
+  The repository now has no licence file; add one before making it public if
+  the event requires an open-source licence.

@@ -1,0 +1,127 @@
+{
+  "thunag": {
+    "watch": 1.14,
+    "warning": 1.532,
+    "critical": 2.1,
+    "past_events": [
+      {
+        "date": "2007-08-12",
+        "discharge": 2.85
+      },
+      {
+        "date": "2008-08-17",
+        "discharge": 2.47
+      },
+      {
+        "date": "1997-08-13",
+        "discharge": 2.36
+      }
+    ],
+    "days": 10227,
+    "river_cell": {
+      "lat": 31.575005,
+      "lon": 77.17502
+    },
+    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+  },
+  "janjehli": {
+    "watch": 1.03,
+    "warning": 1.36,
+    "critical": 1.82,
+    "past_events": [
+      {
+        "date": "2007-08-12",
+        "discharge": 2.91
+      },
+      {
+        "date": "1997-08-13",
+        "discharge": 2.05
+      },
+      {
+        "date": "2008-08-17",
+        "discharge": 2.0
+      }
+    ],
+    "days": 10227,
+    "river_cell": {
+      "lat": 31.525002,
+      "lon": 77.225006
+    },
+    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+  },
+  "gohar": {
+    "watch": 0.94,
+    "warning": 1.42,
+    "critical": 2.08,
+    "past_events": [
+      {
+        "date": "2015-07-10",
+        "discharge": 4.78
+      },
+      {
+        "date": "2010-08-12",
+        "discharge": 3.17
+      },
+      {
+        "date": "2008-08-16",
+        "discharge": 3.03
+      }
+    ],
+    "days": 10227,
+    "river_cell": {
+      "lat": 31.575005,
+      "lon": 77.025024
+    },
+    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+  },
+  "pandoh": {
+    "watch": 282.14,
+    "warning": 353.0,
+    "critical": 418.76,
+    "past_events": [
+      {
+        "date": "2023-08-26",
+        "discharge": 528.66
+      },
+      {
+        "date": "2010-08-18",
+        "discharge": 480.95
+      },
+      {
+        "date": "2017-08-09",
+        "discharge": 438.54
+      }
+    ],
+    "days": 10227,
+    "river_cell": {
+      "lat": 31.675003,
+      "lon": 77.07501
+    },
+    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+  },
+  "sujanpur": {
+    "watch": 1.7,
+    "warning": 3.224,
+    "critical": 4.619,
+    "past_events": [
+      {
+        "date": "2018-07-26",
+        "discharge": 13.93
+      },
+      {
+        "date": "2012-08-19",
+        "discharge": 13.0
+      },
+      {
+        "date": "2018-08-13",
+        "discharge": 11.13
+      }
+    ],
+    "days": 10227,
+    "river_cell": {
+      "lat": 31.825005,
+      "lon": 76.525024
+    },
+    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+  }
+}

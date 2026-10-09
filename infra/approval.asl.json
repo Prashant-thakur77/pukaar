@@ -1,0 +1,535 @@
+{
+  "Comment": "Pukaar approval workflow (PLAN.md section 9). One Lambda dispatches on `step`. Placeholders ${...} are filled by SAM DefinitionSubstitutions; numeric values arrive as strings and are converted with States.StringToJson in Init so this file stays valid JSON.",
+  "StartAt": "Init",
+  "TimeoutSeconds": 7200,
+  "States": {
+    "Init": {
+      "Type": "Pass",
+      "Comment": "Keep alert_id/village_id/level from the execution input and load the timers.",
+      "Parameters": {
+        "alert_id.$": "$.alert_id",
+        "village_id.$": "$.village_id",
+        "level.$": "$.level",
+        "officer_index": 0,
+        "config": {
+          "approval_timeout_seconds.$": "States.StringToJson('${ApprovalTimeoutSeconds}')",
+          "ack_wait_seconds.$": "States.StringToJson('${AckWaitSeconds}')"
+        }
+      },
+      "Next": "DraftAlert"
+    },
+    "DraftAlert": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "draft",
+          "alert_id.$": "$.alert_id"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.draft",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Failsafe"
+        }
+      ],
+      "Next": "HasOfficers"
+    },
+    "HasOfficers": {
+      "Type": "Choice",
+      "Comment": "No officer to ask counts as everyone timing out.",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.draft.result.officer_count",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.draft.result.officer_count",
+              "NumericGreaterThan": 0
+            }
+          ],
+          "Next": "AskOfficer"
+        }
+      ],
+      "Default": "IsCritical"
+    },
+    "AskOfficer": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Comment": "The handler stores task_token on the alert and notifies the officer; the API answers with SendTaskSuccess {decision, by}.",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "ask_officer",
+          "alert_id.$": "$.alert_id",
+          "officer_index.$": "$.officer_index",
+          "task_token.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.config.approval_timeout_seconds",
+      "ResultPath": "$.approval",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "ResultPath": "$.error",
+          "Next": "MarkTimeout"
+        },
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Failsafe"
+        }
+      ],
+      "Next": "RouteDecision"
+    },
+    "MarkTimeout": {
+      "Type": "Pass",
+      "Result": {
+        "decision": "timeout"
+      },
+      "ResultPath": "$.approval",
+      "Next": "RouteDecision"
+    },
+    "RouteDecision": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.approval.decision",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.approval.decision",
+              "StringEquals": "approved"
+            }
+          ],
+          "Next": "OutcomeDelivered"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.approval.decision",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.approval.decision",
+              "StringEquals": "declined"
+            }
+          ],
+          "Next": "OutcomeDeclined"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.approval.decision",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.approval.decision",
+              "StringEquals": "timeout"
+            }
+          ],
+          "Next": "NextOfficer"
+        }
+      ],
+      "Default": "UnknownDecision"
+    },
+    "UnknownDecision": {
+      "Type": "Pass",
+      "Result": {
+        "Error": "UnknownDecision",
+        "Cause": "ask_officer callback output had no valid decision"
+      },
+      "ResultPath": "$.error",
+      "Next": "Failsafe"
+    },
+    "NextOfficer": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "next_officer",
+          "alert_id.$": "$.alert_id",
+          "officer_index.$": "$.officer_index"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.next",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Failsafe"
+        }
+      ],
+      "Next": "HasNextOfficer"
+    },
+    "HasNextOfficer": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.next.result.has_next",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.next.result.has_next",
+              "BooleanEquals": true
+            },
+            {
+              "Variable": "$.next.result.officer_index",
+              "IsPresent": true
+            }
+          ],
+          "Next": "UseNextOfficer"
+        }
+      ],
+      "Default": "IsCritical"
+    },
+    "UseNextOfficer": {
+      "Type": "Pass",
+      "InputPath": "$.next.result.officer_index",
+      "ResultPath": "$.officer_index",
+      "Next": "AskOfficer"
+    },
+    "IsCritical": {
+      "Type": "Choice",
+      "Comment": "Prefer the level next_officer reports (it reads the stored alert); else the execution input.",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.next.result.level",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.next.result.level",
+              "StringEquals": "critical"
+            }
+          ],
+          "Next": "AutoSend"
+        },
+        {
+          "And": [
+            {
+              "Not": {
+                "Variable": "$.next.result.level",
+                "IsPresent": true
+              }
+            },
+            {
+              "Variable": "$.level",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.level",
+              "StringEquals": "critical"
+            }
+          ],
+          "Next": "AutoSend"
+        }
+      ],
+      "Default": "Expire"
+    },
+    "AutoSend": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Critical and every officer timed out: send the fixed template, status auto_sent_unapproved.",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "auto_send",
+          "alert_id.$": "$.alert_id"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.auto",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Failsafe"
+        }
+      ],
+      "Next": "OutcomeAutoSent"
+    },
+    "OutcomeAutoSent": {
+      "Type": "Pass",
+      "Result": "auto_sent_unapproved",
+      "ResultPath": "$.outcome",
+      "Next": "Deliver"
+    },
+    "OutcomeDelivered": {
+      "Type": "Pass",
+      "Result": "delivered",
+      "ResultPath": "$.outcome",
+      "Next": "Deliver"
+    },
+    "Deliver": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "deliver",
+          "alert_id.$": "$.alert_id"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.delivery",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Failsafe"
+        }
+      ],
+      "Next": "WaitForAcks"
+    },
+    "WaitForAcks": {
+      "Type": "Wait",
+      "SecondsPath": "$.config.ack_wait_seconds",
+      "Next": "Recall"
+    },
+    "Recall": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "recall",
+          "alert_id.$": "$.alert_id"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.recall",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Failsafe"
+        }
+      ],
+      "Next": "Close"
+    },
+    "OutcomeDeclined": {
+      "Type": "Pass",
+      "Result": "declined",
+      "ResultPath": "$.outcome",
+      "Next": "Close"
+    },
+    "Expire": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Not critical and every officer timed out: close as expired and notify all officers.",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "expire",
+          "alert_id.$": "$.alert_id"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.expire",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Failsafe"
+        }
+      ],
+      "Next": "OutcomeExpired"
+    },
+    "OutcomeExpired": {
+      "Type": "Pass",
+      "Result": "expired",
+      "ResultPath": "$.outcome",
+      "Next": "Close"
+    },
+    "Failsafe": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Any failure: send the fixed template to all recipients, notify all officers, status failsafe. Not caught: if this fails the execution fails and the ExecutionsFailed alarm fires.",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "failsafe",
+          "alert_id.$": "$.alert_id",
+          "error.$": "$.error"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.failsafe",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "OutcomeFailsafe"
+    },
+    "OutcomeFailsafe": {
+      "Type": "Pass",
+      "Result": "failsafe",
+      "ResultPath": "$.outcome",
+      "Next": "Close"
+    },
+    "Close": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Update the incident, clear the GSI attributes. Not caught: a failure here fails the execution (alarmed).",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "close",
+          "alert_id.$": "$.alert_id",
+          "outcome.$": "$.outcome"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.close",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "End": true
+    }
+  }
+}

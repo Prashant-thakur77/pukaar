@@ -1,0 +1,54 @@
+{
+  "_note": "Coordinates from the Open-Meteo geocoding API (GeoNames) on 2026-10-09; not verified on the ground (coords_verified=false). Population unknown (null). Syathi (PLAN.md) could not be geocoded by Open-Meteo or OpenStreetMap Nominatim, so Pandoh replaces it; see DECISIONS.md. Officer telegram ids are filled at run time by /start in the bot.",
+  "villages": [
+    {
+      "id": "thunag",
+      "name": "Thunag",
+      "name_hi": "थुनाग",
+      "district": "Mandi",
+      "lat": 31.55929,
+      "lon": 77.16515,
+      "coords_source": "open-meteo geocoding: Thunāg, Mandi, Himachal Pradesh"
+    },
+    {
+      "id": "janjehli",
+      "name": "Janjehli",
+      "name_hi": "जंजैहली",
+      "district": "Mandi",
+      "lat": 31.51852,
+      "lon": 77.21928,
+      "coords_source": "open-meteo geocoding: Janjeli, Mandi, Himachal Pradesh"
+    },
+    {
+      "id": "gohar",
+      "name": "Gohar",
+      "name_hi": "गोहर",
+      "district": "Mandi",
+      "lat": 31.57975,
+      "lon": 77.04841,
+      "coords_source": "open-meteo geocoding: Gohar, Mandi, Himachal Pradesh"
+    },
+    {
+      "id": "pandoh",
+      "name": "Pandoh",
+      "name_hi": "पंडोह",
+      "district": "Mandi",
+      "lat": 31.66902,
+      "lon": 77.05359,
+      "coords_source": "open-meteo geocoding: Pāndoh, Mandi, Himachal Pradesh"
+    },
+    {
+      "id": "sujanpur",
+      "name": "Sujanpur",
+      "name_hi": "सुजानपुर",
+      "district": "Hamirpur",
+      "lat": 31.83364,
+      "lon": 76.50539,
+      "coords_source": "open-meteo geocoding: Tīra Sujānpur, Hamirpur, Himachal Pradesh"
+    }
+  ],
+  "officers": [
+    {"username": "officer1", "name": "District duty officer 1"},
+    {"username": "officer2", "name": "District duty officer 2"}
+  ]
+}

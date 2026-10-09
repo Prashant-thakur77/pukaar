@@ -1,478 +1,211 @@
+"""The sweep: reading -> risk rules -> hysteresis -> alert -> approval workflow.
+
+recompute_village() is called by the 15-minute sweep, by each new report and
+by the replay. Code decides the level; the model is never consulted here.
+"""
+
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Protocol
+from typing import Callable, Protocol
 
-from sqlmodel import Session, select
+from Pukaar.core import clock
+from Pukaar.core.config import get_settings
+from Pukaar.core.ids import new_id
+from Pukaar.core.log import get_logger, log
+from Pukaar.services import risk_rules
+from Pukaar.services.nowcast import nowcast
+from Pukaar.store.models import OPEN_ALERT_STATUSES, Alert, Reading, Village, level_rank
+from Pukaar.store.repo import Repo
 
-from Pukaar.models.domain import (
-    ActuationRecord,
-    FusedAlert,
-    HydrometSnapshot,
-    Incident,
-    ParsedObservation,
-    VolunteerReport,
-)
-from Pukaar.services.actuators import ACTUATOR_REGISTRY, dispatch_actuators
-from Pukaar.services.historical_context import render_historical_context, retrieve_historical_context
-from Pukaar.services.reasoning import generate_alert_reasoning, serialize_chain
+_LOG = get_logger("sweep")
+SWEEP_MINUTES = 15
 
 
-DEFAULT_EVIDENCE_WINDOW_MINUTES = 45
-STALE_DECAY_FLOOR = 0.45
+class WorkflowStarter(Protocol):
+    def start(self, alert: Alert) -> str | None: ...
 
 
-class DecisionRuntime(Protocol):
-    def generate_text(self, system_prompt: str, user_prompt: str, max_tokens: int = 320) -> str | None: ...
+@dataclass
+class SweepResult:
+    village_id: str
+    skipped: bool = False
+    level: str = "normal"
+    raw_level: str = "normal"
+    rose: bool = False
+    alert_id: str | None = None
+    note: str = ""
 
 
-LEVEL_MEANINGS = {
-    "green": "No recent evidence of operational risk.",
-    "yellow": "Emerging risk or moderate local evidence requiring monitoring.",
-    "orange": "Corroborated high risk or one critical source requiring local preparation/action.",
-    "red": "Severe risk or observed impact requiring immediate action.",
-}
+def sweep_window(at: datetime, prefix: str = "live") -> str:
+    slot = at.replace(minute=(at.minute // SWEEP_MINUTES) * SWEEP_MINUTES, second=0, microsecond=0)
+    return f"{prefix}:{clock.iso(slot)}"
 
 
-@dataclass(frozen=True)
-class EvidenceEvent:
-    source: str
-    entity_id: int | None
-    observed_at: datetime
-    raw_score: float
-    weighted_score: float
-    weight: float
-    summary: str
-    rules: list[str]
-    payload: dict[str, Any]
-
-
-def level_from_score(score: float) -> str:
-    if score >= 0.82:
-        return "red"
-    if score >= 0.62:
-        return "orange"
-    if score >= 0.4:
-        return "yellow"
-    return "green"
-
-
-def normalize_score(score: float | None) -> float:
-    if score is None:
-        return 0.0
-    return max(0.0, min(1.0, float(score)))
-
-
-def temporal_weight(observed_at: datetime, now: datetime, window_minutes: int) -> float:
-    age_seconds = max(0.0, (now - observed_at).total_seconds())
-    window_seconds = max(60.0, window_minutes * 60.0)
-    if age_seconds < 1.0:
-        return 1.0
-    if age_seconds > window_seconds:
-        return 0.0
-    return max(STALE_DECAY_FLOOR, 1.0 - (age_seconds / window_seconds) * (1.0 - STALE_DECAY_FLOOR))
-
-
-def _volunteer_rules(parsed: ParsedObservation) -> list[str]:
-    rules = [f"volunteer_score={parsed.severity_score:.2f}"]
-    if parsed.water_level_category in {"high", "critical", "above_critical"}:
-        rules.append("volunteer_mark_exceeded")
-    if parsed.trend in {"rising_fast", "rapid_rise", "subiendo_rapido"}:
-        rules.append("volunteer_fast_rise")
-    if parsed.homes_affected:
-        rules.append("volunteer_homes_affected")
-    if parsed.road_status in {"closed", "cut", "blocked", "cortada"}:
-        rules.append("volunteer_road_cut")
-    if parsed.bridge_status in {"compromised", "unsafe", "blocked", "cortado"}:
-        rules.append("volunteer_bridge_compromised")
-    if parsed.urgency in {"high", "critical", "urgent"}:
-        rules.append(f"volunteer_urgency={parsed.urgency}")
-    return rules
-
-
-def _hydromet_rules(snapshot: HydrometSnapshot) -> list[str]:
-    rules = [f"hydromet_score={snapshot.signal_score:.2f}"]
-    if snapshot.precipitation_mm >= 20 or snapshot.rain_mm >= 20:
-        rules.append("hydromet_heavy_rain")
-    if snapshot.precipitation_probability >= 70:
-        rules.append("hydromet_high_rain_probability")
-    if snapshot.river_discharge_trend and snapshot.river_discharge_trend > 0:
-        rules.append("hydromet_river_rising")
-    return rules
-
-
-def _volunteer_is_critical(parsed: ParsedObservation | None) -> bool:
-    if parsed is None:
-        return False
-    return any(
-        rule
-        in {
-            "volunteer_mark_exceeded",
-            "volunteer_fast_rise",
-            "volunteer_homes_affected",
-            "volunteer_road_cut",
-            "volunteer_bridge_compromised",
-            "volunteer_urgency=critical",
-        }
-        for rule in _volunteer_rules(parsed)
-    )
-
-
-def _collect_evidence(
-    session: Session,
-    site_id: str,
-    now: datetime,
-    window_minutes: int,
-) -> list[EvidenceEvent]:
-    window_start = now - timedelta(minutes=window_minutes)
-    events: list[EvidenceEvent] = []
-
-    reports = session.exec(
-        select(VolunteerReport)
-        .where(VolunteerReport.site_id == site_id)
-        .where(VolunteerReport.created_at >= window_start)
-        .order_by(VolunteerReport.created_at.desc())
-    ).all()
-    for report in reports:
-        if report.id is None:
+def _recent_reports(repo: Repo, village_id: str, now: datetime, include_replay: bool):
+    out = []
+    for r in repo.list_reports(village_id, limit=50):
+        created = clock.parse(r.created_at)
+        if created > now or now - created > timedelta(hours=risk_rules.REPORT_ZERO_WEIGHT_HOURS):
             continue
-        parsed = session.exec(
-            select(ParsedObservation)
-            .where(ParsedObservation.volunteer_report_id == report.id)
-            .order_by(ParsedObservation.id.desc())
-        ).first()
-        if parsed is None:
+        if r.state in {"duplicate", "false"}:
             continue
-        raw = normalize_score(parsed.severity_score)
-        if _volunteer_is_critical(parsed):
-            raw = min(1.0, max(raw, 0.72))
-        weight = temporal_weight(report.created_at, now, window_minutes)
-        events.append(
-            EvidenceEvent(
-                source="volunteer",
-                entity_id=parsed.id,
-                observed_at=report.created_at,
-                raw_score=raw,
-                weighted_score=raw * weight,
-                weight=weight,
-                summary=parsed.summary,
-                rules=_volunteer_rules(parsed),
-                payload={
-                    "report_id": report.id,
-                    "water_level_category": parsed.water_level_category,
-                    "trend": parsed.trend,
-                    "road_status": parsed.road_status,
-                    "bridge_status": parsed.bridge_status,
-                    "homes_affected": parsed.homes_affected,
-                    "urgency": parsed.urgency,
-                    "summary": parsed.summary,
-                },
-            )
-        )
-
-    hydromet = session.exec(
-        select(HydrometSnapshot)
-        .where(HydrometSnapshot.site_id == site_id)
-        .where(HydrometSnapshot.created_at >= window_start)
-        .order_by(HydrometSnapshot.created_at.desc())
-    ).all()
-    for snapshot in hydromet:
-        raw = normalize_score(snapshot.signal_score)
-        weight = temporal_weight(snapshot.created_at, now, window_minutes)
-        events.append(
-            EvidenceEvent(
-                source="hydromet",
-                entity_id=snapshot.id,
-                observed_at=snapshot.created_at,
-                raw_score=raw,
-                weighted_score=raw * weight,
-                weight=weight,
-                summary=snapshot.summary,
-                rules=_hydromet_rules(snapshot),
-                payload={
-                    "precipitation_mm": snapshot.precipitation_mm,
-                    "rain_mm": snapshot.rain_mm,
-                    "precipitation_probability": snapshot.precipitation_probability,
-                    "river_discharge": snapshot.river_discharge,
-                    "river_discharge_trend": snapshot.river_discharge_trend,
-                },
-            )
-        )
-
-    return sorted(events, key=lambda event: event.observed_at, reverse=True)
+        if r.replay and not include_replay:
+            continue
+        out.append((r, created))
+    return out
 
 
-def _score_events(events: list[EvidenceEvent]) -> tuple[float, str, list[str]]:
-    if not events:
-        return 0.0, "fused", ["no_recent_evidence"]
-
-    strongest = max(events, key=lambda event: event.weighted_score)
-    fused_score = strongest.weighted_score
-    rules_fired = [rule for event in events for rule in event.rules]
-
-    supporting_sources = {event.source for event in events if event.weighted_score >= 0.35}
-    if len(supporting_sources) >= 2:
-        bonus = min(0.18, 0.08 * (len(supporting_sources) - 1))
-        fused_score = min(1.0, fused_score + bonus)
-        rules_fired.append(f"corroboration_sources={','.join(sorted(supporting_sources))}")
-
-    medium_signals = [event for event in events if 0.38 <= event.weighted_score < 0.62]
-    if len({event.source for event in medium_signals}) >= 2:
-        fused_score = max(fused_score, 0.62)
-        rules_fired.append("two_medium_sources_escalate_to_orange")
-
-    local_sources = {event.source: event.weighted_score for event in events}
-    if local_sources.get("hydromet", 0.0) < 0.25 and local_sources.get("volunteer", 0.0) >= 0.62:
-        rules_fired.append("local_evidence_stronger_than_hydromet")
-
-    critical_rules = {rule for rule in rules_fired if rule.startswith("volunteer_")}
-    if critical_rules.intersection(
-        {
-            "volunteer_mark_exceeded",
-            "volunteer_homes_affected",
-            "volunteer_road_cut",
-            "volunteer_bridge_compromised",
-        }
-    ):
-        fused_score = max(fused_score, 0.72)
-
-    return min(1.0, fused_score), strongest.source, rules_fired
-
-
-def _event_trace(events: list[EvidenceEvent], window_minutes: int, now: datetime, rules_fired: list[str]) -> dict[str, Any]:
+def build_trace(village: Village, reading: Reading | None, assessment: risk_rules.Assessment,
+                previous: str, new_level: str, calm: int, now: datetime) -> dict:
     return {
-        "schema": "decision-trace-v2",
-        "generated_at": now.isoformat(),
-        "window": {
-            "minutes": window_minutes,
-            "started_at": (now - timedelta(minutes=window_minutes)).isoformat(),
-            "ended_at": now.isoformat(),
+        "schema": risk_rules.RULES_VERSION,
+        "generated_at": clock.iso(now),
+        "village_id": village.id,
+        "previous_level": previous,
+        "raw_level": assessment.level,
+        "level": new_level,
+        "rain_level": assessment.rain_level,
+        "river_level": assessment.river_level,
+        "report_level": assessment.report_level,
+        "rules_fired": assessment.rules_fired,
+        "contradictions": assessment.contradictions,
+        "data_disagrees": bool(assessment.contradictions),
+        "hysteresis": {"calm_sweeps": calm, "needed_to_drop": risk_rules.HYSTERESIS_SWEEPS},
+        "evidence": assessment.evidence,
+        "forecast_snapshot": {
+            "rain_24h_mm": reading.rain_24h_mm if reading else None,
+            "discharge_forecast": reading.discharge_forecast if reading else [],
         },
-        "severity_contract": LEVEL_MEANINGS,
-        "rules_fired": rules_fired,
-        "evidence": [
-            {
-                "source": event.source,
-                "entity_id": event.entity_id,
-                "observed_at": event.observed_at.isoformat(),
-                "raw_score": round(event.raw_score, 4),
-                "weight": round(event.weight, 4),
-                "weighted_score": round(event.weighted_score, 4),
-                "summary": event.summary,
-                "rules": event.rules,
-                "payload": event.payload,
-            }
-            for event in events
-        ],
+        "nowcast": nowcast(reading, village.thresholds, new_level),
+        "replay": bool(reading.replay) if reading else False,
     }
 
 
-def _get_active_incident(session: Session, site_id: str) -> Incident | None:
-    return session.exec(
-        select(Incident)
-        .where(Incident.site_id == site_id)
-        .where(Incident.closed_at.is_(None))
-        .order_by(Incident.updated_at.desc())
-    ).first()
+def _escalate(repo: Repo, alert: Alert, village: Village, new_level: str, trace: dict) -> None:
+    """Raise an alert that is still awaiting approval instead of stacking a second one.
+
+    The text becomes the fixed template for the new level (no model call in the
+    sweep), and the officer sees the change in the timeline.
+    """
+    from Pukaar.store.models import DraftCheck
+    from Pukaar.templates import hi
+    from Pukaar.voice import polly
+
+    text_hi, text_en = hi.fallback_alert(new_level, village.name_hi, village.name)
+    repo.update_alert(alert.id, level=new_level, decision_trace=trace, text_hi=text_hi, text_en=text_en,
+                      reasoning_model="rule-fallback", audio_key=None,
+                      reason_en=f"Escalated from {alert.level} before approval. Rules: {', '.join(trace['rules_fired'][:4])}.",
+                      draft_check=DraftCheck(passed=False, reason="escalated before approval; fixed template for the new level"))
+    audio_key = polly.synthesize_alert(alert.id, text_hi)
+    if audio_key:
+        repo.update_alert(alert.id, audio_key=audio_key)
+    repo.add_timeline(alert.id, "escalated", f"{alert.level} -> {new_level} while awaiting approval")
 
 
-def _upsert_incident(
-    session: Session,
-    site_id: str,
-    level: str,
-    summary: str,
-    window_minutes: int,
-    events: list[EvidenceEvent],
-    now: datetime,
-) -> Incident | None:
-    active = _get_active_incident(session, site_id)
-    has_critical_human = any(event.source == "volunteer" and any(rule.startswith("volunteer_") for rule in event.rules) for event in events)
-    should_open = level in {"yellow", "orange", "red"} or has_critical_human
-
-    if active is None and not should_open:
-        return None
-
-    if active is None:
-        active = Incident(
-            site_id=site_id,
-            current_level=level,
-            lifecycle_state="active" if level == "yellow" else "escalated",
-            opened_at=now,
-            updated_at=now,
-            evidence_window_minutes=window_minutes,
-            summary=summary,
-        )
-        session.add(active)
-        session.flush()
-        return active
-
-    active.current_level = level
-    active.updated_at = now
-    active.evidence_window_minutes = window_minutes
-    active.summary = summary
-    if level in {"orange", "red"}:
-        active.lifecycle_state = "escalated"
-    elif level == "yellow":
-        active.lifecycle_state = "active"
-    elif events:
-        active.lifecycle_state = "stabilizing"
-    else:
-        active.lifecycle_state = "closed"
-        active.closed_at = now
-        active.close_reason = "automatic_no_recent_risk_evidence"
-    session.add(active)
-    session.flush()
-    return active
-
-
-def _recommended_actuators(level: str) -> list[str]:
-    if level == "red":
-        return ["trigger_alarm", "send_radio_payload", "notify_app"]
-    if level == "orange":
-        return ["send_radio_payload", "notify_app"]
-    return []
-
-
-def _record_actuators(
-    session: Session,
-    alert: FusedAlert,
-    incident: Incident | None,
-    llm: DecisionRuntime | None,
-) -> list[str]:
-    if alert.level not in {"orange", "red"}:
-        return []
-
-    target_key = incident.id if incident and incident.id is not None else alert.id
-    already_success = session.exec(
-        select(ActuationRecord)
-        .where(ActuationRecord.site_id == alert.site_id)
-        .where(ActuationRecord.incident_id == target_key if incident else ActuationRecord.alert_id == target_key)
-        .where(ActuationRecord.status == "success")
-    ).all()
-    completed = {record.actuator_type for record in already_success}
-
-    requested = _recommended_actuators(alert.level)
-    pending = [name for name in requested if name not in completed]
-    if not pending:
-        return []
-
-    dispatched = (
-        dispatch_actuators(alert, llm, allowed_tools=set(pending))
-        if llm is not None
-        else []
-    )
-    dispatched_pending = {name for name in dispatched if name in pending}
-    fallback_pending = [name for name in pending if name not in dispatched_pending]
-
-    records: list[str] = []
-    for name in pending:
-        payload = {
-            "level": alert.level,
-            "score": alert.score,
-            "summary": alert.summary,
-            "recommended": name in requested,
-        }
-        record = ActuationRecord(
-            alert_id=alert.id,
-            incident_id=incident.id if incident else None,
-            site_id=alert.site_id,
-            actuator_type=name,
-            payload=json.dumps(payload, ensure_ascii=True),
-            status="success",
-            error=None,
-        )
-        if name in fallback_pending:
-            actuator = ACTUATOR_REGISTRY.get(name)
-            if actuator is not None:
-                try:
-                    actuator.fire(payload)
-                except Exception as exc:  # pragma: no cover - defensive
-                    record.status = "failed"
-                    record.error = str(exc)
-        session.add(record)
-        records.append(f"{name}:{record.status}")
-    return records
-
-
-def recompute_site_alert(
-    session: Session,
-    site_id: str,
-    llm: DecisionRuntime | None = None,
+def recompute_village(
+    repo: Repo,
+    village: Village,
     *,
-    window_minutes: int = DEFAULT_EVIDENCE_WINDOW_MINUTES,
     now: datetime | None = None,
-    use_historical_context: bool = False,
-) -> FusedAlert:
-    now = now or datetime.utcnow()
-    events = _collect_evidence(session, site_id, now, window_minutes)
-    weighted_score, trigger_source, rules_fired = _score_events(events)
-    level = level_from_score(weighted_score)
-    local_alarm_triggered = level in {"orange", "red"}
-    latest_by_source: dict[str, EvidenceEvent] = {}
-    for event in events:
-        latest_by_source.setdefault(event.source, event)
+    reading: Reading | None = None,
+    fetch: Callable[[Village, datetime], Reading | None] | None = None,
+    workflow: WorkflowStarter | None = None,
+    window_prefix: str | None = None,
+    replay: bool = False,
+) -> SweepResult:
+    """One evaluation for one village.
 
-    summary_parts = [event.summary for event in latest_by_source.values() if event.summary]
-    summary = " | ".join(summary_parts[:3]) or "No recent signals available"
+    window_prefix set: a scheduled sweep, deduplicated per 15-minute window.
+    fetch set: a new reading is fetched and stored; otherwise the latest stored
+    reading is reused (a new report triggered this).
+    """
+    now = now or clock.now()
+    if window_prefix is not None and not repo.claim_sweep(village.id, sweep_window(now, window_prefix)):
+        return SweepResult(village.id, skipped=True, level=village.level, note="window already swept")
 
-    representative = {source: event.payload for source, event in latest_by_source.items()}
+    if reading is None and fetch is not None:
+        reading = fetch(village, now)
+        if reading is not None:
+            repo.put_reading(reading)
+    if reading is None:
+        latest = repo.list_readings(village.id, limit=1)
+        reading = latest[0] if latest and (latest[0].replay == replay) else None
 
-    historical_hits = (
-        retrieve_historical_context(site_id)
-        if use_historical_context
-        else []
+    reports = _recent_reports(repo, village.id, now, include_replay=replay)
+    assessment = risk_rules.assess(reading, village.thresholds, reports, now)
+    previous = village.level
+    new_level, calm, rose = risk_rules.apply_hysteresis(previous, village.calm_sweeps, assessment.level)
+    trace = build_trace(village, reading, assessment, previous, new_level, calm, now)
+
+    fields: dict = {"level": new_level, "calm_sweeps": calm}
+    if new_level != previous:
+        fields["level_since"] = clock.iso(now)
+    village = repo.update_village(village.id, **fields)
+    result = SweepResult(village.id, level=new_level, raw_level=assessment.level, rose=rose)
+    log(_LOG, "village evaluated", village_id=village.id, previous=previous, raw=assessment.level,
+        level=new_level, rose=rose, rules=assessment.rules_fired, replay=replay)
+
+    if not rose or new_level == "normal":
+        return result
+
+    # Quiet rules: no new alert while an open one already covers this level; daily cap.
+    if village.open_alert_id:
+        open_alert = repo.get_alert(village.open_alert_id)
+        if open_alert and open_alert.status in OPEN_ALERT_STATUSES:
+            if level_rank(open_alert.level) >= level_rank(new_level):
+                result.note = "open alert already covers this level"
+                return result
+            if open_alert.status in {"drafting", "pending"}:
+                _escalate(repo, open_alert, village, new_level, trace)
+                result.alert_id, result.note = open_alert.id, "escalated the alert awaiting approval"
+                return result
+    cap = get_settings().alerts_per_village_per_day
+    if repo.alerts_on_day(village.id, clock.iso(now)[:10]) >= cap:
+        result.note = f"daily cap of {cap} alerts reached"
+        log(_LOG, "alert suppressed by daily cap", 30, village_id=village.id)
+        return result
+
+    stamp = clock.iso(clock.now())
+    alert = Alert(
+        id=new_id("alr"), village_id=village.id, village_name=village.name, village_name_hi=village.name_hi,
+        level=new_level, previous_level=previous, status="drafting", created_at=stamp, updated_at=stamp,
+        decision_trace=trace, replay=replay,
     )
-    historical_context = render_historical_context(historical_hits) if historical_hits else None
-    reasoning = generate_alert_reasoning(
-        level=level,
-        fused_score=weighted_score,
-        volunteer_parsed=representative.get("volunteer"),
-        hydromet=representative.get("hydromet"),
-        rules_fired=rules_fired,
-        llm=llm if level != "green" else None,
-        historical_context=historical_context,
-        historical_hits=historical_hits,
-    )
+    repo.put_alert(alert)
+    repo.update_village(village.id, open_alert_id=alert.id)
+    repo.add_timeline(alert.id, "created", f"level {previous} -> {new_level}; rules: {', '.join(assessment.rules_fired)}")
+    result.alert_id = alert.id
+    if workflow is not None:
+        arn = workflow.start(alert)
+        if arn:
+            repo.update_alert(alert.id, execution_arn=arn)
+    return result
 
-    incident = _upsert_incident(session, site_id, level, summary, window_minutes, events, now)
-    trace = _event_trace(events, window_minutes, now, rules_fired)
-    if historical_hits:
-        trace["historical_context"] = {
-            "enabled": True,
-            "mode": "edge-rag-sqlite",
-            "hits": [hit.__dict__ for hit in historical_hits],
-        }
-    if incident is not None:
-        trace["incident"] = {
-            "id": incident.id,
-            "state": incident.lifecycle_state,
-            "current_level": incident.current_level,
-            "opened_at": incident.opened_at.isoformat() if incident.opened_at else None,
-            "updated_at": incident.updated_at.isoformat() if incident.updated_at else None,
-            "closed_at": incident.closed_at.isoformat() if incident.closed_at else None,
-        }
 
-    alert = FusedAlert(
-        site_id=site_id,
-        incident_id=incident.id if incident else None,
-        level=level,
-        score=round(weighted_score, 4),
-        trigger_source=trigger_source,
-        summary=summary,
-        decision_trace=json.dumps(trace, ensure_ascii=True),
-        local_alarm_triggered=local_alarm_triggered,
-        reasoning_summary=reasoning.llm_summary,
-        reasoning_chain=serialize_chain(reasoning.llm_chain_of_thought),
-        reasoning_model=reasoning.model_name,
-    )
-    session.add(alert)
-    session.flush()
+def sweep_all(repo: Repo, *, now: datetime | None = None, fetch=None, workflow: WorkflowStarter | None = None) -> list[SweepResult]:
+    from Pukaar.services.external_data import fetch_live
 
-    actuation_results = _record_actuators(session, alert, incident, llm)
-    if actuation_results:
-        trace["actuation"] = actuation_results
-        alert.decision_trace = json.dumps(trace, ensure_ascii=True)
-        session.add(alert)
-    return alert
+    now = now or clock.now()
+    results = []
+    replay_active = repo.get_replay().active
+    for village in repo.list_villages():
+        if replay_active:
+            # Live data is still recorded, but the replay owns the levels until reset.
+            try:
+                reading = (fetch or (lambda v, t: fetch_live(v, t)))(village, now)
+                if reading is not None:
+                    repo.put_reading(reading)
+                results.append(SweepResult(village.id, skipped=True, level=village.level, note="replay active; reading stored only"))
+            except Exception as exc:
+                log(_LOG, "village fetch failed", 40, village_id=village.id, error=str(exc)[:300])
+                results.append(SweepResult(village.id, skipped=True, note=f"error: {type(exc).__name__}"))
+            continue
+        try:
+            results.append(recompute_village(repo, village, now=now, fetch=fetch or (lambda v, t: fetch_live(v, t)),
+                                             workflow=workflow, window_prefix="live"))
+        except Exception as exc:  # one bad village never stops the sweep
+            log(_LOG, "village sweep failed", 40, village_id=village.id, error=str(exc)[:300])
+            results.append(SweepResult(village.id, skipped=True, note=f"error: {type(exc).__name__}"))
+    return results

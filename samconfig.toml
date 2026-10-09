@@ -1,0 +1,29 @@
+# SAM CLI settings for stack pukaar-dev. Run sam from the repository root
+# (or use `make build` / `make deploy`).
+version = 0.1
+
+[default.global.parameters]
+stack_name = "pukaar-dev"
+region = "us-east-1"
+
+[default.validate.parameters]
+template_file = "infra/template.yaml"
+lint = true
+
+# deploy reads the built template in .aws-sam/build, so template_file is set for build only.
+[default.build.parameters]
+template_file = "infra/template.yaml"
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+resolve_image_repos = true
+s3_prefix = "pukaar-dev"
+parameter_overrides = "Stage=dev ApprovalTimeoutSeconds=600 AckWaitSeconds=300 Architecture=x86_64 ReplayEnabled=true"
+
+[default.sync.parameters]
+watch = false
