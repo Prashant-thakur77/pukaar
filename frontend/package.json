@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test": "vitest run --environment jsdom --pool threads",
     "mock": "node scripts/mock-api.mjs",
-    "screens": "NODE_USE_ENV_PROXY=1 node scripts/screens.mjs"
+    "screens": "NODE_USE_ENV_PROXY=1 node scripts/screens.mjs",
+    "check:loops": "node scripts/check-loops.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",

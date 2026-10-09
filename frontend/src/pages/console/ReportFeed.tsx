@@ -7,6 +7,7 @@ import { DeniedNote, EmptyState, ErrorState, SkeletonCards } from '../../compone
 import type { PollState } from '../../hooks/usePoll';
 import { enumLabels, useT } from '../../i18n';
 import { fmtAgo } from '../../lib/format';
+import { humanizeFlag, humanizeSummary } from '../../lib/humanize';
 import type { Report, ReportState, Village } from '../../types';
 
 const ACTIONS: { state: ReportState; icon: typeof ShieldCheck }[] = [
@@ -70,7 +71,7 @@ export function ReportFeed({ poll, villages }: { poll: PollState<Report[]>; vill
           {[...list]
             .sort((a, b) => b.created_at.localeCompare(a.created_at))
             .map((r) => (
-              <li key={r.id} className={`report-card lv-${SEV_LEVEL[r.severity] ?? 'normal'}`}>
+              <li key={r.id} id={`report-${r.id}`} className={`report-card lv-${SEV_LEVEL[r.severity] ?? 'normal'}`}>
                 <div className="rc-top">
                   <span className="rc-type">{pick(enumLabels.reportType[r.report_type])}</span>
                   <span className="chip">{pick(enumLabels.severity[r.severity])}</span>
@@ -87,7 +88,7 @@ export function ReportFeed({ poll, villages }: { poll: PollState<Report[]>; vill
                     </span>
                   )}
                 </p>
-                <p className="rc-summary">{r.summary_en || r.text}</p>
+                <p className="rc-summary">{humanizeSummary(r.summary_en, lang, r.report_type, r.severity) || r.text}</p>
                 {r.transcript && (
                   <p className="rc-transcript" lang="hi">
                     “{r.transcript}”
@@ -98,15 +99,22 @@ export function ReportFeed({ poll, villages }: { poll: PollState<Report[]>; vill
                   {r.audio_url && <audio src={r.audio_url} controls preload="none" aria-label="रिपोर्ट की आवाज़ सुनें (Play report audio)" />}
                 </div>
                 {r.flags.length > 0 && (
-                  <p className="small muted">
-                    {r.flags.map((f) => (
-                      <code key={f} className="flag">
-                        {f}
-                      </code>
-                    ))}{' '}
-                    · parser: {r.parser_source}
+                  <p className="rc-flags">
+                    {r.flags.map((f) => {
+                      const h = humanizeFlag(f, lang);
+                      return h.reportId ? (
+                        <a key={f} className="flag-link small" href={`#report-${h.reportId}`}>
+                          {h.text}
+                        </a>
+                      ) : (
+                        <span key={f} className={`chip chip-sm chip-${h.tone}`} title={f}>
+                          {h.text}
+                        </span>
+                      );
+                    })}
                   </p>
                 )}
+                {r.parser_source && <p className="small muted">{t('console.parser', { p: r.parser_source })}</p>}
                 <div className="rc-actions" role="group" aria-label="Set report state">
                   {ACTIONS.map((a) => (
                     <button

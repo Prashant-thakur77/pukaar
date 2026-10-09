@@ -48,6 +48,14 @@
     "errors": []
   },
   {
+    "page": "approve-invalid",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
     "page": "village",
     "viewport": 390,
     "theme": "light",
@@ -136,6 +144,14 @@
     "errors": []
   },
   {
+    "page": "approve-invalid",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
     "page": "village",
     "viewport": 390,
     "theme": "dark",
@@ -224,6 +240,14 @@
     "errors": []
   },
   {
+    "page": "approve-invalid",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
     "page": "village",
     "viewport": 1440,
     "theme": "light",
@@ -305,6 +329,14 @@
   },
   {
     "page": "approve-late",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "approve-invalid",
     "viewport": 1440,
     "theme": "dark",
     "serious_or_critical": [],

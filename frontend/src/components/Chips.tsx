@@ -20,7 +20,7 @@ export function ReportStateChip({ state }: { state: ReportState }) {
 export function ReplayChip() {
   const { t } = useT();
   return (
-    <span className="chip chip-replay" title={t('shell.replay')}>
+    <span className="chip chip-replay" title={t('shell.replay.chip')}>
       <History aria-hidden="true" /> {t('common.replay')}
     </span>
   );
