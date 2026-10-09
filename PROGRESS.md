@@ -15,14 +15,30 @@ AWS account is done for M0-M9 except the items under "Not done" below.
 | M4 model swap | done offline | Strands + Bedrock (`llm/bedrock.py`), draft checker, fixed Hindi templates, rule fallback; no local model left (test) |
 | M5 voice to a phone | built, needs token | Polly MP3 to S3, Telegram `sendAudio` + "मिल गया", one re-send; stub channel without a token |
 | M6 reports | built | anonymous upload, Transcribe batch, keyword + model structuring, duplicate pins, auto-verification, tracking codes |
-| M7 UI | in progress | rebuilt front end (see SCORECARD) |
+| M7 UI | done locally (not on Amplify yet) | landing, live map, console, village, report, track, approve, impact, audit, login; screens in `docs/screens/`; axe 0 serious/critical |
 | M8 roles | done offline | Cedar policies with @id/@desc, one `authorize()` on every route/step/tool, audit rows, Strands tool hook test |
-| M8b analyst, public pages | backend done | `POST /ask/officer` (agent + keyword router), `/public/overview`, `/track/{code}` |
+| M8b analyst, public pages | done locally | Ask Pukaar with charts, maps and tool trace; public live page; tracking links; auto-verification |
 | M9 back-test, polish | done offline | `data/backtest.json`, `scripts/reset_demo`, alarms and dashboard in the template |
-| M10 docs | in progress | README, DEMO.md, docs/RESILIENCE.md, docs/DEPLOY.md |
+| M10 docs | done (pre-deploy) | README with diagram and screens, DEMO.md (16 steps, walked by two judge passes), docs/RESILIENCE.md, docs/DEPLOY.md |
 
-Tests: backend `cd backend && .venv/bin/python -m pytest -q` -> 113 passed
-(offline). Infra: `sam validate --lint -t infra/template.yaml` -> valid.
+Tests (all offline): backend `cd backend && .venv/bin/python -m pytest -q` ->
+118 passed; frontend `npm test` -> 35 passed, `npm run lint` and
+`npm run build` clean, `npm run check:loops` clean. Infra:
+`sam validate --lint -t infra/template.yaml` -> valid.
+
+Review loop so far (SCORECARD.md): backend review 23/35 -> 17 fixes;
+judge pass 1 8/6/7/6/6 -> five changes; judge pass 2 8/6/7.5/7/7 and
+26/35 -> remaining fixes done. The biggest remaining lever is deployment
+("Built on AWS" and "AWS depth" cannot rise without a live stack).
+
+## Next (for the next session)
+
+1. Deploy once credentials work (docs/DEPLOY.md), run `make it` and the
+   PLAN.md "Done when" checks live; record ARNs and URLs in SCORECARD.md.
+2. Put the live URL, a Step Functions execution screenshot and a Polly
+   MP3 link in README.md; run judge pass 3 on the live URL.
+3. Real Telegram test with a phone; record the acknowledgement in the
+   console.
 
 ## Not done (needs a live stack or the human)
 
