@@ -1,0 +1,211 @@
+{
+  "rules": "risk-rules-v1",
+  "scenarios": [
+    {
+      "name": "himachal_2023_07",
+      "title": "Himachal Pradesh, 7-11 July 2023",
+      "title_hi": "\u0939\u093f\u092e\u093e\u091a\u0932 \u092a\u094d\u0930\u0926\u0947\u0936, 7-11 \u091c\u0941\u0932\u093e\u0908 2023",
+      "start": "2023-07-07T00:00:00Z",
+      "end": "2023-07-11T00:00:00Z",
+      "sources": {
+        "rain": "https://historical-forecast-api.open-meteo.com/v1/forecast (hourly precipitation, best_match)",
+        "river": "https://flood-api.open-meteo.com/v1/flood (daily river_discharge, archived)"
+      },
+      "villages": [
+        {
+          "village_id": "thunag",
+          "village": "Thunag",
+          "first_watch": "2023-07-08T04:00:00Z",
+          "first_warning": null,
+          "first_critical": null,
+          "peak_discharge_day": "2023-07-11",
+          "peak_discharge": 1.03,
+          "thresholds": {
+            "watch": 1.14,
+            "warning": 1.532,
+            "critical": 2.1,
+            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+          },
+          "max_rain_24h_mm": 96.6,
+          "lead_hours_watch_to_peak_day": 68.0,
+          "outcome": "reached watch"
+        },
+        {
+          "village_id": "janjehli",
+          "village": "Janjehli",
+          "first_watch": "2023-07-11T00:00:00Z",
+          "first_warning": null,
+          "first_critical": null,
+          "peak_discharge_day": "2023-07-11",
+          "peak_discharge": 0.91,
+          "thresholds": {
+            "watch": 1.03,
+            "warning": 1.36,
+            "critical": 1.82,
+            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+          },
+          "max_rain_24h_mm": 60.1,
+          "lead_hours_watch_to_peak_day": 0.0,
+          "outcome": "reached watch"
+        },
+        {
+          "village_id": "gohar",
+          "village": "Gohar",
+          "first_watch": "2023-07-08T00:00:00Z",
+          "first_warning": "2023-07-08T05:00:00Z",
+          "first_critical": "2023-07-09T02:00:00Z",
+          "peak_discharge_day": "2023-07-11",
+          "peak_discharge": 0.97,
+          "thresholds": {
+            "watch": 0.94,
+            "warning": 1.42,
+            "critical": 2.08,
+            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+          },
+          "max_rain_24h_mm": 126.8,
+          "lead_hours_watch_to_peak_day": 72.0,
+          "outcome": "reached critical"
+        },
+        {
+          "village_id": "pandoh",
+          "village": "Pandoh",
+          "first_watch": "2023-07-07T00:00:00Z",
+          "first_warning": "2023-07-08T05:00:00Z",
+          "first_critical": "2023-07-09T02:00:00Z",
+          "peak_discharge_day": "2023-07-09",
+          "peak_discharge": 286.08,
+          "thresholds": {
+            "watch": 282.14,
+            "warning": 353.0,
+            "critical": 418.76,
+            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+          },
+          "max_rain_24h_mm": 126.8,
+          "lead_hours_watch_to_peak_day": 48.0,
+          "outcome": "reached critical"
+        },
+        {
+          "village_id": "sujanpur",
+          "village": "Sujanpur",
+          "first_watch": "2023-07-07T00:00:00Z",
+          "first_warning": "2023-07-07T00:00:00Z",
+          "first_critical": "2023-07-07T00:00:00Z",
+          "peak_discharge_day": "2023-07-09",
+          "peak_discharge": 7.3,
+          "thresholds": {
+            "watch": 1.7,
+            "warning": 3.224,
+            "critical": 4.619,
+            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+          },
+          "max_rain_24h_mm": 116.5,
+          "lead_hours_watch_to_peak_day": 48.0,
+          "outcome": "reached critical"
+        }
+      ]
+    },
+    {
+      "name": "mandi_2025",
+      "title": "Mandi, night of 30 June to 1 July 2025",
+      "title_hi": "\u092e\u0902\u0921\u0940, 30 \u091c\u0942\u0928 \u0938\u0947 1 \u091c\u0941\u0932\u093e\u0908 2025 \u0915\u0940 \u0930\u093e\u0924",
+      "start": "2025-06-29T00:00:00Z",
+      "end": "2025-07-02T00:00:00Z",
+      "sources": {
+        "rain": "https://historical-forecast-api.open-meteo.com/v1/forecast (hourly precipitation, best_match)",
+        "river": "https://flood-api.open-meteo.com/v1/flood (daily river_discharge, archived)"
+      },
+      "villages": [
+        {
+          "village_id": "thunag",
+          "village": "Thunag",
+          "first_watch": null,
+          "first_warning": null,
+          "first_critical": null,
+          "peak_discharge_day": "2025-06-29",
+          "peak_discharge": 0.53,
+          "thresholds": {
+            "watch": 1.14,
+            "warning": 1.532,
+            "critical": 2.1,
+            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+          },
+          "max_rain_24h_mm": 30.8,
+          "lead_hours_watch_to_peak_day": null,
+          "outcome": "never crossed"
+        },
+        {
+          "village_id": "janjehli",
+          "village": "Janjehli",
+          "first_watch": null,
+          "first_warning": null,
+          "first_critical": null,
+          "peak_discharge_day": "2025-07-01",
+          "peak_discharge": 0.5,
+          "thresholds": {
+            "watch": 1.03,
+            "warning": 1.36,
+            "critical": 1.82,
+            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+          },
+          "max_rain_24h_mm": 33.4,
+          "lead_hours_watch_to_peak_day": null,
+          "outcome": "never crossed"
+        },
+        {
+          "village_id": "gohar",
+          "village": "Gohar",
+          "first_watch": null,
+          "first_warning": null,
+          "first_critical": null,
+          "peak_discharge_day": "2025-06-29",
+          "peak_discharge": 0.37,
+          "thresholds": {
+            "watch": 0.94,
+            "warning": 1.42,
+            "critical": 2.08,
+            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+          },
+          "max_rain_24h_mm": 14.5,
+          "lead_hours_watch_to_peak_day": null,
+          "outcome": "never crossed"
+        },
+        {
+          "village_id": "pandoh",
+          "village": "Pandoh",
+          "first_watch": null,
+          "first_warning": null,
+          "first_critical": null,
+          "peak_discharge_day": "2025-07-02",
+          "peak_discharge": 188.23,
+          "thresholds": {
+            "watch": 282.14,
+            "warning": 353.0,
+            "critical": 418.76,
+            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+          },
+          "max_rain_24h_mm": 14.5,
+          "lead_hours_watch_to_peak_day": null,
+          "outcome": "never crossed"
+        },
+        {
+          "village_id": "sujanpur",
+          "village": "Sujanpur",
+          "first_watch": "2025-06-30T06:00:00Z",
+          "first_warning": null,
+          "first_critical": null,
+          "peak_discharge_day": "2025-07-02",
+          "peak_discharge": 0.87,
+          "thresholds": {
+            "watch": 1.7,
+            "warning": 3.224,
+            "critical": 4.619,
+            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+          },
+          "max_rain_24h_mm": 67.7,
+          "lead_hours_watch_to_peak_day": 42.0,
+          "outcome": "reached watch"
+        }
+      ]
+    }
+  ]
+}

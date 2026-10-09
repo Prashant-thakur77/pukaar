@@ -1,34 +1,40 @@
-# Backend
+# Pukaar backend
 
-FastAPI service for Pukaar. Python package: `src/Pukaar/`.
+FastAPI API and Lambda handlers for Pukaar. Package: `src/Pukaar/`.
 
-What it does today:
+| Folder | What it holds |
+|---|---|
+| `core/` | settings (`PUKAAR_*` env vars), injectable clock, ids, JSON logs and CloudWatch EMF metrics, SSM secrets, local mode |
+| `store/` | Pydantic records and the single-table DynamoDB repo |
+| `services/` | risk rules, sweep engine, Open-Meteo and replay data, report intake and auto-verification, drafting and draft checker, Ask Pukaar analyst, nowcast, action guard, S3 storage |
+| `llm/` | `BedrockLLM` (Strands agents on Bedrock, typed output, region failover) and the read-only agent tools |
+| `voice/` | Polly (Hindi alert audio) and Transcribe (Hindi voice reports) |
+| `delivery/` | Telegram channel and the dispatcher (per-recipient deliveries, one re-send, acknowledgements) |
+| `workflow/` | approval steps for Step Functions, signed one-tap links, AWS and local workflow clients |
+| `policy/` | Cedar policies and the single `authorize()` guard, plus the Strands tool hook |
+| `handlers/` | Lambda entry points: `sweep`, `workflow`, `worker` (the API runs `main:app` behind the Lambda Web Adapter) |
+| `api/` | routes (public, reports, officer, Telegram webhook) and response shapes |
+| `templates/hi.py` | fixed Hindi safety text |
+| `scripts/` | `seed`, `calibrate`, `fetch_replay`, `backtest`, `reset_demo`, `smoke_bedrock` |
 
-- Takes villager reports (`POST /api/reports`: text, photo, audio), transcribes
-  audio with faster-whisper, and structures the text with keyword rules and an
-  optional local model.
-- Fetches rain and river data from Open-Meteo on request
-  (`POST /api/sites/{id}/external-snapshot/refresh`).
-- Scores recent reports and hydromet data into a level (green, yellow,
-  orange, red), writes an alert with a decision trace and a short reasoning
-  summary, and records stub alert outputs.
-- Stores everything in a local SQLite database through SQLModel.
-
-PLAN.md describes the move to AWS (DynamoDB, Bedrock, Transcribe, Polly, Step
-Functions); none of that is built yet.
-
-## Run the tests
+## Run locally (no AWS account needed)
 
 ```bash
 uv sync --frozen --extra dev
+PUKAAR_MODE=local .venv/bin/python -m uvicorn Pukaar.main:app --app-dir src --port 8000
+```
+
+Local mode starts an in-process AWS mock (moto) with the table and bucket,
+seeds the five villages, and runs the approval workflow in background
+threads. Bedrock, Polly and Transcribe are not mocked: health reports them as
+unavailable and the rule fallbacks run, exactly as they would in an outage.
+Sign in with `POST /auth/dev-login {"username": "officer1"}` (also `officer2`,
+`pradhan_thunag`).
+
+## Tests
+
+```bash
 .venv/bin/python -m pytest -q
 ```
 
-## Run locally
-
-```bash
-PYTHONPATH=src .venv/bin/python -m Pukaar.scripts.seed
-PYTHONPATH=src .venv/bin/python -m uvicorn Pukaar.main:app --port 8000
-```
-
-Settings come from `PUKAAR_*` environment variables; see `../.env.example`.
+All tests run offline (moto, frozen clock, fake workflow and model).
