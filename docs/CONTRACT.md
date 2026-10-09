@@ -71,7 +71,9 @@ Error     401 {detail: "Sign in required."}
 ## Routes
 
 ```
-GET  /health                 {status, mode: "aws"|"local", services{dynamodb,bedrock,polly,transcribe,telegram}, replay_active}
+GET  /health                 {status, mode: "aws"|"local", workflow, model,
+                              services{dynamodb,bedrock,polly,transcribe,telegram}, replay_active}
+GET  /dev/approval-link/{id} local mode only, officer: {url, token, officer} (demo of the one-tap link)
 GET  /health/deep            officer: one tiny model call
 GET  /me                     {username, role, village_ids}
 POST /me/telegram-link       officer: {} -> {code, command, expires_in_seconds}  (one-time; send the
@@ -86,7 +88,8 @@ GET  /alerts/{id}            {alert, deliveries[], timeline[Event], audit[Audit]
 POST /alerts/{id}/approve    officer: {} -> Alert; 409 {detail{code,message_en,message_hi}} when late;
                              503 {detail{code:"retry",reason}} when the workflow was briefly unreachable
 POST /alerts/{id}/decline    officer: {reason?} -> Alert; 409 as above
-GET  /approval/{token}       signed link: {alert, expires_at, valid}
+GET  /approval/{token}       signed link: {alert, expires_at, valid, officer}; 409 late/expired;
+                             400 {detail{code:"invalid",message_en,message_hi}} for a broken or forged link
 POST /approval/{token}       signed link: {decision: "approve"|"decline"} -> Alert; 409 when late or reused
 GET  /alerts/{id}/audio      {url|null, text_hi}   (presigned S3 URL; never synthesises client text)
 POST /alerts/{id}/ack        {token} -> {ok, acknowledged_at}

@@ -43,6 +43,8 @@ REPORT_THANKS_HI = "आपकी सूचना मिल गई है। अ�
 REPORT_URGENT_HI = "आपकी सूचना मिल गई है। तुरंत सुरक्षित जगह जाएँ और 112 पर कॉल करें।"
 LATE_REPLY_HI = "यह लिंक अब काम नहीं करता: इस चेतावनी पर फ़ैसला हो चुका है या समय समाप्त हो गया है।"
 LATE_REPLY_EN = "This link no longer works: the alert was already decided or the time ran out."
+INVALID_LINK_HI = "यह लिंक सही नहीं है। कृपया संदेश में आया पूरा लिंक खोलें या कंसोल से मंज़ूरी दें।"
+INVALID_LINK_EN = "This link is not valid. Open the full link from the message, or approve from the console."
 REFUSAL_HI = "मैं केवल बाढ़ से जुड़ी जानकारी दे सकता हूँ।"
 REFUSAL_EN = "I can only answer questions about flood operations."
 
