@@ -216,6 +216,7 @@ const server = http.createServer(async (req, res) => {
     if (!['officer1', 'officer2', 'pradhan_thunag'].includes(u)) return send(res, 400, { detail: 'Unknown demo user' });
     return send(res, 200, { token: `dev-${u}`, username: u, role: u.startsWith('pradhan') ? 'pradhan' : 'officer' });
   }
+  if (p === '/me/telegram-link') return needUser() && send(res, 200, { code: 'K7Q2', command: '/link K7Q2', expires_in_seconds: 600 });
   if (p === '/me') return needUser() && send(res, 200, user);
   if (p === '/public/overview') return send(res, 200, overview());
   if (p === '/villages') return send(res, 200, VILLAGES.map(village));

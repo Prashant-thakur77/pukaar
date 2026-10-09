@@ -42,6 +42,24 @@ def telegram_link(principal: Principal = Depends(Allowed("approve"))) -> dict:
     return {"code": code, "command": f"/start link_{code}", "expires_in_seconds": 900}
 
 
+@router.get("/dev/approval-link/{alert_id}")
+def dev_approval_link(alert_id: str, principal: Principal = Depends(Allowed("approve", "alert", "alert_id"))) -> dict:
+    """Local mode only: the one-tap link the asked officer would get on Telegram (for demos)."""
+    if not get_settings().is_local:
+        raise HTTPException(404, "Not found")
+    from Pukaar.workflow import tokens
+
+    a = get_repo().get_alert(alert_id)
+    if a is None or a.status != "pending":
+        raise HTTPException(409, {"code": "late", "message_en": hi.LATE_REPLY_EN, "message_hi": hi.LATE_REPLY_HI,
+                                  "reason": "not pending"})
+    village = get_repo().get_village(a.village_id)
+    officers = village.officers if village else []
+    officer = officers[a.officer_index] if a.officer_index < len(officers) else principal.username
+    token = tokens.sign(a.id, officer, a.token_version, "approve")
+    return {"url": f"{get_settings().web_url}/a/{token}", "token": token, "officer": officer}
+
+
 @router.get("/health/deep")
 def health_deep(_: Principal = Depends(Allowed("health_deep"))) -> dict:
     llm = _llm()

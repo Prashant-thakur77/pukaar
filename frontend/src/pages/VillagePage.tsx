@@ -337,7 +337,7 @@ export default function VillagePage() {
 
         <section aria-labelledby="past-h">
           <h2 id="past-h" className="h-sec">
-            <History aria-hidden="true" /> {t('village.past')}
+            <History aria-hidden="true" /> {pastHere.length ? t('village.past') : t('village.past.any')}
           </h2>
           {past.length === 0 ? (
             <p className="muted">{t('village.past.empty')}</p>
@@ -347,12 +347,19 @@ export default function VillagePage() {
                 <li key={i} className="card past-item">
                   <span className="past-date">{fmtDate(e.date ?? e.at ?? null, lang)}</span>
                   {e.level && isLevel(e.level) && <LevelBadge level={e.level} size="sm" />}
-                  <p lang={lang === 'hi' && e.text_hi ? 'hi' : 'en'}>{(lang === 'hi' ? e.text_hi : e.text_en) ?? e.text_en ?? e.title ?? ''}</p>
-                  {e.source_url && (
+                  {(() => {
+                    const hi = e.note_hi ?? e.text_hi;
+                    const en = e.note_en ?? e.text_en ?? e.title;
+                    const useHi = lang === 'hi' && hi;
+                    return <p lang={useHi ? 'hi' : 'en'}>{useHi ? hi : en ?? hi ?? ''}</p>;
+                  })()}
+                  {e.source_url ? (
                     <a className="small link" href={e.source_url} target="_blank" rel="noreferrer">
                       {e.source ?? 'Source'} ↗
                     </a>
-                  )}
+                  ) : e.source ? (
+                    <p className="small muted">{e.source}</p>
+                  ) : null}
                 </li>
               ))}
             </ul>

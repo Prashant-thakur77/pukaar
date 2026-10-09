@@ -142,3 +142,12 @@ def test_officer_gets_a_one_time_telegram_link_code(client):
     out = client.post("/me/telegram-link", headers=token(client, "officer1")).json()
     assert out["command"] == f"/start link_{out['code']}"
     assert client.post("/me/telegram-link", headers=token(client, "pradhan_thunag")).status_code == 403
+
+
+def test_broken_link_is_invalid_not_late(client):
+    r = client.get("/approval/not.a-token")
+    assert r.status_code == 400 and r.json()["detail"]["code"] == "invalid"
+
+
+def test_health_names_the_workflow_engine(client):
+    assert client.get("/health").json()["workflow"].startswith("local runner")

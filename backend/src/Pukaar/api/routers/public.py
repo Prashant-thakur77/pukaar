@@ -40,6 +40,7 @@ def health() -> dict:
             "transcribe": "aws" if not s.is_local else "unavailable locally: audio kept, text needed",
             "telegram": "configured" if telegram.configured() else "not configured: stub channel",
         },
+        "workflow": "local runner (same states as Step Functions)" if s.is_local else "AWS Step Functions",
         "model": s.bedrock_model_id,
         "replay_active": repo.get_replay().active if db == "ok" else False,
     }
@@ -130,12 +131,20 @@ def _late(detail: str) -> HTTPException:
                                "reason": detail})
 
 
+def _bad_link(exc: tokens.TokenError) -> HTTPException:
+    """Expired links are 'late'; forged or broken links are 'invalid', not 'already decided'."""
+    if str(exc) == "expired":
+        return _late("expired")
+    return HTTPException(400, {"code": "invalid", "message_en": hi.INVALID_LINK_EN, "message_hi": hi.INVALID_LINK_HI,
+                               "reason": str(exc)})
+
+
 @router.get("/approval/{token}")
 def approval_view(token: str) -> dict:
     try:
         t = tokens.verify(token, "approve")
     except tokens.TokenError as exc:
-        raise _late(str(exc)) from exc
+        raise _bad_link(exc) from exc
     a = get_repo().get_alert(t.alert_id)
     if a is None:
         raise HTTPException(404, "Alert not found")
@@ -154,7 +163,7 @@ def approval_decide(token: str, body: LinkDecision) -> dict:
     try:
         t = tokens.verify(token, "approve")
     except tokens.TokenError as exc:
-        raise _late(str(exc)) from exc
+        raise _bad_link(exc) from exc
     if body.decision not in {"approve", "decline"}:
         raise HTTPException(400, "decision must be approve or decline")
     repo = get_repo()

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Mic, Radar, UserCheck, Volume2 } from 'lucide-react';
 import { api } from '../api';
@@ -18,14 +19,14 @@ import type { Counters } from '../types';
 const COUNTERS: (keyof Counters)[] = ['villages_watched', 'alerts_sent', 'phones_acknowledged', 'reports_received'];
 
 /**
- * Sourced fact. Claim and figures match the article's own headline/URL
- * ("at least 10 dead, 34 missing", 2 July 2025).
- * TODO(human): open the link and re-check the wording before the demo.
+ * Sourced fact: the article's headline and text give "at least 10 dead, 34
+ * missing" as official figures after the night of 30 June - 1 July 2025
+ * (checked by web search on 2026-10-09; later reports raised the toll).
  */
 const FACT = {
-  hi: '30 जून 2025 की रात मंडी ज़िले में कई जगह बादल फटे। अगले दिन तक कम से कम 10 लोगों की मौत हो चुकी थी और 34 लापता थे।',
-  en: 'On the night of 30 June 2025, cloudbursts struck Mandi district. By the next day at least 10 people were dead and 34 missing.',
-  source: 'Down To Earth, 2 July 2025',
+  hi: '30 जून से 1 जुलाई 2025 की रात मंडी ज़िले में कई जगह बादल फटे। शुरुआती सरकारी आँकड़ों के अनुसार कम से कम 10 लोगों की मौत हुई और 34 लापता थे।',
+  en: 'On the night of 30 June to 1 July 2025, cloudbursts struck Mandi district. Early official figures: at least 10 people dead and 34 missing.',
+  source: 'Down To Earth',
   url: 'https://www.downtoearth.org.in/natural-disasters/cloudbursts-devastate-himachals-mandi-at-least-10-dead-34-missing-after-1900-excess-rain-on-july-1',
 };
 
@@ -35,7 +36,7 @@ function Intro({ onDone }: { onDone: () => void }) {
     const tm = setTimeout(onDone, 2300);
     return () => clearTimeout(tm);
   }, [onDone]);
-  return (
+  return createPortal(
     <div className="intro" role="presentation">
       <div className="intro-stage">
         <span className="intro-rings" aria-hidden="true">
@@ -51,7 +52,8 @@ function Intro({ onDone }: { onDone: () => void }) {
       <button type="button" className="intro-skip" onClick={onDone}>
         {t('landing.skip')} <ArrowRight aria-hidden="true" />
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

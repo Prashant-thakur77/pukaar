@@ -167,7 +167,8 @@ if (!ONLY?.length || ONLY.includes('extras')) {
   await routeTiles(ctx);
   const page = await ctx.newPage();
   await page.goto(`${BASE}/`, { waitUntil: 'load' });
-  await page.waitForTimeout(700);
+  await page.waitForSelector('.intro', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(900);
   await page.screenshot({ path: `${OUT}landing-intro-1440.png` });
   await page.close();
 

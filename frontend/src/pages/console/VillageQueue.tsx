@@ -29,6 +29,10 @@ export function VillageQueue({ poll }: { poll: PollState<Village[]> }) {
               <span className="q-name">
                 <span lang="hi">{v.name_hi}</span> <span className="muted">· {v.name}</span>
               </span>
+              <span className="q-badges">
+                <LevelBadge level={v.level} size="sm" />
+                {v.open_alert_id && <span className="q-open" role="img" title="Open alert" aria-label="Open alert" />}
+              </span>
               <span className="small muted">
                 {t('console.reading', {
                   r: fmtNumber(v.latest_reading?.rain_24h_mm, lang, 1),
@@ -37,8 +41,6 @@ export function VillageQueue({ poll }: { poll: PollState<Village[]> }) {
                 {v.level_since && ` · ${fmtAgo(v.level_since, lang)}`}
               </span>
             </span>
-            <LevelBadge level={v.level} size="sm" />
-            {v.open_alert_id && <span className="q-open" title="Open alert" aria-label="Open alert" />}
             <ChevronRight aria-hidden="true" className="q-go" />
           </Link>
         </li>
