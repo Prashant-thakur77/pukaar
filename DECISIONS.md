@@ -270,3 +270,72 @@ milestone:
 - 2026-10-09: the human chose to delete `Project.md` and `LICENSE` (CC BY 4.0).
   The repository now has no licence file; add one before making it public if
   the event requires an open-source licence.
+
+## Build run (2026-10-09)
+
+### Process
+- The human asked for at most 15 more commits. PLAN.md 3b asks for many
+  small commits; the human's instruction wins, so work is committed in a few
+  larger, still single-purpose commits (backend, infra, tests, front end,
+  docs).
+- AWS credentials in the cloud environment are rejected (`InvalidClientTokenId`),
+  so nothing is deployed. Every AWS piece is built and tested offline (moto,
+  fakes, `sam validate --lint`, ASL path tests). The human will deploy.
+- The backend was rebuilt into the PLAN.md 4a target layout instead of being
+  adapted file by file: the old modules were built around SQLite sessions and
+  local-model calls, and a clean rewrite was smaller than the adaptation.
+  Reused ideas: decision trace, rule fallback, keyword parser merge, action
+  guard, offline queue.
+
+### Data
+- **Syathi replaced by Pandoh.** Syathi (PLAN.md 8) cannot be geocoded by
+  Open-Meteo or OpenStreetMap Nominatim. Coordinates may not be invented, so
+  Pandoh (Mandi district, on the Beas) replaces it. Janjehli is "Janjeli" in
+  GeoNames. All coordinates are `coords_verified: false`; populations null.
+- **Thresholds** (watch / warning / critical = 90th / 97th / 99.5th percentile
+  of 1984-2024 daily discharge at each village's river cell, `data/thresholds.json`):
+  Thunag 1.14 / 1.532 / 2.1, Janjehli 1.03 / 1.36 / 1.82, Gohar 0.94 / 1.42 /
+  2.08, Pandoh 282.14 / 353.0 / 418.76, Sujanpur 1.7 / 3.224 / 4.619 m³/s.
+  The small values are small mountain streams; the flood API's nearest cell
+  was accepted as is (no coordinate shift), recorded in `river_cell`.
+- **Not tuned to hit Mandi 2025.** PLAN.md 7 asks to tune so the Mandi 2025
+  night reaches warning. The archived data does not support it: the
+  historical forecasts gave at most 14-34 mm in 24 h at four of the villages,
+  and GloFAS discharge stayed below the 90th percentile at all five. Tuning
+  thresholds down to force a hit would make an ordinary monsoon week alarm
+  and would misrepresent what the data saw. Rule 4 (no invented data) wins:
+  the back-test reports "never crossed" for four villages, and the product
+  story is that the models missed the cloudburst, which is why verified
+  villager reports can raise a level on their own.
+- **Second replay: 7-11 July 2023.** Added so the replay also shows the rules
+  firing on real data: Sujanpur, Gohar and Pandoh reach critical. Rain is the
+  archived forecast (historical-forecast API); discharge is the archived
+  GloFAS series, used as a stand-in for a perfect discharge forecast, so lead
+  times in the back-test are optimistic and are labelled so.
+- **Past events** ("last time at this level") are the three highest daily
+  discharges per river cell in 1984-2024 (at least 10 days apart), with the
+  source named. No other historical claims are made.
+
+### Design
+- **Escalate in place.** If a village rises while its alert still awaits
+  approval, the same alert is raised to the new level with the fixed template
+  for that level, instead of stacking a second pending alert. The draft step
+  writes conditionally on the level, so an escalation during drafting is
+  redrafted, not overwritten.
+- **Replay versus live.** While a replay runs the live sweep still stores
+  readings but does not change levels; reset puts every village back to
+  normal. Replay alerts are delivered only to the stub channel (a Cedar
+  `forbid`), never to real phones.
+- **Incidents** (PLAN.md 6 `INCIDENT#`) are not stored separately: one alert
+  per rise, with its timeline items, carries the same information.
+- **Transcribe batch, not streaming.** The browser's own recording
+  (webm/ogg/mp4) is stored in S3 and transcribed by a batch job in the worker
+  Lambda; no in-browser WAV encoding. The API answers at once with the
+  keyword reading and a tracking code; the report is never lost if
+  transcription fails.
+- **Ask Pukaar without a model** falls back to a keyword router over the same
+  read-only tools and labels its answers "rule-router (no model call)".
+- **CAP export** (stretch) was removed with the old SINAGIR fields rather than
+  ported; it can return after M9.
+- **Local mode** runs the whole loop with an in-process moto mock and a
+  threaded copy of the state machine, so the UI and tests work without AWS.

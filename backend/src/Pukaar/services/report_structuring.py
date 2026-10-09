@@ -8,6 +8,7 @@ severe reading wins. Keyword lists need native-speaker review.
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -39,7 +40,7 @@ KEYWORDS: dict[str, tuple[str, ...]] = {
         "sadak band", "sadak toot", "sadak tut", "rasta band", "raasta band", "road band", "road cut", "road blocked",
     ),
     "water_rising": (
-        "पानी बढ़", "पानी चढ़", "नाला उफान", "नाले में उफान", "खड्ड", "नदी उफान", "बाढ़", "पानी तेज़", "उफान",
+        "पानी बढ़", "पानी चढ़", "बढ़ रहा", "बढ़ रही", "चढ़ रहा", "नाले", "नाला", "नदी", "नाला उफान", "नाले में उफान", "खड्ड", "नदी उफान", "बाढ़", "पानी तेज़", "उफान",
         "pani badh", "paani badh", "pani chadh", "nala", "naala", "khad", "khadd", "nadi", "badh", "baadh", "ufaan",
         "water rising", "flood", "river rising",
     ),
@@ -50,8 +51,9 @@ CRITICAL_WORDS = (
     "trapped", "swept away", "missing",
 )
 HIGH_WORDS = (
-    "बहुत", "तेज़", "तेज", "ख़तरा", "खतरा", "तुरंत", "टूट", "गिर", "बह",
-    "bahut", "tez", "khatra", "turant", "toot", "tut", "gir", "beh", "danger", "fast", "very",
+    "बहुत", "तेज़", "तेज", "ख़तरा", "खतरा", "तुरंत", "टूट", "गिर गया", "गिर रहा", "बह गया", "बह रहा",
+    "bahut", "tez", "khatra", "turant", "toot", "tut gaya", "gir gaya", "gir raha", "beh gaya", "beh raha",
+    "danger", "fast", "very",
 )
 LOW_WORDS = ("सामान्य", "ठीक", "कम", "samanya", "theek", "thik", "kam", "normal", "fine")
 
@@ -71,11 +73,12 @@ class ReportModel(Protocol):
 
 
 def _norm(text: str) -> str:
-    return re.sub(r"\s+", " ", text.strip().lower())
+    # NFC folds the two encodings of nukta letters (ज़ / ज + ़) into one.
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFC", text).strip().lower())
 
 
 def _has(text: str, words: tuple[str, ...]) -> list[str]:
-    return [w for w in words if w in text]
+    return [w for w in words if _norm(w) in text]
 
 
 def keyword_parse(text: str, has_photo: bool = False) -> StructuredReport:
