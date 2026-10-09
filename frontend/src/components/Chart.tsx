@@ -134,7 +134,9 @@ export function Chart({ spec }: { spec: ChartSpec }) {
         )}
       </div>
       <details className="chart-table">
-        <summary>Data table</summary>
+        <summary>
+          {spec.y_label} · {xs.length} {xs.length === 1 ? 'row' : 'rows'} (table)
+        </summary>
         <div className="table-wrap" tabIndex={0} role="region" aria-label={`${spec.title} data`}>
           <table>
             <thead>

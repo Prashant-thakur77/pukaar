@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Map as MlMap, Marker } from 'maplibre-gl';
 import { dict, useT } from '../i18n';
-import { LEVEL_ICON } from '../lib/levels';
+import { LEVEL_ICON, levelRank } from '../lib/levels';
 import type { Level } from '../types';
 
 export interface MapVillage {
@@ -24,7 +24,16 @@ interface Props {
   /** Fit to these ids instead of all villages. */
   focus?: string[];
   compact?: boolean;
+  /** Small caption over the map, e.g. "Current levels". */
+  caption?: string;
 }
+
+// Stable defaults: a fresh `[]` on every render would retrigger the marker
+// effect (which sets state) and loop forever.
+const NO_IDS: string[] = [];
+const NO_POINTS: { lat: number; lon: number; label: string }[] = [];
+/** Below this width (or on compact maps) text labels collide, so markers get numbers and a key. */
+const NARROW_PX = 560;
 
 const OSM_STYLE = {
   version: 8 as const,
@@ -41,7 +50,7 @@ const OSM_STYLE = {
 };
 
 /** MapLibre + OSM raster. Markers are real buttons rendered through portals. */
-export function VillageMap({ villages, highlight = [], points = [], onSelect, className = '', focus, compact }: Props) {
+export function VillageMap({ villages, highlight = NO_IDS, points = NO_POINTS, onSelect, className = '', focus, compact, caption }: Props) {
   const { t, lang } = useT();
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
@@ -52,6 +61,24 @@ export function VillageMap({ villages, highlight = [], points = [], onSelect, cl
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const fitted = useRef('');
+  const [tight, setTight] = useState(false);
+  // Compact maps (Ask Pukaar) are too small for text labels at this zoom, too.
+  const narrow = tight || Boolean(compact);
+
+  useEffect(() => {
+    const el = box.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setTight(el.clientWidth > 0 && el.clientWidth < NARROW_PX));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Numbered by risk then name, so the key below the map reads top-down.
+  const numbered = useMemo(
+    () => [...villages].sort((a, b) => levelRank(b.level) - levelRank(a.level) || a.name.localeCompare(b.name)),
+    [villages],
+  );
+  const numOf = useMemo(() => new Map(numbered.map((v, i) => [v.id, i + 1])), [numbered]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,7 +145,12 @@ export function VillageMap({ villages, highlight = [], points = [], onSelect, cl
         markers.current.delete(id);
       }
     }
-    setEls(next);
+    // Only set state when the set of marker elements really changed.
+    setEls((prev) => {
+      const a = Object.keys(prev);
+      const same = a.length === Object.keys(next).length && a.every((k) => prev[k] === next[k]);
+      return same ? prev : next;
+    });
 
     const ids = focus?.length ? focus : villages.map((v) => v.id);
     const key = ids.join(',');
@@ -129,7 +161,7 @@ export function VillageMap({ villages, highlight = [], points = [], onSelect, cl
         const b = new ml.LngLatBounds(pts[0], pts[0]);
         pts.forEach((p) => b.extend(p));
         const narrow = (box.current?.clientWidth ?? 800) < 600;
-        const padding = narrow ? { top: 40, bottom: 80, left: 30, right: 70 } : compact ? { top: 40, bottom: 40, left: 40, right: 110 } : { top: 70, bottom: 90, left: 70, right: 150 };
+        const padding = narrow ? { top: 40, bottom: 80, left: 30, right: 70 } : compact ? { top: 50, bottom: 60, left: 40, right: 110 } : { top: 70, bottom: 90, left: 70, right: 150 };
         m.fitBounds(b, { padding, maxZoom: 11, duration: fitted.current ? 600 : 0 });
         fitted.current = key;
       }
@@ -151,8 +183,10 @@ export function VillageMap({ villages, highlight = [], points = [], onSelect, cl
   }, [points, ready]);
 
   return (
-    <div className={`map-wrap ${className}`}>
-      <div ref={box} className="map" role="region" aria-label={t('map.label')} />
+    <>
+    <div className={`map-wrap ${className}${narrow ? ' is-narrow' : ''}`}>
+      <div ref={box} className="map" role="region" aria-label={caption ? `${t('map.label')} (${caption})` : t('map.label')} />
+      {caption && <p className="map-caption">{caption}</p>}
       {!ready && !failed && <div className="map-skel skel" aria-hidden="true" />}
       {failed && (
         <div className="map-fail" role="status">
@@ -177,6 +211,11 @@ export function VillageMap({ villages, highlight = [], points = [], onSelect, cl
             <span className="mk-dot" aria-hidden="true">
               <Icon />
             </span>
+            {narrow && (
+              <span className="mk-num" aria-hidden="true">
+                {numOf.get(v.id)}
+              </span>
+            )}
             <span className="mk-label" aria-hidden="true" lang={lang}>
               {name}
               {!v.coords_verified && <span className="mk-approx">≈</span>}
@@ -187,5 +226,37 @@ export function VillageMap({ villages, highlight = [], points = [], onSelect, cl
         );
       })}
     </div>
+    {narrow && numbered.length > 0 && (
+      <ol className="map-key" aria-label={t('map.key')}>
+        {numbered.map((v) => {
+          const Icon = LEVEL_ICON[v.level];
+          const name = lang === 'hi' ? v.name_hi : v.name;
+          const inner = (
+            <>
+              <span className={`mk-num lv-${v.level}`} aria-hidden="true">
+                {numOf.get(v.id)}
+              </span>
+              <span lang={lang}>{name}</span>
+              <span className={`mk-key-lv lv-${v.level}`} title={t(`level.${v.level}`)}>
+                <Icon aria-hidden="true" />
+                <span className="sr-only">{t(`level.${v.level}`)}</span>
+              </span>
+            </>
+          );
+          return (
+            <li key={v.id}>
+              {onSelect ? (
+                <button type="button" className="map-key-item" onClick={() => onSelect(v.id)}>
+                  {inner}
+                </button>
+              ) : (
+                <span className="map-key-item">{inner}</span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    )}
+    </>
   );
 }

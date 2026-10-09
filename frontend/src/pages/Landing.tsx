@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Mic, Radar, UserCheck, Volume2 } from 'lucide-react';
@@ -33,11 +33,17 @@ const FACT = {
 function Intro({ onDone }: { onDone: () => void }) {
   const { t } = useT();
   useEffect(() => {
-    const tm = setTimeout(onDone, 2300);
-    return () => clearTimeout(tm);
+    // At most 1.5 s; any key, click or tap skips it at once.
+    const tm = setTimeout(onDone, 1500);
+    const key = () => onDone();
+    window.addEventListener('keydown', key);
+    return () => {
+      clearTimeout(tm);
+      window.removeEventListener('keydown', key);
+    };
   }, [onDone]);
   return createPortal(
-    <div className="intro" role="presentation">
+    <div className="intro" role="presentation" onClick={onDone}>
       <div className="intro-stage">
         <span className="intro-rings" aria-hidden="true">
           <i />
@@ -63,10 +69,11 @@ export default function Landing() {
   const { data, error } = usePoll(() => api.overview(), [], 30000);
   const reportUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/report`;
 
-  const finishIntro = () => {
+  // Stable so the intro's timer is not restarted when data arrives.
+  const finishIntro = useCallback(() => {
     writeSession('pukaar.intro', '1');
     setIntro(false);
-  };
+  }, []);
 
   const raised = data ? data.villages.filter((v) => levelRank(v.level) >= levelRank('warning')) : [];
   const top = data ? [...data.villages].sort((a, b) => levelRank(b.level) - levelRank(a.level))[0] : null;

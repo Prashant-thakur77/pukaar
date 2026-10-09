@@ -44,3 +44,14 @@ export function fmtDuration(ms: number): string {
   const r = s % 60;
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`;
 }
+
+/** expires_at may be an ISO string or epoch seconds (the backend sends seconds). */
+export function expiryMs(v: string | number | null | undefined): number | null {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number' || /^\d+(\.\d+)?$/.test(String(v))) {
+    const n = Number(v);
+    return n < 1e12 ? n * 1000 : n;
+  }
+  const t = new Date(v).getTime();
+  return Number.isNaN(t) ? null : t;
+}

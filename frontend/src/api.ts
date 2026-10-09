@@ -10,6 +10,7 @@ import type {
   Audit,
   Backtest,
   CreateReportResponse,
+  DevApprovalLink,
   DevLoginResponse,
   Directive,
   DirectiveType,
@@ -184,6 +185,7 @@ export const api = {
 
   alerts: (p: { status?: AlertStatus; village_id?: string } = {}) => request<Alert[]>(`/alerts${qs(p)}`),
   alert: (id: string) => request<AlertDetail>(`/alerts/${enc(id)}`),
+  devApprovalLink: (id: string) => request<DevApprovalLink>(`/dev/approval-link/${enc(id)}`),
   approve: (id: string) => request<Alert>(`/alerts/${enc(id)}/approve`, { method: 'POST', body: {} }),
   decline: (id: string, reason?: string) =>
     request<Alert>(`/alerts/${enc(id)}/decline`, { method: 'POST', body: reason ? { reason } : {} }),

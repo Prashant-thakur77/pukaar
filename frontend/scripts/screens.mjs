@@ -3,9 +3,11 @@
 // ../docs/screens/, and runs axe-core on each. Usage:
 //   npm run build && npx vite preview --port 4173 &   (VITE_API_BASE set at build)
 //   npm run screens -- [--base http://127.0.0.1:4173] [--api http://127.0.0.1:8000] [--only landing,live]
-// Approval-link pages need a signed token the backend only sends by Telegram,
-// so /a/* requests are answered by the dev mock (npm run mock) and show the
-// SAMPLE DATA ribbon. Never runs `playwright install`; uses /opt/pw-browsers.
+// Approval-link pages use a real signed link from GET /dev/approval-link/{id}
+// (local mode, needs a pending alert: start a replay first). Without one they
+// fall back to the dev mock (npm run mock), which shows the SAMPLE DATA ribbon.
+// Exits non-zero if any page logs "Maximum update depth" (a render loop).
+// Never runs `playwright install`; uses /opt/pw-browsers.
 import { mkdirSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -54,13 +56,37 @@ const token = await officerToken();
 const village = await firstVillage();
 const code = await trackCode();
 
+/** Real one-tap links for the first two pending alerts; the second one is decided so its link is "late". */
+async function approvalLinks() {
+  const h = { Authorization: `Bearer ${token}` };
+  try {
+    const pending = await (await fetch(`${API}/alerts?status=pending`, { headers: h })).json();
+    if (!Array.isArray(pending) || pending.length < 2) return null;
+    const link = async (id) => {
+      const r = await fetch(`${API}/dev/approval-link/${id}`, { headers: h });
+      return r.ok ? (await r.json()).token : null;
+    };
+    const live = await link(pending[0].id);
+    const late = await link(pending[pending.length - 1].id);
+    if (!live || !late) return null;
+    await fetch(`${API}/approval/${late}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: 'decline' }) });
+    return { live, late };
+  } catch {
+    return null;
+  }
+}
+const wantsApprove = !ONLY?.length || ONLY.some((n) => n.startsWith('approve'));
+const links = wantsApprove ? await approvalLinks() : null;
+if (wantsApprove) console.log(links ? 'approval pages: real signed links' : 'approval pages: dev mock (no pending alerts)');
+
 const PAGES = [
   { name: 'landing', path: '/' },
   { name: 'live', path: '/live', wait: '.mk, .map-fail' },
   { name: 'report', path: '/report' },
   { name: 'track', path: `/t/${code}` },
-  { name: 'approve', path: '/a/demo', mock: true },
-  { name: 'approve-late', path: '/a/late', mock: true },
+  links ? { name: 'approve', path: `/a/${links.live}` } : { name: 'approve', path: '/a/demo', mock: true },
+  links ? { name: 'approve-late', path: `/a/${links.late}` } : { name: 'approve-late', path: '/a/late', mock: true },
+  { name: 'approve-invalid', path: '/a/not-a-real-link' },
   { name: 'village', path: `/village/${village}` },
   { name: 'console', path: '/console', auth: true },
   { name: 'audit', path: '/audit', auth: true },
@@ -95,6 +121,7 @@ async function routeTiles(ctx) {
 }
 
 const axeSummary = [];
+const loops = [];
 
 async function settle(page) {
   // Scroll through so IntersectionObserver reveals fire, then return to top.
@@ -142,6 +169,9 @@ for (const vp of VIEWPORTS) {
       }
       const errors = [];
       page.on('pageerror', (e) => errors.push(e.message));
+      page.on('console', (m) => {
+        if (m.type() === 'error' && /Maximum update depth/.test(m.text())) loops.push(`${pg.name}-${vp.w}-${theme}`);
+      });
       await page.goto(`${BASE}${pg.path}`, { waitUntil: 'load' });
       await page.waitForSelector('main#main', { timeout: 15000 });
       await page.waitForTimeout(1200);
@@ -184,8 +214,10 @@ if (!ONLY?.length || ONLY.includes('extras')) {
     await chip.click();
     await p2.waitForSelector('.ask-answer, .state-error, .denied', { timeout: 30000 }).catch(() => {});
     await p2.waitForTimeout(1200);
-    const toggle = p2.locator('.trace-toggle');
+    const toggle = p2.locator('#ask .trace-toggle');
     if (await toggle.count()) await toggle.click();
+    // The sticky header would otherwise sit on top of the element screenshot.
+    await p2.addStyleTag({ content: '.site-header, .replay-banner { position: static !important; }' });
     await p2.locator('#ask').screenshot({ path: `${OUT}console-ask-1440-dark.png` });
   }
   await p2.close();
@@ -197,3 +229,7 @@ writeFileSync(`${OUT}axe-summary.json`, JSON.stringify(axeSummary, null, 2));
 const total = axeSummary.reduce((n, r) => n + r.serious_or_critical.length, 0);
 console.log(`\naxe serious/critical total: ${total}`);
 for (const r of axeSummary) if (r.serious_or_critical.length) console.log(JSON.stringify(r, null, 1));
+if (loops.length) {
+  console.error(`render loop ("Maximum update depth") on: ${[...new Set(loops)].join(', ')}`);
+  process.exitCode = 1;
+}

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Filter, ShieldCheck, ShieldX } from 'lucide-react';
+import { filterAudit, isRoutineRead, normaliseResource } from '../lib/audit';
 import { api } from '../api';
 import { EmptyState, ErrorState, Skeleton } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
@@ -19,11 +20,15 @@ function AuditInner() {
   const [params, setParams] = useSearchParams();
   const resource = params.get('resource') ?? '';
   const [q, setQ] = useState(resource);
+  const [showReads, setShowReads] = useState(false);
   const { data, error, loading, refresh } = usePoll(() => api.audit({ resource: resource || undefined }), [resource], 30000);
+  const view = filterAudit(data ?? [], showReads);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    setParams(q.trim() ? { resource: q.trim() } : {});
+    const r = normaliseResource(q);
+    setQ(r);
+    setParams(r ? { resource: r } : {});
   };
 
   return (
@@ -40,11 +45,27 @@ function AuditInner() {
           <Filter aria-hidden="true" /> {t('audit.filter')}
         </button>
       </form>
+      {data && (
+        <div className="audit-bar">
+          <span className={`chip ${view.denies ? 'chip-bad chip-strong' : 'chip-muted'}`} role="status">
+            <ShieldX aria-hidden="true" /> {t('audit.denies', { n: view.denies })}
+          </span>
+          <label className="switch">
+            <input type="checkbox" checked={showReads} onChange={(e) => setShowReads(e.target.checked)} />
+            <span>{t('audit.reads', { n: showReads ? data.filter(isRoutineRead).length : view.hiddenReads })}</span>
+          </label>
+          {resource && (
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => { setQ(''); setParams({}); }}>
+              {t('audit.clear')}
+            </button>
+          )}
+        </div>
+      )}
       {loading && !data ? (
         <Skeleton lines={6} />
       ) : error && !data ? (
         <ErrorState error={error} onRetry={refresh} />
-      ) : !data?.length ? (
+      ) : !view.rows.length ? (
         <EmptyState title={t('state.empty')} />
       ) : (
         <div className="table-wrap card card-flush" tabIndex={0} role="region" aria-label={t('audit.title')}>
@@ -60,7 +81,7 @@ function AuditInner() {
               </tr>
             </thead>
             <tbody>
-              {data.map((a) => (
+              {view.rows.map((a) => (
                 <tr key={a.id} className={a.decision === 'deny' ? 'row-deny' : ''}>
                   <td className="nowrap">{fmtTime(a.at, lang)}</td>
                   <td>
@@ -78,7 +99,7 @@ function AuditInner() {
                         <ShieldCheck aria-hidden="true" /> {t('audit.allow')}
                       </span>
                     ) : (
-                      <span className="chip chip-bad">
+                      <span className="chip chip-bad chip-strong">
                         <ShieldX aria-hidden="true" /> {t('audit.deny')}
                       </span>
                     )}

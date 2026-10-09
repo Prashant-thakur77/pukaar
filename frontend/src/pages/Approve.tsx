@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Check, CircleCheck, CircleX, Clock, X } from 'lucide-react';
+import { Check, CircleCheck, CircleX, Clock, Link2Off, X } from 'lucide-react';
 import { api, ApiError } from '../api';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LevelBadge } from '../components/Level';
@@ -9,7 +9,7 @@ import { ReplayChip } from '../components/Chips';
 import { DeniedNote, ErrorState, Skeleton } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
 import { dict } from '../i18n';
-import { fmtDuration } from '../lib/format';
+import { expiryMs, fmtDuration } from '../lib/format';
 import type { Alert } from '../types';
 
 /** Both languages on every line: an officer may read either. */
@@ -23,13 +23,14 @@ function Bi({ k, vars }: { k: keyof typeof dict; vars?: Record<string, string | 
   );
 }
 
-function useCountdown(iso: string | undefined) {
+function useCountdown(iso: string | number | undefined) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
-  return iso ? new Date(iso).getTime() - now : null;
+  const at = expiryMs(iso);
+  return at == null ? null : at - now;
 }
 
 function LatePage({ error }: { error?: ApiError | null }) {
@@ -48,6 +49,26 @@ function LatePage({ error }: { error?: ApiError | null }) {
     </section>
   );
 }
+
+/** 400 {code:"invalid"}: a broken or forged link. Different from "late" (409). */
+function InvalidPage() {
+  return (
+    <section className="approve-end is-invalid" role="alert">
+      <span className="result-icon" aria-hidden="true">
+        <Link2Off />
+      </span>
+      <h1 className="result-title">
+        <Bi k="approve.invalid" />
+      </h1>
+      <p className="result-body">
+        <span lang="hi">{dict['approve.invalid.body'].hi}</span>
+        <span className="bi-en">{dict['approve.invalid.body'].en}</span>
+      </p>
+    </section>
+  );
+}
+
+const isInvalid = (e: ApiError | null | undefined) => Boolean(e && (e.code === 'invalid' || e.status === 400 || e.status === 404 || e.status === 401));
 
 export default function Approve() {
   const { token = '' } = useParams();
@@ -79,18 +100,7 @@ export default function Approve() {
       </div>
     );
   } else if (error && !data) {
-    body = error.status === 409 || error.status === 410 ? <LatePage error={error} /> : error.status === 404 || error.status === 400 || error.status === 401 ? (
-      <section className="approve-end is-late" role="alert">
-        <span className="result-icon" aria-hidden="true">
-          <CircleX />
-        </span>
-        <h1 className="result-title">
-          <Bi k="approve.invalid" />
-        </h1>
-      </section>
-    ) : (
-      <ErrorState error={error} onRetry={refresh} />
-    );
+    body = error.status === 409 || error.status === 410 ? <LatePage error={error} /> : isInvalid(error) ? <InvalidPage /> : <ErrorState error={error} onRetry={refresh} />;
   } else if (result) {
     const ok = result.status !== 'declined';
     body = (
@@ -102,6 +112,8 @@ export default function Approve() {
         <h1 className="result-title">{ok ? <Bi k="approve.done.approved" /> : <Bi k="approve.done.declined" />}</h1>
       </section>
     );
+  } else if (actErr && actErr.code === 'invalid') {
+    body = <InvalidPage />;
   } else if (actErr?.isLate || (data && !data.valid) || (left !== null && left <= 0)) {
     body = <LatePage error={actErr} />;
   } else if (data) {
@@ -133,7 +145,7 @@ export default function Approve() {
         <p className="small muted">
           <Bi k="approve.recipients" vars={{ n: a.recipients_count }} />
         </p>
-        {fallback && <p className="chip chip-warn">rule fallback · नियम टेम्पलेट</p>}
+        {fallback && <p className="chip chip-warn">तय सुरक्षा टेम्पलेट · Fixed safety template</p>}
         {actErr && !actErr.isLate && (actErr.isDenied ? <DeniedNote error={actErr} /> : actErr.isRetry ? (
           <p className="warn-text" role="alert">
             <Bi k="approve.retry" />

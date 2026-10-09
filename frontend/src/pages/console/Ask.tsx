@@ -1,10 +1,11 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Bot, ChevronDown, LoaderCircle, Send, ShieldCheck, ShieldX, Wrench } from 'lucide-react';
 import { api, ApiError } from '../../api';
 import { Chart } from '../../components/Chart';
 import { DeniedNote, ErrorState } from '../../components/States';
 import { VillageMap } from '../../components/VillageMap';
 import { useT, type Key } from '../../i18n';
+import { levelsFromTools } from '../../lib/ask';
 import type { AskResponse, Village } from '../../types';
 
 const SUGGEST: Key[] = ['console.ask.q1', 'console.ask.q2', 'console.ask.q3'];
@@ -48,7 +49,25 @@ export function Ask({ villages }: { villages: Village[] }) {
     void ask(q);
   };
 
-  const mapVillages = res?.map ? villages.filter((v) => res.map!.village_ids.includes(v.id) || villages.length <= 12) : [];
+  // Levels on the map come from the answer's own tool output when it has them,
+  // so the map never contradicts the text; otherwise it says "current levels".
+  const toolLevels = useMemo(() => levelsFromTools(res?.tools), [res]);
+  const fromAnswer = Object.keys(toolLevels).length > 0;
+  const mapVillages = useMemo(
+    () =>
+      res?.map
+        ? villages
+            .filter((v) => res.map!.village_ids.includes(v.id) || villages.length <= 12)
+            .map((v) => (toolLevels[v.id] ? { ...v, level: toolLevels[v.id] } : v))
+        : [],
+    [res, villages, toolLevels],
+  );
+  // Points that are villages already have a marker; only extra places get a pin.
+  const extraPoints = useMemo(() => {
+    if (!res?.map) return [];
+    const names = new Set(villages.flatMap((v) => [v.name.toLowerCase(), v.name_hi]));
+    return res.map.points.filter((p) => !names.has(p.label.toLowerCase()) && !names.has(p.label));
+  }, [res, villages]);
 
   return (
     <div className="ask">
@@ -98,7 +117,14 @@ export function Ask({ villages }: { villages: Village[] }) {
           {res.chart && <Chart spec={res.chart} />}
           {res.map && (mapVillages.length > 0 || res.map.points.length > 0) && (
             <div className="ask-map">
-              <VillageMap villages={mapVillages} highlight={res.map.village_ids} points={res.map.points} focus={res.map.village_ids} compact />
+              <VillageMap
+                villages={mapVillages}
+                highlight={res.map.village_ids}
+                points={extraPoints}
+                focus={res.map.village_ids}
+                caption={fromAnswer ? t('map.answer') : t('map.current')}
+                compact
+              />
             </div>
           )}
           {res.tools.length > 0 && (

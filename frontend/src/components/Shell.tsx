@@ -7,6 +7,7 @@ import { flushQueue, refreshQueueCount } from '../lib/queue';
 import { useAuth, useNet, usePrefs, type ThemePref } from '../store';
 import { usePoll } from '../hooks/usePoll';
 import { fmtTime } from '../lib/format';
+import { REPLAY_EVENT } from '../lib/events';
 
 const NAV = [
   { to: '/live', key: 'nav.live' },
@@ -149,14 +150,21 @@ function ReplayBanner() {
 
 function ReplayBannerInner() {
   const { t, lang } = useT();
-  const { data } = usePoll(() => api.replayStatus(), [], 15000);
-  if (!data?.active) return null;
+  const { data, refresh } = usePoll(() => api.replayStatus(), [], 15000);
+  // The console announces replay start/reset so the banner updates at once.
+  useEffect(() => {
+    const on = () => void refresh();
+    window.addEventListener(REPLAY_EVENT, on);
+    return () => window.removeEventListener(REPLAY_EVENT, on);
+  }, [refresh]);
+  if (!data?.active && !data?.stale) return null;
   const pct = data.hours_total ? Math.round((data.hours_done / data.hours_total) * 100) : 0;
   return (
     <div className="replay-banner" role="status">
       <History aria-hidden="true" />
       <span>
-        <strong>{t('common.replay')}</strong> · {t('shell.replay')}
+        <strong>{t('common.replay')}</strong> ·{' '}
+        {t('shell.replay', { title: (lang === 'hi' ? data.title_hi || data.title : data.title || data.title_hi) || data.source || data.scenario || '—' })}
       </span>
       {data.clock && (
         <span className="rb-clock">

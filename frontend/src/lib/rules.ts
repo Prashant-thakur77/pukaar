@@ -23,6 +23,8 @@ export function describeRule(rule: string, lang: Lang): string {
       return hi ? 'पुष्ट नुकसान की सूचना → कम से कम चेतावनी' : 'Verified impact report → at least Warning';
     case 'data_disagrees':
       return hi ? 'डेटा और सूचनाएँ मेल नहीं खाते: अधिकारी देखें' : 'Data and reports disagree: officer to check';
+    case 'auto_verified_capped':
+      return hi ? 'अपने-आप पुष्ट सूचना: अधिकतम चेतावनी तक' : 'Auto-verified report: counts up to Warning at most';
     case 'no_reading':
       return hi ? 'कोई माप नहीं मिला' : 'No reading available';
   }

@@ -91,6 +91,10 @@ export interface DraftCheck {
 /** decision_trace is produced by services/risk_rules.py; fields are optional on purpose. */
 export interface DecisionTrace {
   level?: Level;
+  /** Level the rules gave before hysteresis held it up. */
+  raw_level?: Level;
+  previous_level?: Level;
+  hysteresis?: { calm_sweeps: number; needed_to_drop: number };
   rain_level?: Level;
   river_level?: Level;
   report_level?: Level;
@@ -214,8 +218,17 @@ export interface TimelineEvent {
 export interface Health extends SampleFlag {
   status: string;
   mode: 'aws' | 'local';
-  services: Record<string, unknown>;
+  /** e.g. "Step Functions" or "local runner (same states as Step Functions)". */
+  workflow?: string;
+  model?: string;
+  services: Partial<Record<'dynamodb' | 'bedrock' | 'polly' | 'transcribe' | 'telegram', string>> & Record<string, unknown>;
   replay_active: boolean;
+}
+
+export interface DevApprovalLink {
+  url: string;
+  token: string;
+  officer: string;
 }
 
 export interface Me extends SampleFlag {
@@ -271,7 +284,9 @@ export interface AlertDetail extends SampleFlag {
 
 export interface ApprovalView extends SampleFlag {
   alert: Alert;
-  expires_at: string;
+  /** ISO time or epoch seconds. */
+  expires_at: string | number;
+  officer?: string;
   valid: boolean;
 }
 

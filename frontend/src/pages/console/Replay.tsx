@@ -4,10 +4,16 @@ import { api, ApiError } from '../../api';
 import { DeniedNote, ErrorState, Skeleton } from '../../components/States';
 import type { PollState } from '../../hooks/usePoll';
 import { useT } from '../../i18n';
+import { announceReplayChange } from '../../lib/events';
 import { fmtTime } from '../../lib/format';
 import type { ReplayStatus } from '../../types';
 
-export function Replay({ poll }: { poll: PollState<ReplayStatus> }) {
+const SCENARIO_NAMES: Record<string, { hi: string; en: string }> = {
+  himachal_2023_07: { hi: 'हिमाचल, 7-11 जुलाई 2023', en: 'Himachal, 7-11 July 2023' },
+  mandi_2025: { hi: 'मंडी, जून-जुलाई 2025', en: 'Mandi, June-July 2025' },
+};
+
+export function Replay({ poll, onChanged }: { poll: PollState<ReplayStatus>; onChanged?: () => void }) {
   const { t, lang } = useT();
   const [busy, setBusy] = useState<'start' | 'reset' | null>(null);
   const [err, setErr] = useState<ApiError | null>(null);
@@ -24,6 +30,9 @@ export function Replay({ poll }: { poll: PollState<ReplayStatus> }) {
       if (kind === 'start') await api.replayStart(scenario ? { scenario, speed_seconds_per_hour: 1 } : {});
       else await api.replayReset();
       await poll.refresh();
+      // Alerts, villages and the banner change with the replay: refetch now, not on the next poll.
+      onChanged?.();
+      announceReplayChange();
     } catch (e) {
       setErr(e instanceof ApiError ? e : new ApiError(0, null));
     } finally {
@@ -36,16 +45,13 @@ export function Replay({ poll }: { poll: PollState<ReplayStatus> }) {
   const pct = s && s.hours_total ? (s.hours_done / s.hours_total) * 100 : 0;
   return (
     <div className="replay-box">
-      <p className="small muted">{t('console.replay.lead')}</p>
+      {!s?.active && <p className="small muted">{t('console.replay.lead')}</p>}
       {s && (
         <div className={`replay-status${s.active ? ' is-active' : ''}`}>
           <History aria-hidden="true" />
           <div>
             <strong>{s.active ? (lang === 'hi' ? s.title_hi : s.title) || s.scenario || t('common.replay') : t('console.replay.idle')}</strong>
-            <span className="small muted">
-              {s.source && ` · ${s.source}`}
-              {s.clock && ` · ${fmtTime(s.clock, lang)}`}
-            </span>
+            <span className="small muted">{[s.active ? null : (lang === 'hi' ? s.title_hi : s.title) || s.source, s.clock ? fmtTime(s.clock, lang) : null].filter(Boolean).join(' · ')}</span>
             <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={s.hours_total} aria-valuenow={s.hours_done} aria-label={t('console.replay.progress', { d: s.hours_done, t: s.hours_total })}>
               <i style={{ transform: `scaleX(${pct / 100})` }} />
             </div>
@@ -54,21 +60,21 @@ export function Replay({ poll }: { poll: PollState<ReplayStatus> }) {
         </div>
       )}
       {s && !canStart && <p className="small warn-text">{t('console.replay.unavailable')}</p>}
+      <div className="replay-controls">
       {scenarios.length > 1 && !s?.active && (
-        <label className="field">
-          <span className="field-label">{t('console.replay.scenario')}</span>
+        <label className="field replay-pick">
+          <span className="sr-only">{t('console.replay.scenario')}</span>
           <span className="select-wrap">
             <select value={scenario} onChange={(e) => setPicked(e.target.value)}>
               {scenarios.map((sc) => (
                 <option key={sc} value={sc}>
-                  {sc}
+                  {SCENARIO_NAMES[sc]?.[lang] ?? sc}
                 </option>
               ))}
             </select>
           </span>
         </label>
       )}
-      <div className="row">
         <button type="button" className="btn btn-accent btn-press" onClick={() => void run('start')} disabled={busy !== null || !canStart || s?.active}>
           {busy === 'start' ? <LoaderCircle className="spin" aria-hidden="true" /> : <Play aria-hidden="true" />} {t('console.replay.start')}
         </button>

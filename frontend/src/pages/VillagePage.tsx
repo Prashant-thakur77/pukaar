@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, CloudRain, FileText, Gauge as GaugeIcon, History, ListChecks, MapPin, Megaphone, Scale, TrendingUp, Users, Waves } from 'lucide-react';
+import { ArrowLeft, ChevronDown, CloudRain, FileText, Gauge as GaugeIcon, History, Hourglass, ListChecks, MapPin, Megaphone, Scale, TrendingUp, Users, Waves } from 'lucide-react';
 import { api } from '../api';
 import { AlertStatusChip, DeliveryChips, ReplayChip, ReportStateChip } from '../components/Chips';
 import { Gauge } from '../components/Gauge';
@@ -14,6 +14,9 @@ import { enumLabels, useT } from '../i18n';
 import { fmtAgo, fmtDate, fmtNumber, fmtTime } from '../lib/format';
 import { isLevel } from '../lib/levels';
 import { describeContradiction, describeRule } from '../lib/rules';
+import { auditLinkForAlert } from '../lib/audit';
+import { holdLine } from '../lib/evidence';
+import { humanizeSummary } from '../lib/humanize';
 import { useAuth } from '../store';
 import type { Alert, DecisionTrace, Level, TraceEvidence, Village } from '../types';
 
@@ -44,7 +47,7 @@ function AlertDetails({ alert }: { alert: Alert }) {
               {data.deliveries.map((d) => (
                 <tr key={d.recipient_id}>
                   <td>{d.name}</td>
-                  <td>{d.channel}</td>
+                  <td>{d.channel === 'stub' ? t('console.channel.stub') : t('console.channel.telegram')}</td>
                   <td>
                     {d.status}
                     {d.error && <span className="small bad-text"> · {d.error}</span>}
@@ -66,7 +69,7 @@ function AlertDetails({ alert }: { alert: Alert }) {
           </li>
         ))}
       </ol>
-      <Link className="link" to={`/audit?resource=${encodeURIComponent(alert.id)}`}>
+      <Link className="link" to={auditLinkForAlert(alert.id)}>
         {t('village.audit')} →
       </Link>
     </div>
@@ -104,18 +107,27 @@ function AlertCard({ alert, signedIn }: { alert: Alert; signedIn: boolean }) {
   );
 }
 
+/** IMD 24 h rain bands (mm) used by services/risk_rules.py. */
+const IMD_BANDS = { watch: 64.5, warning: 115.6, critical: 204.5 };
+
 function Evidence({ village, trace }: { village: Village; trace: DecisionTrace | null }) {
   const { t, lang, pick } = useT();
-  const reading = trace?.evidence?.find((e) => e.kind === 'reading') ?? null;
+  const traceReading = trace?.evidence?.find((e) => e.kind === 'reading') ?? null;
   const reports = (trace?.evidence ?? []).filter((e): e is TraceEvidence => e.kind === 'report');
   const lr = village.latest_reading;
-  const rain = (reading?.rain_24h_mm ?? lr?.rain_24h_mm) ?? null;
-  const rainLevel = (reading?.rain_level ?? lr?.rain_level) as Level | undefined;
-  const bandsRaw = reading?.rain_bands_mm;
-  const rainBands = bandsRaw && bandsRaw.watch != null && bandsRaw.warning != null && bandsRaw.critical != null ? (bandsRaw as { watch: number; warning: number; critical: number }) : null;
-  const peak = (reading?.discharge_peak ?? lr?.discharge_peak) ?? null;
-  const riverLevel = (reading?.river_level ?? lr?.river_level) as Level | undefined;
-  const th = reading?.thresholds ?? village.thresholds;
+  // Rain and river cards show the newest sweep; the rules card shows the sweep that raised the alert.
+  const useLatest = Boolean(lr && (!traceReading?.at || lr.at >= String(traceReading.at)));
+  const rain = useLatest ? lr!.rain_24h_mm : (traceReading?.rain_24h_mm ?? null);
+  const rainLevel = (useLatest ? lr!.rain_level : traceReading?.rain_level) as Level | undefined;
+  const bandsRaw = traceReading?.rain_bands_mm;
+  const rainBands =
+    bandsRaw && bandsRaw.watch != null && bandsRaw.warning != null && bandsRaw.critical != null ? (bandsRaw as { watch: number; warning: number; critical: number }) : IMD_BANDS;
+  const peak = useLatest ? lr!.discharge_peak : (traceReading?.discharge_peak ?? null);
+  const riverLevel = (useLatest ? lr!.river_level : traceReading?.river_level) as Level | undefined;
+  const th = (useLatest ? village.thresholds : traceReading?.thresholds) ?? village.thresholds ?? traceReading?.thresholds ?? null;
+  const sweepAt = useLatest ? lr!.at : traceReading?.at ? String(traceReading.at) : null;
+  const sweepLabel = sweepAt ? t(useLatest ? 'village.ev.latest' : 'village.ev.alert', { t: fmtTime(sweepAt, lang) }) : null;
+  const alertSweepAt = traceReading?.at ? String(traceReading.at) : typeof trace?.generated_at === 'string' ? trace.generated_at : null;
 
   return (
     <div className="evidence-grid">
@@ -132,10 +144,11 @@ function Evidence({ village, trace }: { village: Village; trace: DecisionTrace |
             <p className="ev-value">
               {fmtNumber(rain, lang, 1)} <span>mm</span>
             </p>
-            {rainBands ? <Gauge value={rain} bands={rainBands} unit="mm" label={t('village.rain')} /> : null}
-            {rainBands && <p className="small muted">{t('village.rain.bands')}</p>}
+            <Gauge value={rain} bands={rainBands} unit="mm" label={t('village.rain')} />
+            <p className="small muted">{t('village.rain.bands')}</p>
           </>
         )}
+        {sweepLabel && <p className="ev-sweep small">{sweepLabel}</p>}
       </Reveal>
       <Reveal className="ev-card" delay={80}>
         <header className="ev-head">
@@ -158,6 +171,7 @@ function Evidence({ village, trace }: { village: Village; trace: DecisionTrace |
         ) : (
           <p className="small muted">{t('village.no.thresholds')}</p>
         )}
+        {sweepLabel && <p className="ev-sweep small">{sweepLabel}</p>}
       </Reveal>
       {trace?.rules_fired && trace.rules_fired.length > 0 && (
         <Reveal className="ev-card ev-wide" delay={140}>
@@ -166,6 +180,7 @@ function Evidence({ village, trace }: { village: Village; trace: DecisionTrace |
             <h3>{t('village.rules')}</h3>
             {trace.rules_version && <code className="small muted">{String(trace.rules_version)}</code>}
           </header>
+          {alertSweepAt && <p className="ev-sweep small">{t('village.ev.alert', { t: fmtTime(alertSweepAt, lang) })}</p>}
           <ul className="rule-list">
             {trace.rules_fired.map((r) => (
               <li key={r}>
@@ -236,6 +251,12 @@ export default function VillagePage() {
   const latestAlert = [...data.alerts].sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null;
   const trace = latestAlert?.decision_trace ?? null;
   const readings = [...data.readings].sort((a, b) => a.at.localeCompare(b.at));
+  // Hysteresis: a level rises at once but drops one step only after 3 calm sweeps.
+  const traceHolds = Boolean(trace && latestAlert?.level === v.level && holdLine(trace, lang));
+  const hold =
+    v.level !== 'normal' && (v.calm_sweeps > 0 || traceHolds)
+      ? holdLine(null, lang, { level: v.level, raw: 'normal', calm: v.calm_sweeps, needed: trace?.hysteresis?.needed_to_drop ?? 3 })
+      : null;
   const pastHere = data.past_events.filter((e) => !e.level || e.level === v.level);
   const past = pastHere.length ? pastHere : data.past_events;
 
@@ -269,6 +290,11 @@ export default function VillagePage() {
               {v.level_since && <p className="small">{t('village.since', { t: fmtAgo(v.level_since, lang) })}</p>}
             </div>
           </div>
+          {hold && (
+            <p className="v-hold" role="note">
+              <Hourglass aria-hidden="true" /> {hold.text}
+            </p>
+          )}
           {data.nowcast && (
             <p className={`nowcast lv-${data.nowcast.likely_level}`}>
               <TrendingUp aria-hidden="true" />
@@ -398,7 +424,7 @@ export default function VillagePage() {
                     <ReportStateChip state={r.state} />
                     {r.replay && <ReplayChip />}
                   </div>
-                  <p>{r.summary_en || r.transcript || r.text}</p>
+                  <p>{humanizeSummary(r.summary_en, lang, r.report_type, r.severity) || r.transcript || r.text}</p>
                   <p className="small muted">{fmtAgo(r.created_at, lang)}</p>
                 </li>
               ))}

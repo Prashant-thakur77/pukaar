@@ -10,6 +10,10 @@ phones, tap "मिल गया" (got it), and can report back by voice.
 
 Built for Environmental Hacks (WeMakeDevs x AWS), Heat and Water track.
 
+| Landing | Officer console | Villager report (phone) |
+|---|---|---|
+| ![Landing page](docs/screens/landing-1440-dark.png) | ![Officer console during a replay](docs/screens/console-1440-light.png) | ![Hindi-first report page](docs/screens/report-390-light.png) |
+
 ## The problem
 
 In the hill districts of Himachal Pradesh a mountain stream can become a
@@ -50,6 +54,10 @@ Three rules hold everywhere:
 
 ## Architecture
 
+![Pukaar architecture on AWS](docs/architecture.svg)
+
+<details><summary>Text version</summary>
+
 ```
  EventBridge Scheduler ──15 min──> Lambda sweep ──> DynamoDB (one table, sparse GSI)
         Open-Meteo forecasts ─────┘      │ level rises
@@ -64,6 +72,8 @@ Three rules hold everywhere:
  Villager phone: Telegram voice alert, "मिल गया"  <── Telegram Bot API
  Villager report: web form -> S3 -> Lambda worker (Transcribe, Bedrock) -> verify -> sweep
 ```
+
+</details>
 
 | AWS service | Used for |
 |---|---|

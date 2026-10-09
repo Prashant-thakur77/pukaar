@@ -43,7 +43,7 @@ def telegram_link(principal: Principal = Depends(Allowed("approve"))) -> dict:
 
 
 @router.get("/dev/approval-link/{alert_id}")
-def dev_approval_link(alert_id: str, principal: Principal = Depends(Allowed("approve", "alert", "alert_id"))) -> dict:
+def dev_approval_link(alert_id: str, principal: Principal = Depends(Allowed("dev_link", "alert", "alert_id"))) -> dict:
     """Local mode only: the one-tap link the asked officer would get on Telegram (for demos)."""
     if not get_settings().is_local:
         raise HTTPException(404, "Not found")
@@ -150,7 +150,7 @@ def create_directive(body: DirectiveBody, principal: Principal = Depends(Allowed
 
 class ReplayBody(BaseModel):
     scenario: str = replay_svc.DEFAULT_SCENARIO
-    speed_seconds_per_hour: float = 2.0
+    speed_seconds_per_hour: float = 4.0  # narratable pace; capped to fit one worker run
 
 
 @router.post("/replay/start")
