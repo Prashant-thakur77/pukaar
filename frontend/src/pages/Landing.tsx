@@ -33,8 +33,8 @@ const FACT = {
 function Intro({ onDone }: { onDone: () => void }) {
   const { t } = useT();
   useEffect(() => {
-    // At most 1.5 s; any key, click or tap skips it at once.
-    const tm = setTimeout(onDone, 1500);
+    // At most 1.1 s; any key, click or tap skips it at once.
+    const tm = setTimeout(onDone, 1100);
     const key = () => onDone();
     window.addEventListener('keydown', key);
     return () => {

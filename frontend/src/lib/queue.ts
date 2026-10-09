@@ -41,7 +41,10 @@ export function flushQueue(): Promise<FlushResult> {
           photo: item.photo ? attachmentToFile(item.photo, 'photo.jpg') : null,
           offline_created: true,
         });
-        if (item.id != null) await deleteReportOffline(item.id);
+        if (item.id != null) {
+          await deleteReportOffline(item.id);
+          useNet.getState().markFlushed(item.id, res.track_code);
+        }
         rememberTrackCode(res.track_code);
         result.sent++;
         result.codes.push(res.track_code);

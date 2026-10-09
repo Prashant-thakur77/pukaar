@@ -72,6 +72,14 @@
     "errors": []
   },
   {
+    "page": "console-pradhan",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
     "page": "audit",
     "viewport": 390,
     "theme": "light",
@@ -168,6 +176,14 @@
     "errors": []
   },
   {
+    "page": "console-pradhan",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
     "page": "audit",
     "viewport": 390,
     "theme": "dark",
@@ -264,6 +280,14 @@
     "errors": []
   },
   {
+    "page": "console-pradhan",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
     "page": "audit",
     "viewport": 1440,
     "theme": "light",
@@ -360,6 +384,14 @@
     "errors": []
   },
   {
+    "page": "console-pradhan",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
     "page": "audit",
     "viewport": 1440,
     "theme": "dark",
@@ -382,5 +414,33 @@
     "serious_or_critical": [],
     "hscroll": 0,
     "errors": []
+  },
+  {
+    "page": "report-ready",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "covered": []
+  },
+  {
+    "page": "report-recording",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "covered": []
+  },
+  {
+    "page": "report-queued",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "covered": []
+  },
+  {
+    "page": "report-done",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "covered": []
   }
 ]

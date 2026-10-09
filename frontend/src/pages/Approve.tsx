@@ -33,14 +33,14 @@ function useCountdown(iso: string | number | undefined) {
   return at == null ? null : at - now;
 }
 
-function LatePage({ error }: { error?: ApiError | null }) {
+function LatePage({ error, timedOut }: { error?: ApiError | null; timedOut?: boolean }) {
   return (
     <section className="approve-end is-late" role="alert">
       <span className="result-icon" aria-hidden="true">
         <Clock />
       </span>
       <h1 className="result-title">
-        <Bi k="approve.late.title" />
+        <Bi k={timedOut ? 'approve.timeout.title' : 'approve.late.title'} />
       </h1>
       <p className="result-body">
         {error?.messageHi ? <span lang="hi">{error.messageHi}</span> : <span lang="hi">{dict['approve.late.body'].hi}</span>}
@@ -115,7 +115,8 @@ export default function Approve() {
   } else if (actErr && actErr.code === 'invalid') {
     body = <InvalidPage />;
   } else if (actErr?.isLate || (data && !data.valid) || (left !== null && left <= 0)) {
-    body = <LatePage error={actErr} />;
+    // Our own countdown ran out (no server answer yet): say so, not "already decided".
+    body = <LatePage error={actErr} timedOut={!actErr && Boolean(data?.valid) && left !== null && left <= 0} />;
   } else if (data) {
     const a = data.alert;
     const fallback = a.reasoning_model === 'rule-fallback';
@@ -145,12 +146,19 @@ export default function Approve() {
         <p className="small muted">
           <Bi k="approve.recipients" vars={{ n: a.recipients_count }} />
         </p>
-        {fallback && <p className="chip chip-warn">तय सुरक्षा टेम्पलेट · Fixed safety template</p>}
+        {fallback && (
+          <p className="chip chip-warn chip-bi">
+            <Bi k="console.check.template" />
+          </p>
+        )}
         {actErr && !actErr.isLate && (actErr.isDenied ? <DeniedNote error={actErr} /> : actErr.isRetry ? (
           <p className="warn-text" role="alert">
             <Bi k="approve.retry" />
           </p>
         ) : <ErrorState error={actErr} compact />)}
+        <p className="onetap-label">
+          <Bi k="approve.onetap" />
+        </p>
         <div className="approve-actions">
           <button type="button" className="btn btn-xl btn-approve btn-press" onClick={() => setConfirm('approve')} disabled={busy}>
             <Check aria-hidden="true" />
@@ -170,6 +178,7 @@ export default function Approve() {
           cancelLabel="रद्द · Cancel"
           tone={confirm === 'decline' ? 'danger' : 'accent'}
           busy={busy}
+          sheet
           onCancel={() => setConfirm(null)}
           onConfirm={() => confirm && void decide(confirm)}
         >

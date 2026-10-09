@@ -111,8 +111,11 @@ interface NetState {
   online: boolean;
   queued: number;
   sample: boolean;
+  /** Offline-queue id -> tracking code, for reports the queue has since sent. */
+  flushed: Record<number, string>;
   setOnline: (online: boolean) => void;
   setQueued: (n: number) => void;
+  markFlushed: (id: number, code: string) => void;
   markSample: () => void;
 }
 
@@ -120,8 +123,10 @@ export const useNet = create<NetState>((set, get) => ({
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
   queued: 0,
   sample: false,
+  flushed: {},
   setOnline: (online) => set({ online }),
   setQueued: (queued) => set({ queued }),
+  markFlushed: (id, code) => set({ flushed: { ...get().flushed, [id]: code } }),
   markSample: () => {
     if (!get().sample) set({ sample: true });
   },

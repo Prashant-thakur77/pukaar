@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Camera, Check, CircleCheck, Copy, Hourglass, LoaderCircle, MapPin, Mic, PenLine, Send, Share2, Square, Trash2, X } from 'lucide-react';
 import { api, ApiError } from '../api';
-import { Call112 } from '../components/Shell';
 import { LevelBadge } from '../components/Level';
 import { useMediaRecorder } from '../hooks/useMediaRecorder';
 import { useT } from '../i18n';
@@ -10,11 +9,11 @@ import { fmtAgo } from '../lib/format';
 import { saveReportOffline, toPendingAttachment } from '../lib/idb';
 import { compressPhoto } from '../lib/photo';
 import { flushQueue, refreshQueueCount } from '../lib/queue';
+import { resolvePhase, type Phase } from '../lib/reportPhase';
 import { myTrackCodes, readLS, rememberTrackCode, useNet, writeLS } from '../store';
 import type { Level, Village } from '../types';
 
 type CachedVillage = Pick<Village, 'id' | 'name' | 'name_hi' | 'level'>;
-type Phase = { k: 'compose' } | { k: 'sending' } | { k: 'queued' } | { k: 'done'; code: string };
 
 const MAX_MS = 20000;
 
@@ -38,7 +37,10 @@ export default function Report() {
   const [photoBusy, setPhotoBusy] = useState(false);
   const [gps, setGps] = useState<{ lat: number; lon: number; acc: number } | null>(null);
   const [gpsState, setGpsState] = useState<'idle' | 'busy' | 'fail'>('idle');
-  const [phase, setPhase] = useState<Phase>({ k: 'compose' });
+  const [rawPhase, setPhase] = useState<Phase>({ k: 'compose' });
+  // A queued report turns into the success screen once the queue sends it.
+  const flushed = useNet((s) => s.flushed);
+  const phase = resolvePhase(rawPhase, flushed);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [mine, setMine] = useState(myTrackCodes);
@@ -77,6 +79,15 @@ export default function Report() {
   useEffect(() => {
     if (online) void flushQueue().then((r) => r.sent && setMine(myTrackCodes()));
   }, [online]);
+
+  // Queued while the browser still thought it was online (a timeout, a 5xx): no
+  // `online` event will come, so retry quietly while this screen is open.
+  const waiting = phase.k === 'queued' && online;
+  useEffect(() => {
+    if (!waiting) return;
+    const tm = setInterval(() => void flushQueue().then((r) => r.sent && setMine(myTrackCodes())), 10000);
+    return () => clearInterval(tm);
+  }, [waiting]);
 
   const village = villages.find((v) => v.id === villageId);
   const level: Level | undefined = village?.level;
@@ -118,7 +129,7 @@ export default function Report() {
   }
 
   async function queue() {
-    await saveReportOffline({
+    const id = await saveReportOffline({
       village_id: villageId,
       text: text.trim() || undefined,
       lat: gps?.lat ?? null,
@@ -127,7 +138,7 @@ export default function Report() {
       photo: toPendingAttachment(photo, 'photo.jpg'),
     });
     await refreshQueueCount();
-    setPhase({ k: 'queued' });
+    setPhase({ k: 'queued', id });
   }
 
   async function send() {
@@ -189,8 +200,6 @@ export default function Report() {
     }
   }
 
-  const fab = <Call112 variant="fab" breathe={level === 'warning' || level === 'critical'} />;
-
   if (phase.k === 'done' || phase.k === 'queued') {
     const done = phase.k === 'done';
     return (
@@ -203,6 +212,7 @@ export default function Report() {
           <h1 className="result-title">{done ? t('report.done.title') : t('report.queued.title')}</h1>
           {done ? (
             <>
+              {phase.late && <p className="small muted">{t('report.done.late')}</p>}
               <p className="result-body">{t('report.done.body')}</p>
               <p className="code-label">{t('report.done.code')}</p>
               <p className="track-code" aria-label={phase.code.split('').join(' ')}>
@@ -233,7 +243,6 @@ export default function Report() {
             {t('report.another')}
           </button>
         </section>
-        {fab}
       </div>
     );
   }
@@ -425,7 +434,6 @@ export default function Report() {
           </ul>
         </section>
       )}
-      {fab}
     </div>
   );
 }

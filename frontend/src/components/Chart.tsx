@@ -1,11 +1,14 @@
 import { useId, useMemo, useState } from 'react';
-import type { ChartSpec } from '../types';
+import { LEVEL_ICON } from '../lib/levels';
+import { LEVELS, type ChartSpec, type Level } from '../types';
 
 /*
  * Draws a ChartSpec returned by the analyst agent as plain SVG. The spec is
  * data only; nothing from the model is ever executed. Series colours follow a
  * fixed order (validated for CVD with the dataviz palette check) and never
- * reuse the four risk-level colours.
+ * reuse the four risk-level colours, except one case: a single-series bar
+ * chart of villages is coloured by each village's level, with icon + word in
+ * the legend so the colour is never the only cue.
  */
 
 const W = 640;
@@ -25,7 +28,22 @@ function fmt(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
-export function Chart({ spec }: { spec: ChartSpec }) {
+/** "% of warning threshold" charts get a 100 % reference line. */
+const isWarningShare = (spec: Pick<ChartSpec, 'y_label'>) => /%\s*of\s*warning/i.test(spec.y_label ?? '');
+
+interface ChartProps {
+  spec: ChartSpec;
+  /** Level of the village a bar stands for; single-series bar charts are then coloured by level. */
+  levelOf?: (x: string) => Level | undefined;
+  /** Words for the level legend, e.g. "Critical". */
+  levelWord?: (l: Level) => string;
+  /** Label of the 100 % reference line. */
+  thresholdLabel?: string;
+  /** One line under the chart. */
+  note?: string;
+}
+
+export function Chart({ spec, levelOf, levelWord, thresholdLabel = 'warning threshold', note }: ChartProps) {
   const id = useId();
   const [hover, setHover] = useState<number | null>(null);
   const series = spec.series.slice(0, 4); // more would fold into "other"; agent sends few
@@ -35,8 +53,12 @@ export function Chart({ spec }: { spec: ChartSpec }) {
     return seen;
   }, [series]);
   const values = series.flatMap((s) => s.points.map((p) => p.y)).filter((v) => Number.isFinite(v));
+  const refLine = isWarningShare(spec) ? 100 : null;
   const minV = Math.min(0, ...values);
-  const maxV = niceMax(Math.max(0, ...values));
+  const maxV = niceMax(Math.max(0, refLine != null ? refLine * 1.1 : 0, ...values));
+  const byLevel = spec.type === 'bar' && series.length === 1 && Boolean(levelOf) && xs.length > 0 && xs.every((x) => levelOf?.(x));
+  const lvOf = (x: string): Level | undefined => (byLevel ? levelOf?.(x) : undefined);
+  const shownLevels = byLevel ? LEVELS.filter((l) => xs.some((x) => levelOf?.(x) === l)) : [];
   const iw = W - M.l - M.r;
   const ih = H - M.t - M.b;
   const y = (v: number) => M.t + ih - ((v - minV) / (maxV - minV || 1)) * ih;
@@ -53,6 +75,34 @@ export function Chart({ spec }: { spec: ChartSpec }) {
       <figcaption id={`${id}-t`} className="chart-title">
         {spec.title}
       </figcaption>
+      {byLevel && (
+        <ul className="chart-legend" aria-label={`${spec.series[0]?.name ?? ''}: colour = level`}>
+          {shownLevels.map((l) => {
+            const Icon = LEVEL_ICON[l];
+            return (
+              <li key={l} className={`lv-${l}`}>
+                <span className={`swatch lv-${l}`} aria-hidden="true" />
+                <Icon aria-hidden="true" className="legend-icon" />
+                {levelWord ? levelWord(l) : l}
+              </li>
+            );
+          })}
+          {refLine != null && (
+            <li>
+              <span className="swatch is-ref" aria-hidden="true" />
+              {thresholdLabel} (100%)
+            </li>
+          )}
+        </ul>
+      )}
+      {!byLevel && refLine != null && (
+        <ul className="chart-legend">
+          <li>
+            <span className="swatch is-ref" aria-hidden="true" />
+            {thresholdLabel} (100%)
+          </li>
+        </ul>
+      )}
       {series.length > 1 && (
         <ul className="chart-legend">
           {series.map((s, i) => (
@@ -98,10 +148,11 @@ export function Chart({ spec }: { spec: ChartSpec }) {
                   const top = y(Math.max(0, v));
                   const h = Math.max(1, Math.abs(y(v) - y(0)));
                   const r = Math.min(4, bw / 2, h);
+                  const lv = lvOf(x);
                   return (
                     <path
                       key={`${s.name}-${x}`}
-                      className={`bar s${si + 1}${hover === i ? ' is-hover' : ''}`}
+                      className={`bar ${lv ? `lv-${lv}` : `s${si + 1}`}${hover === i ? ' is-hover' : ''}`}
                       d={`M${x0},${top + h} V${top + r} Q${x0},${top} ${x0 + r},${top} H${x0 + bw - r} Q${x0 + bw},${top} ${x0 + bw},${top + r} V${top + h} Z`}
                     />
                   );
@@ -117,6 +168,14 @@ export function Chart({ spec }: { spec: ChartSpec }) {
                   </g>
                 );
               })}
+          {refLine != null && (
+            <g className="ref">
+              <line x1={M.l} x2={W - M.r} y1={y(refLine)} y2={y(refLine)} />
+              <text x={W - M.r} y={y(refLine) - 6} textAnchor="end">
+                {thresholdLabel}
+              </text>
+            </g>
+          )}
           {xs.map((x, i) => (
             <rect key={x} className="hit" x={M.l + band * i} y={M.t} width={band} height={ih} onMouseEnter={() => setHover(i)} />
           ))}
@@ -126,13 +185,15 @@ export function Chart({ spec }: { spec: ChartSpec }) {
             <strong>{xs[hover]}</strong>
             {series.map((s, i) => (
               <span key={s.name}>
-                <i className={`swatch s${i + 1}`} aria-hidden="true" /> {series.length > 1 ? `${s.name}: ` : ''}
+                <i className={`swatch ${lvOf(xs[hover]) ? `lv-${lvOf(xs[hover])}` : `s${i + 1}`}`} aria-hidden="true" /> {series.length > 1 ? `${s.name}: ` : ''}
                 <b>{valueAt(s, xs[hover]) ?? '—'}</b>
+                {lvOf(xs[hover]) && levelWord ? ` · ${levelWord(lvOf(xs[hover])!)}` : ''}
               </span>
             ))}
           </div>
         )}
       </div>
+      {note && <p className="chart-note small muted">{note}</p>}
       <details className="chart-table">
         <summary>
           {spec.y_label} · {xs.length} {xs.length === 1 ? 'row' : 'rows'} (table)
@@ -147,6 +208,7 @@ export function Chart({ spec }: { spec: ChartSpec }) {
                     {s.name}
                   </th>
                 ))}
+                {byLevel && <th scope="col">Level</th>}
               </tr>
             </thead>
             <tbody>
@@ -156,6 +218,7 @@ export function Chart({ spec }: { spec: ChartSpec }) {
                   {series.map((s) => (
                     <td key={s.name}>{valueAt(s, x) ?? '—'}</td>
                   ))}
+                  {byLevel && <td>{levelWord ? levelWord(lvOf(x)!) : lvOf(x)}</td>}
                 </tr>
               ))}
             </tbody>
