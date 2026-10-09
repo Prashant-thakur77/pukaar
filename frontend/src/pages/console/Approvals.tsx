@@ -12,6 +12,7 @@ import {
   FileText,
   Hourglass,
   LoaderCircle,
+  Lock,
   Scale,
   ShieldAlert,
   Users,
@@ -164,7 +165,19 @@ function DevLinkButton({ alertId }: { alertId: string }) {
   );
 }
 
-function PendingCard({ alert, onDone, onGone, localMode }: { alert: Alert; onDone: () => void; onGone: (a: Alert) => void; localMode: boolean }) {
+function PendingCard({
+  alert,
+  onDone,
+  onGone,
+  localMode,
+  canDecide,
+}: {
+  alert: Alert;
+  onDone: () => void;
+  onGone: (a: Alert) => void;
+  localMode: boolean;
+  canDecide: boolean;
+}) {
   const { t, lang } = useT();
   const [confirm, setConfirm] = useState<'approve' | 'decline' | null>(null);
   const [reason, setReason] = useState('');
@@ -185,6 +198,22 @@ function PendingCard({ alert, onDone, onGone, localMode }: { alert: Alert; onDon
       const ae = e instanceof ApiError ? e : new ApiError(0, null);
       setConfirm(null);
       // 404: the alert is gone (e.g. the replay was reset). Drop the card.
+      if (ae.status === 404) onGone(alert);
+      else setErr(ae);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // A pradhan may try: the server's policy refuses and its reason is shown (DEMO step 7).
+  async function tryAnyway() {
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.approve(alert.id);
+      onDone();
+    } catch (e) {
+      const ae = e instanceof ApiError ? e : new ApiError(0, null);
       if (ae.status === 404) onGone(alert);
       else setErr(ae);
     } finally {
@@ -241,18 +270,32 @@ function PendingCard({ alert, onDone, onGone, localMode }: { alert: Alert; onDon
         ))}
       <div className="pc-actions">
         <ListenButton alertId={alert.id} hasAudio={alert.has_audio} />
-        {localMode && (
+        {localMode && canDecide && (
           <span className="pc-devlink">
             <DevLinkButton alertId={alert.id} />
           </span>
         )}
         <span className="spacer" />
-        <button type="button" className="btn btn-decline btn-press" onClick={() => setConfirm('decline')} disabled={busy}>
-          <X aria-hidden="true" /> {t('approve.decline')}
-        </button>
-        <button type="button" className="btn btn-approve btn-press" onClick={() => setConfirm('approve')} disabled={busy}>
-          <Check aria-hidden="true" /> {t('approve.approve')}
-        </button>
+        {canDecide ? (
+          <>
+            <button type="button" className="btn btn-decline btn-press" onClick={() => setConfirm('decline')} disabled={busy}>
+              <X aria-hidden="true" /> {t('approve.decline')}
+            </button>
+            <button type="button" className="btn btn-approve btn-press" onClick={() => setConfirm('approve')} disabled={busy}>
+              <Check aria-hidden="true" /> {t('approve.approve')}
+            </button>
+          </>
+        ) : (
+          <span className="pc-officers-only">
+            <button type="button" className="btn btn-approve" disabled aria-describedby={`try-${alert.id}`}>
+              <Lock aria-hidden="true" /> {t('console.approve.officers')}
+            </button>
+            <button type="button" id={`try-${alert.id}`} className="link-btn small" onClick={() => void tryAnyway()} disabled={busy}>
+              {busy ? <LoaderCircle className="spin" aria-hidden="true" /> : null}
+              {t('console.approve.try')}
+            </button>
+          </span>
+        )}
       </div>
       <ConfirmDialog
         open={confirm !== null}
@@ -276,7 +319,17 @@ function PendingCard({ alert, onDone, onGone, localMode }: { alert: Alert; onDon
   );
 }
 
-export function Approvals({ poll, onChange, localMode = false }: { poll: PollState<Alert[]>; onChange: () => void; localMode?: boolean }) {
+export function Approvals({
+  poll,
+  onChange,
+  localMode = false,
+  canDecide = true,
+}: {
+  poll: PollState<Alert[]>;
+  onChange: () => void;
+  localMode?: boolean;
+  canDecide?: boolean;
+}) {
   const { t, lang } = useT();
   const { data, error, loading, refresh } = poll;
   const [gone, setGone] = useState<string[]>([]);
@@ -305,7 +358,7 @@ export function Approvals({ poll, onChange, localMode = false }: { poll: PollSta
       ) : (
         <div className="pending-list">
           {shown.map((a) => (
-            <PendingCard key={a.id} alert={a} onDone={onChange} onGone={onGone} localMode={localMode} />
+            <PendingCard key={a.id} alert={a} onDone={onChange} onGone={onGone} localMode={localMode} canDecide={canDecide} />
           ))}
           {(hidden > 0 || (all && list.length > VISIBLE)) && (
             <button type="button" className="btn btn-ghost pending-more" aria-expanded={all} onClick={() => setAll((x) => !x)}>

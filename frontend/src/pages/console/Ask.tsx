@@ -2,9 +2,9 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Bot, ChevronDown, LoaderCircle, Send, ShieldCheck, ShieldX, Wrench } from 'lucide-react';
 import { api, ApiError } from '../../api';
 import { Chart } from '../../components/Chart';
+import { dict, useT, type Key } from '../../i18n';
 import { DeniedNote, ErrorState } from '../../components/States';
 import { VillageMap } from '../../components/VillageMap';
-import { useT, type Key } from '../../i18n';
 import { levelsFromTools } from '../../lib/ask';
 import type { AskResponse, Village } from '../../types';
 
@@ -20,7 +20,7 @@ function preview(v: unknown): string {
 }
 
 export function Ask({ villages }: { villages: Village[] }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<AskResponse | null>(null);
@@ -62,6 +62,16 @@ export function Ask({ villages }: { villages: Village[] }) {
         : [],
     [res, villages, toolLevels],
   );
+  // Chart bars are villages (by name or id): colour each by the level the answer used.
+  const levelOf = useMemo(() => {
+    const m = new Map<string, Village['level']>();
+    for (const v of villages) {
+      const lv = toolLevels[v.id] ?? v.level;
+      for (const k of [v.id, v.name, v.name_hi]) if (k) m.set(k.toLowerCase(), lv);
+    }
+    return (x: string) => m.get(x.toLowerCase());
+  }, [villages, toolLevels]);
+
   // Points that are villages already have a marker; only extra places get a pin.
   const extraPoints = useMemo(() => {
     if (!res?.map) return [];
@@ -114,7 +124,15 @@ export function Ask({ villages }: { villages: Village[] }) {
           <p className="chip">
             <Bot aria-hidden="true" /> {t('console.ask.model', { m: res.model === 'rule-fallback' ? t('console.model.fallback') : res.model })}
           </p>
-          {res.chart && <Chart spec={res.chart} />}
+          {res.chart && (
+            <Chart
+              spec={res.chart}
+              levelOf={levelOf}
+              levelWord={(l) => dict[`level.${l}`][lang]}
+              thresholdLabel={t('chart.threshold')}
+              note={t('chart.note')}
+            />
+          )}
           {res.map && (mapVillages.length > 0 || res.map.points.length > 0) && (
             <div className="ask-map">
               <VillageMap

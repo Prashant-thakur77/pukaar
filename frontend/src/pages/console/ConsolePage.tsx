@@ -31,6 +31,10 @@ export default function ConsolePage() {
 function Console() {
   const { t } = useT();
   const user = useAuth((s) => s.user);
+  // The role comes from /me (the stored login copy is only a first guess).
+  const me = usePoll(() => api.me(), [], 0);
+  const role = me.data?.role ?? user?.role ?? 'officer';
+  const officer = role !== 'pradhan';
   const villages = usePoll(() => api.villages(), []);
   const pending = usePoll(() => api.alerts({ status: 'pending' }), []);
   const recent = usePoll(() => api.alerts(), []);
@@ -58,19 +62,24 @@ function Console() {
     { href: '#approvals', label: t('console.tab.approvals'), icon: Bell, badge: pendingN },
     { href: '#queue', label: t('console.tab.queue'), icon: LayoutList },
     { href: '#reports', label: t('console.tab.reports'), icon: FileText },
-    { href: '#ask', label: t('console.tab.ask'), icon: Sparkles },
-    { href: '#act', label: t('console.tab.act'), icon: Megaphone },
+    ...(officer
+      ? [
+          { href: '#ask', label: t('console.tab.ask'), icon: Sparkles },
+          { href: '#act', label: t('console.tab.act'), icon: Megaphone },
+        ]
+      : []),
   ];
 
   return (
-    <div className="console">
+    <div className={`console${officer ? '' : ' is-pradhan'}`}>
       <header className="console-head">
         <div className="wrap-wide ch-inner">
           <div>
-            <p className="eyebrow">{t('console.title')}</p>
+            <p className="eyebrow">{officer ? t('console.title') : t('console.title.pradhan')}</p>
             <h1 className="display-3">
-              {user ? t('console.signed.as', { u: user.username, r: user.role }) : t('console.title')}
+              {user ? t('console.signed.as', { u: me.data?.username ?? user.username, r: role }) : t('console.title')}
             </h1>
+            {!officer && <p className="small muted pradhan-note">{t('console.pradhan.note')}</p>}
           </div>
           <div className="ch-tools">
             {mode && (
@@ -79,9 +88,11 @@ function Console() {
                 {t('console.mode.chip', { m: mode === 'aws' ? t('system.mode.aws') : t('system.mode.local') })}
               </span>
             )}
-            <Link to="/audit" className="btn btn-ghost btn-press">
-              <ScrollText aria-hidden="true" /> {t('console.audit')}
-            </Link>
+            {officer && (
+              <Link to="/audit" className="btn btn-ghost btn-press">
+                <ScrollText aria-hidden="true" /> {t('console.audit')}
+              </Link>
+            )}
             <Call112 />
           </div>
         </div>
@@ -101,7 +112,7 @@ function Console() {
             <h2 id="rep-h" className="panel-title">
               <History aria-hidden="true" /> {t('console.replay')}
             </h2>
-            <Replay poll={replay} onChanged={refreshAll} />
+            <Replay poll={replay} onChanged={refreshAll} canControl={officer} />
           </section>
           <section className="panel panel-compact panel-system" aria-labelledby="sys-h">
             <h2 id="sys-h" className="panel-title">
@@ -116,7 +127,7 @@ function Console() {
             <Bell aria-hidden="true" /> {t('console.pending')}
             {pendingN > 0 && <span className="badge badge-pulse">{pendingN}</span>}
           </h2>
-          <Approvals poll={pending} onChange={refreshAlerts} localMode={mode === 'local'} />
+          <Approvals poll={pending} onChange={refreshAlerts} localMode={mode === 'local'} canDecide={officer} />
         </section>
 
         <section id="queue" className="panel panel-queue" aria-labelledby="q-h">
@@ -126,33 +137,39 @@ function Console() {
           <VillageQueue poll={villages} />
         </section>
 
-        <section id="ask" className="panel panel-ask" aria-labelledby="ask-h">
-          <h2 id="ask-h" className="panel-title">
-            <Sparkles aria-hidden="true" /> {t('console.ask')}
-          </h2>
-          <Ask villages={vs} />
-        </section>
+        {officer && (
+          <section id="ask" className="panel panel-ask" aria-labelledby="ask-h">
+            <h2 id="ask-h" className="panel-title">
+              <Sparkles aria-hidden="true" /> {t('console.ask')}
+            </h2>
+            <Ask villages={vs} />
+          </section>
+        )}
 
         <section id="reports" className="panel panel-reports" aria-labelledby="rp-h">
           <h2 id="rp-h" className="panel-title">
             <FileText aria-hidden="true" /> {t('console.reports')}
           </h2>
-          <ReportFeed poll={reports} villages={vs} />
+          <ReportFeed poll={reports} villages={vs} canEdit={officer} />
         </section>
 
         <div id="act" className="panel-stack">
-          <section className="panel" aria-labelledby="dir-h">
-            <h2 id="dir-h" className="panel-title">
-              <Megaphone aria-hidden="true" /> {t('console.directive')}
-            </h2>
-            <Directives villages={vs} poll={directives} />
-          </section>
-          <section className="panel" aria-labelledby="tg-h">
-            <h2 id="tg-h" className="panel-title">
-              <Send aria-hidden="true" /> {t('console.tg')}
-            </h2>
-            <TelegramLink />
-          </section>
+          {officer && (
+            <>
+              <section className="panel" aria-labelledby="dir-h">
+                <h2 id="dir-h" className="panel-title">
+                  <Megaphone aria-hidden="true" /> {t('console.directive')}
+                </h2>
+                <Directives villages={vs} poll={directives} />
+              </section>
+              <section className="panel" aria-labelledby="tg-h">
+                <h2 id="tg-h" className="panel-title">
+                  <Send aria-hidden="true" /> {t('console.tg')}
+                </h2>
+                <TelegramLink />
+              </section>
+            </>
+          )}
           <section className="panel" aria-labelledby="ra-h">
             <h2 id="ra-h" className="panel-title">
               <Bell aria-hidden="true" /> {t('console.alerts.recent')}
@@ -163,7 +180,7 @@ function Console() {
                 .sort((a, b) => b.created_at.localeCompare(a.created_at))
                 .slice(0, 6)
                 .map((a) => (
-                  <RecentAlert key={a.id} alert={a} />
+                  <RecentAlert key={a.id} alert={a} showAudit={officer} />
                 ))}
             </ul>
           </section>
@@ -174,7 +191,7 @@ function Console() {
 }
 
 /** A recent alert with its per-recipient deliveries (GET /alerts/{id}) in an expander. */
-function RecentAlert({ alert: a }: { alert: Alert }) {
+function RecentAlert({ alert: a, showAudit }: { alert: Alert; showAudit: boolean }) {
   const { t, lang } = useT();
   const [open, setOpen] = useState(false);
   const sent = ['delivering', 'delivered', 'closed', 'auto_sent_unapproved', 'failsafe'].includes(a.status) || a.delivered_count > 0;
@@ -189,10 +206,15 @@ function RecentAlert({ alert: a }: { alert: Alert }) {
       </div>
       <DeliveryChips approved={a.approved} delivered={a.delivered_count} acked={a.acknowledged_count} status={a.status} />
       <p className="small muted">
-        {fmtAgo(a.created_at, lang)} ·{' '}
-        <Link className="link" to={auditLinkForAlert(a.id)}>
-          {t('console.audit')}
-        </Link>
+        {fmtAgo(a.created_at, lang)}
+        {showAudit && (
+          <>
+            {' · '}
+            <Link className="link" to={auditLinkForAlert(a.id)}>
+              {t('console.audit')}
+            </Link>
+          </>
+        )}
       </p>
       {sent && (
         <>

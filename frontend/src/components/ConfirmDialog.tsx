@@ -8,12 +8,14 @@ interface Props {
   cancelLabel: string;
   tone?: 'accent' | 'danger';
   busy?: boolean;
+  /** Short bottom sheet on phones (the one-tap approval page). */
+  sheet?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
 /** Native <dialog>: focus trap, Esc to close, and backdrop for free. */
-export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel, tone = 'accent', busy, onConfirm, onCancel }: Props) {
+export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel, tone = 'accent', busy, sheet, onConfirm, onCancel }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -22,7 +24,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={ref} className="dialog" onCancel={(e) => { e.preventDefault(); onCancel(); }} aria-labelledby="dlg-title">
+    <dialog ref={ref} className={`dialog${sheet ? ' is-sheet' : ''}`} onCancel={(e) => { e.preventDefault(); onCancel(); }} aria-labelledby="dlg-title">
       <h2 id="dlg-title" className="dialog-title">{title}</h2>
       <div className="dialog-body">{children}</div>
       <div className="dialog-actions">

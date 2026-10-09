@@ -31,8 +31,8 @@ function executablePath() {
   return p && existsSync(p) ? p : undefined;
 }
 
-async function officerToken() {
-  const res = await fetch(`${API}/auth/dev-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'officer1' }) });
+async function officerToken(username = 'officer1') {
+  const res = await fetch(`${API}/auth/dev-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username }) });
   if (!res.ok) throw new Error(`dev-login failed: ${res.status}`);
   return (await res.json()).token;
 }
@@ -53,6 +53,7 @@ async function trackCode() {
 }
 
 const token = await officerToken();
+const pradhanToken = await officerToken('pradhan_thunag').catch(() => null);
 const village = await firstVillage();
 const code = await trackCode();
 
@@ -89,6 +90,7 @@ const PAGES = [
   { name: 'approve-invalid', path: '/a/not-a-real-link' },
   { name: 'village', path: `/village/${village}` },
   { name: 'console', path: '/console', auth: true },
+  ...(pradhanToken ? [{ name: 'console-pradhan', path: '/console', auth: 'pradhan' }] : []),
   { name: 'audit', path: '/audit', auth: true },
   { name: 'impact', path: '/impact' },
   { name: 'login', path: '/login' },
@@ -100,7 +102,10 @@ const VIEWPORTS = [
 ];
 const THEMES = ['light', 'dark'];
 
-const browser = await chromium.launch({ executablePath: executablePath() });
+const browser = await chromium.launch({
+  executablePath: executablePath(),
+  args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+});
 
 // Map tiles are fetched from Node (which honours HTTPS_PROXY when run with
 // NODE_USE_ENV_PROXY=1) so the browser itself never needs a proxy.
@@ -148,9 +153,12 @@ for (const vp of VIEWPORTS) {
     for (const pg of PAGES) {
       const page = await ctx.newPage();
       await page.addInitScript(
-        ({ auth, tok }) => {
+        ({ auth, tok, ptok }) => {
           sessionStorage.setItem('pukaar.intro', '1');
-          if (auth) {
+          if (auth === 'pradhan') {
+            localStorage.setItem('pukaar.token', ptok);
+            localStorage.setItem('pukaar.user', JSON.stringify({ username: 'pradhan_thunag', role: 'pradhan', village_ids: ['thunag'] }));
+          } else if (auth) {
             localStorage.setItem('pukaar.token', tok);
             localStorage.setItem('pukaar.user', JSON.stringify({ username: 'officer1', role: 'officer', village_ids: [] }));
           } else {
@@ -158,7 +166,7 @@ for (const vp of VIEWPORTS) {
             localStorage.removeItem('pukaar.user');
           }
         },
-        { auth: Boolean(pg.auth), tok: token },
+        { auth: pg.auth ?? false, tok: token, ptok: pradhanToken },
       );
       if (pg.mock) {
         await page.route(`${API}/**`, async (route) => {
@@ -189,6 +197,63 @@ for (const vp of VIEWPORTS) {
     }
     await ctx.close();
   }
+}
+
+// Villager report states at 390 (light): ready (photo + text attached), recording
+// (fake microphone), queued (sent while offline) and done (the queue flushed on reconnect).
+if (!ONLY?.length || ONLY.includes('report-states')) {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: 'light', permissions: ['microphone'] });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    sessionStorage.setItem('pukaar.intro', '1');
+    localStorage.setItem('pukaar.myVillage', 'thunag');
+  });
+  await page.goto(`${BASE}/report`, { waitUntil: 'load' });
+  await page.waitForSelector('select option[value="thunag"]', { state: 'attached', timeout: 15000 }).catch(() => {});
+  await page.selectOption('select', 'thunag').catch(() => {});
+  const shot = async (name) => {
+    const axe = await new AxeBuilder({ page }).disableRules(['region']).analyze();
+    const bad = axe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    // Nothing interactive may sit under a floating control.
+    const covered = await page.evaluate(() =>
+      [...document.querySelectorAll('main button, main a, main select, main textarea, main audio')]
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          if (!r.width || r.bottom < 0 || r.top > innerHeight) return false;
+          const hit = document.elementFromPoint(r.x + r.width / 2, Math.min(innerHeight - 1, r.y + r.height / 2));
+          return hit && !el.contains(hit) && !hit.contains(el) && hit.closest('.call112-fab');
+        })
+        .map((el) => el.outerHTML.slice(0, 60)),
+    );
+    axeSummary.push({ page: `report-${name}`, viewport: 390, theme: 'light', serious_or_critical: bad.map((v) => ({ id: v.id, impact: v.impact })), covered });
+    await page.screenshot({ path: `${OUT}report-${name}-390-light.png` });
+    console.log(`report-${name}-390-light.png  axe:${bad.length}  covered:${covered.length}`);
+  };
+  await page.locator('.big-write').click();
+  await page.fill('#report-text', 'पुल के पास पानी तेज़ी से बढ़ रहा है');
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+  await page.setInputFiles('input[type=file]', { name: 'photo.png', mimeType: 'image/png', buffer: png });
+  await page.waitForSelector('.attach-photo');
+  await page.locator('.attach-photo').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await shot('ready');
+  await page.locator('.big-speak').click();
+  if (await page.waitForSelector('.rec-panel', { timeout: 4000 }).catch(() => null)) {
+    await page.waitForTimeout(1500);
+    await shot('recording');
+    await page.locator('.btn-stop').click();
+    await page.waitForTimeout(400);
+  }
+  await ctx.setOffline(true);
+  await page.locator('.btn-send').click();
+  await page.waitForSelector('.result-card.is-queued', { timeout: 10000 });
+  await page.waitForTimeout(400);
+  await shot('queued');
+  await ctx.setOffline(false);
+  await page.waitForSelector('.result-card.is-done', { timeout: 20000 });
+  await page.waitForTimeout(600);
+  await shot('done');
+  await ctx.close();
 }
 
 // Extra states: the intro mid-animation and the Ask Pukaar answer.

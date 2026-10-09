@@ -20,7 +20,7 @@ const ACTIONS: { state: ReportState; icon: typeof ShieldCheck }[] = [
 
 const SEV_LEVEL = { low: 'normal', medium: 'watch', high: 'warning', critical: 'critical' } as const;
 
-export function ReportFeed({ poll, villages }: { poll: PollState<Report[]>; villages: Village[] }) {
+export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState<Report[]>; villages: Village[]; canEdit?: boolean }) {
   const { t, lang, pick } = useT();
   const { data, error, loading, refresh } = poll;
   const [snack, setSnack] = useState<SnackbarMsg | null>(null);
@@ -115,6 +115,7 @@ export function ReportFeed({ poll, villages }: { poll: PollState<Report[]>; vill
                   </p>
                 )}
                 {r.parser_source && <p className="small muted">{t('console.parser', { p: r.parser_source })}</p>}
+                {canEdit && (
                 <div className="rc-actions" role="group" aria-label="Set report state">
                   {ACTIONS.map((a) => (
                     <button
@@ -129,6 +130,7 @@ export function ReportFeed({ poll, villages }: { poll: PollState<Report[]>; vill
                     </button>
                   ))}
                 </div>
+                )}
               </li>
             ))}
         </ul>

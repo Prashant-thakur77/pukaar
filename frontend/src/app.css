@@ -226,10 +226,10 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 
 /* ---------- header ---------- */
 .site-header {
-  position: sticky; top: 0; z-index: 50; background: var(--glass); backdrop-filter: saturate(1.4) blur(14px);
+  position: sticky; top: 0; z-index: 50; background: color-mix(in srgb, var(--bg) 96%, transparent); backdrop-filter: saturate(1.4) blur(18px);
   -webkit-backdrop-filter: saturate(1.4) blur(14px); border-bottom: 1px solid var(--line);
 }
-.site-header.is-over-hero { background: rgb(7 11 29 / 0.82); border-bottom-color: rgb(255 255 255 / 0.08); color: var(--night-ink); }
+.site-header.is-over-hero { background: rgb(7 11 29 / 0.95); border-bottom-color: rgb(255 255 255 / 0.08); color: var(--night-ink); }
 .site-header.is-over-hero .icon-btn:hover { background: rgb(255 255 255 / 0.1); }
 .hdr-inner { display: flex; align-items: center; gap: var(--s-3); min-height: 64px; max-width: 1560px; margin: 0 auto; padding: 0 var(--gutter); }
 .hdr-brand { text-decoration: none; display: inline-flex; align-items: center; min-height: var(--tap); }
@@ -310,6 +310,9 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 .ftr-links { display: grid; gap: 2px; align-content: start; }
 .ftr-links a { color: var(--night-ink); text-decoration: none; font-weight: 600; min-height: var(--tap); display: inline-flex; align-items: center; }
 .ftr-links a:hover { color: var(--marigold-2); }
+.ftr-signout { color: var(--night-ink); background: none; border: 0; padding: 0; font: inherit; font-weight: 600; min-height: var(--tap); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; justify-self: start; }
+.ftr-signout:hover { color: var(--marigold-2); }
+.ftr-signout svg { width: 16px; height: 16px; }
 .ftr-112 { display: grid; gap: var(--s-3); align-content: start; justify-items: start; }
 .site-footer .call112 { border-color: #ff8a9b; color: #ffb3bf; }
 .ftr-giant {
@@ -321,14 +324,14 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 /* ---------- landing: intro ---------- */
 .intro {
   position: fixed; inset: 0; z-index: 90; background: radial-gradient(circle at 50% 45%, #18214a 0%, #070b1d 70%);
-  display: grid; place-items: center; animation: intro-out 0.4s ease-in 1.05s forwards; cursor: pointer;
+  display: grid; place-items: center; animation: intro-out 0.3s ease-in 0.8s forwards; cursor: pointer;
 }
 .intro-stage { position: relative; display: grid; place-items: center; }
 .intro-word {
   font-family: var(--font-hi); font-weight: 900; color: var(--night-ink); font-size: clamp(4rem, 18vw, 10rem); line-height: 1.2;
-  clip-path: inset(0 100% 0 0); animation: wipe 0.6s var(--ease-out) 0.05s forwards;
+  clip-path: inset(0 100% 0 0); animation: wipe 0.45s var(--ease-out) 0.05s forwards;
 }
-.intro-rule { position: absolute; bottom: -8px; left: 10%; right: 10%; height: 3px; background: var(--marigold); transform: scaleX(0); animation: grow 0.4s var(--ease-out) 0.5s forwards; }
+.intro-rule { position: absolute; bottom: -8px; left: 10%; right: 10%; height: 3px; background: var(--marigold); transform: scaleX(0); animation: grow 0.3s var(--ease-out) 0.35s forwards; }
 .intro-rings, .hero-rings { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
 .intro-rings i, .hero-rings i {
   position: absolute; width: 60%; aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--marigold); opacity: 0;
@@ -1021,7 +1024,7 @@ select { appearance: none; padding-right: 44px; }
 .report-steps li { display: flex; gap: 12px; align-items: flex-start; color: var(--ink-2); font-size: 1rem; counter-increment: rs; }
 .report-steps li::before { content: counter(rs); flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--night-1); color: var(--marigold-2); font-weight: 800; font-size: 0.9rem; }
 
-.report .call112-fab { bottom: calc(118px + env(safe-area-inset-bottom)); }
+/* On /report the 112 call lives in the header only: nothing floats over the form or the send bar. */
 .track { padding-bottom: 140px; }
 /* Hindi is never letter-spaced or upper-cased. */
 :lang(hi) .eyebrow, :lang(hi) .counter-label, :lang(hi) .mc-label, :lang(hi) .code-label, :lang(hi) .data-table th,
@@ -1138,3 +1141,47 @@ button.map-key-item:hover { background: var(--surface-2); }
   .pc-actions .btn-decline, .pc-actions .btn-approve { flex: 1 1 0; justify-content: center; }
 }
 .ask-map .map-key { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); border-top: 1px solid var(--line); }
+
+/* Pradhan view: the approve button is shown but disabled; "Try anyway" asks the server, which says no. */
+.pc-officers-only { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.pc-officers-only .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.link-btn { background: none; border: 0; padding: 4px 2px; min-height: 32px; color: var(--accent-text); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.link-btn:disabled { opacity: 0.6; cursor: progress; }
+.link-btn svg { width: 14px; height: 14px; }
+.pradhan-note { max-width: 60ch; margin-top: 4px; }
+.replay-speed { margin-top: 6px; }
+.replay-banner.is-finished { background: var(--surface); }
+@media (max-width: 560px) {
+  .pc-officers-only { flex: 1 1 100%; align-items: stretch; }
+  .pc-officers-only .btn { justify-content: center; }
+}
+
+/* One-tap approval: the label above the buttons, and the confirm as a short bottom sheet on phones. */
+.onetap-label { font-weight: 800; margin-top: var(--s-3); }
+.onetap-label .bi-en { display: inline; margin-left: 8px; font-size: 0.85em; }
+.chip-bi { flex-wrap: wrap; height: auto; padding-block: 6px; border-radius: var(--r-md); }
+.chip-bi .bi-en { display: inline; margin-left: 6px; font-size: 0.95em; color: inherit; }
+@media (max-width: 640px) {
+  .dialog.is-sheet {
+    margin: auto 0 0; width: 100vw; max-width: 100vw; border-radius: var(--r-xl) var(--r-xl) 0 0;
+    padding: var(--s-4) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
+  }
+  .dialog.is-sheet[open] { animation: sheet-up 0.25s var(--ease-out); }
+  .dialog.is-sheet .dialog-title { font-size: 1.15rem; margin-bottom: var(--s-2); }
+  .dialog.is-sheet .dialog-actions { margin-top: var(--s-3); display: grid; grid-template-columns: 1fr 2fr; }
+  .dialog.is-sheet .dialog-actions .btn { min-height: 56px; justify-content: center; }
+}
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+
+/* Chart bars coloured by village level, and the 100 % warning reference line. */
+.chart .bar.lv-normal { fill: var(--lv-normal); } .chart .bar.lv-watch { fill: var(--lv-watch); }
+.chart .bar.lv-warning { fill: var(--lv-warning); } .chart .bar.lv-critical { fill: var(--lv-critical); }
+.swatch.lv-normal { background: var(--lv-normal); } .swatch.lv-watch { background: var(--lv-watch); }
+.swatch.lv-warning { background: var(--lv-warning); } .swatch.lv-critical { background: var(--lv-critical); }
+.chart-legend .legend-icon { width: 14px; height: 14px; }
+.chart-legend li.lv-normal .legend-icon { color: var(--lv-normal-ink); } .chart-legend li.lv-watch .legend-icon { color: var(--lv-watch-ink); }
+.chart-legend li.lv-warning .legend-icon { color: var(--lv-warning-ink); } .chart-legend li.lv-critical .legend-icon { color: var(--lv-critical-ink); }
+.swatch.is-ref { width: 18px; height: 0; border-top: 2px dashed var(--ink); border-radius: 0; }
+.chart .ref line { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.chart .ref text { fill: var(--ink); font-size: 12px; font-weight: 800; font-family: var(--font-body); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+.chart-note { margin-top: -2px; }

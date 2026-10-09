@@ -82,7 +82,7 @@ function Header() {
         <nav className={`hdr-nav${open ? ' is-open' : ''}`} aria-label="Main">
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} className={({ isActive }) => `hdr-link${isActive ? ' is-active' : ''}`}>
-              {t(n.key)}
+              {n.to === '/console' && user?.role === 'pradhan' ? t('console.title.pradhan') : t(n.key)}
             </NavLink>
           ))}
           {user && (
@@ -157,21 +157,23 @@ function ReplayBannerInner() {
     window.addEventListener(REPLAY_EVENT, on);
     return () => window.removeEventListener(REPLAY_EVENT, on);
   }, [refresh]);
-  if (!data?.active && !data?.stale) return null;
+  // Finished: the worker stopped at the last hour, but replay data stays until Reset.
+  const finished = Boolean(data && !data.active && data.hours_total > 0 && data.hours_done >= data.hours_total);
+  if (!data || (!data.active && !data.stale && !finished)) return null;
   const pct = data.hours_total ? Math.round((data.hours_done / data.hours_total) * 100) : 0;
+  const title = (lang === 'hi' ? data.title_hi || data.title : data.title || data.title_hi) || data.source || data.scenario || '—';
   return (
-    <div className="replay-banner" role="status">
+    <div className={`replay-banner${finished ? ' is-finished' : ''}`} role="status">
       <History aria-hidden="true" />
       <span>
-        <strong>{t('common.replay')}</strong> ·{' '}
-        {t('shell.replay', { title: (lang === 'hi' ? data.title_hi || data.title : data.title || data.title_hi) || data.source || data.scenario || '—' })}
+        <strong>{t('common.replay')}</strong> · {finished ? t('shell.replay.done') : t('shell.replay', { title })}
       </span>
       {data.clock && (
         <span className="rb-clock">
           {t('shell.replay.clock')}: <b>{fmtTime(data.clock, lang)}</b>
         </span>
       )}
-      {data.stale && (
+      {data.stale && !finished && (
         <span className="rb-stale">
           <TriangleAlert aria-hidden="true" /> {t('shell.replay.stale')}
         </span>
@@ -185,6 +187,8 @@ function ReplayBannerInner() {
 
 function Footer() {
   const { t } = useT();
+  const user = useAuth((s) => s.user);
+  const signOut = useAuth((s) => s.signOut);
   return (
     <footer className="site-footer">
       <div className="ftr-inner">
@@ -198,7 +202,13 @@ function Footer() {
               {t(n.key)}
             </Link>
           ))}
-          <Link to="/login">{t('login.submit')}</Link>
+          {user ? (
+            <button type="button" className="ftr-signout" onClick={signOut}>
+              <LogOut aria-hidden="true" /> {t('shell.signout')}
+            </button>
+          ) : (
+            <Link to="/login">{t('login.submit')}</Link>
+          )}
         </nav>
         <div className="ftr-112">
           <Call112 />
