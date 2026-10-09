@@ -7,19 +7,20 @@ requires-python = ">=3.10"
 dependencies = [
     "fastapi",
     "uvicorn",
-    "sqlmodel",
     "pydantic",
-    "pillow",
     "python-multipart",
     "httpx",
-    "orjson",
-    "faster-whisper",
-    "lxml"
+    "boto3>=1.43.110",
+    "strands-agents>=1.59.0",
+    "cedarpy>=4.12.1",
+    "python-ulid>=4.0.1",
+    "pyjwt[crypto]>=2.15.1",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest"
+    "moto[dynamodb,lambda,s3,ssm,stepfunctions]>=5.2.3",
+    "pytest",
 ]
 
 [build-system]

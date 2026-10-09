@@ -1,44 +1,27 @@
-from __future__ import annotations
+"""FastAPI app. In AWS it runs in the api Lambda behind the Lambda Web Adapter."""
 
-from contextlib import asynccontextmanager
+from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
-from Pukaar.api.routers import alerts, cap, demo_inject, pukaar, runtime, sites
-from Pukaar.db.database import init_db
-from Pukaar.services.storage import get_upload_dir
+from Pukaar.core.config import get_settings
 
+settings = get_settings()
+if settings.is_local:
+    from Pukaar.core.local import start_local_aws
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    init_db()
-    get_upload_dir()
-    yield
+    start_local_aws()
 
+from Pukaar.api.routers import officer, public, reports, telegram  # noqa: E402  (after the local mock starts)
 
-app = FastAPI(title="Pukaar API", lifespan=lifespan)
+app = FastAPI(title="Pukaar API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=list(settings.cors_origins) + (["http://localhost:4173", "http://127.0.0.1:5173"] if settings.is_local else []),
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH"],
+    allow_headers=["authorization", "content-type"],
 )
-
-app.mount("/uploads", StaticFiles(directory=str(get_upload_dir())), name="uploads")
-
-for router in (
-    runtime.router,
-    sites.router,
-    pukaar.router,
-    alerts.router,
-    cap.router,
-):
-    app.include_router(router, prefix="/api")
-
-app.include_router(cap.router)
-
-if demo_inject.demo_inject_enabled():
-    app.include_router(demo_inject.router, prefix="/api")
+for r in (public.router, reports.router, officer.router, telegram.router):
+    app.include_router(r)

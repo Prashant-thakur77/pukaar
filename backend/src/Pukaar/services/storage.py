@@ -1,28 +1,43 @@
+"""Audio, photos and replay files in S3, read back through presigned URLs.
+
+In local mode the bucket lives in the in-process moto mock, so URLs point at
+the API's /media route instead of S3.
+"""
+
 from __future__ import annotations
 
-from pathlib import Path
-from uuid import uuid4
+from functools import lru_cache
 
-from fastapi import UploadFile
+import boto3
 
-from Pukaar.core.settings import get_settings
+from Pukaar.core.config import get_settings
 
-
-def get_upload_dir() -> Path:
-    settings = get_settings()
-    settings.upload_dir.mkdir(parents=True, exist_ok=True)
-    return settings.upload_dir
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 
 
-def persist_upload(file: UploadFile | None, prefix: str) -> str | None:
-    if not file or not file.filename:
+@lru_cache(maxsize=1)
+def _s3():
+    return boto3.client("s3", region_name=get_settings().aws_region)
+
+
+def put_bytes(key: str, data: bytes, content_type: str) -> str:
+    _s3().put_object(Bucket=get_settings().bucket, Key=key, Body=data, ContentType=content_type)
+    return key
+
+
+def get_bytes(key: str) -> tuple[bytes, str]:
+    obj = _s3().get_object(Bucket=get_settings().bucket, Key=key)
+    return obj["Body"].read(), obj.get("ContentType", "application/octet-stream")
+
+
+def url_for(key: str | None, expires: int = 3600) -> str | None:
+    if not key:
         return None
+    s = get_settings()
+    if s.is_local:
+        return f"{s.api_url}/media/{key}"
+    return _s3().generate_presigned_url("get_object", Params={"Bucket": s.bucket, "Key": key}, ExpiresIn=expires)
 
-    safe_name = Path(file.filename).name
-    extension = Path(safe_name).suffix or '.bin'
-    stored_name = f'{prefix}-{uuid4().hex}{extension}'
-    target_path = get_upload_dir() / stored_name
-    file.file.seek(0)
-    with target_path.open('wb') as buffer:
-        buffer.write(file.file.read())
-    return str(target_path)
+
+def s3_uri(key: str) -> str:
+    return f"s3://{get_settings().bucket}/{key}"
