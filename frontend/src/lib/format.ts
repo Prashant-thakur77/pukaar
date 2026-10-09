@@ -26,6 +26,8 @@ export function fmtAgo(iso: string | null | undefined, lang: Lang, now = Date.no
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return iso;
   const sec = Math.round((t - now) / 1000);
+  // Replay records carry archived timestamps; a date reads better than "1,187 days ago".
+  if (Math.abs(sec) > 7 * 86400) return fmtTime(iso, lang);
   const rtf = new Intl.RelativeTimeFormat(locale(lang), { numeric: 'auto' });
   const abs = Math.abs(sec);
   if (abs < 60) return rtf.format(sec, 'second');

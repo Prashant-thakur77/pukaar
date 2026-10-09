@@ -128,7 +128,9 @@ export function VillageMap({ villages, highlight = [], points = [], onSelect, cl
       if (pts.length) {
         const b = new ml.LngLatBounds(pts[0], pts[0]);
         pts.forEach((p) => b.extend(p));
-        m.fitBounds(b, { padding: compact ? 40 : 70, maxZoom: 11, duration: fitted.current ? 600 : 0 });
+        const narrow = (box.current?.clientWidth ?? 800) < 600;
+        const padding = narrow ? { top: 40, bottom: 80, left: 30, right: 70 } : compact ? { top: 40, bottom: 40, left: 40, right: 110 } : { top: 70, bottom: 90, left: 70, right: 150 };
+        m.fitBounds(b, { padding, maxZoom: 11, duration: fitted.current ? 600 : 0 });
         fitted.current = key;
       }
     }

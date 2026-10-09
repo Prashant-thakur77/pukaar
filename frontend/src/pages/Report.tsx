@@ -400,6 +400,14 @@ export default function Report() {
         </p>
       </div>
 
+      {!hasContent && !rec.isRecording && (
+        <ol className="report-steps">
+          <li>{t('report.step1')}</li>
+          <li>{t('report.step2')}</li>
+          <li>{t('report.step3')}</li>
+        </ol>
+      )}
+
       {mine.length > 0 && (
         <section className="my-reports" aria-labelledby="mine-h">
           <h2 id="mine-h" className="h-sec">

@@ -36,6 +36,15 @@ describe('api client', () => {
     expect(err.messageHi).toBe('पहले ही फ़ैसला हो चुका है।');
   });
 
+  it('marks a 503 workflow hiccup as retryable, not late', async () => {
+    fetchMock.mockResolvedValueOnce(json(503, { detail: { code: 'retry', reason: 'Step Functions unreachable' } }));
+    const err = (await api.approve('a1').catch((e) => e)) as ApiError;
+    expect(err.isRetry).toBe(true);
+    expect(err.isLate).toBe(false);
+    expect(err.code).toBe('retry');
+    expect(err.messageEn).toBe('Step Functions unreachable');
+  });
+
   it('reads a 403 denial reason (string or object)', async () => {
     fetchMock.mockResolvedValueOnce(json(403, { detail: 'pradhan cannot approve alerts' }));
     const e1 = (await api.approve('a1').catch((e) => e)) as ApiError;

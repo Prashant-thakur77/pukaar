@@ -244,6 +244,8 @@ export interface PastEvent {
   level?: Level;
   text_en?: string;
   text_hi?: string;
+  note_en?: string;
+  note_hi?: string;
   title?: string;
   source?: string;
   source_url?: string;

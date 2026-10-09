@@ -16,7 +16,7 @@ export function Skeleton({ lines = 3, height, className = '' }: { lines?: number
 
 export function SkeletonCards({ n = 3 }: { n?: number }) {
   return (
-    <div className="skel-cards" aria-busy="true" aria-label="Loading">
+    <div className="skel-cards" aria-busy="true" role="status" aria-label="Loading">
       {Array.from({ length: n }, (_, i) => (
         <div key={i} className="card skel-card">
           <div className="skel skel-pill" />

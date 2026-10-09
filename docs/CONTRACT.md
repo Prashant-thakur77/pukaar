@@ -52,7 +52,7 @@ Alert     {id, village_id, village_name, village_name_hi, level, previous_level,
            created_at, updated_at, text_hi, text_en, reason_en, reasoning_model,
            draft_check{passed, reason}, decision_trace{...}, recipients_count,
            officer_index, decided_by|null, decided_at|null, approved: bool,
-           delivered_count, acknowledged_count, replay}
+           delivered_count, acknowledged_count, has_audio, replay}
 Delivery  {alert_id, recipient_id, name, channel: "telegram"|"stub", status,
            sent_at|null, attempts, acknowledged_at|null, error|null}
 Report    {id, village_id, created_at, text, transcript, report_type, severity,
@@ -61,6 +61,11 @@ Report    {id, village_id, created_at, text, transcript, report_type, severity,
 Directive {id, village_id, type, text_hi, text_en, issued_by, issued_at, active}
 Audit     {at, id, actor, role, action, resource, decision: "allow"|"deny", reason}
 Event     {at, step, detail}          (alert timeline)
+PastEvent {village_id, date, level, note_en, note_hi, source}
+Error     401 {detail: "Sign in required."}
+          403 {detail: {code: "denied", reason, action, role}}
+          409 {detail: {code: "late", message_en, message_hi, reason}}
+          503 {detail: {code: "retry", reason}}
 ```
 
 ## Routes
@@ -73,7 +78,8 @@ POST /me/telegram-link       officer: {} -> {code, command, expires_in_seconds} 
                              command to the bot to receive approval links in Telegram)
 POST /auth/dev-login         local only: {username} -> {token, username, role}
 GET  /villages               [Village]
-GET  /villages/{id}          {village, readings[<=96], alerts[], reports[], past_events[], nowcast|null}
+GET  /villages/{id}          {village, readings[<=96], alerts[], reports[], past_events[PastEvent],
+                              directives[<=5 Directive], nowcast|null}
                              nowcast = {likely_level, hours, text_en, text_hi}
 GET  /alerts?status=&village_id=   [Alert]
 GET  /alerts/{id}            {alert, deliveries[], timeline[Event], audit[Audit]}
@@ -90,7 +96,8 @@ GET  /reports?village_id=&state=   officer/pradhan: [Report]
 PATCH /reports/{id}/state    officer: {state} -> Report (undo = PATCH back to previous_state)
 GET  /directives?village_id= [Directive]
 POST /directives             officer: {village_id, type, note_en?} -> Directive
-POST /replay/start           officer: {speed_seconds_per_hour?: number} -> ReplayStatus
+POST /replay/start           officer: {scenario?: "himachal_2023_07"|"mandi_2025", speed_seconds_per_hour?: number}
+                             -> ReplayStatus (speed capped so the run fits one worker invocation)
 POST /replay/reset           officer: {} -> ReplayStatus
 GET  /replay/status          {active, stale, available[], scenario, title, title_hi, clock|null,
                               hours_total, hours_done, source, started_at, updated_at}

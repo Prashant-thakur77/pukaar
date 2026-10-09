@@ -168,7 +168,7 @@ function ReplayBannerInner() {
           <TriangleAlert aria-hidden="true" /> {t('shell.replay.stale')}
         </span>
       )}
-      <span className="rb-bar" aria-label={`${pct}%`}>
+      <span className="rb-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={t('shell.replay.clock')}>
         <i style={{ width: `${pct}%` }} />
       </span>
     </div>
