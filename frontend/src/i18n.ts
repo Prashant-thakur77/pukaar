@@ -1,0 +1,405 @@
+/*
+ * UI strings in Hindi and English.
+ *
+ * NEEDS NATIVE-SPEAKER REVIEW: every Hindi string in this file was written
+ * without a native speaker. Have a Hindi speaker from Mandi district check the
+ * wording (plain, spoken register; no Sanskritised words) before release.
+ */
+import { useLocation } from 'react-router-dom';
+import { usePrefs, type Lang, type LangScope } from './store';
+import type { AlertStatus, DirectiveType, Level, ReportState, ReportType, Severity } from './types';
+
+type Entry = { hi: string; en: string };
+
+export const dict = {
+  // brand + shell
+  'brand.tagline': { hi: 'नदी से पहले गाँव तक पहुँचने वाली पुकार', en: 'The call that reaches the village before the river does' },
+  'nav.home': { hi: 'मुख्य', en: 'Home' },
+  'nav.live': { hi: 'लाइव नक्शा', en: 'Live' },
+  'nav.report': { hi: 'सूचना दें', en: 'Report' },
+  'nav.console': { hi: 'अधिकारी', en: 'Console' },
+  'nav.impact': { hi: 'असर', en: 'Impact' },
+  'nav.menu': { hi: 'मेन्यू खोलें', en: 'Open menu' },
+  'nav.close': { hi: 'मेन्यू बंद करें', en: 'Close menu' },
+  'nav.skip': { hi: 'सीधे सामग्री पर जाएँ', en: 'Skip to content' },
+  'shell.call112': { hi: 'आपातकाल 112', en: 'Emergency 112' },
+  'shell.call112.aria': { hi: '112 पर आपातकालीन कॉल करें', en: 'Call emergency number 112' },
+  'shell.online': { hi: 'ऑनलाइन', en: 'Online' },
+  'shell.offline': { hi: 'ऑफ़लाइन', en: 'Offline' },
+  'shell.queued': { hi: '{n} भेजना बाकी', en: '{n} waiting to send' },
+  'shell.lang': { hi: 'भाषा बदलें: English', en: 'Switch language: हिन्दी' },
+  'shell.theme': { hi: 'रंग-रूप बदलें', en: 'Change theme' },
+  'shell.theme.system': { hi: 'सिस्टम', en: 'System' },
+  'shell.theme.light': { hi: 'हल्का', en: 'Light' },
+  'shell.theme.dark': { hi: 'गहरा', en: 'Dark' },
+  'shell.sample': { hi: 'नमूना डेटा', en: 'Sample data' },
+  'shell.sample.note': { hi: 'यह असली डेटा नहीं है', en: 'Not real data: dev mock server' },
+  'shell.signout': { hi: 'साइन आउट', en: 'Sign out' },
+  'shell.footer': { hi: 'हिमाचल के पहाड़ी गाँवों के लिए बाढ़ चेतावनी। एक अधिकारी हर चेतावनी को मंज़ूरी देता है।', en: 'Flood warnings for Himalayan villages. A person approves every alert.' },
+  'shell.footer.data': { hi: 'मौसम डेटा: Open-Meteo। नक्शा: © OpenStreetMap योगदानकर्ता।', en: 'Weather data: Open-Meteo. Map: © OpenStreetMap contributors.' },
+  'shell.replay': { hi: 'रीप्ले चल रहा है: यह 2025 का पुराना असली डेटा है, अभी का नहीं', en: 'Replay running: archived 2025 data, not live conditions' },
+  'shell.replay.clock': { hi: 'रीप्ले घड़ी', en: 'Replay clock' },
+
+  // levels
+  'level.normal': { hi: 'सामान्य', en: 'Normal' },
+  'level.watch': { hi: 'सतर्क', en: 'Watch' },
+  'level.warning': { hi: 'चेतावनी', en: 'Warning' },
+  'level.critical': { hi: 'गंभीर', en: 'Critical' },
+
+  // generic states
+  'state.error.title': { hi: 'सर्वर से जुड़ नहीं पाए', en: 'We could not reach Pukaar' },
+  'state.error.body': { hi: 'इंटरनेट जाँचें और फिर कोशिश करें। आपातकाल में 112 पर कॉल करें।', en: 'Check the connection and try again. In an emergency, call 112.' },
+  'state.retry': { hi: 'फिर कोशिश करें', en: 'Try again' },
+  'state.empty': { hi: 'अभी यहाँ कुछ नहीं है', en: 'Nothing here yet' },
+  'state.denied': { hi: 'अनुमति नहीं है', en: 'Not allowed' },
+  'state.signin.needed': { hi: 'यह देखने के लिए अधिकारी के रूप में साइन इन करें', en: 'Sign in as an officer to see this' },
+  'common.cancel': { hi: 'रद्द करें', en: 'Cancel' },
+  'common.confirm': { hi: 'पक्का करें', en: 'Confirm' },
+  'common.close': { hi: 'बंद करें', en: 'Close' },
+  'common.undo': { hi: 'वापस लें', en: 'Undo' },
+  'common.copy': { hi: 'कॉपी करें', en: 'Copy' },
+  'common.copied': { hi: 'कॉपी हो गया', en: 'Copied' },
+  'common.share': { hi: 'शेयर करें', en: 'Share' },
+  'common.replay': { hi: 'रीप्ले', en: 'Replay' },
+  'common.approx': { hi: 'अनुमानित जगह', en: 'Approx. location' },
+  'common.unknown': { hi: 'पता नहीं', en: 'Not recorded' },
+  'common.ago': { hi: '{t} पहले', en: '{t} ago' },
+  'common.updated': { hi: 'अपडेट: {t}', en: 'Updated {t}' },
+  'common.more': { hi: 'और देखें', en: 'Show more' },
+  'common.less': { hi: 'कम देखें', en: 'Show less' },
+  'common.open': { hi: 'खोलें', en: 'Open' },
+  'common.listen': { hi: 'सुनें', en: 'Listen' },
+  'common.listen.aria': { hi: 'चेतावनी हिन्दी में सुनें', en: 'Play the Hindi alert (सुनें)' },
+  'common.pause.aria': { hi: 'आवाज़ रोकें', en: 'Pause audio (रोकें)' },
+  'common.audio.none': { hi: 'आवाज़ अभी तैयार नहीं है', en: 'Audio not ready yet' },
+
+  // landing
+  'landing.eyebrow': { hi: 'हिमाचल प्रदेश · मंडी', en: 'Himachal Pradesh · Mandi' },
+  'landing.cta.report': { hi: 'सूचना दें', en: 'Report' },
+  'landing.cta.live': { hi: 'लाइव डैशबोर्ड', en: 'Live dashboard' },
+  'landing.skip': { hi: 'छोड़ें', en: 'Skip intro' },
+  'landing.counters.eyebrow': { hi: 'अभी तक, API से सीधे', en: 'So far, straight from the API' },
+  'counter.villages_watched': { hi: 'गाँवों पर नज़र', en: 'Villages watched' },
+  'counter.alerts_sent': { hi: 'चेतावनियाँ भेजीं', en: 'Alerts sent' },
+  'counter.phones_acknowledged': { hi: 'फ़ोन ने पुष्टि की', en: 'Phones acknowledged' },
+  'counter.reports_received': { hi: 'गाँव से सूचनाएँ', en: 'Reports received' },
+  'landing.counters.error': { hi: 'गिनती अभी उपलब्ध नहीं: सर्वर से संपर्क नहीं', en: 'Counts unavailable: the API did not answer' },
+  'landing.how.eyebrow': { hi: 'यह कैसे काम करता है', en: 'How it works' },
+  'landing.how.title': { hi: 'देखो। मंज़ूरी। पुकार।', en: 'Watch. Approve. Call.' },
+  'landing.how.lead': { hi: 'मशीन नज़र रखती है, इंसान फ़ैसला करता है, और गाँव तक आवाज़ पहुँचती है।', en: 'Code watches the sky and the river. A person decides. A voice reaches every phone in the village.' },
+  'landing.step1.title': { hi: 'नज़र', en: 'Watch' },
+  'landing.step1.body': { hi: 'हर 15 मिनट बारिश और नदी के पूर्वानुमान जाँचे जाते हैं। स्तर तय करने वाले नियम साफ़ कोड में हैं, मॉडल में नहीं।', en: 'Every 15 minutes Pukaar reads rain and river forecasts. Plain rules set the level; the model never does.' },
+  'landing.step2.title': { hi: 'मंज़ूरी', en: 'Approve' },
+  'landing.step2.body': { hi: 'AI हिन्दी में चेतावनी का मसौदा बनाता है। ज़िला अधिकारी सुनता है, पढ़ता है और फ़ोन से मंज़ूरी देता है।', en: 'An agent drafts the Hindi warning. A district officer listens, reads and approves it from a phone.' },
+  'landing.step3.title': { hi: 'पुकार', en: 'Call' },
+  'landing.step3.body': { hi: 'हर फ़ोन पर हिन्दी में बोली गई चेतावनी जाती है। लोग "मिल गया" दबाते हैं, और आवाज़ से जवाब भेजते हैं।', en: 'Every phone gets a spoken Hindi alert. People tap "मिल गया" to confirm and can answer back by voice.' },
+  'landing.fact.eyebrow': { hi: 'क्यों', en: 'Why' },
+  'landing.qr.title': { hi: 'स्कैन करें, सूचना दें', en: 'Scan to report' },
+  'landing.qr.body': { hi: 'कोई ऐप नहीं, कोई खाता नहीं। किसी भी फ़ोन से।', en: 'No app, no account. Works from any phone, even offline.' },
+  'landing.qr.aria': { hi: 'सूचना पेज का QR कोड', en: 'QR code that opens the report page' },
+  'landing.cta.title': { hi: 'पानी बढ़ रहा है? बताइए।', en: 'Water rising? Tell us.' },
+  'landing.cta.body': { hi: 'आपकी आवाज़ की सूचना अधिकारी तक जाती है। आपको एक ट्रैकिंग लिंक मिलता है।', en: 'Your voice report reaches the officer, and you get a link to follow what happens next.' },
+
+  // live
+  'live.eyebrow': { hi: 'लाइव', en: 'Live' },
+  'live.title': { hi: 'गाँवों का हाल', en: 'Village levels' },
+  'live.lead': { hi: 'बिना साइन इन के, सबके लिए। हर 15 सेकंड में ताज़ा।', en: 'Open to everyone, no sign-in. Refreshes every 15 seconds.' },
+  'live.alerts': { hi: 'हाल की चेतावनियाँ', en: 'Recent alerts' },
+  'live.alerts.empty': { hi: 'अभी कोई चेतावनी नहीं', en: 'No alerts yet' },
+  'live.villages': { hi: 'गाँव', en: 'Villages' },
+  'live.legend': { hi: 'स्तर', en: 'Levels' },
+  'live.chip.approved': { hi: 'मंज़ूर', en: 'Approved' },
+  'live.chip.unapproved': { hi: 'बिना मंज़ूरी', en: 'Not approved' },
+  'live.chip.delivered': { hi: '{n} फ़ोन तक पहुँची', en: '{n} delivered' },
+  'live.chip.acked': { hi: '{n} ने पुष्टि की', en: '{n} acknowledged' },
+  'map.label': { hi: 'गाँवों के स्तर का नक्शा', en: 'Map of village levels' },
+  'map.marker': { hi: '{name}: {level}', en: '{name}: {level}' },
+  'map.unavailable': { hi: 'नक्शा लोड नहीं हुआ। नीचे सूची देखें।', en: 'The map could not load. Use the list below.' },
+
+  // village
+  'village.since': { hi: '{t} से इस स्तर पर', en: 'At this level since {t}' },
+  'village.district': { hi: 'ज़िला {d}', en: '{d} district' },
+  'village.population': { hi: 'आबादी', en: 'Population' },
+  'village.why': { hi: 'यह स्तर क्यों', en: 'Why this level' },
+  'village.why.lead': { hi: 'स्तर नियम तय करते हैं, मॉडल नहीं। हर सबूत नीचे है।', en: 'Rules set the level, not the model. Every piece of evidence is below.' },
+  'village.rain': { hi: '24 घंटे की बारिश', en: 'Rain, last 24 h' },
+  'village.river': { hi: 'नदी का बहाव (अधिकतम पूर्वानुमान)', en: 'River discharge (forecast peak)' },
+  'village.rain.bands': { hi: 'IMD सीमा', en: 'IMD bands' },
+  'village.thresholds': { hi: 'सीमाएँ', en: 'Thresholds' },
+  'village.no.thresholds': { hi: 'इस गाँव के लिए नदी की सीमा तय नहीं', en: 'No river thresholds set for this village' },
+  'village.no.reading': { hi: 'अभी कोई माप नहीं', en: 'No reading yet' },
+  'village.rules': { hi: 'लागू हुए नियम', en: 'Rules that fired' },
+  'village.contradictions': { hi: 'डेटा में विरोध', en: 'Data disagrees' },
+  'village.reports.evidence': { hi: 'गाँव की सूचनाएँ', en: 'Village reports' },
+  'village.trend': { hi: 'रुझान', en: 'Trend' },
+  'village.trend.rain': { hi: 'बारिश (मिमी, 24 घंटे)', en: 'Rain (mm, 24 h)' },
+  'village.trend.discharge': { hi: 'बहाव (m³/s)', en: 'Discharge (m³/s)' },
+  'village.nowcast': { hi: 'आगे क्या', en: 'Next hours' },
+  'village.past': { hi: 'पिछली बार इस स्तर पर', en: 'Last time at this level' },
+  'village.past.empty': { hi: 'कोई दर्ज घटना नहीं', en: 'No recorded past events' },
+  'village.alerts': { hi: 'चेतावनियाँ', en: 'Alerts' },
+  'village.reports': { hi: 'सूचनाएँ', en: 'Reports' },
+  'village.deliveries': { hi: 'किसे भेजी गई', en: 'Deliveries' },
+  'village.timeline': { hi: 'घटनाक्रम', en: 'Timeline' },
+  'village.audit': { hi: 'ऑडिट', en: 'Audit trail' },
+  'village.notfound': { hi: 'यह गाँव नहीं मिला', en: 'Village not found' },
+  'village.back': { hi: 'लाइव नक्शे पर वापस', en: 'Back to live map' },
+
+  // report (villager)
+  'report.title': { hi: 'क्या हो रहा है? बताइए।', en: 'What is happening? Tell us.' },
+  'report.lead': { hi: 'बोलें, फ़ोटो लें या लिखें। एक भी काफ़ी है।', en: 'Speak, take a photo, or write. Any one is enough.' },
+  'report.village': { hi: 'आपका गाँव', en: 'Your village' },
+  'report.village.pick': { hi: 'गाँव चुनें', en: 'Choose village' },
+  'report.village.none': { hi: 'गाँवों की सूची नहीं मिली। इंटरनेट आने पर फिर खोलें।', en: 'Village list not available. Open again when online.' },
+  'report.speak': { hi: 'बोलें', en: 'Speak' },
+  'report.photo': { hi: 'फ़ोटो', en: 'Photo' },
+  'report.write': { hi: 'लिखें', en: 'Write' },
+  'report.recording': { hi: 'रिकॉर्ड हो रहा है', en: 'Recording' },
+  'report.stop': { hi: 'रोकें', en: 'Stop' },
+  'report.stop.aria': { hi: 'रिकॉर्डिंग रोकें', en: 'Stop recording (रोकें)' },
+  'report.speak.aria': { hi: 'आवाज़ रिकॉर्ड करें, 20 सेकंड तक', en: 'Record your voice, up to 20 seconds (बोलें)' },
+  'report.voice.ready': { hi: 'आवाज़ रिकॉर्ड हुई', en: 'Voice recorded' },
+  'report.voice.play': { hi: 'अपनी रिकॉर्डिंग सुनें', en: 'Play your recording (सुनें)' },
+  'report.voice.remove': { hi: 'रिकॉर्डिंग हटाएँ', en: 'Delete recording (हटाएँ)' },
+  'report.photo.ready': { hi: 'फ़ोटो जुड़ी', en: 'Photo added' },
+  'report.photo.remove': { hi: 'फ़ोटो हटाएँ', en: 'Remove photo' },
+  'report.photo.busy': { hi: 'फ़ोटो छोटी की जा रही है…', en: 'Shrinking photo…' },
+  'report.text.placeholder': { hi: 'जैसे: नाले का पानी पुल तक आ गया है', en: 'e.g. The stream has reached the bridge' },
+  'report.text.label': { hi: 'लिखकर बताइए', en: 'Write what you see' },
+  'report.gps': { hi: 'मेरी जगह जोड़ें', en: 'Add my location' },
+  'report.gps.busy': { hi: 'जगह ढूँढ रहे हैं…', en: 'Finding location…' },
+  'report.gps.ok': { hi: 'जगह जुड़ी (±{m} मी)', en: 'Location added (±{m} m)' },
+  'report.gps.fail': { hi: 'जगह नहीं मिली। बिना जगह भी भेज सकते हैं।', en: 'Could not get location. You can still send.' },
+  'report.send': { hi: 'भेजें', en: 'Send' },
+  'report.sending': { hi: 'भेज रहे हैं…', en: 'Sending…' },
+  'report.need.village': { hi: 'पहले गाँव चुनें', en: 'Choose your village first' },
+  'report.need.content': { hi: 'बोलें, फ़ोटो लें या लिखें', en: 'Speak, add a photo or write something' },
+  'report.mic.denied': { hi: 'माइक की अनुमति नहीं मिली। लिखकर भेजें।', en: 'Microphone blocked. Write instead.' },
+  'report.mic.unsupported': { hi: 'यह फ़ोन आवाज़ रिकॉर्ड नहीं कर सकता। लिखकर भेजें।', en: 'This phone cannot record audio. Write instead.' },
+  'report.queued.title': { hi: 'भेजा जाएगा', en: 'Will be sent' },
+  'report.queued.body': { hi: 'इंटरनेट नहीं है। सूचना फ़ोन में सुरक्षित है और नेटवर्क आते ही अपने आप चली जाएगी।', en: 'No connection. Your report is saved on this phone and will go automatically when the network returns.' },
+  'report.done.title': { hi: 'सूचना मिल गई', en: 'Report received' },
+  'report.done.body': { hi: 'इस लिंक से देखें कि आगे क्या हुआ:', en: 'Follow what happens next with this link:' },
+  'report.done.code': { hi: 'आपका कोड', en: 'Your code' },
+  'report.another': { hi: 'एक और सूचना दें', en: 'Send another report' },
+  'report.mine': { hi: 'मेरी सूचनाएँ', en: 'My reports' },
+  'report.safety': { hi: 'जान का ख़तरा हो तो पहले 112 पर कॉल करें।', en: 'If lives are in danger, call 112 first.' },
+  'report.error': { hi: 'भेज नहीं पाए: {m}', en: 'Could not send: {m}' },
+  'report.flushed': { hi: '{n} सूचना भेज दी गई', en: '{n} queued report(s) sent' },
+  'report.seconds': { hi: '{s} सेकंड', en: '{s} s' },
+
+  // track
+  'track.title': { hi: 'आपकी सूचना', en: 'Your report' },
+  'track.step.received': { hi: 'मिली', en: 'Received' },
+  'track.step.verified': { hi: 'जाँची गई', en: 'Verified' },
+  'track.step.acted_on': { hi: 'कार्रवाई हुई', en: 'Acted on' },
+  'track.pending': { hi: 'बाकी है', en: 'Not yet' },
+  'track.notfound': { hi: 'यह कोड नहीं मिला। कोड दोबारा जाँचें।', en: 'This code was not found. Check it and try again.' },
+  'track.lookup': { hi: 'कोड डालें', en: 'Enter a code' },
+  'track.go': { hi: 'देखें', en: 'Look up' },
+
+  // approve (officer on phone)
+  'approve.eyebrow': { hi: 'मंज़ूरी चाहिए', en: 'Approval needed' },
+  'approve.expires': { hi: '{t} में समाप्त', en: 'Expires in {t}' },
+  'approve.expired.at': { hi: 'समय समाप्त', en: 'Expired' },
+  'approve.approve': { hi: 'मंज़ूर करें', en: 'Approve' },
+  'approve.decline': { hi: 'अस्वीकार करें', en: 'Decline' },
+  'approve.confirm.approve': { hi: 'यह चेतावनी {n} लोगों को अभी भेजी जाएगी। पक्का?', en: 'This alert goes to {n} people now. Approve?' },
+  'approve.confirm.decline': { hi: 'चेतावनी नहीं भेजी जाएगी। पक्का?', en: 'The alert will not be sent. Decline?' },
+  'approve.done.approved': { hi: 'मंज़ूर। चेतावनी भेजी जा रही है।', en: 'Approved. The alert is being sent.' },
+  'approve.done.declined': { hi: 'अस्वीकार किया गया।', en: 'Declined. Nothing was sent.' },
+  'approve.late.title': { hi: 'यह लिंक अब काम नहीं करता', en: 'This link no longer works' },
+  'approve.late.body': { hi: 'किसी और अधिकारी ने फ़ैसला कर लिया है, या समय समाप्त हो गया है। कुछ भी दोबारा नहीं भेजा गया।', en: 'Another officer already decided, or the time ran out. Nothing was sent twice.' },
+  'approve.recipients': { hi: '{n} लोगों तक जाएगी', en: 'Will reach {n} people' },
+  'approve.retry': { hi: 'मंज़ूरी की प्रक्रिया से संपर्क नहीं हो पाया। फिर कोशिश करें।', en: "Couldn't reach the workflow. Try again." },
+  'shell.replay.stale': { hi: 'रीप्ले रुक गया लगता है: डेटा आगे नहीं बढ़ रहा', en: 'Replay looks stalled: the worker stopped updating' },
+  'console.tg': { hi: 'Telegram पर मंज़ूरी लिंक पाएँ', en: 'Get approval links on Telegram' },
+  'console.tg.lead': { hi: 'एक बार का कोड बनाएँ और यह संदेश Pukaar बॉट को भेजें।', en: 'Make a one-time code and send this command to the Pukaar bot.' },
+  'console.tg.make': { hi: 'कोड बनाएँ', en: 'Get my code' },
+  'console.tg.expires': { hi: '{m} मिनट में समाप्त', en: 'Expires in {m} min' },
+  'approve.invalid': { hi: 'लिंक गलत है', en: 'This link is not valid' },
+
+  // console
+  'console.title': { hi: 'अधिकारी कंसोल', en: 'Officer console' },
+  'console.signed.as': { hi: '{u} ({r})', en: '{u} ({r})' },
+  'console.queue': { hi: 'गाँव, ख़तरे के क्रम में', en: 'Villages by risk' },
+  'console.pending': { hi: 'मंज़ूरी बाकी', en: 'Pending approvals' },
+  'console.pending.empty': { hi: 'कोई चेतावनी मंज़ूरी के लिए नहीं', en: 'No alerts waiting for approval' },
+  'console.draft.hi': { hi: 'हिन्दी मसौदा', en: 'Hindi draft' },
+  'console.draft.en': { hi: 'अंग्रेज़ी', en: 'English' },
+  'console.reason': { hi: 'कारण', en: 'Reason' },
+  'console.model': { hi: 'मसौदा', en: 'Drafted by' },
+  'console.model.fallback': { hi: 'नियम वाला टेम्पलेट (मॉडल बंद)', en: 'rule fallback (model unavailable)' },
+  'console.check.pass': { hi: 'जाँच पास', en: 'Draft check passed' },
+  'console.check.fail': { hi: 'जाँच फ़ेल', en: 'Draft check failed' },
+  'console.dryrun': { hi: 'ड्राई-रन: {n} लोग', en: 'Dry run: {n} recipients' },
+  'console.decline.reason': { hi: 'कारण (वैकल्पिक)', en: 'Reason (optional)' },
+  'console.reports': { hi: 'सूचनाएँ', en: 'Report feed' },
+  'console.reports.empty': { hi: 'कोई सूचना नहीं', en: 'No reports yet' },
+  'console.report.moved': { hi: 'सूचना "{s}" में गई', en: 'Report moved to "{s}"' },
+  'console.directive': { hi: 'निर्देश भेजें', en: 'Issue a directive' },
+  'console.directive.village': { hi: 'गाँव', en: 'Village' },
+  'console.directive.type': { hi: 'प्रकार', en: 'Type' },
+  'console.directive.note': { hi: 'नोट (अंग्रेज़ी, वैकल्पिक)', en: 'Note (English, optional)' },
+  'console.directive.send': { hi: 'निर्देश जारी करें', en: 'Issue directive' },
+  'console.directive.active': { hi: 'चालू निर्देश', en: 'Active directives' },
+  'console.directive.done': { hi: 'निर्देश जारी हुआ', en: 'Directive issued' },
+  'console.replay': { hi: 'रीप्ले', en: 'Replay' },
+  'console.replay.lead': { hi: '2025 मंडी बाढ़ का असली पुराना डेटा दोबारा चलाएँ।', en: 'Re-run archived real data from the 2025 Mandi floods.' },
+  'console.replay.start': { hi: 'शुरू करें', en: 'Start replay' },
+  'console.replay.reset': { hi: 'रीसेट', en: 'Reset' },
+  'console.replay.progress': { hi: '{d} / {t} घंटे', en: '{d} / {t} hours' },
+  'console.replay.unavailable': { hi: 'रीप्ले डेटा उपलब्ध नहीं', en: 'Replay data not available' },
+  'console.replay.scenario': { hi: 'घटना चुनें', en: 'Scenario' },
+  'common.audio.text': { hi: 'आवाज़ उपलब्ध नहीं (लोकल मोड): पाठ पढ़ें', en: 'No audio here (local mode): read the text' },
+  'console.replay.idle': { hi: 'बंद', en: 'Idle' },
+  'console.ask': { hi: 'पुकार से पूछें', en: 'Ask Pukaar' },
+  'console.ask.lead': { hi: 'डेटा के बारे में सवाल पूछें। जवाब में चार्ट और नक्शा आता है।', en: 'Ask about the data. Answers come back with a chart and a map, built from tool results.' },
+  'console.ask.placeholder': { hi: 'जैसे: पिछले 24 घंटे में किन गाँवों में सबसे ज़्यादा बारिश हुई?', en: 'e.g. Which villages had the most rain in the last 24 hours?' },
+  'console.ask.send': { hi: 'पूछें', en: 'Ask' },
+  'console.ask.q1': { hi: 'किन गाँवों में सबसे ज़्यादा बारिश?', en: 'Which villages had the most rain today?' },
+  'console.ask.q2': { hi: 'कौन-सी चेतावनी की पुष्टि नहीं हुई?', en: 'Which alerts are still unacknowledged?' },
+  'console.ask.q3': { hi: 'थुनाग में बहाव का रुझान?', en: 'Show the discharge trend for the highest-risk village' },
+  'console.ask.tools': { hi: 'टूल ट्रेस ({n})', en: 'Tool trace ({n})' },
+  'console.ask.model': { hi: 'मॉडल: {m}', en: 'Model: {m}' },
+  'console.audit': { hi: 'ऑडिट ट्रेल', en: 'Audit trail' },
+  'console.alerts.recent': { hi: 'हाल की चेतावनियाँ', en: 'Recent alerts' },
+  'console.tab.queue': { hi: 'गाँव', en: 'Villages' },
+  'console.tab.approvals': { hi: 'मंज़ूरी', en: 'Approvals' },
+  'console.tab.reports': { hi: 'सूचनाएँ', en: 'Reports' },
+  'console.tab.ask': { hi: 'पूछें', en: 'Ask' },
+  'console.tab.act': { hi: 'कार्रवाई', en: 'Act' },
+  'console.reading': { hi: 'बारिश {r} मिमी · बहाव {d}', en: 'Rain {r} mm · flow {d}' },
+
+  // audit
+  'audit.title': { hi: 'ऑडिट ट्रेल', en: 'Audit trail' },
+  'audit.lead': { hi: 'हर फ़ैसला, अनुमति या इनकार, यहाँ दर्ज है।', en: 'Every decision, allowed or denied, is written here.' },
+  'audit.filter': { hi: 'संसाधन से छाँटें', en: 'Filter by resource' },
+  'audit.allow': { hi: 'अनुमति', en: 'Allowed' },
+  'audit.deny': { hi: 'इनकार', en: 'Denied' },
+
+  // impact
+  'impact.eyebrow': { hi: 'असर', en: 'Impact' },
+  'impact.title': { hi: 'हम क्या माप रहे हैं', en: 'What we can show, and what we cannot yet' },
+  'impact.lead': { hi: 'पुराने असली डेटा पर नियम दोबारा चलाकर देखा कि चेतावनी कितनी पहले आती।', en: 'We re-ran the rules on archived real data to see how early a warning would have come.' },
+  'impact.backtest': { hi: 'बैक-टेस्ट', en: 'Back-test' },
+  'impact.backtest.none': { hi: 'बैक-टेस्ट के नतीजे अभी उपलब्ध नहीं हैं।', en: 'Back-test results are not yet available.' },
+  'impact.backtest.none.body': { hi: 'जब scripts/backtest.py चलेगी, नतीजे यहाँ दिखेंगे।', en: 'They will appear here once scripts/backtest.py publishes /backtest.json.' },
+  'impact.bt.village': { hi: 'गाँव', en: 'Village' },
+  'impact.bt.first': { hi: 'पहली बार {l}', en: 'First {l}' },
+  'impact.bt.peak': { hi: 'अधिकतम बहाव (दिन)', en: 'Peak discharge (day)' },
+  'impact.bt.rain': { hi: 'अधिकतम 24 घंटे बारिश', en: 'Max 24 h rain' },
+  'impact.bt.lead': { hi: 'सतर्क से चरम दिन तक', en: 'Lead: Watch → peak day' },
+  'impact.bt.reached': { hi: 'सबसे ऊँचा स्तर', en: 'Highest level' },
+  'impact.bt.summary': { hi: '{n} में से {c} गाँव गंभीर तक पहुँचे', en: '{c} of {n} villages reached Critical' },
+  'impact.bt.never': { hi: 'कभी नहीं', en: 'never' },
+  'impact.bt.sources': { hi: 'स्रोत', en: 'Sources' },
+  'impact.bt.caveat': { hi: 'ध्यान दें: रीप्ले में नदी का बहाव पुराने पुनर्विश्लेषण (reanalysis) डेटा से है, जो "बिल्कुल सही पूर्वानुमान" जैसा है। इसलिए असली पूर्वानुमान की तुलना में यहाँ दिखाया गया समय ज़्यादा आशावादी है।', en: 'Caveat: replay discharge uses archived reanalysis as a stand-in for a perfect forecast, so these lead times are optimistic compared with a real forecast.' },
+  'impact.measured': { hi: 'जो मापा जा रहा है', en: 'What is measured' },
+  'impact.notmeasured': { hi: 'जो अभी नहीं मापा गया', en: 'What is not yet measured' },
+  'impact.m1': { hi: 'बैक-टेस्ट में: नियम किस समय किस स्तर पर पहुँचते (पुराने असली डेटा से)।', en: 'In the back-test: when the rules would have reached each level, on archived real data.' },
+  'impact.m2': { hi: 'हर चेतावनी: मंज़ूरी का समय, कितने फ़ोन तक पहुँची, कितनों ने पुष्टि की।', en: 'For every alert: time to approval, phones reached, phones that acknowledged.' },
+  'impact.m3': { hi: 'मॉडल कब बंद रहा और कब नियम वाला टेम्पलेट गया।', en: 'When the model was down and the rule template went out instead.' },
+  'impact.n1': { hi: 'असली गाँवों में लोगों ने चेतावनी पर क्या किया: अभी कोई फ़ील्ड ट्रायल नहीं हुआ।', en: 'What people in real villages did after an alert: no field trial has happened yet.' },
+  'impact.n2': { hi: 'गलत चेतावनियों की दर, लंबे समय में।', en: 'False-alarm rate over a full monsoon.' },
+  'impact.n3': { hi: 'गाँवों के निर्देशांक की ज़मीनी जाँच।', en: 'Ground-truth checks of village coordinates.' },
+  'impact.cloudburst.title': { hi: 'जो हम नहीं पकड़ पाते', en: 'What this does not catch' },
+  'impact.cloudburst.body': { hi: '30 जून 2025 की रात मंडी में बादल फटे। हमारे रीप्ले में दुनिया भर के मौसम मॉडल (पुराने पूर्वानुमान और GloFAS नदी-बहाव) 5 में से 4 गाँवों के लिए कोई सीमा पार नहीं कर पाए। बादल फटना बहुत छोटे इलाके और कम समय की घटना है। पुकार ऐसी घटना का पूर्वानुमान करने का दावा नहीं करता; ऐसे में गाँव से आई आवाज़ की सूचना ही सबसे तेज़ रास्ता है।', en: 'In our replay of the 30 June – 1 July 2025 Mandi cloudbursts, global models (archived forecasts and GloFAS discharge) never crossed a threshold for 4 of 5 villages: the cloudburst was missed. Cloudbursts are small and short, below what those models resolve. Pukaar does not claim to forecast them. That is why a verified villager report can raise a village level on its own.' },
+
+  // login
+  'login.title': { hi: 'अधिकारी साइन इन', en: 'Officer sign-in' },
+  'login.lead': { hi: 'चेतावनी मंज़ूर करने और सूचनाएँ देखने के लिए।', en: 'To approve alerts, review reports and run the replay.' },
+  'login.username': { hi: 'यूज़रनेम', en: 'Username' },
+  'login.password': { hi: 'पासवर्ड', en: 'Password' },
+  'login.submit': { hi: 'साइन इन', en: 'Sign in' },
+  'login.demo': { hi: 'डेमो उपयोगकर्ता (केवल लोकल)', en: 'Demo users (local mode only)' },
+  'login.demo.officer1': { hi: 'ज़िला अधिकारी 1', en: 'District officer 1' },
+  'login.demo.officer2': { hi: 'ज़िला अधिकारी 2', en: 'District officer 2' },
+  'login.demo.pradhan': { hi: 'प्रधान, थुनाग (सीमित अधिकार)', en: 'Pradhan, Thunag (limited rights)' },
+  'login.public': { hi: 'गाँव का हाल देखने के लिए साइन इन ज़रूरी नहीं।', en: 'No sign-in is needed to see village levels.' },
+
+  'notfound.title': { hi: 'यह पेज नहीं मिला', en: 'Page not found' },
+} satisfies Record<string, Entry>;
+
+export type Key = keyof typeof dict;
+
+const LEVEL_KEYS: Record<Level, Key> = {
+  normal: 'level.normal',
+  watch: 'level.watch',
+  warning: 'level.warning',
+  critical: 'level.critical',
+};
+
+export const levelWord = (level: Level, lang: Lang): string => dict[LEVEL_KEYS[level]][lang];
+
+export const enumLabels = {
+  reportType: {
+    water_rising: { hi: 'पानी बढ़ रहा है', en: 'Water rising' },
+    road_cut: { hi: 'सड़क टूटी', en: 'Road cut' },
+    bridge_unsafe: { hi: 'पुल असुरक्षित', en: 'Bridge unsafe' },
+    landslide: { hi: 'भूस्खलन', en: 'Landslide' },
+    homes_affected: { hi: 'घर प्रभावित', en: 'Homes affected' },
+    people_trapped: { hi: 'लोग फँसे हैं', en: 'People trapped' },
+    other: { hi: 'अन्य', en: 'Other' },
+  } satisfies Record<ReportType, Entry>,
+  severity: {
+    low: { hi: 'कम', en: 'Low' },
+    medium: { hi: 'मध्यम', en: 'Medium' },
+    high: { hi: 'ज़्यादा', en: 'High' },
+    critical: { hi: 'गंभीर', en: 'Critical' },
+  } satisfies Record<Severity, Entry>,
+  reportState: {
+    received: { hi: 'मिली', en: 'Received' },
+    transcribing: { hi: 'लिखी जा रही', en: 'Transcribing' },
+    unverified: { hi: 'जाँच बाकी', en: 'Unverified' },
+    verified_auto: { hi: 'अपने-आप पुष्ट', en: 'Auto-verified' },
+    verified: { hi: 'पुष्ट', en: 'Verified' },
+    reviewed: { hi: 'देखी गई', en: 'Reviewed' },
+    actioned: { hi: 'कार्रवाई हुई', en: 'Actioned' },
+    resolved: { hi: 'सुलझ गई', en: 'Resolved' },
+    duplicate: { hi: 'दोहराई गई', en: 'Duplicate' },
+    false: { hi: 'गलत', en: 'False' },
+  } satisfies Record<ReportState, Entry>,
+  alertStatus: {
+    drafting: { hi: 'मसौदा बन रहा', en: 'Drafting' },
+    pending: { hi: 'मंज़ूरी बाकी', en: 'Pending' },
+    approved: { hi: 'मंज़ूर', en: 'Approved' },
+    declined: { hi: 'अस्वीकार', en: 'Declined' },
+    expired: { hi: 'समय समाप्त', en: 'Expired' },
+    delivering: { hi: 'भेजी जा रही', en: 'Delivering' },
+    delivered: { hi: 'पहुँच गई', en: 'Delivered' },
+    auto_sent_unapproved: { hi: 'बिना मंज़ूरी भेजी', en: 'Auto-sent, unapproved' },
+    failsafe: { hi: 'सुरक्षा टेम्पलेट', en: 'Failsafe sent' },
+    closed: { hi: 'बंद', en: 'Closed' },
+  } satisfies Record<AlertStatus, Entry>,
+  directiveType: {
+    evacuate: { hi: 'गाँव खाली करें', en: 'Evacuate' },
+    shelter_in_place: { hi: 'जहाँ हैं वहीं सुरक्षित रहें', en: 'Shelter in place' },
+    advisory: { hi: 'सलाह', en: 'Advisory' },
+    all_clear: { hi: 'ख़तरा टला', en: 'All clear' },
+  } satisfies Record<DirectiveType, Entry>,
+};
+
+export function format(template: string, vars?: Record<string, string | number>): string {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (_, k: string) => (k in vars ? String(vars[k]) : `{${k}}`));
+}
+
+export function translate(lang: Lang, key: Key, vars?: Record<string, string | number>): string {
+  return format(dict[key][lang], vars);
+}
+
+/** Villager pages default to Hindi; everything else defaults to English. */
+export function scopeFor(pathname: string): LangScope {
+  return pathname.startsWith('/report') || pathname.startsWith('/t/') || pathname === '/t' ? 'villager' : 'staff';
+}
+
+export function useT() {
+  const { pathname } = useLocation();
+  const scope = scopeFor(pathname);
+  const lang = usePrefs((s) => s.lang[scope]);
+  const setLang = usePrefs((s) => s.setLang);
+  const t = (key: Key, vars?: Record<string, string | number>) => translate(lang, key, vars);
+  const pick = (e: Entry) => e[lang];
+  return { t, lang, scope, pick, setLang: (l: Lang) => setLang(scope, l), other: (lang === 'hi' ? 'en' : 'hi') as Lang };
+}

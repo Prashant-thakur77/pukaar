@@ -1,0 +1,497 @@
+[
+  {
+    "page": "landing",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "live",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "report",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "track",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "approve",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "approve-late",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "village",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "console",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "audit",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": [
+          ".table-wrap ::   Element should have focusable content"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "impact",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": [
+          ".scenario.reveal-rise.card:nth-child(1) > .table-wrap ::   Element should have focusable content",
+          ".scenario.reveal-rise.card:nth-child(2) > .table-wrap ::   Element should have focusable content"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "login",
+    "viewport": 390,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "landing",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "live",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          "li:nth-child(4) > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "li:nth-child(4) > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          ".alert-row.lv-critical.reveal:nth-child(3) > .ar-top > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          ".alert-row.lv-critical.reveal:nth-child(3) > .ar-top > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "report",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "track",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "approve",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          ".btn-approve > span[lang=\"hi\"] ::   Element has insufficient color contrast of 1.8 (foreground color: #ffffff, background color: #5fd6a4, font size: 14.4pt (19.2px), font weight: bold). Expected contrast ratio of 3:1",
+          ".btn-approve > .btn-sub ::   Element has insufficient color contrast of 1.6 (foreground color: #dff7ed, background color: #5fd6a4, font size: 10.4pt (13.824px), font weight: normal). Expected contrast ratio of 4.5:1"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "approve-late",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "village",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          ".ev-head > .lb-sm.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          ".ev-head > .lb-sm.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          ".past-item:nth-child(1) > .lb-sm.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          ".past-item:nth-child(1) > .lb-sm.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "console",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          "article:nth-child(1) > .pc-actions > .btn-approve.btn-press.btn ::   Element has insufficient color contrast of 1.8 (foreground color: #ffffff, background color: #5fd6a4, font size: 12.0pt (16px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "article:nth-child(2) > .pc-actions > .btn-approve.btn-press.btn ::   Element has insufficient color contrast of 1.8 (foreground color: #ffffff, background color: #5fd6a4, font size: 12.0pt (16px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "article:nth-child(3) > .pc-head > .pc-level > .lb-md.lv-critical[data-level=\"critical\"] > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 12.0pt (16px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "article:nth-child(3) > .pc-head > .pc-level > .lb-md.lv-critical[data-level=\"critical\"] > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 12.0pt (16px), font weight: bold). Expected contrast ratio of 4.5:1"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "audit",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": [
+          ".table-wrap ::   Element should have focusable content"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "impact",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          "tr:nth-child(3) > td:nth-child(2) > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "tr:nth-child(3) > td:nth-child(2) > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "tr:nth-child(4) > td:nth-child(2) > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "tr:nth-child(4) > td:nth-child(2) > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1"
+        ]
+      },
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": [
+          ".scenario.reveal-rise.card:nth-child(1) > .table-wrap ::   Element should have focusable content",
+          ".scenario.reveal-rise.card:nth-child(2) > .table-wrap ::   Element should have focusable content"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "login",
+    "viewport": 390,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "landing",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "live",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "report",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "track",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "approve",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "approve-late",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "village",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "console",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "audit",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "impact",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": [
+          ".scenario.reveal-rise.card:nth-child(1) > .table-wrap ::   Element should have focusable content",
+          ".scenario.reveal-rise.card:nth-child(2) > .table-wrap ::   Element should have focusable content"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "login",
+    "viewport": 1440,
+    "theme": "light",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "landing",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "live",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          ".lv-critical > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          ".lv-critical > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "report",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "track",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "approve",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          ".btn-approve > span[lang=\"hi\"] ::   Element has insufficient color contrast of 1.8 (foreground color: #ffffff, background color: #5fd6a4, font size: 14.4pt (19.2px), font weight: bold). Expected contrast ratio of 3:1",
+          ".btn-approve > .btn-sub ::   Element has insufficient color contrast of 1.6 (foreground color: #dff7ed, background color: #5fd6a4, font size: 10.4pt (13.824px), font weight: normal). Expected contrast ratio of 4.5:1"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "approve-late",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "village",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          "li:nth-child(1) > .lb-sm.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "li:nth-child(1) > .lb-sm.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "li:nth-child(2) > .lb-sm.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "li:nth-child(2) > .lb-sm.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "console",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "audit",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "impact",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": [
+          "tr:nth-child(3) > td:nth-child(2) > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "tr:nth-child(3) > td:nth-child(2) > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "tr:nth-child(4) > td:nth-child(2) > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"hi\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "tr:nth-child(4) > td:nth-child(2) > .lv-critical.level-badge[data-level=\"critical\"] > .lb-words > span[lang=\"en\"] ::   Element has insufficient color contrast of 3.21 (foreground color: #ffffff, background color: #ff4d6d, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1"
+        ]
+      },
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": [
+          ".scenario.reveal-rise.card:nth-child(1) > .table-wrap ::   Element should have focusable content",
+          ".scenario.reveal-rise.card:nth-child(2) > .table-wrap ::   Element should have focusable content"
+        ]
+      }
+    ],
+    "hscroll": 0,
+    "errors": []
+  },
+  {
+    "page": "login",
+    "viewport": 1440,
+    "theme": "dark",
+    "serious_or_critical": [],
+    "hscroll": 0,
+    "errors": []
+  }
+]

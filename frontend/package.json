@@ -5,21 +5,32 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "predev": "node scripts/copy-backtest.mjs",
     "build": "tsc -b && vite build",
+    "prebuild": "node scripts/copy-backtest.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run --environment jsdom --pool threads"
+    "test": "vitest run --environment jsdom --pool threads",
+    "mock": "node scripts/mock-api.mjs",
+    "screens": "NODE_USE_ENV_PROXY=1 node scripts/screens.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/noto-sans-devanagari": "^5.2.8",
+    "@fontsource/bebas-neue": "^5.2.7",
     "idb": "^8.0.3",
     "lucide-react": "^1.8.0",
+    "maplibre-gl": "^5.13.0",
+    "qrcode-generator": "^2.0.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.1",
-    "vite-plugin-pwa": "^1.2.0",
+    "vite-plugin-pwa": "^2.0.0",
+    "workbox-window": "^7.4.1",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@eslint/js": "^9.39.4",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
@@ -30,6 +41,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "jsdom": "^29.0.2",
+    "playwright": "^1.56.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0",
     "vite": "^8.0.4",

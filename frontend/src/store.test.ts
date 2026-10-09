@@ -1,183 +1,105 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useAppStore } from './store';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as idb from './lib/idb';
 import type { PendingReport } from './lib/idb';
+import { flushQueue } from './lib/queue';
+import { myTrackCodes, useNet } from './store';
 
-vi.mock('./lib/idb', async () => {
+vi.mock('./lib/idb', async (orig) => {
+  const real = await orig<typeof import('./lib/idb')>();
   return {
-    attachmentToFile: vi.fn((attachment: { blob: Blob; name: string; type: string }, fallbackName: string) => (
-      new File([attachment.blob], attachment.name || fallbackName, { type: attachment.type })
-    )),
+    attachmentToFile: real.attachmentToFile,
     getPendingReports: vi.fn(),
     deleteReportOffline: vi.fn(),
   };
 });
 
-describe('AppStore', () => {
-  const fetchMock = vi.fn<typeof fetch>();
-  const alertMock = vi.fn<typeof alert>();
+const fetchMock = vi.fn<typeof fetch>();
 
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+function queued(over: Partial<PendingReport> = {}): PendingReport {
+  return {
+    id: 1,
+    village_id: 'thunag',
+    text: 'पानी पुल तक आ गया',
+    lat: 31.56,
+    lon: 77.17,
+    audio: { blob: new Blob([new Uint8Array([1, 2, 3])], { type: 'audio/webm' }), name: 'voice.webm', type: 'audio/webm' },
+    photo: { blob: new Blob(['jpg'], { type: 'image/jpeg' }), name: 'photo.jpg', type: 'image/jpeg' },
+    createdAt: 1,
+    ...over,
+  };
+}
+
+describe('offline queue flush', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({ isOnline: true, queueCount: 0 });
-    Object.defineProperty(globalThis, 'fetch', {
-      configurable: true,
-      writable: true,
-      value: fetchMock,
-    });
-    Object.defineProperty(globalThis, 'alert', {
-      configurable: true,
-      writable: true,
-      value: alertMock,
-    });
+    localStorage.clear();
+    useNet.setState({ queued: 0 });
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, writable: true, value: fetchMock });
   });
 
-  it('flushQueue sends queued reports and deletes them', async () => {
-    const mockReports: PendingReport[] = [
-      {
-        id: 1,
-        site_id: 'test-site',
-        reporter_name: 'Test',
-        reporter_role: 'Role',
-        transcript_text: 'Text',
-        photo_attachment: {
-          blob: new Blob(['photo-bytes'], { type: 'image/jpeg' }),
-          name: 'flood.jpg',
-          type: 'image/jpeg',
-        },
-        audio_attachment: {
-          blob: new Blob(['audio-bytes'], { type: 'audio/mpeg' }),
-          name: 'note.mp3',
-          type: 'audio/mpeg',
-        },
-        offline_created: true,
-        createdAt: 123,
-      },
-    ];
+  it('POSTs each queued report as CONTRACT multipart and removes it', async () => {
+    vi.mocked(idb.getPendingReports).mockResolvedValueOnce([queued()]).mockResolvedValueOnce([]);
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { report: { id: 'r1' }, track_code: 'PK42' }));
 
-    vi.mocked(idb.getPendingReports).mockResolvedValue(mockReports);
-    
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ id: 1 }),
-    } as Response);
+    const res = await flushQueue();
 
-    await useAppStore.getState().flushQueue();
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const reportCall = fetchMock.mock.calls[0];
-    expect(reportCall[0]).toContain('/api/reports');
-
-    const formData = reportCall[1]?.body as FormData;
-    expect(formData.get('site_id')).toBe('test-site');
-    expect(formData.get('transcript_text')).toBe('Text');
-    expect(formData.get('offline_created')).toBe('true');
-    expect(formData.get('photo')).toBeInstanceOf(File);
-    expect((formData.get('photo') as File).name).toBe('flood.jpg');
-    expect(formData.get('audio')).toBeInstanceOf(File);
-    expect((formData.get('audio') as File).name).toBe('note.mp3');
+    expect(res).toEqual({ sent: 1, failed: 0, codes: ['PK42'] });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/reports$/);
+    expect(init?.method).toBe('POST');
+    const form = init?.body as FormData;
+    expect(form.get('village_id')).toBe('thunag');
+    expect(form.get('text')).toBe('पानी पुल तक आ गया');
+    expect(form.get('lat')).toBe('31.56');
+    expect(form.get('lon')).toBe('77.17');
+    expect(form.get('offline_created')).toBe('true');
+    const audio = form.get('audio') as File;
+    expect(audio).toBeInstanceOf(File);
+    expect(audio.name).toBe('voice.webm');
+    expect(audio.type).toBe('audio/webm');
+    expect((form.get('photo') as File).name).toBe('photo.jpg');
+    // Old field names from the previous app must be gone.
+    expect(form.get('site_id')).toBeNull();
+    expect(form.get('transcript_text')).toBeNull();
     expect(idb.deleteReportOffline).toHaveBeenCalledWith(1);
+    expect(myTrackCodes()[0].code).toBe('PK42');
+    expect(useNet.getState().queued).toBe(0);
   });
 
-  it('flushQueue does nothing if offline', async () => {
-    useAppStore.setState({ isOnline: false });
-    await useAppStore.getState().flushQueue();
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(alertMock).toHaveBeenCalledWith('Cannot flush queue while offline');
+  it('keeps reports queued when the network is down', async () => {
+    vi.mocked(idb.getPendingReports).mockResolvedValueOnce([queued({ id: 1 }), queued({ id: 2 })]).mockResolvedValueOnce([queued(), queued()]);
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    const res = await flushQueue();
+
+    expect(res.sent).toBe(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // stops at the first network failure
+    expect(idb.deleteReportOffline).not.toHaveBeenCalled();
+    expect(useNet.getState().queued).toBe(2);
   });
 
-  it('flushQueue forwards webm audio blob with correct filename and type', async () => {
-    const webmBlob = new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'audio/webm' });
-    const mockReports: PendingReport[] = [
-      {
-        id: 7,
-        site_id: 'site-mic',
-        reporter_name: 'Voz',
-        reporter_role: 'Community Member',
-        transcript_text: 'Nota grabada',
-        audio_attachment: {
-          blob: webmBlob,
-          name: 'note.webm',
-          type: 'audio/webm',
-        },
-        offline_created: false,
-        createdAt: 456,
-      },
-    ];
-
-    vi.mocked(idb.getPendingReports).mockResolvedValue(mockReports);
-
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ id: 7 }),
-    } as Response);
-
-    await useAppStore.getState().flushQueue();
-
-    const reportCall = fetchMock.mock.calls[0];
-    const formData = reportCall[1]?.body as FormData;
-    const audioEntry = formData.get('audio');
-    expect(audioEntry).toBeInstanceOf(File);
-    expect((audioEntry as File).name).toBe('note.webm');
-    expect((audioEntry as File).type).toBe('audio/webm');
-    expect(idb.deleteReportOffline).toHaveBeenCalledWith(7);
-  });
-
-  it('fetches and updates per-site experimental settings', async () => {
+  it('drops a report the server rejects (4xx) and keeps going', async () => {
+    vi.mocked(idb.getPendingReports).mockResolvedValueOnce([queued({ id: 1, village_id: 'nowhere' }), queued({ id: 2 })]).mockResolvedValueOnce([]);
     fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          site_id: 'test-site',
-          historical_context_enabled: false,
-          updated_at: '2026-05-18T10:00:00',
-        }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          site_id: 'test-site',
-          historical_context_enabled: true,
-          updated_at: '2026-05-18T10:01:00',
-        }),
-      } as Response);
+      .mockResolvedValueOnce(jsonResponse(422, { detail: 'Unknown village' }))
+      .mockResolvedValueOnce(jsonResponse(200, { report: { id: 'r2' }, track_code: 'PK2' }));
 
-    await useAppStore.getState().fetchSiteExperimentalSettings('test-site');
-    expect(fetchMock.mock.calls[0][0]).toContain('/api/sites/test-site/experimental-settings');
-    expect(useAppStore.getState().siteSettings['test-site'].historical_context_enabled).toBe(false);
+    const res = await flushQueue();
 
-    await useAppStore.getState().updateSiteExperimentalSettings('test-site', {
-      historical_context_enabled: true,
-    });
-    expect(fetchMock.mock.calls[1][1]?.method).toBe('PUT');
-    expect(useAppStore.getState().siteSettings['test-site'].historical_context_enabled).toBe(true);
+    expect(res).toEqual({ sent: 1, failed: 1, codes: ['PK2'] });
+    expect(idb.deleteReportOffline).toHaveBeenCalledWith(1);
+    expect(idb.deleteReportOffline).toHaveBeenCalledWith(2);
   });
 
-  it('fetches historical context for a site', async () => {
-    fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          hits: [
-            {
-              id: 3,
-              source: 'manual',
-              title: 'Bridge threshold',
-              summary: 'Close access road at 0.7.',
-              threshold_level: 0.7,
-              jurisdiction: 'municipal',
-              rank: 0.91,
-            },
-          ],
-        }),
-      } as Response);
-
-    const hits = await useAppStore.getState().fetchSiteHistoricalContext('test-site', {
-      waterLevel: 0.68,
-      query: 'bridge',
-    });
-    expect(hits[0].id).toBe(3);
-    expect(String(fetchMock.mock.calls[0][0])).toContain('water_level=0.68');
-    expect(useAppStore.getState().siteHistoricalContext['test-site'][0].rank).toBe(0.91);
+  it('omits optional fields that are empty', async () => {
+    vi.mocked(idb.getPendingReports).mockResolvedValueOnce([queued({ text: undefined, audio: undefined, photo: undefined, lat: null, lon: null })]).mockResolvedValueOnce([]);
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { report: { id: 'r3' }, track_code: 'PK3' }));
+    await flushQueue();
+    const form = fetchMock.mock.calls[0][1]?.body as FormData;
+    expect([...form.keys()].sort()).toEqual(['offline_created', 'village_id']);
   });
 });

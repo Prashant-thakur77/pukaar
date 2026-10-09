@@ -1,234 +1,154 @@
 import { create } from 'zustand';
-import {
-  attachmentToFile,
-  deleteReportOffline,
-  getPendingReports,
-  type PendingAttachment,
-} from './lib/idb';
+import type { Role } from './types';
 
-export const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000/api';
+/* Small zustand stores. This module must not import api.ts (api.ts imports it). */
 
-function appendAttachment(
-  formData: FormData,
-  fieldName: 'photo' | 'audio',
-  attachment?: PendingAttachment,
-) {
-  if (!attachment) {
-    return;
+function readLS(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
   }
-
-  const fallbackName = fieldName === 'photo' ? 'evidence-photo.bin' : 'evidence-audio.bin';
-  formData.append(fieldName, attachmentToFile(attachment, fallbackName));
 }
 
-export interface Site {
-  id: string;
-  name: string;
-  region: string;
-  lat: number;
-  lng: number;
-  description?: string;
-  is_active: boolean;
+function writeLS(key: string, value: string | null) {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {
+    /* storage blocked: keep in memory only */
+  }
 }
 
-export interface FusedAlert {
-  id: number;
-  site_id: string;
-  level: 'green' | 'yellow' | 'orange' | 'red';
-  score: number;
-  summary: string;
-  created_at: string;
-  trigger_source?: string;
-  decision_trace?: string | null;
-  reasoning_summary?: string | null;
-  reasoning_chain?: string | null;
-  reasoning_model?: string | null;
+/* ---------- auth ---------- */
+
+export interface AuthUser {
+  username: string;
+  role: Role;
+  village_ids: string[];
 }
 
-export interface SiteExperimentalSettings {
-  site_id: string;
-  historical_context_enabled: boolean;
-  updated_at: string;
+interface AuthState {
+  token: string | null;
+  user: AuthUser | null;
+  signIn: (token: string, user: AuthUser) => void;
+  signOut: () => void;
 }
 
-export interface HistoricalContextHit {
-  id: number;
-  source: string;
-  title: string;
-  summary: string;
-  threshold_level?: number | null;
-  jurisdiction?: string | null;
-  effective_from?: string | null;
-  effective_to?: string | null;
-  source_uri?: string | null;
-  rank: number;
+function initialUser(): AuthUser | null {
+  const raw = readLS('pukaar.user');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    return null;
+  }
 }
 
-interface AppState {
-  isOnline: boolean;
-  sites: Site[];
-  alerts: FusedAlert[];
-  queueCount: number;
-  siteSettings: Record<string, SiteExperimentalSettings>;
-  siteHistoricalContext: Record<string, HistoricalContextHit[]>;
-  setOnline: (status: boolean) => void;
-  fetchSites: () => Promise<void>;
-  fetchAlerts: (options?: { historicalContext?: boolean }) => Promise<void>;
-  fetchSiteExperimentalSettings: (siteId: string) => Promise<SiteExperimentalSettings | null>;
-  updateSiteExperimentalSettings: (siteId: string, payload: Partial<SiteExperimentalSettings>) => Promise<SiteExperimentalSettings | null>;
-  fetchSiteHistoricalContext: (siteId: string, options?: { waterLevel?: number; query?: string }) => Promise<HistoricalContextHit[]>;
-  checkConnectivity: () => Promise<void>;
-  updateQueueCount: () => Promise<void>;
-  flushQueue: () => Promise<void>;
-}
-
-export const useAppStore = create<AppState>((set, get) => ({
-  isOnline: true,
-  sites: [],
-  alerts: [],
-  queueCount: 0,
-  siteSettings: {},
-  siteHistoricalContext: {},
-
-  setOnline: (status) => set({ isOnline: status }),
-
-  fetchSites: async () => {
-    try {
-      const res = await fetch(`${API_BASE}/sites`);
-      if (res.ok) {
-        const data = await res.json();
-        set({ sites: data });
-      }
-    } catch (err) {
-      console.error('Failed to fetch sites', err);
-    }
+export const useAuth = create<AuthState>((set) => ({
+  token: readLS('pukaar.token'),
+  user: initialUser(),
+  signIn: (token, user) => {
+    writeLS('pukaar.token', token);
+    writeLS('pukaar.user', JSON.stringify(user));
+    set({ token, user });
   },
-
-  fetchAlerts: async (options) => {
-    try {
-      const query = options?.historicalContext ? '?historical_context=true' : '';
-      const res = await fetch(`${API_BASE}/alerts${query}`);
-      if (res.ok) {
-        const data = await res.json();
-        set({ alerts: data });
-      }
-    } catch (err) {
-      console.error('Failed to fetch alerts', err);
-    }
-  },
-
-  fetchSiteExperimentalSettings: async (siteId) => {
-    try {
-      const res = await fetch(`${API_BASE}/sites/${encodeURIComponent(siteId)}/experimental-settings`);
-      if (!res.ok) return null;
-      const data = (await res.json()) as SiteExperimentalSettings;
-      set((state) => ({ siteSettings: { ...state.siteSettings, [siteId]: data } }));
-      return data;
-    } catch (err) {
-      console.error('Failed to fetch site experimental settings', err);
-      return null;
-    }
-  },
-
-  updateSiteExperimentalSettings: async (siteId, payload) => {
-    try {
-      const res = await fetch(`${API_BASE}/sites/${encodeURIComponent(siteId)}/experimental-settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) return null;
-      const data = (await res.json()) as SiteExperimentalSettings;
-      set((state) => ({ siteSettings: { ...state.siteSettings, [siteId]: data } }));
-      return data;
-    } catch (err) {
-      console.error('Failed to update site experimental settings', err);
-      return null;
-    }
-  },
-
-  fetchSiteHistoricalContext: async (siteId, options) => {
-    try {
-      const params = new URLSearchParams();
-      if (typeof options?.waterLevel === 'number') params.set('water_level', String(options.waterLevel));
-      if (options?.query) params.set('query', options.query);
-      const qs = params.toString();
-      const res = await fetch(`${API_BASE}/sites/${encodeURIComponent(siteId)}/historical-context${qs ? `?${qs}` : ''}`);
-      if (!res.ok) return [];
-      const data = await res.json();
-      const hits = Array.isArray(data.hits) ? data.hits as HistoricalContextHit[] : [];
-      set((state) => ({ siteHistoricalContext: { ...state.siteHistoricalContext, [siteId]: hits } }));
-      return hits;
-    } catch (err) {
-      console.error('Failed to fetch site historical context', err);
-      return [];
-    }
-  },
-
-  checkConnectivity: async () => {
-    try {
-      const res = await fetch(`${API_BASE}/settings/connectivity`);
-      if (res.ok) {
-        const data = await res.json();
-        set({ isOnline: data.is_online });
-      } else {
-        set({ isOnline: false });
-      }
-    } catch {
-      set({ isOnline: false });
-    }
-    await get().updateQueueCount();
-  },
-
-  updateQueueCount: async () => {
-    const pending = await getPendingReports();
-    set({ queueCount: pending.length });
-  },
-
-  flushQueue: async () => {
-    const { isOnline, updateQueueCount } = get();
-    if (!isOnline) {
-      alert('Cannot flush queue while offline');
-      return;
-    }
-
-    const pending = await getPendingReports();
-    if (pending.length === 0) {
-      return;
-    }
-
-    let successCount = 0;
-    for (const report of pending) {
-      try {
-        const formData = new FormData();
-        formData.append('site_id', report.site_id);
-        formData.append('reporter_name', report.reporter_name);
-        formData.append('reporter_role', report.reporter_role);
-        formData.append('transcript_text', report.transcript_text);
-        formData.append('offline_created', String(report.offline_created));
-        appendAttachment(formData, 'photo', report.photo_attachment);
-        appendAttachment(formData, 'audio', report.audio_attachment);
-
-        const res = await fetch(`${API_BASE}/reports`, {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (res.ok) {
-          await deleteReportOffline(report.id as number);
-          successCount++;
-        }
-      } catch (err) {
-        console.error('Failed to send report from queue', err);
-      }
-    }
-
-    if (successCount > 0) {
-      await updateQueueCount();
-      alert(`Successfully sent ${successCount} reports from queue.`);
-      return;
-    }
-
-    await updateQueueCount();
+  signOut: () => {
+    writeLS('pukaar.token', null);
+    writeLS('pukaar.user', null);
+    set({ token: null, user: null });
   },
 }));
+
+/* ---------- preferences: language per area, theme ---------- */
+
+export type Lang = 'hi' | 'en';
+export type LangScope = 'villager' | 'staff';
+export type ThemePref = 'system' | 'light' | 'dark';
+
+interface PrefState {
+  lang: Record<LangScope, Lang>;
+  theme: ThemePref;
+  setLang: (scope: LangScope, lang: Lang) => void;
+  setTheme: (theme: ThemePref) => void;
+}
+
+function initialLang(scope: LangScope, fallback: Lang): Lang {
+  const v = readLS(`pukaar.lang.${scope}`);
+  return v === 'hi' || v === 'en' ? v : fallback;
+}
+
+function initialTheme(): ThemePref {
+  const v = readLS('pukaar.theme');
+  return v === 'light' || v === 'dark' ? v : 'system';
+}
+
+export function applyTheme(theme: ThemePref) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (theme === 'system') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', theme);
+}
+
+export const usePrefs = create<PrefState>((set, get) => ({
+  // Hindi first for villagers; English first in the officer tools.
+  lang: { villager: initialLang('villager', 'hi'), staff: initialLang('staff', 'en') },
+  theme: initialTheme(),
+  setLang: (scope, lang) => {
+    writeLS(`pukaar.lang.${scope}`, lang);
+    set({ lang: { ...get().lang, [scope]: lang } });
+  },
+  setTheme: (theme) => {
+    writeLS('pukaar.theme', theme === 'system' ? null : theme);
+    applyTheme(theme);
+    set({ theme });
+  },
+}));
+
+/* ---------- network, offline queue, sample data ---------- */
+
+interface NetState {
+  online: boolean;
+  queued: number;
+  sample: boolean;
+  setOnline: (online: boolean) => void;
+  setQueued: (n: number) => void;
+  markSample: () => void;
+}
+
+export const useNet = create<NetState>((set, get) => ({
+  online: typeof navigator === 'undefined' ? true : navigator.onLine,
+  queued: 0,
+  sample: false,
+  setOnline: (online) => set({ online }),
+  setQueued: (queued) => set({ queued }),
+  markSample: () => {
+    if (!get().sample) set({ sample: true });
+  },
+}));
+
+/* ---------- tracking codes the villager has received on this phone ---------- */
+
+export interface MyReport {
+  code: string;
+  at: number;
+}
+
+export function rememberTrackCode(code: string) {
+  const list = myTrackCodes().filter((r) => r.code !== code);
+  list.unshift({ code, at: Date.now() });
+  writeLS('pukaar.myReports', JSON.stringify(list.slice(0, 10)));
+}
+
+export function myTrackCodes(): MyReport[] {
+  const raw = readLS('pukaar.myReports');
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw) as MyReport[];
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
+export { readLS, writeLS };

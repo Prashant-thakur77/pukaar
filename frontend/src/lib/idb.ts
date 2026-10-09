@@ -1,5 +1,5 @@
 import { openDB } from 'idb';
-import type { DBSchema } from 'idb';
+import type { DBSchema, IDBPDatabase } from 'idb';
 
 export interface PendingAttachment {
   blob: Blob;
@@ -7,15 +7,16 @@ export interface PendingAttachment {
   type: string;
 }
 
+/** A report saved on the phone while offline. Field names follow POST /reports. */
 export interface PendingReport {
   id?: number;
-  site_id: string;
-  reporter_name: string;
-  reporter_role: string;
-  transcript_text: string;
-  photo_attachment?: PendingAttachment;
-  audio_attachment?: PendingAttachment;
-  offline_created: boolean;
+  village_id: string;
+  text?: string;
+  lat?: number | null;
+  lon?: number | null;
+  reporter_name?: string;
+  photo?: PendingAttachment;
+  audio?: PendingAttachment;
   createdAt: number;
 }
 
@@ -27,51 +28,40 @@ interface PukaarDB extends DBSchema {
   };
 }
 
-const dbPromise = openDB<PukaarDB>('Pukaar-db', 1, {
-  upgrade(db) {
-    const store = db.createObjectStore('reports', {
-      keyPath: 'id',
-      autoIncrement: true,
-    });
-    store.createIndex('by-date', 'createdAt');
-  },
-});
+let dbPromise: Promise<IDBPDatabase<PukaarDB>> | null = null;
 
-export async function saveReportOffline(report: Omit<PendingReport, 'id' | 'createdAt'>) {
-  const db = await dbPromise;
-  await db.add('reports', {
-    ...report,
-    createdAt: Date.now(),
+function db() {
+  // v2: fields renamed to match the CONTRACT; old v1 queue is dropped.
+  dbPromise ??= openDB<PukaarDB>('pukaar-queue', 2, {
+    upgrade(database) {
+      if (database.objectStoreNames.contains('reports')) database.deleteObjectStore('reports');
+      const store = database.createObjectStore('reports', { keyPath: 'id', autoIncrement: true });
+      store.createIndex('by-date', 'createdAt');
+    },
   });
+  return dbPromise;
 }
 
-export function toPendingAttachment(file: File | null | undefined): PendingAttachment | undefined {
-  if (!file) {
-    return undefined;
-  }
-
-  return {
-    blob: file,
-    name: file.name,
-    type: file.type || 'application/octet-stream',
-  };
+export async function saveReportOffline(report: Omit<PendingReport, 'id' | 'createdAt'>): Promise<number> {
+  return (await db()).add('reports', { ...report, createdAt: Date.now() });
 }
 
-export function attachmentToFile(
-  attachment: PendingAttachment,
-  fallbackName: string,
-): File {
+export function toPendingAttachment(blob: Blob | null | undefined, fallbackName: string): PendingAttachment | undefined {
+  if (!blob) return undefined;
+  const name = blob instanceof File && blob.name ? blob.name : fallbackName;
+  return { blob, name, type: blob.type || 'application/octet-stream' };
+}
+
+export function attachmentToFile(attachment: PendingAttachment, fallbackName: string): File {
   const name = attachment.name || fallbackName;
   const type = attachment.type || attachment.blob.type || 'application/octet-stream';
   return new File([attachment.blob], name, { type });
 }
 
-export async function getPendingReports() {
-  const db = await dbPromise;
-  return db.getAllFromIndex('reports', 'by-date');
+export async function getPendingReports(): Promise<PendingReport[]> {
+  return (await db()).getAllFromIndex('reports', 'by-date');
 }
 
-export async function deleteReportOffline(id: number) {
-  const db = await dbPromise;
-  await db.delete('reports', id);
+export async function deleteReportOffline(id: number): Promise<void> {
+  await (await db()).delete('reports', id);
 }
