@@ -18,7 +18,7 @@ from Pukaar.services import replay as replay_svc
 from Pukaar.store.models import Directive
 from Pukaar.store.repo import ConflictError, get_repo
 from Pukaar.templates import hi
-from Pukaar.workflow.client import decide, get_workflow
+from Pukaar.workflow.client import RetryLater, decide, get_workflow
 
 router = APIRouter()
 
@@ -32,6 +32,16 @@ def me(principal: Principal = Depends(require_user)) -> dict:
     return {"username": principal.username, "role": principal.role, "village_ids": principal.village_ids}
 
 
+@router.post("/me/telegram-link")
+def telegram_link(principal: Principal = Depends(Allowed("approve"))) -> dict:
+    """One-time code (15 minutes) that links this officer's Telegram chat for approval links."""
+    from Pukaar.core.ids import track_code
+
+    code = track_code() + track_code()
+    get_repo().put_link_code(code, principal.username)
+    return {"code": code, "command": f"/start link_{code}", "expires_in_seconds": 900}
+
+
 @router.get("/health/deep")
 def health_deep(_: Principal = Depends(Allowed("health_deep"))) -> dict:
     llm = _llm()
@@ -42,15 +52,18 @@ def health_deep(_: Principal = Depends(Allowed("health_deep"))) -> dict:
 
 
 @router.get("/alerts")
-def list_alerts(status: str = "", village_id: str = "", _: Principal = Depends(Allowed("view_console"))) -> list[dict]:
-    return [views.alert(a) for a in get_repo().list_alerts(status=status or None, village_id=village_id or None)]
+def list_alerts(status: str = "", village_id: str = "", principal: Principal = Depends(Allowed("view_console"))) -> list[dict]:
+    alerts = get_repo().list_alerts(status=status or None, village_id=village_id or None)
+    if principal.role != "officer":
+        alerts = [a for a in alerts if a.village_id in principal.village_ids]
+    return [views.alert(a) for a in alerts]
 
 
 @router.get("/alerts/{alert_id}")
-def get_alert(alert_id: str, _: Principal = Depends(Allowed("view_console", "alert", "alert_id"))) -> dict:
+def get_alert(alert_id: str, principal: Principal = Depends(Allowed("view_console", "alert", "alert_id"))) -> dict:
     repo = get_repo()
     a = repo.get_alert(alert_id)
-    if a is None:
+    if a is None or (principal.role != "officer" and a.village_id not in principal.village_ids):
         raise HTTPException(404, "Alert not found")
     audit = [r for day in {a.created_at[:10], clock.iso(clock.now())[:10]} for r in repo.list_audit(day, f"alert:{a.id}")]
     return {"alert": views.alert(a), "deliveries": [d.model_dump() for d in repo.list_deliveries(a.id)],
@@ -68,6 +81,8 @@ def _decide(alert_id: str, decision: str, principal: Principal, reason: str = ""
     except ConflictError as exc:
         raise HTTPException(409, {"code": "late", "message_en": hi.LATE_REPLY_EN, "message_hi": hi.LATE_REPLY_HI,
                                   "reason": str(exc)}) from exc
+    except RetryLater as exc:
+        raise HTTPException(503, {"code": "retry", "reason": str(exc)}) from exc
     except KeyError:
         raise HTTPException(404, "Alert not found") from None
     return views.alert(a)
@@ -124,10 +139,13 @@ class ReplayBody(BaseModel):
 def replay_start(body: ReplayBody | None = None, _: Principal = Depends(Allowed("start_replay"))) -> dict:
     body = body or ReplayBody()
     try:
-        replay_svc.start(get_repo(), body.scenario)
+        st = replay_svc.start(get_repo(), body.scenario)
+    except PermissionError as exc:
+        raise HTTPException(403, {"code": "disabled", "reason": str(exc)}) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    worker.dispatch({"task": "replay", "speed_seconds_per_hour": max(0.0, min(body.speed_seconds_per_hour, 30.0))})
+    speed = max(0.0, min(body.speed_seconds_per_hour, replay_svc.max_speed(st.hours_total)))
+    worker.dispatch({"task": "replay", "speed_seconds_per_hour": speed})
     return replay_svc.status(get_repo())
 
 

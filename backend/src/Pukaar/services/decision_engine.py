@@ -94,7 +94,9 @@ def _escalate(repo: Repo, alert: Alert, village: Village, new_level: str, trace:
     from Pukaar.voice import polly
 
     text_hi, text_en = hi.fallback_alert(new_level, village.name_hi, village.name)
+    # token_version moves on: a link for the old level can no longer approve the new text.
     repo.update_alert(alert.id, level=new_level, decision_trace=trace, text_hi=text_hi, text_en=text_en,
+                      token_version=alert.token_version + 1,
                       reasoning_model="rule-fallback", audio_key=None,
                       reason_en=f"Escalated from {alert.level} before approval. Rules: {', '.join(trace['rules_fired'][:4])}.",
                       draft_check=DraftCheck(passed=False, reason="escalated before approval; fixed template for the new level"))
@@ -178,10 +180,36 @@ def recompute_village(
     repo.add_timeline(alert.id, "created", f"level {previous} -> {new_level}; rules: {', '.join(assessment.rules_fired)}")
     result.alert_id = alert.id
     if workflow is not None:
-        arn = workflow.start(alert)
-        if arn:
-            repo.update_alert(alert.id, execution_arn=arn)
+        start_workflow(repo, workflow, alert)
     return result
+
+
+def start_workflow(repo: Repo, workflow: WorkflowStarter, alert: Alert) -> bool:
+    """Start the approval execution; on failure the next sweep retries (restart_stuck)."""
+    try:
+        arn = workflow.start(alert)
+    except Exception as exc:
+        if "ExecutionAlreadyExists" in type(exc).__name__ or "ExecutionAlreadyExists" in str(exc):
+            return True
+        log(_LOG, "workflow start failed; will retry next sweep", 40, alert_id=alert.id, error=str(exc)[:300])
+        repo.add_timeline(alert.id, "start_failed", f"{type(exc).__name__}; retried by the next sweep")
+        return False
+    if arn:
+        repo.update_alert(alert.id, execution_arn=arn)
+    return True
+
+
+def restart_stuck(repo: Repo, workflow: WorkflowStarter, now: datetime, min_age_seconds: int = 120) -> list[str]:
+    """Alerts still drafting with no execution (start failed) get another start."""
+    restarted = []
+    for alert in repo.open_alerts():
+        if alert.status != "drafting" or alert.execution_arn:
+            continue
+        if (now - clock.parse(alert.created_at)).total_seconds() < min_age_seconds:
+            continue
+        if start_workflow(repo, workflow, alert):
+            restarted.append(alert.id)
+    return restarted
 
 
 def sweep_all(repo: Repo, *, now: datetime | None = None, fetch=None, workflow: WorkflowStarter | None = None) -> list[SweepResult]:
@@ -189,7 +217,11 @@ def sweep_all(repo: Repo, *, now: datetime | None = None, fetch=None, workflow: 
 
     now = now or clock.now()
     results = []
-    replay_active = repo.get_replay().active
+    from Pukaar.services.replay import is_running
+
+    replay_active = is_running(repo)
+    if workflow is not None:
+        restart_stuck(repo, workflow, now)
     for village in repo.list_villages():
         if replay_active:
             # Live data is still recorded, but the replay owns the levels until reset.

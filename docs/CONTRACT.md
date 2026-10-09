@@ -69,13 +69,16 @@ Event     {at, step, detail}          (alert timeline)
 GET  /health                 {status, mode: "aws"|"local", services{dynamodb,bedrock,polly,transcribe,telegram}, replay_active}
 GET  /health/deep            officer: one tiny model call
 GET  /me                     {username, role, village_ids}
+POST /me/telegram-link       officer: {} -> {code, command, expires_in_seconds}  (one-time; send the
+                             command to the bot to receive approval links in Telegram)
 POST /auth/dev-login         local only: {username} -> {token, username, role}
 GET  /villages               [Village]
 GET  /villages/{id}          {village, readings[<=96], alerts[], reports[], past_events[], nowcast|null}
                              nowcast = {likely_level, hours, text_en, text_hi}
 GET  /alerts?status=&village_id=   [Alert]
 GET  /alerts/{id}            {alert, deliveries[], timeline[Event], audit[Audit]}
-POST /alerts/{id}/approve    officer: {} -> Alert; 409 {detail{code,message_en,message_hi}} when late
+POST /alerts/{id}/approve    officer: {} -> Alert; 409 {detail{code,message_en,message_hi}} when late;
+                             503 {detail{code:"retry",reason}} when the workflow was briefly unreachable
 POST /alerts/{id}/decline    officer: {reason?} -> Alert; 409 as above
 GET  /approval/{token}       signed link: {alert, expires_at, valid}
 POST /approval/{token}       signed link: {decision: "approve"|"decline"} -> Alert; 409 when late or reused
@@ -89,7 +92,8 @@ GET  /directives?village_id= [Directive]
 POST /directives             officer: {village_id, type, note_en?} -> Directive
 POST /replay/start           officer: {speed_seconds_per_hour?: number} -> ReplayStatus
 POST /replay/reset           officer: {} -> ReplayStatus
-GET  /replay/status          {active, available, clock|null, hours_total, hours_done, source}
+GET  /replay/status          {active, stale, available[], scenario, title, title_hi, clock|null,
+                              hours_total, hours_done, source, started_at, updated_at}
 GET  /audit?date=&resource=  officer: [Audit]
 GET  /stats                  {villages_watched, alerts_sent, phones_acknowledged, reports_received,
                               alerts_by_status{}, levels{}}

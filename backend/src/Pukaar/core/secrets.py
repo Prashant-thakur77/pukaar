@@ -6,23 +6,33 @@ from __future__ import annotations
 
 import os
 import secrets as pysecrets
-from functools import lru_cache
 
 from Pukaar.core.config import get_settings
 
 _LOCAL_RANDOM: dict[str, str] = {}
 
 
-@lru_cache(maxsize=16)
+_CACHE: dict[str, tuple[float, str]] = {}
+_TTL_SECONDS = 300
+
+
 def _ssm(name: str) -> str | None:
+    """Successful reads are cached for 5 minutes; failures are never cached."""
+    import time
+
     import boto3
 
+    hit = _CACHE.get(name)
+    if hit and time.monotonic() - hit[0] < _TTL_SECONDS:
+        return hit[1]
     s = get_settings()
     try:
         resp = boto3.client("ssm", region_name=s.aws_region).get_parameter(Name=f"{s.ssm_prefix}/{name}", WithDecryption=True)
-        return resp["Parameter"]["Value"]
     except Exception:
         return None
+    value = resp["Parameter"]["Value"]
+    _CACHE[name] = (time.monotonic(), value)
+    return value
 
 
 def get_secret(name: str, *, generate_locally: bool = False) -> str | None:

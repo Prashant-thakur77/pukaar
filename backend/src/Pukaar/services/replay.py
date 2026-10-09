@@ -20,6 +20,22 @@ from Pukaar.store.repo import Repo
 
 _LOG = get_logger("replay")
 DEFAULT_SCENARIO = "himachal_2023_07"
+WORKER_BUDGET_SECONDS = 780  # the worker Lambda times out at 900 s
+STALE_AFTER_SECONDS = 300
+
+
+def max_speed(hours_total: int) -> float:
+    """Seconds per simulated hour that still fit the whole replay in one worker run."""
+    return WORKER_BUDGET_SECONDS / max(1, hours_total) * 0.8
+
+
+def is_running(repo: Repo) -> bool:
+    """Active and still making progress; a replay whose worker died stops owning the levels."""
+    st = repo.get_replay()
+    if not st.active:
+        return False
+    beat = st.updated_at or st.started_at
+    return beat is None or (clock.now() - clock.parse(beat)).total_seconds() < STALE_AFTER_SECONDS
 
 
 def status(repo: Repo) -> dict:
@@ -29,7 +45,7 @@ def status(repo: Repo) -> dict:
     if st.scenario and st.scenario in scenarios:
         sc = external_data.load_scenario(st.scenario)
         meta = {"title": sc.get("title"), "title_hi": sc.get("title_hi"), "sources": sc.get("sources")}
-    return {**st.model_dump(), "available": scenarios, **meta}
+    return {**st.model_dump(), "stale": st.active and not is_running(repo), "available": scenarios, **meta}
 
 
 def reset(repo: Repo) -> ReplayState:
@@ -42,14 +58,19 @@ def reset(repo: Repo) -> ReplayState:
 
 
 def start(repo: Repo, scenario: str = DEFAULT_SCENARIO) -> ReplayState:
+    from Pukaar.core.config import get_settings
+
+    if not get_settings().replay_enabled:
+        raise PermissionError("replay is disabled on this stack (ReplayEnabled=false)")
     if scenario not in external_data.list_scenarios():
         raise ValueError(f"unknown scenario {scenario}; run python -m Pukaar.scripts.fetch_replay")
     reset(repo)
     hours = external_data.replay_hours(scenario)
     for v in repo.list_villages():
         repo.update_village(v.id, replay=True)
+    now = clock.iso(clock.now())
     st = ReplayState(active=True, scenario=scenario, clock=clock.iso(hours[0]), hours_total=len(hours), hours_done=0,
-                     started_at=clock.iso(clock.now()), source=external_data.load_scenario(scenario).get("title"))
+                     started_at=now, updated_at=now, source=external_data.load_scenario(scenario).get("title"))
     repo.put_replay(st)
     return st
 
@@ -72,7 +93,7 @@ def run(repo: Repo, *, speed_seconds_per_hour: float = 2.0, workflow=None) -> Re
                 repo.put_reading(reading)
             recompute_village(repo, village, now=at, reading=reading, workflow=workflow,
                               window_prefix=f"replay-{st.scenario}-{current.started_at}", replay=True)
-        current.clock, current.hours_done = clock.iso(at), i + 1
+        current.clock, current.hours_done, current.updated_at = clock.iso(at), i + 1, clock.iso(clock.now())
         repo.put_replay(current)
         time.sleep(speed_seconds_per_hour)
     final = repo.get_replay()

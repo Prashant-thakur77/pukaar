@@ -155,17 +155,27 @@ class Steps:
         return {"alert_id": alert.id, "resent": resent}
 
     def step_failsafe(self, e: dict) -> dict:
+        """A broken workflow never means silence: critical or approved alerts go out
+        with the fixed template; anything else is put in front of the officers only."""
         alert = self.repo.get_alert(e.get("alert_id", ""))
         if alert is None:
             log(_LOG, "failsafe for unknown alert", 40, alert_id=e.get("alert_id"), error=e.get("error"))
             return {"alert_id": e.get("alert_id"), "sent": 0}
+        error = str(e.get("error"))[:200]
         try:
             text_hi, text_en = hi.fallback_alert(alert.level, alert.village_name_hi, alert.village_name)
-            alert = self.repo.update_alert(alert.id, status="failsafe", text_hi=text_hi, text_en=text_en,
-                                           reasoning_model="rule-fallback", task_token=None)
-            sent, _ = dispatch.deliver(self.repo, alert, action="failsafe")
-            self.repo.update_alert(alert.id, delivered_count=sent)
-            self.repo.add_timeline(alert.id, "failsafe", f"workflow error {str(e.get('error'))[:200]}; fixed template sent to {sent}")
+            broadcast = alert.level == "critical" or alert.approved
+            alert = self.repo.update_alert(alert.id, status="failsafe", text_hi=text_hi, text_en=text_en, task_token=None)
+            sent = 0
+            if broadcast:
+                sent, _ = dispatch.deliver(self.repo, alert, action="failsafe")
+                self.repo.update_alert(alert.id, delivered_count=sent)
+            for officer in self._officers(alert):
+                dispatch.notify_officer(self.repo, alert, officer,
+                                        f"{get_settings().web_url}/console?alert={alert.id}")
+            self.repo.add_timeline(alert.id, "failsafe",
+                                   f"workflow error {error}; " + (f"fixed template sent to {sent}" if broadcast
+                                                                   else "not critical and not approved: officers notified, nothing sent"))
             return {"alert_id": alert.id, "sent": sent}
         except Exception as exc:
             log(_LOG, "failsafe error", 40, alert_id=alert.id, error=str(exc)[:300])

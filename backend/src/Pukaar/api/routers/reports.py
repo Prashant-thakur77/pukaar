@@ -28,7 +28,8 @@ async def _read(upload: UploadFile | None) -> tuple[bytes, str] | None:
     if not data:
         return None
     if len(data) > MAX_UPLOAD_BYTES:
-        raise HTTPException(413, "File too large (8 MB max)")
+        raise HTTPException(413, {"code": "too_large", "message_en": "File too large (4 MB max). Send a shorter voice note or a smaller photo.",
+                                  "message_hi": "फ़ाइल बहुत बड़ी है (4 MB तक)। छोटा संदेश या छोटी फ़ोटो भेजें।"})
     return data, upload.content_type or "application/octet-stream"
 
 

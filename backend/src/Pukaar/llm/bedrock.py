@@ -9,7 +9,8 @@ retried once, whole, in the fallback region.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from typing import Any, Callable, TypeVar
 
 from botocore.config import Config
@@ -21,18 +22,14 @@ from Pukaar.core.log import get_logger, log, metric
 T = TypeVar("T", bound=BaseModel)
 _LOG = get_logger("llm")
 MAX_TURNS = 4
+# Whole-call budget (both regions together). Kept well under the workflow
+# Lambda timeout (120 s) and the API Lambda timeout (29 s) for API calls.
+BUDGET_SECONDS = {"draft": 60.0, "analyst": 22.0, "report": 45.0, "image": 50.0, "text": 20.0}
+_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="bedrock")
 _RETRYABLE_MARKERS = (
     "throttl", "toomanyrequests", "serviceunavailable", "internalserver", "modeltimeout",
     "readtimeout", "connecttimeout", "endpointconnection", "connectionerror", "timed out", "503", "500", "502",
 )
-
-
-@dataclass
-class LLMHealth:
-    enabled: bool
-    reachable: bool
-    model: str
-    detail: str
 
 
 class ReportFields(BaseModel):
@@ -84,7 +81,7 @@ class BedrockLLM:
             temperature=temperature,
             max_tokens=max_tokens,
             boto_client_config=Config(
-                retries={"mode": "adaptive", "max_attempts": 3},
+                retries={"mode": "adaptive", "max_attempts": 2},
                 read_timeout=timeout or self.settings.llm_timeout_seconds,
                 connect_timeout=5,
             ),
@@ -97,10 +94,17 @@ class BedrockLLM:
         if not self.settings.llm_enabled:
             return None
         regions = [self.settings.aws_region, self.settings.bedrock_fallback_region]
+        deadline = time.monotonic() + BUDGET_SECONDS.get(purpose, 30.0)
         for i, region in enumerate(regions):
             started = time.monotonic()
+            remaining = deadline - started
+            if remaining <= 1:
+                log(_LOG, "model budget spent", 30, purpose=purpose)
+                metric("ModelError", 1, Purpose=purpose)
+                return None
             try:
-                result = call(region)
+                # A stuck call is abandoned after the budget; the caller falls back.
+                result = _POOL.submit(call, region).result(timeout=remaining)
                 ms = round((time.monotonic() - started) * 1000)
                 log(_LOG, "model call ok", purpose=purpose, model=self.model_name, region=region, latency_ms=ms)
                 metric("ModelLatencyMs", ms, "Milliseconds", Purpose=purpose)
@@ -111,7 +115,7 @@ class BedrockLLM:
                 log(_LOG, "model call failed", 30, purpose=purpose, model=self.model_name, region=region,
                     error=f"{type(exc).__name__}: {str(exc)[:300]}")
                 metric("ModelError", 1, Purpose=purpose)
-                if i == 0 and _is_retryable(exc):
+                if i == 0 and (_is_retryable(exc) or isinstance(exc, FutureTimeout)):
                     continue
                 return None
         return None
@@ -136,21 +140,6 @@ class BedrockLLM:
         return self._run(purpose, call)
 
     # -- public API ----------------------------------------------------------
-    def health(self) -> LLMHealth:
-        """Cheap control-plane check; never calls a model."""
-        s = self.settings
-        if not s.llm_enabled:
-            return LLMHealth(False, False, self.model_name, "disabled")
-        try:
-            import boto3
-
-            client = boto3.client("bedrock", region_name=s.aws_region,
-                                  config=Config(connect_timeout=3, read_timeout=5, retries={"max_attempts": 1}))
-            client.list_inference_profiles(maxResults=1)
-            return LLMHealth(True, True, self.model_name, "ok")
-        except Exception as exc:
-            return LLMHealth(True, False, self.model_name, type(exc).__name__)
-
     def generate_text(self, system_prompt: str, user_prompt: str, max_tokens: int = 320) -> str | None:
         def call(region: str) -> str:
             agent = self._agent_factory(region, system_prompt, None, None, max_tokens, 0.2, None)

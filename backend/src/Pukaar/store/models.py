@@ -214,4 +214,5 @@ class ReplayState(BaseModel):
     hours_total: int = 0
     hours_done: int = 0
     started_at: str | None = None
+    updated_at: str | None = None
     source: str | None = None

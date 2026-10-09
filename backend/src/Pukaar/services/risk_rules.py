@@ -17,6 +17,7 @@ REPORT_ZERO_WEIGHT_HOURS = 3.0
 IMPACT_TYPES = {"road_cut", "bridge_unsafe", "homes_affected", "people_trapped", "landslide"}
 SEVERITY_TO_LEVEL = {"low": "normal", "medium": "watch", "high": "warning", "critical": "critical"}
 RULES_VERSION = "risk-rules-v1"
+AUTO_VERIFIED_CAP = "warning"
 
 
 def rain_level(rain_24h_mm: float | None) -> str:
@@ -130,6 +131,10 @@ def assess(
             continue  # only verified reports can raise a level
         # A faded report counts one level lower.
         effective = sev_level if weight >= 0.5 else LEVELS[max(0, level_rank(sev_level) - 1)]
+        if report.state == "verified_auto" and level_rank(effective) > level_rank(AUTO_VERIFIED_CAP):
+            # Code-verified (not officer-verified) reports can raise a village to warning at most.
+            effective = AUTO_VERIFIED_CAP
+            rules.append(f"auto_verified_capped:{report.id}")
         report_level = _max(report_level, effective)
         if report.report_type in IMPACT_TYPES:
             impact_verified = True

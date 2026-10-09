@@ -46,6 +46,8 @@ class Settings:
     hydromet_timeout_seconds: float
     alerts_per_village_per_day: int
     cors_origins: tuple[str, ...]
+    cognito_user_pool_id: str
+    cognito_client_id: str
 
     @property
     def is_local(self) -> bool:
@@ -82,4 +84,6 @@ def get_settings() -> Settings:
         hydromet_timeout_seconds=float(os.environ.get("PUKAAR_HYDROMET_TIMEOUT_SECONDS", "12")),
         alerts_per_village_per_day=int(os.environ.get("PUKAAR_ALERTS_PER_VILLAGE_PER_DAY", "6")),
         cors_origins=tuple(o.strip() for o in cors.split(",") if o.strip()),
+        cognito_user_pool_id=os.environ.get("PUKAAR_COGNITO_USER_POOL_ID", ""),
+        cognito_client_id=os.environ.get("PUKAAR_COGNITO_CLIENT_ID", ""),
     )
