@@ -123,3 +123,19 @@ def test_unknown_report_is_never_lost_when_processing_fails(repo, frozen):
 def test_step_unknown_alert_raises_for_failsafe_routing(repo):
     with pytest.raises(Exception):
         steps(repo).handle({"step": "draft", "alert_id": "missing"})
+
+
+def test_one_audit_row_per_channel_per_delivery_round(repo, frozen, workflow):
+    s, a, _ = drafted_and_asked(repo)
+    decide(repo, workflow, a.id, "approved", "officer1")
+    s.handle({"step": "deliver", "alert_id": a.id})
+    rows = [r for r in repo.list_audit("2026-07-01", f"alert:{a.id}") if r.action == "deliver"]
+    assert len(rows) == 1  # two stub recipients, one decision
+
+
+def test_dev_link_has_its_own_audited_action():
+    from Pukaar.policy.guard import Principal, evaluate
+
+    assert evaluate(Principal("officer1", "officer"), "dev_link", "alert", "a").allowed
+    d = evaluate(Principal("p", "pradhan", ["thunag"]), "dev_link", "alert", "a")
+    assert not d.allowed and "demo approval link" in d.reason

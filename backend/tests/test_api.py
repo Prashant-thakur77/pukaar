@@ -151,3 +151,10 @@ def test_broken_link_is_invalid_not_late(client):
 
 def test_health_names_the_workflow_engine(client):
     assert client.get("/health").json()["workflow"].startswith("local runner")
+
+
+def test_undo_clears_verified_by(client):
+    h = token(client, "officer1")
+    rid = client.post("/reports", data={"village_id": "janjehli", "text": "sadak band"}).json()["report"]["id"]
+    assert client.patch(f"/reports/{rid}/state", json={"state": "verified"}, headers=h).json()["verified_by"] == "officer1"
+    assert client.patch(f"/reports/{rid}/state", json={"state": "unverified"}, headers=h).json()["verified_by"] is None

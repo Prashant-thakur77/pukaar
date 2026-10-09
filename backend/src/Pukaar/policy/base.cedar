@@ -11,7 +11,7 @@ permit (
     Pukaar::Action::"view_console", Pukaar::Action::"approve", Pukaar::Action::"decline",
     Pukaar::Action::"view_reports", Pukaar::Action::"set_report_state", Pukaar::Action::"issue_directive",
     Pukaar::Action::"start_replay", Pukaar::Action::"read_audit", Pukaar::Action::"ask_analyst",
-    Pukaar::Action::"health_deep"
+    Pukaar::Action::"health_deep", Pukaar::Action::"dev_link"
   ],
   resource
 );

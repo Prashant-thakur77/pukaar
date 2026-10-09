@@ -47,6 +47,7 @@ def deliver(repo: Repo, alert: Alert, *, action: str = "deliver", recall: bool =
             log(_LOG, "audio unavailable; sending text", 30, alert_id=alert.id, error=str(exc)[:200])
 
     sent = failed = 0
+    decisions: dict[str, object] = {}  # one policy decision (and audit row) per channel per round
     for r in recipients:
         prior = existing.get(r.id)
         if recall:
@@ -57,7 +58,9 @@ def deliver(repo: Repo, alert: Alert, *, action: str = "deliver", recall: bool =
         channel = _channel(r, alert)
         ctx = {"approved": alert.approved, "level": alert.level, "replay": alert.replay, "channel": channel,
                "all_officers_timed_out": alert.status == "auto_sent_unapproved"}
-        decision = authorize(SYSTEM, action, "alert", alert.id, ctx, repo=repo)
+        if channel not in decisions:
+            decisions[channel] = authorize(SYSTEM, action, "alert", alert.id, ctx, repo=repo)
+        decision = decisions[channel]
         guard = check_send(alert.village_id, alert.level, alert.id) if decision.allowed else None
         attempts = (prior.attempts if prior else 0) + 1
         if not decision.allowed or (guard is not None and not guard.accepted):

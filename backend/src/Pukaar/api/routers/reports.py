@@ -85,8 +85,11 @@ def set_state(report_id: str, body: StateChange,
     r = repo.get_report(report_id)
     if r is None:
         raise HTTPException(404, "Report not found")
-    fields = {"state": body.state, "previous_state": r.state, "verified_by": principal.username
-              if body.state in VERIFIED_STATES and r.state not in VERIFIED_STATES else r.verified_by}
+    fields: dict = {"state": body.state, "previous_state": r.state}
+    if body.state in VERIFIED_STATES and r.state not in VERIFIED_STATES:
+        fields["verified_by"] = principal.username
+    elif body.state not in VERIFIED_STATES:
+        fields["verified_by"] = None  # undo clears who verified it
     if body.state in {"actioned", "resolved"} and not r.acted_at:
         fields["acted_at"] = clock.iso(clock.now())
     updated = repo.update_report(report_id, **fields)

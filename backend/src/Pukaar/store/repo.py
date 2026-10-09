@@ -233,10 +233,11 @@ class Repo:
         key = self._report_key(report_id)
         if key is None:
             raise KeyError(report_id)
-        remove: list[str] = []
+        remove = [k for k, v in fields.items() if v is None]
+        sets = {k: v for k, v in fields.items() if v is not None}
         if "state" in fields and fields["state"] not in {"received", "transcribing", "unverified"}:
-            remove = ["gsi1pk", "gsi1sk"]
-        return _model(Report, self._update(*key, fields, remove=remove))
+            remove += ["gsi1pk", "gsi1sk"]
+        return _model(Report, self._update(*key, sets, remove=remove))
 
     def report_by_track(self, code: str) -> Report | None:
         ref = self._get(f"TRACK#{code}", "META")

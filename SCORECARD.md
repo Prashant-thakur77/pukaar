@@ -13,7 +13,10 @@ come from independent reviewer agents, not from the builder.
 
 | Date | Idea and impact | Built on AWS | Design and usability | Execution | Demo readiness | Notes |
 |---|---|---|---|---|---|---|
+| 2026-10-09, pass 2 (local, not deployed) | 8 | 6 | 7.5 | 7 | 7 | Remaining: deploy; slower replay with a finished state; offline report should show its tracking code after sync; hide officer controls from pradhans; one audit row per delivery; align chip copy with DEMO.md. |
 | 2026-10-09, pass 1 (local, not deployed) | 8 | 6 | 7 | 6 | 6 | Five changes asked: show AWS in the demo, fix audit links and hide reads, fix the banner year and stale cards, make the fallback read as working with a "why this level" view, fix the map loop and add a local approval-link button. |
+
+| 2026-10-09 | Whole product, judge pass 2 | 3 | 4 | 2 | 4 | 5 | 4 | 4 | 26 | All 16 DEMO.md steps run locally with no console errors; Cedar deny audited; late and invalid links correct; offline queue sends. AWS depth stays 2 until deployed. |
 
 ## Loop decisions
 
@@ -24,6 +27,11 @@ come from independent reviewer agents, not from the builder.
   their own 400 page, `/health` names the workflow engine, a local-only
   route returns the officer's one-tap link for demos. Front-end part: see the
   next commit.
+
+- Judge pass 2: backend part fixed (one deliver audit row per channel,
+  `dev_link` as its own audited action, undo clears `verified_by`, default
+  replay pace 4 s per data hour); front-end part in the next commit.
+  Deploying is the human's step (PROGRESS.md "Needs human").
 
 ## Debt
 
