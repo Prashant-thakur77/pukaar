@@ -1,5 +1,6 @@
-"""Telegram webhook: /start <village id> registers a recipient; /start officer_<username>
-links an officer's chat; the "मिल गया" button records an acknowledgement."""
+"""Telegram webhook: /start <village id> registers a recipient; /start link_<code>
+links an officer's chat using a one-time code from the signed-in console
+(POST /me/telegram-link); the "मिल गया" button records an acknowledgement."""
 
 from __future__ import annotations
 
@@ -41,10 +42,13 @@ async def webhook(request: Request, x_telegram_bot_api_secret_token: str = Heade
     if not text.startswith("/start") or not chat_id:
         return {"ok": True}
     arg = text.split(maxsplit=1)[1].strip().lower() if " " in text else ""
-    if arg.startswith("officer_"):
-        username = arg[len("officer_"):]
-        if any(username in (v.officers or []) for v in repo.list_villages()):
+    if arg.startswith("link_"):
+        username = repo.consume_link_code(arg[len("link_"):].upper())
+        if username is None:
+            telegram.send_text(chat_id, "Pukaar: this link code is unknown or expired. Make a new one in the console.")
+        else:
             repo.put_officer_chat(username, chat_id)
+            log(_LOG, "officer chat linked", officer=username)
             telegram.send_text(chat_id, f"Pukaar: approval links for {username} will come to this chat.")
         return {"ok": True}
     village = repo.get_village(arg) if arg else None

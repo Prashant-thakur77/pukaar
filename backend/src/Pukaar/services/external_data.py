@@ -54,6 +54,8 @@ def _reading(village: Village, at: datetime, hourly: list[tuple[str, float]], da
 
 def fetch_live(village: Village, at: datetime | None = None) -> Reading:
     s = get_settings()
+    if not s.hydromet_enabled:
+        raise RuntimeError("live hydromet fetch disabled (PUKAAR_HYDROMET_ENABLED=false)")
     at = at or clock.now()
     with httpx.Client(timeout=s.hydromet_timeout_seconds) as client:
         rain = client.get(

@@ -185,6 +185,9 @@ Resources:
           # The API cannot reference its own HTTP API (cycle); it derives the URL
           # from the request when it needs one.
           PUKAAR_API_URL: ""
+          # The API verifies Cognito ID tokens itself (JWKS), on public routes too.
+          PUKAAR_COGNITO_USER_POOL_ID: !Ref UserPool
+          PUKAAR_COGNITO_CLIENT_ID: !Ref UserPoolClient
           AWS_LWA_PORT: "8080"
           AWS_LWA_READINESS_CHECK_PATH: /health
       Policies:
@@ -265,8 +268,14 @@ Resources:
           OnFailure: { Type: SQS, Destination: !GetAtt SweepDLQ.Arn }
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref Table }
-        - S3ReadPolicy: { BucketName: !Ref Bucket }
+        # Escalating an alert awaiting approval re-records its audio.
+        - S3CrudPolicy: { BucketName: !Ref Bucket }
         - Statement:
+            - Sid: Polly
+              Effect: Allow
+              Action: polly:SynthesizeSpeech
+              # SynthesizeSpeech only scopes to lexicons; Pukaar uses none.
+              Resource: "*"
             - Sid: StartApproval
               Effect: Allow
               Action: states:StartExecution
@@ -283,7 +292,9 @@ Resources:
       PackageType: Image
       FunctionName: !Sub pukaar-workflow-${Stage}
       MemorySize: 1024
-      Timeout: 30
+      # Drafting has a 60 s model budget plus Polly; 120 s keeps a slow model
+      # from timing out the step (a timeout would route to Failsafe).
+      Timeout: 120
       ImageConfig: { Command: [Pukaar.handlers.workflow.handler] }
       LoggingConfig: { LogGroup: !Ref WorkflowLogGroup }
       Environment:

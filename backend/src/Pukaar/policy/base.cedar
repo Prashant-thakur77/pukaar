@@ -44,12 +44,13 @@ permit (
 when { context.level == "critical" && context.all_officers_timed_out == true };
 
 @id("system-failsafe")
-@desc("When the workflow itself fails, the system sends the fixed safety template so a broken pipeline never means silence.")
+@desc("When the workflow fails on a critical or already-approved alert, the system sends the fixed safety template so a broken pipeline never means silence.")
 permit (
   principal is Pukaar::System,
   action == Pukaar::Action::"failsafe",
   resource is Pukaar::Alert
-);
+)
+when { context.level == "critical" || context.approved == true };
 
 @id("agent-read-only-tools")
 @desc("Model agents may call only read-only tools from the allowlist.")

@@ -9,14 +9,13 @@ from Pukaar.api import views
 from Pukaar.api.auth import DEV_USERS, dev_token
 from Pukaar.core.config import get_settings
 from Pukaar.delivery import dispatch, telegram
-from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.services import replay as replay_svc
 from Pukaar.services import storage
 from Pukaar.services.reports import track_steps
 from Pukaar.store.repo import ConflictError, get_repo
 from Pukaar.templates import hi
 from Pukaar.workflow import tokens
-from Pukaar.workflow.client import decide, get_workflow
+from Pukaar.workflow.client import RetryLater, decide, get_workflow
 
 router = APIRouter()
 
@@ -30,13 +29,13 @@ def health() -> dict:
         db = "ok"
     except Exception as exc:
         db = f"unreachable: {type(exc).__name__}"
-    llm = BedrockLLM().health() if s.llm_enabled else None
     return {
         "status": "ok" if db == "ok" else "degraded",
         "mode": s.mode,
         "services": {
             "dynamodb": db if not s.is_local else "local mock",
-            "bedrock": ("ok" if llm.reachable else f"unreachable ({llm.detail})") if llm else "disabled: rule fallback in use",
+            # No model call on a public route; officers can run /health/deep.
+            "bedrock": "configured (checked by /health/deep)" if s.llm_enabled else "disabled: rule fallback in use",
             "polly": "aws" if not s.is_local else "unavailable locally: text only",
             "transcribe": "aws" if not s.is_local else "unavailable locally: audio kept, text needed",
             "telegram": "configured" if telegram.configured() else "not configured: stub channel",
@@ -168,6 +167,8 @@ def approval_decide(token: str, body: LinkDecision) -> dict:
                    f"{t.subject} (link)", token_version=t.version)
     except ConflictError as exc:
         raise _late(str(exc)) from exc
+    except RetryLater as exc:
+        raise HTTPException(503, {"code": "retry", "reason": str(exc)}) from exc
     except KeyError:
         raise HTTPException(404, "Alert not found") from None
     return views.alert(a)

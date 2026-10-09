@@ -12,7 +12,8 @@ import boto3
 
 from Pukaar.core.config import get_settings
 
-MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+# Lambda takes at most 6 MB per request and multipart arrives base64-encoded.
+MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 
 
 @lru_cache(maxsize=1)

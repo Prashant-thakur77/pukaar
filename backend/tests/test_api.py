@@ -122,3 +122,23 @@ def test_ask_pukaar_returns_chart_from_tool_data(client):
 
 def test_telegram_webhook_rejects_wrong_secret(client):
     assert client.post("/telegram/webhook", json={}, headers={"X-Telegram-Bot-Api-Secret-Token": "nope"}).status_code == 403
+
+
+def test_pradhan_sees_only_own_village_alerts(client):
+    from Pukaar.core.ids import new_id
+    from Pukaar.store.models import Alert
+    from Pukaar.store.repo import get_repo
+
+    a = Alert(id=new_id("alr"), village_id="gohar", village_name="Gohar", village_name_hi="गोहर", level="watch",
+              status="closed", created_at="2026-01-01T00:00:00Z", updated_at="2026-01-01T00:00:00Z")
+    get_repo().put_alert(a)
+    h = token(client, "pradhan_thunag")
+    assert all(x["village_id"] == "thunag" for x in client.get("/alerts", headers=h).json())
+    assert client.get(f"/alerts/{a.id}", headers=h).status_code == 404
+    assert client.get(f"/alerts/{a.id}", headers=token(client, "officer1")).status_code == 200
+
+
+def test_officer_gets_a_one_time_telegram_link_code(client):
+    out = client.post("/me/telegram-link", headers=token(client, "officer1")).json()
+    assert out["command"] == f"/start link_{out['code']}"
+    assert client.post("/me/telegram-link", headers=token(client, "pradhan_thunag")).status_code == 403

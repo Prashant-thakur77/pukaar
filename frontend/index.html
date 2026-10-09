@@ -2,17 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="alternate icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="mask-icon" href="/favicon.svg" color="#2563eb">
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#2563eb" />
-    <link rel="apple-touch-icon" href="/favicon.svg" sizes="192x192" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pukaar</title>
-    <meta name="description" content="Offline-first flood early-warning system">
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="theme-color" content="#0b1026" />
+    <title>Pukaar पुकार · flood warnings for Himalayan villages</title>
+    <meta name="description" content="The call that reaches the village before the river does. नदी से पहले गाँव तक पहुँचने वाली पुकार।" />
+    <script>
+      try {
+        var t = localStorage.getItem('pukaar.theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
   </head>
   <body>
+    <noscript>Pukaar needs JavaScript. In an emergency call 112. आपातकाल में 112 पर कॉल करें।</noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

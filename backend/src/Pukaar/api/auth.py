@@ -1,15 +1,16 @@
 """Who is calling.
 
-AWS mode: API Gateway's Cognito JWT authorizer has already checked the token;
-the Lambda Web Adapter passes the request context (with the claims) in the
-x-amzn-request-context header. Local mode: short-lived HS256 dev tokens from
-POST /auth/dev-login for the seeded demo users.
+AWS mode: the API verifies the Cognito ID token itself (signature against the
+pool's JWKS, issuer, audience = app client, token_use = id). API Gateway's JWT
+authorizer checks it too on protected routes, but public routes have no
+authorizer, so no request header is trusted on its own. Local mode:
+short-lived HS256 dev tokens from POST /auth/dev-login for the demo users.
 """
 
 from __future__ import annotations
 
-import json
 import time
+from functools import lru_cache
 
 import jwt
 from fastapi import Depends, HTTPException, Request
@@ -44,25 +45,39 @@ def _from_claims(claims: dict) -> Principal | None:
     return Principal(str(claims.get("cognito:username") or claims.get("username") or claims.get("sub")), role, villages)
 
 
-def current_principal(request: Request) -> Principal | None:
+@lru_cache(maxsize=1)
+def _jwks() -> jwt.PyJWKClient:
     s = get_settings()
-    if s.is_local:
-        header = request.headers.get("authorization", "")
-        if not header.lower().startswith("bearer "):
-            return None
+    return jwt.PyJWKClient(f"https://cognito-idp.{s.aws_region}.amazonaws.com/{s.cognito_user_pool_id}/.well-known/jwks.json",
+                           cache_keys=True, lifespan=3600)
+
+
+def verify_cognito(token: str) -> dict | None:
+    s = get_settings()
+    if not (s.cognito_user_pool_id and s.cognito_client_id):
+        return None
+    try:
+        key = _jwks().get_signing_key_from_jwt(token).key
+        claims = jwt.decode(token, key, algorithms=["RS256"], audience=s.cognito_client_id,
+                            issuer=f"https://cognito-idp.{s.aws_region}.amazonaws.com/{s.cognito_user_pool_id}")
+    except jwt.PyJWTError:
+        return None
+    return claims if claims.get("token_use") == "id" else None
+
+
+def current_principal(request: Request) -> Principal | None:
+    header = request.headers.get("authorization", "")
+    if not header.lower().startswith("bearer "):
+        return None
+    token = header[7:].strip()
+    if get_settings().is_local:
         try:
-            data = jwt.decode(header[7:], get_secret("link_secret", generate_locally=True) or "", algorithms=["HS256"])
+            data = jwt.decode(token, get_secret("link_secret", generate_locally=True) or "", algorithms=["HS256"])
         except jwt.PyJWTError:
             return None
         return Principal(data["sub"], data["role"], list(data.get("village_ids", [])))
-    raw = request.headers.get("x-amzn-request-context")
-    if not raw:
-        return None
-    try:
-        claims = json.loads(raw)["authorizer"]["jwt"]["claims"]
-    except (ValueError, KeyError, TypeError):
-        return None
-    return _from_claims(claims)
+    claims = verify_cognito(token)
+    return _from_claims(claims) if claims else None
 
 
 def require_user(request: Request) -> Principal:

@@ -1,0 +1,211 @@
+/*
+ * Pukaar design tokens.
+ * Base: a calm night-valley slate/indigo with mist neutrals. Warm marigold is
+ * the "call" accent. Colour is reserved for risk: four levels, each always
+ * shown with an icon and a word (Hindi + English), never colour alone.
+ * Level hues differ in lightness as well as hue so they separate under
+ * deuteranopia/protanopia: normal = teal-green (mid), watch = yellow (light),
+ * warning = orange (mid), critical = crimson (dark).
+ */
+
+:root {
+  color-scheme: light;
+
+  /* type */
+  --font-body: 'Inter Variable', 'Noto Sans Devanagari Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-hi: 'Noto Sans Devanagari Variable', 'Noto Sans Devanagari', 'Mangal', 'Inter Variable', sans-serif;
+  --font-display: 'Bebas Neue', 'Noto Sans Devanagari Variable', Impact, 'Arial Narrow', sans-serif;
+
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: 1.75rem;
+  --fs-3xl: clamp(2rem, 4vw + 1rem, 3rem);
+  --fs-4xl: clamp(2.75rem, 6vw + 1rem, 5.5rem);
+  --fs-hero: clamp(4.5rem, 16vw, 12rem);
+  --lh-tight: 1.05;
+  --lh-body: 1.55;
+  --lh-hi: 1.6;
+  --tracking-eyebrow: 0.24em;
+
+  /* spacing (4 px grid) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 128px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --maxw: 1320px;
+
+  /* radius */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-xl: 30px;
+  --r-pill: 999px;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-std: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-1: 150ms;
+  --dur-2: 300ms;
+  --dur-3: 450ms;
+
+  /* tap target */
+  --tap: 44px;
+  --tap-xl: 64px;
+
+  /* night valley: used for the poster hero in both themes */
+  --night-0: #070b1d;
+  --night-1: #0b1026;
+  --night-2: #131a3a;
+  --night-3: #1e2852;
+  --night-4: #2f3c74;
+  --night-5: #4a5aa0;
+  --night-ink: #eef1fb;
+  --night-ink-2: #b8c0de;
+
+  --marigold: #f5a524;
+  --marigold-2: #ffc35c;
+  --marigold-ink: #1d1203;
+
+  /* ---- light theme (default) ---- */
+  --bg: #f3f5fb;
+  --bg-2: #e9edf7;
+  --surface: #ffffff;
+  --surface-2: #f6f7fc;
+  --surface-3: #eceff8;
+  --ink: #111833;
+  --ink-2: #39415f;
+  --ink-3: #565f80;
+  --line: #d8ddeb;
+  --line-2: #c3cadf;
+  --focus: #3b5bdb;
+
+  --accent: #f5a524;
+  --accent-ink: #1d1203;
+  --accent-text: #8a4b00;
+  --accent-soft: #fff1d6;
+
+  --sos: #b4122f;
+  --sos-soft: #ffe3e8;
+
+  --ok: #12704a;
+  --bad: #b4122f;
+
+  --lv-normal: #1f9468;
+  --lv-normal-ink: #0f6443;
+  --lv-normal-bg: #def5ea;
+  --lv-watch: #e7b800;
+  --lv-watch-ink: #6b5000;
+  --lv-watch-bg: #fff4c7;
+  --lv-warning: #ef6a1c;
+  --lv-warning-ink: #9a3a00;
+  --lv-warning-bg: #ffe6d5;
+  --lv-critical: #c8173f;
+  --lv-critical-ink: #9c0d2f;
+  --lv-critical-bg: #ffdfe6;
+
+  --sh-1: 0 1px 2px rgb(17 24 51 / 0.06), 0 1px 1px rgb(17 24 51 / 0.04);
+  --sh-2: 0 6px 18px -6px rgb(17 24 51 / 0.14), 0 2px 4px rgb(17 24 51 / 0.05);
+  --sh-3: 0 22px 48px -18px rgb(17 24 51 / 0.28), 0 4px 10px rgb(17 24 51 / 0.06);
+  --sh-accent: 0 10px 26px -10px rgb(245 165 36 / 0.7);
+  --glass: rgb(255 255 255 / 0.78);
+}
+
+/* Dark tokens: same block twice (explicit toggle, and system preference). */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #090d20;
+  --bg-2: #0d1229;
+  --surface: #121936;
+  --surface-2: #171f42;
+  --surface-3: #1d264d;
+  --ink: #eef1fb;
+  --ink-2: #c3cae6;
+  --ink-3: #98a1c4;
+  --line: #262f5a;
+  --line-2: #34407a;
+  --focus: #8fa8ff;
+  --accent: #f5a524;
+  --accent-ink: #1d1203;
+  --accent-text: #ffc35c;
+  --accent-soft: rgb(245 165 36 / 0.14);
+  --sos: #ff6b81;
+  --sos-soft: rgb(255 107 129 / 0.12);
+  --ok: #5fd6a4;
+  --bad: #ff7d92;
+  --lv-normal: #3cc68f;
+  --lv-normal-ink: #6fe0b1;
+  --lv-normal-bg: rgb(60 198 143 / 0.14);
+  --lv-watch: #f2cc35;
+  --lv-watch-ink: #f6d95c;
+  --lv-watch-bg: rgb(242 204 53 / 0.14);
+  --lv-warning: #ff8a3d;
+  --lv-warning-ink: #ffa369;
+  --lv-warning-bg: rgb(255 138 61 / 0.15);
+  --lv-critical: #ff4d6d;
+  --lv-critical-ink: #ff8098;
+  --lv-critical-bg: rgb(255 77 109 / 0.16);
+  --sh-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --sh-2: 0 8px 22px -8px rgb(0 0 0 / 0.6);
+  --sh-3: 0 26px 56px -20px rgb(0 0 0 / 0.75);
+  --glass: rgb(18 25 54 / 0.8);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #090d20;
+    --bg-2: #0d1229;
+    --surface: #121936;
+    --surface-2: #171f42;
+    --surface-3: #1d264d;
+    --ink: #eef1fb;
+    --ink-2: #c3cae6;
+    --ink-3: #98a1c4;
+    --line: #262f5a;
+    --line-2: #34407a;
+    --focus: #8fa8ff;
+    --accent: #f5a524;
+    --accent-ink: #1d1203;
+    --accent-text: #ffc35c;
+    --accent-soft: rgb(245 165 36 / 0.14);
+    --sos: #ff6b81;
+    --sos-soft: rgb(255 107 129 / 0.12);
+    --ok: #5fd6a4;
+    --bad: #ff7d92;
+    --lv-normal: #3cc68f;
+    --lv-normal-ink: #6fe0b1;
+    --lv-normal-bg: rgb(60 198 143 / 0.14);
+    --lv-watch: #f2cc35;
+    --lv-watch-ink: #f6d95c;
+    --lv-watch-bg: rgb(242 204 53 / 0.14);
+    --lv-warning: #ff8a3d;
+    --lv-warning-ink: #ffa369;
+    --lv-warning-bg: rgb(255 138 61 / 0.15);
+    --lv-critical: #ff4d6d;
+    --lv-critical-ink: #ff8098;
+    --lv-critical-bg: rgb(255 77 109 / 0.16);
+    --sh-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --sh-2: 0 8px 22px -8px rgb(0 0 0 / 0.6);
+    --sh-3: 0 26px 56px -20px rgb(0 0 0 / 0.75);
+    --glass: rgb(18 25 54 / 0.8);
+  }
+}
+
+/* Level helpers: set --lv, --lv-ink, --lv-bg on any element. */
+.lv-normal { --lv: var(--lv-normal); --lv-ink: var(--lv-normal-ink); --lv-bg: var(--lv-normal-bg); }
+.lv-watch { --lv: var(--lv-watch); --lv-ink: var(--lv-watch-ink); --lv-bg: var(--lv-watch-bg); }
+.lv-warning { --lv: var(--lv-warning); --lv-ink: var(--lv-warning-ink); --lv-bg: var(--lv-warning-bg); }
+.lv-critical { --lv: var(--lv-critical); --lv-ink: var(--lv-critical-ink); --lv-bg: var(--lv-critical-bg); }

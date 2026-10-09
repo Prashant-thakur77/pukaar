@@ -167,14 +167,17 @@ class Repo:
     # -- villages --------------------------------------------------------
     def put_village(self, v: Village) -> None:
         self._put({"pk": f"VILLAGE#{v.id}", "sk": "META", "kind": "village", **v.model_dump()})
+        # A small registry partition, so listing villages is one query, not a table scan.
+        self._put({"pk": "VILLAGES", "sk": v.id})
 
     def get_village(self, village_id: str) -> Village | None:
         item = self._get(f"VILLAGE#{village_id}", "META")
         return _model(Village, item) if item else None
 
     def list_villages(self) -> list[Village]:
-        items = self.t.scan(FilterExpression=Attr("kind").eq("village")).get("Items", [])
-        return sorted((_model(Village, i) for i in items), key=lambda v: v.name)
+        ids = [str(i["sk"]) for i in self._query("VILLAGES")]
+        villages = [v for v in (self.get_village(i) for i in ids) if v is not None]
+        return sorted(villages, key=lambda v: v.name)
 
     def update_village(self, village_id: str, **fields: Any) -> Village:
         remove = [k for k, v in fields.items() if v is None]
@@ -182,8 +185,9 @@ class Repo:
         return _model(Village, self._update(f"VILLAGE#{village_id}", "META", sets, remove=remove))
 
     # -- readings --------------------------------------------------------
-    def put_reading(self, r: Reading) -> None:
-        self._put({"pk": f"VILLAGE#{r.village_id}", "sk": f"READING#{r.at}", **r.model_dump()})
+    def put_reading(self, r: Reading, ttl_days: int = 30) -> None:
+        expires = int(clock.now().timestamp()) + ttl_days * 86400
+        self._put({"pk": f"VILLAGE#{r.village_id}", "sk": f"READING#{r.at}", "ttl": expires, **r.model_dump()})
 
     def list_readings(self, village_id: str, limit: int = 96) -> list[Reading]:
         items = self._query(f"VILLAGE#{village_id}", "READING#", newest_first=True, limit=limit)
@@ -249,6 +253,21 @@ class Repo:
     def list_recipients(self, village_id: str) -> list[Recipient]:
         return [_model(Recipient, i) for i in self._query(f"VILLAGE#{village_id}", "RECIPIENT#")]
 
+    def put_link_code(self, code: str, username: str, ttl_seconds: int = 900) -> None:
+        self._put({"pk": f"LINKCODE#{code}", "sk": "META", "username": username,
+                   "expires": int(clock.now().timestamp()) + ttl_seconds, "ttl": int(clock.now().timestamp()) + ttl_seconds})
+
+    def consume_link_code(self, code: str) -> str | None:
+        """One-time: delete the code and return its officer, or None if unknown or expired."""
+        try:
+            old = self.t.delete_item(Key={"pk": f"LINKCODE#{code}", "sk": "META"}, ReturnValues="ALL_OLD",
+                                     ConditionExpression=Attr("pk").exists()).get("Attributes")
+        except ClientError:
+            return None
+        if not old or int(old.get("expires", 0)) < clock.now().timestamp():
+            return None
+        return str(old["username"])
+
     def put_officer_chat(self, username: str, chat_id: str) -> None:
         self._put({"pk": f"OFFICER#{username}", "sk": "META", "chat_id": chat_id})
 
@@ -278,7 +297,8 @@ class Repo:
         if a.status in OPEN_ALERT_STATUSES:
             item.update(gsi1pk="OPEN#ALERT", gsi1sk=a.created_at)
         self._put(item, condition=Attr("pk").not_exists())
-        self._put({"pk": "ALERTLOG", "sk": f"{a.created_at}#{a.id}", "alert_id": a.id, "village_id": a.village_id})
+        self._put({"pk": "ALERTLOG", "sk": f"{a.created_at}#{a.id}", "alert_id": a.id, "village_id": a.village_id,
+                   "replay": a.replay})
 
     def get_alert(self, alert_id: str) -> Alert | None:
         item = self._get(f"ALERT#{alert_id}", "META")
@@ -305,7 +325,8 @@ class Repo:
         )
 
     def list_alerts(self, *, status: str | None = None, village_id: str | None = None, limit: int = 100) -> list[Alert]:
-        refs = self._query("ALERTLOG", newest_first=True, limit=500)
+        filtered = bool(status or village_id)
+        refs = self._query("ALERTLOG", newest_first=True, limit=500 if filtered else limit)
         if village_id:
             refs = [r for r in refs if r.get("village_id") == village_id]
         alerts = [a for a in (self.get_alert(r["alert_id"]) for r in refs) if a is not None]
@@ -319,7 +340,7 @@ class Repo:
 
     def alerts_on_day(self, village_id: str, day: str) -> int:
         refs = self._query("ALERTLOG", day)
-        return sum(1 for r in refs if r.get("village_id") == village_id)
+        return sum(1 for r in refs if r.get("village_id") == village_id and not r.get("replay"))
 
     # -- deliveries ------------------------------------------------------
     def put_delivery(self, d: Delivery) -> None:
