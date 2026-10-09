@@ -1,4 +1,8 @@
-# CODEMAP.md: Pukaar repository as found
+# CODEMAP.md: Pukaar repository
+
+> **Current layout: see section 10 at the end.** Sections 0-9 describe the
+> code as first found and after the preparation-run cleanup; they are kept as
+> history.
 
 This map describes the code as it was when the repository was first committed
 ("Starting codebase", fd64bc3). Later commits remove parts of it. PROGRESS.md
@@ -254,3 +258,38 @@ in PROGRESS.md and DECISIONS.md, the repository holds:
 - Folders gone: `android/`, `demo-artifacts/`, `notebooks/`, `datasets/`,
   `shared/`, `fixtures/`, `.design_pkg/`, `.rtk/`, old `docs/`,
   `docker-compose.yml`, `MAIN_IDEA.md`.
+
+## 10. After the build run (current)
+
+The backend was rebuilt into the PLAN.md 4a layout (DECISIONS.md "Build run").
+`backend/README.md` lists each folder. Flow:
+
+- **Sweep** (EventBridge Scheduler, 15 min) -> `handlers/sweep.py` ->
+  `services/decision_engine.sweep_all` -> per village: claim the 15-minute
+  window (conditional put) -> `external_data.fetch_live` (Open-Meteo) ->
+  `risk_rules.assess` -> `apply_hysteresis` -> on a rise: new `Alert`
+  (status drafting, versioned trace) -> Step Functions execution (name =
+  alert id); or escalate the alert that is still awaiting approval.
+- **Approval** (`infra/approval.asl.json` -> `handlers/workflow.py` ->
+  `workflow/steps.py`): draft (Strands drafting agent with read-only tools
+  behind the Cedar hook, draft checker, fixed Hindi template on failure,
+  Polly MP3 to S3) -> ask officer (task token + signed one-tap link, Telegram
+  if the officer linked a chat) -> approved: deliver (Cedar + action guard,
+  Telegram `sendAudio` with a "मिल गया" button, stub channel otherwise) ->
+  wait -> recall once -> close; declined: close; timeout: next officer, then
+  critical auto-send or expire; any error: failsafe.
+- **Reports**: `POST /reports` -> `services/reports.intake` (S3 media, keyword
+  reading, duplicate pin check, tracking code) -> worker Lambda
+  `process_report` (Transcribe batch, model structuring, photo description,
+  auto-verification) -> recompute the village.
+- **Replay**: `POST /replay/start` -> worker `replay` task walks the archived
+  hours in `data/replay/<scenario>/scenario.json` through the same
+  `recompute_village` with a simulated clock; everything is `replay: true`.
+- **Ask Pukaar**: `POST /ask/officer` -> `services/analyst.ask` (Strands
+  analyst agent over read-only tools; charts built by code from tool data;
+  keyword router without a model).
+
+Data: one DynamoDB table (`store/repo.py` docstring lists every key), S3 for
+audio, photos; `data/` holds villages, thresholds, replay scenarios, the
+back-test result and API probes. Routes: `docs/CONTRACT.md`. Tests:
+`backend/tests/` (all offline).
