@@ -1,11 +1,38 @@
 # PROGRESS.md
 
-## Status
+## Status (build run, 2026-10-09)
 
-Preparation run (before M0) done: code map, test baseline, fixes for code that
-did not import or build, cleanup groups (a)-(g). See CODEMAP.md (section 9 for
-the state after cleanup) and DECISIONS.md. Next: M0 step 3 onward (compare map
-with PLAN.md 5/5a beyond what is recorded, tool and AWS checks, probes, refs).
+Built and tested offline; **not deployed** (the cloud environment's AWS keys
+are rejected with `InvalidClientTokenId`). Everything that does not need a live
+AWS account is done for M0-M9 except the items under "Not done" below.
+
+| Milestone | State | Evidence |
+|---|---|---|
+| M0 understand, bootstrap | done | CODEMAP.md section 10, `data/probes/`, `docs/UI_NOTES.md` (EcoLafaek study, screenshots in `../refs/ui-study/`) |
+| M1 DynamoDB store | done (moto) | `store/repo.py`; tests run against moto |
+| M2 sweep | built, not deployed | `services/decision_engine.py`, `handlers/sweep.py`, Scheduler + DLQ in `infra/template.yaml`; thresholds from 1984-2024 history |
+| M3 approval | built, not deployed | `infra/approval.asl.json` (15 path tests), `workflow/steps.py`, single-use links, 409 on late replies |
+| M4 model swap | done offline | Strands + Bedrock (`llm/bedrock.py`), draft checker, fixed Hindi templates, rule fallback; no local model left (test) |
+| M5 voice to a phone | built, needs token | Polly MP3 to S3, Telegram `sendAudio` + "मिल गया", one re-send; stub channel without a token |
+| M6 reports | built | anonymous upload, Transcribe batch, keyword + model structuring, duplicate pins, auto-verification, tracking codes |
+| M7 UI | in progress | rebuilt front end (see SCORECARD) |
+| M8 roles | done offline | Cedar policies with @id/@desc, one `authorize()` on every route/step/tool, audit rows, Strands tool hook test |
+| M8b analyst, public pages | backend done | `POST /ask/officer` (agent + keyword router), `/public/overview`, `/track/{code}` |
+| M9 back-test, polish | done offline | `data/backtest.json`, `scripts/reset_demo`, alarms and dashboard in the template |
+| M10 docs | in progress | README, DEMO.md, docs/RESILIENCE.md, docs/DEPLOY.md |
+
+Tests: backend `cd backend && .venv/bin/python -m pytest -q` -> 113 passed
+(offline). Infra: `sam validate --lint -t infra/template.yaml` -> valid.
+
+## Not done (needs a live stack or the human)
+
+- Deploy (`make deploy`), Cognito demo users (`make seed`), the live
+  "Done when" checks and `make it` (real Step Functions executions).
+- Bedrock model access check (`python -m Pukaar.scripts.smoke_bedrock`).
+- Telegram bot token (`make secrets`), then a real phone test.
+- Amplify front-end deploy (`make deploy-web`).
+- AgentCore Runtime, spoken approval, grounded voice Q&A, safe-places map,
+  action-taken photos, CAP export (stretch).
 
 ## Test baseline (starting codebase, fd64bc3)
 
@@ -90,6 +117,22 @@ rewritten.
   installed in 25 s; both test suites pass in that clone.
 
 ## Needs human
+
+Build run additions (in order):
+1. Replace the cloud environment's `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
+   with a working key (the current one is rejected), or deploy from a laptop:
+   follow `docs/DEPLOY.md` (`make deploy`, `make secrets`, `make seed`,
+   `make deploy-web`, `make it`).
+2. Bedrock console: enable model access for Amazon Nova 2 Lite (and Nova Lite
+   as fallback) in us-east-1 and us-west-2; run `smoke_bedrock`.
+3. BotFather token for `make secrets`; then `/start thunag` from a phone, and
+   in the console "Get approval links on Telegram" for each officer.
+4. Native-speaker review of `templates/hi.py`, the keyword lists in
+   `services/report_structuring.py`, and the front-end Hindi strings.
+5. Verify village coordinates (all `coords_verified: false`), and confirm
+   Pandoh as the replacement for Syathi (DECISIONS.md).
+
+Earlier items:
 
 - AWS: the AWS CLI on the preparation machine had no credentials, so the
   `pukaar-cloud` IAM user was not created. Configure the CLI with an admin
