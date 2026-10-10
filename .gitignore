@@ -135,3 +135,6 @@ venv/
 *.pth
 *.ckpt
 *.h5
+
+# --- Video renders and caches (regenerable) ---
+video/.out/

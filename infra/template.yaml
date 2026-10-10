@@ -232,6 +232,10 @@ Resources:
       Events:
         # Everything needs a Cognito token unless listed below (docs/CONTRACT.md "Public routes").
         Proxy: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/{proxy+}", Method: ANY } }
+        # The browser's CORS preflight carries no token: without this route, ANY /{proxy+} sends it to the
+        # Cognito authorizer, which answers 401 and every signed-in call from the web app fails. FastAPI's
+        # CORS middleware answers it for the web origin only.
+        Preflight: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/{proxy+}", Method: OPTIONS, Auth: { Authorizer: NONE } } }
         Health: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /health, Method: GET, Auth: { Authorizer: NONE } } }
         Villages: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /villages, Method: GET, Auth: { Authorizer: NONE } } }
         Village: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/villages/{id}", Method: GET, Auth: { Authorizer: NONE } } }
