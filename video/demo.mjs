@@ -60,7 +60,8 @@ async function overlay(page, html, pos = "left") {
         borderRadius: "12px", padding: "18px 24px", font: "700 28px/1.25 Inter, sans-serif", maxWidth: "620px",
         opacity: "0", transform: "translateY(12px)", transition: "all 300ms cubic-bezier(0.16,1,0.3,1)",
       });
-      document.body.appendChild(d);
+      // on <html>, not <body>: the camera zoom transforms <body>, which would carry a fixed card off screen
+      document.documentElement.appendChild(d);
       requestAnimationFrame(() => requestAnimationFrame(() => Object.assign(d.style, { opacity: "1", transform: "none" })));
     },
     [html, pos],
@@ -197,9 +198,10 @@ export function scenes(f, live) {
         await h.page.evaluate(() => window.__turn.show(2));
         await h.chunk(1, 1, -0.1);
         await h.page.evaluate(() => window.__turn.show(3));
-        await h.chunk(1, 1, 0.9);
+        await h.chunk(1, 1, 0.6);
         await h.page.evaluate(() => window.__turn.show(4));
       },
+      tail: 1.1,
     },
     // ============================================================ the Gohar story, on the live landing page
     {
@@ -267,6 +269,7 @@ export function scenes(f, live) {
     // ============================================================ the officer approves
     {
       id: "approve",
+      chapter: "The officer approves",
       tag: "Officer console",
       screen: "The officer console signed in as a demo officer (Cognito): the pending Gohar critical alert with its Hindi draft, the rule-fallback label, then Approve and the confirmation.",
       lines: [
@@ -278,6 +281,9 @@ export function scenes(f, live) {
       async prepare(page) {
         await signIn(page, f);
         await openApp(page, f, "/console#approvals", () => page.locator(".pending-card").first().waitFor({ timeout: 60_000 }));
+        // the console lists the first pending cards and folds the rest behind "Show N more"
+        const more = page.getByRole("button", { name: /^Show \d+ more$/ });
+        if (await more.count()) await more.first().click();
         const card = page.locator(".pending-card", { hasText: "Gohar" }).first();
         await card.waitFor({ timeout: 30_000 });
         await card.evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + scrollY - 120));
@@ -304,6 +310,7 @@ export function scenes(f, live) {
     // ============================================================ the village hears it
     {
       id: "heard",
+      chapter: "The village hears",
       tag: "The village hears",
       screen: "The Gohar village page after approval: the alert delivered, the Listen button playing the real Polly (Kajal, hi-IN) MP3, the time-to-ear stopwatch and the deliveries.",
       audio: [{ line: 0, dt: 2.6, path: live.voice, gain_db: -3 }],
@@ -316,22 +323,31 @@ export function scenes(f, live) {
       async prepare(page) {
         await signIn(page, f);
         await openApp(page, f, "/village/gohar", () => page.locator(".alert-card").first().waitFor({ timeout: 60_000 }));
+        // the page fills in section by section; place nothing until the layout has stopped moving
+        await page.waitForLoadState("networkidle").catch(() => {});
+        // open the details once off camera, so the alert endpoint is warm when the scene opens them
+        const toggle = page.locator(".alert-card").first().locator("button[aria-expanded]");
+        await toggle.click();
+        await page.locator(".tte").waitFor({ timeout: 30_000 }).catch(() => {});
+        await toggle.click();
+        await page.waitForTimeout(2000);
         await page.locator(".alert-card").first().evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + scrollY - 140));
+        await page.waitForTimeout(500);
       },
       async run(h) {
         const card = h.page.locator(".alert-card").first();
-        await h.zoom(card.locator(".ac-text"), { scale: 1.45 });
-        await h.box(card.locator(".ac-text"), { dim: 0.15 });
-        await h.cue(1, 0);
+        await h.box(card, { dim: 0.2, pad: 8 });
+        await h.cue(1, -0.4);
         await h.unbox();
-        await h.unzoom(300);
-        await card.locator(".ac-row").evaluate((el) => window.__v.box(el, { dim: 0.15 }));
+        // open the details now, so the stopwatch has loaded by the time it is named
+        await card.locator("button[aria-expanded]").click();
+        await h.box(card.locator(".ac-row"), { dim: 0.2 });
         await h.cue(2, -0.3);
         await h.unbox();
-        await card.locator("button[aria-expanded]").click();
         await h.page.locator(".tte").waitFor({ timeout: 15_000 });
-        await h.page.waitForTimeout(300);
+        await h.page.waitForTimeout(500); // the details panel finishes opening before the camera moves
         await h.zoom(h.page.locator(".tte"), { scale: 1.3 });
+        await h.page.waitForTimeout(520); // boxes are placed from the settled transform, not mid-zoom
         await h.box(h.page.locator(".tte"), { dim: 0.15 });
         await h.cue(3, 0);
         await h.unbox();
@@ -354,7 +370,7 @@ export function scenes(f, live) {
         await page.waitForTimeout(800);
       },
       async run(h) {
-        const allow = h.page.locator(".data-table tbody tr", { hasText: "approve" }).filter({ hasNot: h.page.locator(".chip-bad") }).first();
+        const allow = h.page.locator(".data-table tbody tr:not(.row-deny)", { hasText: "officer1" }).filter({ hasText: /\bapprove\b/ }).first();
         const deny = h.page.locator(".data-table tbody tr.row-deny").first();
         await h.chunk(0, 1, -0.2);
         await h.box(allow, { dim: 0.2 });
@@ -379,9 +395,10 @@ export function scenes(f, live) {
         ),
       ],
       async run(h) {
-        await h.cue(1, 0);
+        await h.cue(1, -0.2);
         await h.page.evaluate(() => window.__phone.stat());
       },
+      tail: 1.4,
     },
     // ============================================================ architecture in 3D
     {
