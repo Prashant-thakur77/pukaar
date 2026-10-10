@@ -142,6 +142,23 @@ account.
 Infrastructure as code: [infra/template.yaml](infra/template.yaml) (AWS SAM),
 state machine [infra/approval.asl.json](infra/approval.asl.json).
 
+## Try it from your terminal (no sign-in)
+
+These call the live API on AWS (API Gateway -> Lambda -> DynamoDB):
+
+```bash
+API=https://362iqe4oae.execute-api.us-east-1.amazonaws.com
+
+curl -s $API/health                 # which AWS services the stack is using right now
+curl -s $API/public/overview        # village levels, counters, recent alerts with delivery status
+curl -s $API/villages/gohar         # one village: readings, alerts with Hindi text, nowcast, past events
+curl -s $API/replay/status          # whether an archived-flood replay is running (always labelled replay)
+curl -s -o /dev/null -w '%{http_code}\n' $API/me   # 401: officer routes need a Cognito token
+```
+
+Officer routes (approve, decline, start a replay, Ask Pukaar) need a Cognito
+sign-in; the demo accounts are in [DEMO.md](DEMO.md).
+
 ## Built versus planned
 
 | Piece | State |
