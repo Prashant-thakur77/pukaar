@@ -5,6 +5,7 @@ come from independent reviewer agents, not from the builder.
 
 | Date | Piece | Works | Safe | AWS depth | Usable | Honest | Demo | Code health | Total | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 2026-10-11 | Live stack, deploy pass (builder self-check after a fresh-eyes judge review; not an independent score) | 4 | 4 | 4 | 4 | 5 | 4 | 4 | 29 | Deployed `pukaar-dev` (us-east-1) and Amplify web app; `/health` on the live API: DynamoDB ok, Step Functions, Polly and Transcribe on AWS, `telegram: configured` (bot @PukaarRescuebot, webhook set). Checked live earlier: Cognito sign-in, replay starting real Step Functions executions, officer approval to delivered, Polly MP3 in S3. Fixed from the review: a finished replay no longer leaks into live levels (cleared by the sweep after 30 min), funnel says replay alerts never reach phones, all-clear panel with sweep time and headroom, village page no longer mixes 2023 and 2026. 129 backend and 37 front-end tests pass. Held back from 5: Bedrock model access still pending (drafts are the `rule-fallback` template). |
 | 2026-10-09 | Backend + infra, review 1 | 3 | 2 | 4 | 3 | 3 | 4 | 4 | 23 | 95 tests pass; `sam validate --lint` valid; no deployed stack. Blockers: failsafe could broadcast an unapproved warning after a model timeout; Telegram `/start officer_<name>` let anyone take over approval links. 16 more findings. |
 
 | 2026-10-09 | Web app, judge pass 1 (UI rubric) | 3 | 4 | 2 | 4 | 3 | 4 | 3 | 23 | Every DEMO.md step renders; bugs: map render loop, empty per-alert audit links, replay banner said 2025 during the 2023 replay, invalid link shown as "already decided". |
@@ -38,5 +39,7 @@ come from independent reviewer agents, not from the builder.
 - Concurrent recomputes of one village (sweep and a report at the same
   moment) write the village without a condition; two alerts can result.
   Low likelihood (15-minute sweeps); left with the score above.
-- "Works" cannot exceed 3 until the stack is deployed and the PLAN.md
-  "Done when" checks run live.
+- Bedrock model access is still pending on the live account (AWS support
+  case filed). Until it is granted, every live draft is the fixed Hindi
+  template labelled `rule-fallback`, and the model half of the PLAN.md
+  "Done when" checks has not run live.

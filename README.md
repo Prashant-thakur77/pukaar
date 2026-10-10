@@ -4,8 +4,9 @@
 
 Pukaar is a flood-warning loop for Himalayan villages, built on AWS. A
 15-minute sweep watches rain and river forecasts. Plain code sets a risk
-level. A Bedrock agent drafts a Hindi alert, and a district officer approves
-it with one tap. Villagers then hear the alert as a spoken message on their
+level. A Bedrock agent drafts a Hindi alert (on the live stack, until Bedrock
+model access is granted, the fixed Hindi template labelled `rule-fallback`),
+and a district officer approves it with one tap. Villagers then hear the alert as a spoken message on their
 phones, tap "मिल गया" (got it), and can report back by voice.
 
 Built for Environmental Hacks (WeMakeDevs x AWS), Heat and Water track.
@@ -55,7 +56,7 @@ Try it in two minutes: open the [live page](https://main.d15r7ktz99l46x.amplifya
 | Every 15 minutes | For five villages, read forecast rain (next 24 h) and river discharge (next days) | EventBridge Scheduler -> Lambda `sweep` |
 | A threshold is crossed | Code sets the level: IMD rain bands, each village's own 1984-2024 discharge percentiles, two-source agreement, verified reports; hysteresis on the way down | Lambda, DynamoDB (conditional writes, dedupe per 15-minute window) |
 | The level rises | An approval workflow starts, one per alert | Step Functions (Standard, `waitForTaskToken`) |
-| Drafting | A Strands agent reads the decision trace through read-only tools and fills a fixed Hindi template; a checker rejects any number or place not in the trace | Bedrock (Amazon Nova) via Strands Agents; Cedar hook on every tool call |
+| Drafting | A Strands agent reads the decision trace through read-only tools and fills a fixed Hindi template; a checker rejects any number or place not in the trace. The live stack currently uses the fixed Hindi template labelled `rule-fallback` until Bedrock model access is granted | Bedrock (Amazon Nova) via Strands Agents; Cedar hook on every tool call |
 | Voice | The Hindi text becomes speech | Polly (Kajal, hi-IN), MP3 in S3 |
 | Approval | The officer gets a signed one-tap link (30 min, single use) and a console entry; no answer moves to the next officer; a critical alert with no answer goes out unapproved and is flagged | Step Functions timeouts, Cognito, Cedar |
 | Delivery | Spoken alert plus text and a "मिल गया" button; one automatic re-send to anyone who has not acknowledged | Lambda, Telegram Bot API |
@@ -105,7 +106,7 @@ Every row is deployed in stack `pukaar-dev` (`us-east-1`) and defined in
 | **API Gateway HTTP API** | Every route | Cognito JWT authorizer on the catch-all route; an explicit short list of public routes (health, overview, report, acknowledgement, signed approval link, Telegram webhook); CORS limited to the web origin; stage throttling 20 req/s, burst 50 | `infra/template.yaml` (`HttpApi`) |
 | **Step Functions** (Standard) | One approval execution per alert: draft, ask officer, deliver, wait, re-send, close | `waitForTaskToken` callbacks with the timeout as a deploy parameter; `States.Timeout` moves to the next officer; `States.ALL` on every task goes to a failsafe; 2-hour execution limit; error-level logging; X-Ray | [infra/approval.asl.json](infra/approval.asl.json), `backend/src/Pukaar/workflow/steps.py` |
 | **DynamoDB** | All state in one table | On-demand, `pk`/`sk`, one sparse GSI used as the open-work queue, TTL, point-in-time recovery, conditional writes for sweep dedupe and single-use approval tokens; audit rows are append-only | `backend/src/Pukaar/store/repo.py` |
-| **Bedrock** (Amazon Nova 2 Lite, via Strands Agents) | Drafts the Hindi alert, structures reports, describes photos, answers officers ("Ask Pukaar") | Typed output, at most 4 turns, a fresh agent per call; whole-call retry in `us-west-2` on throttling, 5xx or timeouts; every tool call passes a Cedar hook; any failure returns `None` and the rule fallback runs | `backend/src/Pukaar/llm/bedrock.py`, `backend/src/Pukaar/llm/tools.py` |
+| **Bedrock** (Amazon Nova 2 Lite, via Strands Agents) | Drafts the Hindi alert, structures reports, describes photos, answers officers ("Ask Pukaar") | Typed output, at most 4 turns, a fresh agent per call; whole-call retry in `us-west-2` on throttling, 5xx or timeouts; every tool call passes a Cedar hook; any failure returns `None` and the rule fallback runs. The live stack currently runs on that fallback (fixed Hindi template, labelled `rule-fallback`) until Bedrock model access is granted | `backend/src/Pukaar/llm/bedrock.py`, `backend/src/Pukaar/llm/tools.py` |
 | **Polly** | Speaks every approved alert in Hindi | Voice Kajal, `hi-IN`, generative engine with a logged fallback to neural, MP3 stored in S3 under the alert id | `backend/src/Pukaar/voice/polly.py` |
 | **Transcribe** | Turns villager voice reports into text | `hi-IN` batch job; the audio stays in S3 next to the transcript, so a failed transcription never loses a report | `backend/src/Pukaar/voice/transcribe.py` |
 | **Cognito** | Officer and pradhan sign-in | User pool with groups `officer` and `pradhan` and a `village_ids` attribute; villagers need no account | `infra/template.yaml`, `scripts/seed_users.py` |
@@ -181,15 +182,15 @@ sign-in; the demo accounts are in [DEMO.md](DEMO.md).
 | Sweep, risk rules, hysteresis, dedupe | Built and tested offline |
 | Approval workflow (approve, decline, timeout, next officer, critical auto-send, failsafe) | Built; state machine path-tested offline |
 | Bedrock drafting with checker and rule fallback | Built; tested with a scripted model |
-| Polly voice, Telegram delivery, acknowledgement, re-send | Built; needs a bot token for a real phone |
+| Polly voice, Telegram delivery, acknowledgement, re-send | Built; Telegram is live on the deployed stack (below) |
 | Voice and photo reports, Transcribe, auto-verification, tracking | Built |
 | Cedar roles, audit log, agent tool guard | Built and tested |
 | Ask Pukaar analyst agent | Built (falls back to a keyword router without a model) |
 | Replay and back-test on archived data | Built ([data/backtest.json](data/backtest.json)) |
 | Web app: landing, live map, officer console, village, report, track, approve, impact | Built (see `frontend/`) |
 | Deployed stack on AWS | **Live** since 11 Oct 2026: stack `pukaar-dev`, web app on Amplify. Checked live: Cognito sign-in, a replay on AWS starting real Step Functions approval executions, an officer approval moving an alert to delivered, and Polly writing the Hindi MP3 to S3. Steps: [docs/DEPLOY.md](docs/DEPLOY.md) |
-| Bedrock on the live stack | Model access is being enabled; until then drafts go out from the fixed Hindi template and are labelled `rule-fallback` |
-| Telegram on the live stack | Waiting for a bot token; alerts use the stub channel until then |
+| Bedrock on the live stack | **Pending.** Account model access has not been granted yet (AWS support case filed). Until it is, every live draft is the fixed Hindi template, labelled `rule-fallback` in the console and the audit trail, and Ask Pukaar uses its keyword router |
+| Telegram on the live stack | **Live.** Bot [@PukaarRescuebot](https://t.me/PukaarRescuebot), webhook set; `/health` reports `telegram: configured`. Anyone who sends `/start <village id>` gets approved live alerts with the "मिल गया" button. Replay alerts never go to Telegram: they use the stub channel |
 | Spoken approval, grounded voice Q&A, safe-places map, AgentCore, CAP export | Planned (stretch) |
 
 ## What the back-test shows (and what it does not)
