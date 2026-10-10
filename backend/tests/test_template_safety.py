@@ -152,3 +152,16 @@ def test_sweep_schedule_does_not_retry_and_has_dlq():
     s = next(r for r in RES.values() if r["Type"] == "AWS::Scheduler::Schedule")["Properties"]["Target"]
     assert s["RetryPolicy"]["MaximumRetryAttempts"] == 0
     assert "DeadLetterConfig" in s
+
+
+def test_cors_preflight_skips_the_authorizer():
+    """The browser sends OPTIONS without a token; it must not meet the Cognito authorizer."""
+    events = [
+        e["Properties"]
+        for r in RES.values()
+        if r["Type"] == "AWS::Serverless::Function"
+        for e in (r["Properties"].get("Events") or {}).values()
+        if e.get("Type") == "HttpApi"
+    ]
+    pre = [e for e in events if e.get("Method") == "OPTIONS" and e.get("Path") == "/{proxy+}"]
+    assert pre and pre[0].get("Auth", {}).get("Authorizer") == "NONE"
