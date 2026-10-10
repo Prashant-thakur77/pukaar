@@ -1,7 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { ArrowUpRight, MapPin } from 'lucide-react';
 import { api } from '../api';
 import { AckFunnel } from '../components/AckFunnel';
+import { AllClear } from '../components/AllClear';
 import { AlertStatusChip, DeliveryChips, ReplayChip } from '../components/Chips';
 import { CountUp } from '../components/CountUp';
 import { LevelBadge, LevelIcon, LevelLegend } from '../components/Level';
@@ -15,12 +16,42 @@ import { levelRank } from '../lib/levels';
 import type { Counters } from '../types';
 
 const COUNTERS: (keyof Counters)[] = ['villages_watched', 'alerts_sent', 'phones_acknowledged', 'reports_received'];
+const DEMO_URL = 'https://github.com/Prashant-thakur77/pukaar/blob/main/DEMO.md';
+
+/** Two screenshots of the signed-in side, for visitors without a login. */
+function OfficerPreview() {
+  const { t } = useT();
+  const shots = [
+    { src: '/screens/officer-console.webp', key: 'live.officer.console' },
+    { src: '/screens/officer-audit.webp', key: 'live.officer.audit' },
+  ] as const;
+  return (
+    <section className="officer-preview card" aria-labelledby="officer-h">
+      <h2 id="officer-h" className="h-sec">
+        {t('live.officer.title')}
+      </h2>
+      <p className="muted">{t('live.officer.lead')}</p>
+      <div className="op-shots">
+        {shots.map((s) => (
+          <figure key={s.src} className="op-shot">
+            <img src={s.src} alt={t(s.key)} width={900} height={950} loading="lazy" decoding="async" />
+            <figcaption className="small muted">{t(s.key)}</figcaption>
+          </figure>
+        ))}
+      </div>
+      <a href={DEMO_URL} target="_blank" rel="noreferrer" className="btn btn-ghost">
+        {t('live.officer.demo')} <ArrowUpRight aria-hidden="true" />
+      </a>
+    </section>
+  );
+}
 
 export default function Live() {
   const { t, lang } = useT();
   const nav = useNavigate();
   const { data, error, loading, refresh, updatedAt } = usePoll(() => api.overview(), []);
   const villages = data ? [...data.villages].sort((a, b) => levelRank(b.level) - levelRank(a.level) || a.name.localeCompare(b.name)) : [];
+  const allClear = Boolean(data && !data.replay.active && data.villages.length > 0 && data.villages.every((v) => v.level === 'normal'));
 
   return (
     <div className="live wrap-wide">
@@ -95,6 +126,12 @@ export default function Live() {
             </section>
           </aside>
 
+          {allClear && (
+            <div className="live-clear">
+              <AllClear />
+            </div>
+          )}
+
           {data && (
             <div className="live-funnel">
               <AckFunnel alerts={data.recent_alerts} />
@@ -133,6 +170,10 @@ export default function Live() {
               </ul>
             )}
           </section>
+
+          <div className="live-officer">
+            <OfficerPreview />
+          </div>
         </div>
       )}
     </div>

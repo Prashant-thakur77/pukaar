@@ -245,15 +245,27 @@ function useNetworkWatch() {
 }
 
 export default function Shell() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const { lang } = useT();
   useNetworkWatch();
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
   useEffect(() => {
-    window.scrollTo({ top: 0 });
-  }, [pathname]);
+    // Links like /#story land on that section; everything else starts at the top.
+    const target = hash ? document.getElementById(hash.slice(1)) : null;
+    if (!target) {
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    target.scrollIntoView();
+    // Data arriving above the section can push it down; settle once more unless the reader scrolled.
+    const landed = window.scrollY;
+    const tm = setTimeout(() => {
+      if (window.scrollY === landed) target.scrollIntoView();
+    }, 900);
+    return () => clearTimeout(tm);
+  }, [pathname, hash]);
   const villager = pathname.startsWith('/report') || pathname.startsWith('/t/');
   return (
     <>

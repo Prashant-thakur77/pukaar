@@ -452,7 +452,7 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 
 /* ---------- live ---------- */
 .page-head { display: flex; justify-content: space-between; align-items: end; gap: var(--s-4); flex-wrap: wrap; padding: var(--s-6) 0 var(--s-5); }
-.live-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-areas: 'map side' 'fun side' 'vil side'; gap: var(--s-5); align-items: start; }
+.live-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-areas: 'map side' 'clr side' 'fun side' 'vil side' 'off off'; gap: var(--s-5); align-items: start; }
 .live-map { position: relative; grid-area: map; }
 .live-map .map-wrap { height: min(72vh, 720px); }
 .map-legend-float { position: absolute; left: 12px; bottom: 30px; z-index: 2; background: var(--glass); backdrop-filter: blur(8px); padding: 8px; border-radius: var(--r-md); box-shadow: var(--sh-2); max-width: calc(100% - 24px); }
@@ -926,7 +926,7 @@ select { appearance: none; padding-right: 44px; }
 }
 
 @media (max-width: 1080px) {
-  .live-grid { grid-template-columns: 1fr; grid-template-areas: 'map' 'fun' 'side' 'vil'; }
+  .live-grid { grid-template-columns: 1fr; grid-template-areas: 'map' 'clr' 'fun' 'side' 'vil' 'off'; }
   .live-map .map-wrap { height: 58vh; }
   .how-head, .fact-grid, .cta-grid { grid-template-columns: 1fr; gap: var(--s-5); }
   .steps { grid-template-columns: 1fr; }
@@ -1240,6 +1240,36 @@ button.map-key-item:hover { background: var(--surface-2); }
 .fn-rate { margin: var(--s-4) 0 0; padding-top: var(--s-3); border-top: 1px solid var(--line); font-weight: 700; }
 @media (max-width: 640px) { .fn-cols { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .fn-bar i { transition: none; } }
+
+/* Quiet season on the live page: last sweep, next sweep, headroom to the Watch line. */
+.live-clear { grid-area: clr; }
+.all-clear { border-left: 5px solid var(--lv-normal); }
+.all-clear .h-sec { margin-bottom: var(--s-2); }
+.clr-icon { color: var(--lv-normal); }
+.clr-lead { font-weight: 700; margin: 0; }
+.clr-sub { margin: var(--s-2) 0 var(--s-3); }
+.clr-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--s-3) var(--s-5); }
+.clr-row { display: grid; gap: 6px; padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.clr-name { font-weight: 700; color: inherit; text-decoration: none; }
+.clr-name:hover { text-decoration: underline; }
+.clr-meter { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'l v' 'b b'; column-gap: 10px; row-gap: 4px; align-items: baseline; }
+.clr-mlabel { grid-area: l; font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.clr-mval { grid-area: v; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; text-align: right; }
+.clr-bar { grid-area: b; height: 6px; border-radius: var(--r-pill); background: var(--line); overflow: hidden; }
+.clr-bar i { display: block; height: 100%; border-radius: inherit; background: var(--lv-normal); }
+.clr-links { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); margin-top: var(--s-4); }
+
+/* "What the officer sees": two lazy screenshots of the console and the audit trail. */
+.live-officer { grid-area: off; }
+.officer-preview { display: grid; gap: var(--s-3); justify-items: start; }
+.officer-preview .h-sec { margin: 0; }
+.op-shots { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); width: 100%; }
+.op-shot { margin: 0; display: grid; gap: 6px; }
+.op-shot img { width: 100%; height: auto; max-height: 420px; object-fit: cover; object-position: top; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2, var(--line)); }
+@media (max-width: 640px) { .op-shots { grid-template-columns: 1fr; } .op-shot img { max-height: 300px; } }
+.counter-clear { margin: var(--s-5) 0 0; font-weight: 700; }
+.counter-clear a { color: inherit; display: inline-flex; align-items: center; gap: 4px; min-height: var(--tap); }
+.counter-clear svg { width: 16px; height: 16px; }
 
 /* Wide tables become one card per row on phones; each cell shows its column name. */
 @media (max-width: 640px) {
