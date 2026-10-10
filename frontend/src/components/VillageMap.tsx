@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Map as MlMap, Marker } from 'maplibre-gl';
 import { dict, useT } from '../i18n';
 import { LEVEL_ICON, levelRank } from '../lib/levels';
+import { prefersReducedMotion } from '../hooks/useMotion';
 import type { Level } from '../types';
 
 export interface MapVillage {
@@ -35,6 +36,13 @@ const NO_POINTS: { lat: number; lon: number; label: string }[] = [];
 /** Below this width (or on compact maps) text labels collide, so markers get numbers and a key. */
 const NARROW_PX = 560;
 
+/** Mapzen Terrain Tiles, hosted by the AWS Open Data programme (public, no key). */
+const DEM_TILES = ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'];
+const DEM_ATTRIBUTION =
+  'Elevation: <a href="https://registry.opendata.aws/terrain-tiles/">Terrain Tiles on AWS</a> (<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">sources</a>)';
+const TERRAIN_EXAGGERATION = 1.5;
+const PITCH_3D = 60;
+
 const OSM_STYLE = {
   version: 8 as const,
   sources: {
@@ -45,9 +53,33 @@ const OSM_STYLE = {
       maxzoom: 19,
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
+    // Two DEM sources: MapLibre recommends separate ones for terrain and hillshade.
+    dem: { type: 'raster-dem' as const, tiles: DEM_TILES, encoding: 'terrarium' as const, tileSize: 256, maxzoom: 14, attribution: DEM_ATTRIBUTION },
+    shade: { type: 'raster-dem' as const, tiles: DEM_TILES, encoding: 'terrarium' as const, tileSize: 256, maxzoom: 14 },
   },
-  layers: [{ id: 'osm', type: 'raster' as const, source: 'osm' }],
+  layers: [
+    { id: 'osm', type: 'raster' as const, source: 'osm' },
+    {
+      id: 'hillshade',
+      type: 'hillshade' as const,
+      source: 'shade',
+      paint: { 'hillshade-exaggeration': 0.35, 'hillshade-shadow-color': '#1b2340' },
+    },
+  ],
+  sky: {
+    'sky-color': '#9cc3e6',
+    'horizon-color': '#e8eef6',
+    'fog-color': '#e8eef6',
+    'sky-horizon-blend': 0.6,
+    'horizon-fog-blend': 0.6,
+    'fog-ground-blend': 0.4,
+  },
 };
+
+/** 3D by default on wide screens only; phones and compact maps start flat. */
+function default3d(compact?: boolean): boolean {
+  return !compact && typeof window !== 'undefined' && window.innerWidth >= 768;
+}
 
 /** MapLibre + OSM raster. Markers are real buttons rendered through portals. */
 export function VillageMap({ villages, highlight = NO_IDS, points = NO_POINTS, onSelect, className = '', focus, compact, caption }: Props) {
@@ -62,6 +94,12 @@ export function VillageMap({ villages, highlight = NO_IDS, points = NO_POINTS, o
   const [failed, setFailed] = useState(false);
   const fitted = useRef('');
   const [tight, setTight] = useState(false);
+  const [is3d, setIs3d] = useState(() => default3d(compact));
+  // Read by the fit-to-villages camera move, which must not undo the tilt.
+  const is3dRef = useRef(is3d);
+  useEffect(() => {
+    is3dRef.current = is3d;
+  }, [is3d]);
   // Compact maps (Ask Pukaar) are too small for text labels at this zoom, too.
   const narrow = tight || Boolean(compact);
 
@@ -95,11 +133,9 @@ export function VillageMap({ villages, highlight = NO_IDS, points = NO_POINTS, o
           zoom: 8,
           attributionControl: { compact: true },
           cooperativeGestures: compact ?? false,
-          dragRotate: false,
-          pitchWithRotate: false,
+          maxPitch: 75,
         });
-        m.addControl(new ml.NavigationControl({ showCompass: false }), 'top-right');
-        m.touchZoomRotate.disableRotation();
+        m.addControl(new ml.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right');
         m.on('load', () => !cancelled && setReady(true));
         m.on('error', () => {
           /* tile errors are non-fatal; markers still show */
@@ -117,6 +153,14 @@ export function VillageMap({ villages, highlight = NO_IDS, points = NO_POINTS, o
       map.current = null;
     };
   }, [compact]);
+
+  // Terrain and camera pitch follow the 2D/3D switch.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready) return;
+    m.setTerrain(is3d ? { source: 'dem', exaggeration: TERRAIN_EXAGGERATION } : null);
+    m.easeTo({ pitch: is3d ? PITCH_3D : 0, bearing: is3d ? -15 : 0, duration: prefersReducedMotion() ? 0 : 900 });
+  }, [is3d, ready]);
 
   // Sync village markers.
   useEffect(() => {
@@ -162,7 +206,8 @@ export function VillageMap({ villages, highlight = NO_IDS, points = NO_POINTS, o
         pts.forEach((p) => b.extend(p));
         const narrow = (box.current?.clientWidth ?? 800) < 600;
         const padding = narrow ? { top: 40, bottom: 80, left: 30, right: 70 } : compact ? { top: 50, bottom: 60, left: 40, right: 110 } : { top: 70, bottom: 90, left: 70, right: 150 };
-        m.fitBounds(b, { padding, maxZoom: 11, duration: fitted.current ? 600 : 0 });
+        const tilt = is3dRef.current;
+        m.fitBounds(b, { padding, maxZoom: 11, pitch: tilt ? PITCH_3D : 0, bearing: tilt ? -15 : 0, duration: fitted.current && !prefersReducedMotion() ? 600 : 0 });
         fitted.current = key;
       }
     }
@@ -187,6 +232,18 @@ export function VillageMap({ villages, highlight = NO_IDS, points = NO_POINTS, o
     <div className={`map-wrap ${className}${narrow ? ' is-narrow' : ''}`}>
       <div ref={box} className="map" role="region" aria-label={caption ? `${t('map.label')} (${caption})` : t('map.label')} />
       {caption && <p className="map-caption">{caption}</p>}
+      {ready && (
+        <button
+          type="button"
+          className="map-3d"
+          aria-pressed={is3d}
+          onClick={() => setIs3d((v) => !v)}
+          title={t(is3d ? 'map.view2d' : 'map.view3d')}
+        >
+          {is3d ? '2D' : '3D'}
+          <span className="sr-only"> {t(is3d ? 'map.view2d' : 'map.view3d')}</span>
+        </button>
+      )}
       {!ready && !failed && <div className="map-skel skel" aria-hidden="true" />}
       {failed && (
         <div className="map-fail" role="status">

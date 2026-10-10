@@ -1185,3 +1185,39 @@ button.map-key-item:hover { background: var(--surface-2); }
 .chart .ref line { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 6 4; }
 .chart .ref text { fill: var(--ink); font-size: 12px; font-weight: 800; font-family: var(--font-body); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
 .chart-note { margin-top: -2px; }
+
+/* 2D / 3D terrain switch, under the zoom/compass controls. */
+.map-3d {
+  position: absolute;
+  top: 150px;
+  right: 10px;
+  z-index: 2;
+  min-width: var(--tap);
+  height: var(--tap);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: #fff;
+  color: #111833;
+  font: 700 var(--fs-sm) / 1 var(--font-body);
+  letter-spacing: 0.04em;
+  box-shadow: 0 0 0 2px rgb(0 0 0 / 10%);
+  cursor: pointer;
+}
+.map-3d:hover { background: #f2f2f2; }
+.map-3d:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.map-3d[aria-pressed='true'] { background: var(--marigold); color: var(--marigold-ink); }
+
+/* 3D hero: real terrain behind the hero text, faded in over the SVG valley. */
+.hero-3d { position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity 1.2s var(--ease-out); }
+.hero-3d.is-ready { opacity: 1; }
+.hero-3d canvas { display: block; width: 100% !important; height: 100% !important; }
+.hero-3d::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 38% 34% at 50% 46%, rgb(11 16 38 / 62%), rgb(11 16 38 / 18%) 70%, transparent);
+}
+.hero-terrain-note {
+  position: absolute; right: var(--gutter); bottom: var(--s-4); z-index: 1; max-width: 34ch; margin: 0;
+  font-size: var(--fs-xs); line-height: 1.4; text-align: right; color: rgb(238 241 251 / 72%);
+}
+@media (max-width: 640px) { .hero-terrain-note { left: var(--gutter); text-align: left; max-width: none; } }

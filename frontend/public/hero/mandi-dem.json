@@ -1,0 +1,14 @@
+{
+  "size": 192,
+  "min_m": 564,
+  "max_m": 3184,
+  "bbox": [
+    76.64062,
+    31.50363,
+    77.16797,
+    31.95216
+  ],
+  "width_km": 49.94,
+  "source": "Mapzen Terrain Tiles on AWS Open Data (terrarium, z11)",
+  "attribution": "https://github.com/tilezen/joerd/blob/master/docs/attribution.md"
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Mic, Radar, UserCheck, Volume2 } from 'lucide-react';
@@ -15,6 +15,21 @@ import { useT, type Key } from '../i18n';
 import { levelRank } from '../lib/levels';
 import { readSession, writeSession } from '../lib/session';
 import type { Counters } from '../types';
+
+const HeroScene = lazy(() => import('../components/HeroScene'));
+
+/** 3D only where it will run smoothly; everyone else keeps the SVG valley. */
+function canRun3d(): boolean {
+  if (typeof window === 'undefined' || prefersReducedMotion()) return false;
+  const nav = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number };
+  if (nav.connection?.saveData) return false;
+  if (nav.deviceMemory !== undefined && nav.deviceMemory < 4) return false;
+  try {
+    return !!document.createElement('canvas').getContext('webgl2');
+  } catch {
+    return false;
+  }
+}
 
 const COUNTERS: (keyof Counters)[] = ['villages_watched', 'alerts_sent', 'phones_acknowledged', 'reports_received'];
 
@@ -65,6 +80,9 @@ function Intro({ onDone }: { onDone: () => void }) {
 
 export default function Landing() {
   const { t, lang } = useT();
+  const [use3d] = useState(canRun3d);
+  const [scene3d, setScene3d] = useState(false);
+  const sceneReady = useCallback(() => setScene3d(true), []);
   const [intro, setIntro] = useState(() => !readSession('pukaar.intro') && !prefersReducedMotion());
   const { data, error } = usePoll(() => api.overview(), [], 30000);
   const reportUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/report`;
@@ -90,6 +108,11 @@ export default function Landing() {
 
       <section className={`hero${intro ? ' is-waiting' : ''}`} aria-labelledby="hero-title">
         <Valley />
+        {use3d && (
+          <Suspense fallback={null}>
+            <HeroScene onReady={sceneReady} />
+          </Suspense>
+        )}
         <div className="hero-inner">
           <p className="eyebrow eyebrow-night hero-eyebrow">{t('landing.eyebrow')}</p>
           <h1 id="hero-title" className="hero-mark">
@@ -153,6 +176,11 @@ export default function Landing() {
             <Call112 />
           </div>
         </div>
+        {scene3d && (
+          <p className="hero-terrain-note" lang={lang}>
+            {t('landing.terrain')}
+          </p>
+        )}
         <div className="hero-fade" aria-hidden="true" />
       </section>
 
