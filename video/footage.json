@@ -1,0 +1,17 @@
+{
+  "license": "Pexels License (https://www.pexels.com/license/): free to use, no attribution required",
+  "clips": [
+    { "name": "timelapse", "page": "https://www.pexels.com/video/mountain-timelapse-17791400/", "use": "opener: time-lapse of storm clouds rolling over forested Himalayan ridges" },
+    { "name": "rain", "page": "https://www.pexels.com/video/video-of-heavy-rainfall-from-roof-top-5091073/", "use": "heavy monsoon rain over houses on a wooded hillside" },
+    { "name": "river", "page": "https://www.pexels.com/video/rushing-flood-6182356/", "use": "swollen, muddy river in full flood; cropped in to keep the sluice gates out of frame", "zoom": 1.25, "y": 1 },
+    { "name": "valley", "page": "https://www.pexels.com/video/scenic-aerial-view-of-mountain-valley-village-33838656/", "use": "aerial: Himalayan valley with a river and a village on both banks" },
+    { "name": "village", "page": "https://www.pexels.com/video/scenic-aerial-view-of-mountain-village-32213666/", "use": "aerial: hill village, houses on a terraced green slope" },
+    { "name": "night", "page": "https://www.pexels.com/video/moon-behind-clouds-over-city-13208093/", "use": "night: moon behind clouds, lights of a hillside settlement below" },
+    { "name": "damage", "page": "https://www.pexels.com/video/aerial-view-of-rural-landscape-with-road-35542240/", "use": "aerial: fresh landslide scar beside a hill road (9 s)" },
+    { "name": "phone", "page": "https://www.pexels.com/video/a-woman-using-an-old-cell-phone-8102790/", "use": "hands on a simple keypad phone (hands only for the first ~7 s, then a profile)" },
+    { "name": "elder", "page": "https://www.pexels.com/video/man-talking-on-the-phone-6306260/", "use": "an older man calmly taking a phone call (6 s)", "from": 3 },
+    { "name": "forecast", "page": "https://www.pexels.com/video/view-from-satellite-on-earth-10409075/", "use": "satellite view of storm systems over Earth (stands in for a forecast)" },
+    { "name": "office", "page": "https://www.pexels.com/video/high-tech-control-room-with-traffic-monitoring-38779099/", "use": "control room: operators at desks under a wall of monitors and maps" },
+    { "name": "dawn", "page": "https://www.pexels.com/video/rishikesh-16232800/", "use": "close: morning light over Himalayan foothills, river and town below" }
+  ]
+}

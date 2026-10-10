@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Pukaar video cards</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+Devanagari:wght@500;700;900&display=block"
+      rel="stylesheet"
+    />
+    <style>
+      /* Pukaar's own tokens (frontend/src/theme.css), in the style of the reference trailer: paper, ink, a marker
+         highlight on the words that carry the meaning, hard-shadow cards, one ease and three durations. */
+      :root {
+        --night-0: #070b1d;
+        --night-2: #131a3a;
+        --night-ink: #eef1fb;
+        --night-ink-2: #b8c0de;
+        --paper: #f4efe6;
+        --ink: #141a33;
+        --ink-3: #5b6185;
+        --marigold: #f5a524;
+        --marigold-2: #ffc35c;
+        --crit: #e5484d;
+        --warn: #f76b15;
+        --watch: #f5a524;
+        --ok: #2f9e6e;
+        --ease: cubic-bezier(0.16, 1, 0.3, 1);
+        --display: "Bebas Neue", Impact, sans-serif;
+        --sans: "Inter", "Noto Sans Devanagari", system-ui, sans-serif;
+        --hi: "Noto Sans Devanagari", "Inter", sans-serif;
+        --mono: "JetBrains Mono", ui-monospace, monospace;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; }
+      body { font-family: var(--sans); color: var(--ink); background: var(--paper); }
+      body.night { background: radial-gradient(1400px 800px at 60% 20%, var(--night-2), var(--night-0) 70%); color: var(--night-ink); }
+      body.paper {
+        background-color: var(--paper);
+        background-image: linear-gradient(rgb(20 26 51 / 5%) 1px, transparent 1px),
+          linear-gradient(90deg, rgb(20 26 51 / 5%) 1px, transparent 1px);
+        background-size: 48px 48px;
+      }
+      .mode { display: none; position: absolute; inset: 0; }
+      .mode.on { display: block; }
+      /* entrances: a 12 px rise and a fade, 300 ms, one ease */
+      .in { opacity: 0; transform: translateY(12px); transition: opacity 300ms var(--ease), transform 300ms var(--ease); }
+      .in.shown { opacity: 1; transform: none; }
+      mark.hl {
+        color: inherit; padding: 0 0.12em; margin: 0 -0.04em;
+        background: linear-gradient(100deg, transparent 0.4%, var(--marigold) 1.5%, var(--marigold-2) 96%, transparent 99%) no-repeat 0 60% / 0% 78%;
+        transition: background-size 600ms var(--ease);
+        -webkit-box-decoration-break: clone; box-decoration-break: clone;
+      }
+      mark.hl.on { background-size: 100% 78%; }
+      body.night mark.hl { color: var(--marigold-ink, #1d1203); }
+      .eyebrow { font: 700 22px/1 var(--mono); letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-3); }
+      body.night .eyebrow { color: var(--night-ink-2); }
+
+      /* ------------------------------------------------------------ hook: kinetic type, one beat per caption chunk */
+      #hook { padding: 0 150px; display: none; }
+      #hook.on { display: flex; flex-direction: column; justify-content: center; gap: 26px; }
+      #hook .beat { font: 800 92px/1.08 var(--sans); letter-spacing: -0.025em; transition: opacity 450ms var(--ease), transform 450ms var(--ease); }
+      #hook .beat.old { opacity: 0.32; transform: scale(0.94) translateX(-4%); }
+      #hook .beat.gone { display: none; }
+      #hook .w { display: inline-block; opacity: 0; transform: translateY(40px) scale(1.06); transition: opacity 300ms var(--ease), transform 300ms var(--ease); margin-right: 0.24em; }
+      #hook .w.shown { opacity: 1; transform: none; }
+      #hook .brand { display: flex; align-items: baseline; gap: 40px; }
+      #hook .brand .that { font: 800 92px/1 var(--sans); }
+      #hook .brand .hi { font: 900 230px/1.1 var(--hi); color: var(--marigold); }
+      #hook .brand .en { font: 400 92px/1 var(--display); letter-spacing: 0.16em; }
+
+      /* ------------------------------------------------------------ turn: the wordmark, the one-liner, who it is for */
+      #turn .wrap { position: absolute; inset: 110px 150px 200px; display: grid; grid-template-columns: 1.05fr 1fr; gap: 90px; align-items: center; }
+      #turn .wm { display: flex; flex-direction: column; gap: 6px; }
+      #turn .wm .hi { font: 900 250px/1.05 var(--hi); color: var(--ink); }
+      #turn .wm .en { font: 400 70px/1 var(--display); letter-spacing: 0.3em; color: var(--ink-3); }
+      #turn .one { font: 800 64px/1.12 var(--sans); letter-spacing: -0.02em; margin: 0 0 40px; }
+      #turn .who { display: grid; gap: 20px; }
+      .tick { display: flex; align-items: center; gap: 22px; background: #fff; border: 3px solid var(--ink); box-shadow: 9px 9px 0 var(--ink); border-radius: 12px; padding: 20px 26px; font: 700 34px/1.2 var(--sans); }
+      .tick small { display: block; font: 500 24px/1.3 var(--sans); color: var(--ink-3); }
+      .tick .ic { flex: none; width: 58px; height: 58px; border-radius: 12px; background: var(--marigold); display: grid; place-items: center; }
+      .tick .ic svg { width: 34px; height: 34px; stroke: var(--ink); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+      /* ------------------------------------------------------------ terminal: real AWS CLI and curl output */
+      #term .stage { position: absolute; inset: 70px 110px 190px; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
+      #term .head { display: flex; align-items: baseline; justify-content: space-between; }
+      #term .head h2 { margin: 0; font: 800 54px/1 var(--sans); letter-spacing: -0.02em; }
+      #term .head .eyebrow { color: var(--ink-3); }
+      #term .win { flex: none; max-height: 640px; background: #0d1124; border: 3px solid var(--ink); box-shadow: 12px 12px 0 var(--ink); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+      #term .bar { height: 46px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 18px; background: #161b36; border-bottom: 1px solid #252c52; }
+      #term .bar i { width: 13px; height: 13px; border-radius: 50%; background: #39406a; }
+      #term .bar b { flex: 1; text-align: center; font: 500 18px/1 var(--mono); color: #8d95c0; margin-right: 70px; }
+      #term .screen { flex: 1; padding: 26px 34px 30px; font: 400 29px/1.5 var(--mono); color: #d6dbf5; white-space: pre-wrap; overflow: hidden; }
+      #term .l { min-height: 1.5em; border-radius: 5px; padding: 0 8px; margin: 0 -8px; transition: background 300ms var(--ease), opacity 300ms var(--ease); }
+      #term .l.cmd { color: var(--marigold-2); }
+      #term .l.cmd::before { content: "$ "; color: #6f78a8; }
+      #term .l.dim { opacity: 0.45; }
+      #term .l.hot { background: rgb(245 165 36 / 22%); box-shadow: inset 4px 0 0 var(--marigold); }
+      #term .l .ok { color: #6fdc9a; font-weight: 700; }
+      #term .stamp { font: 500 20px/1 var(--mono); color: var(--ink-3); }
+
+      /* ------------------------------------------------------------ close: the end card */
+      #close .wrap { position: absolute; inset: 0 0 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; text-align: center; }
+      #close .call { font: 800 76px/1.15 var(--sans); letter-spacing: -0.02em; max-width: 1500px; }
+      #close .wm { display: flex; align-items: baseline; gap: 34px; margin-top: 20px; }
+      #close .wm .hi { font: 900 190px/1.1 var(--hi); color: var(--marigold); }
+      #close .wm .en { font: 400 86px/1 var(--display); letter-spacing: 0.2em; }
+      #close .url { font: 700 46px/1 var(--mono); }
+      #close .meta { font: 600 26px/1.5 var(--mono); letter-spacing: 0.06em; color: var(--night-ink-2); }
+
+      /* ------------------------------------------------------------ gaps: the gap, then what Pukaar does about it */
+      #gaps .stage { position: absolute; inset: 60px 130px 190px; display: flex; flex-direction: column; justify-content: center; gap: 44px; }
+      #gaps h2 { margin: 0 0 10px; font: 800 76px/1.05 var(--sans); letter-spacing: -0.02em; }
+      #gaps .tick { font-size: 42px; padding: 26px 32px; } #gaps .tick small { font-size: 30px; } #gaps .tick .ic { width: 70px; height: 70px; } #gaps .tick .ic svg { width: 42px; height: 42px; }
+      #gaps .row { display: grid; grid-template-columns: 1fr 70px 1.25fr; align-items: center; gap: 20px; }
+      #gaps .gap { font: 600 40px/1.25 var(--sans); color: var(--ink-3); text-decoration: line-through; text-decoration-color: rgb(229 72 77 / 55%); text-decoration-thickness: 3px; }
+      #gaps .arrow { font: 800 44px/1 var(--sans); color: var(--marigold); text-align: center; }
+      #gaps .fix { composes: tick; }
+
+      /* ------------------------------------------------------------ phone: a live page in a phone frame */
+      #phone .stage { position: absolute; inset: 40px 0 170px; display: flex; align-items: center; justify-content: center; gap: 110px; }
+      #phone .dev { width: 430px; height: 860px; border-radius: 54px; background: #0d1124; padding: 20px; box-shadow: 14px 14px 0 var(--ink); border: 3px solid var(--ink); }
+      #phone iframe { width: 390px; height: 820px; border: 0; border-radius: 36px; background: #fff; display: block; }
+      #phone .side { width: 640px; display: flex; flex-direction: column; gap: 28px; }
+      #phone .big { font: 400 210px/0.9 var(--display); letter-spacing: 0.01em; }
+      #phone .big small { font: 400 90px/1 var(--display); margin-left: 12px; }
+      #phone .sub { font: 700 36px/1.25 var(--sans); }
+      #phone .src { font: 500 22px/1.4 var(--mono); color: var(--ink-3); }
+    </style>
+  </head>
+  <body>
+    <section class="mode" id="hook"></section>
+    <section class="mode" id="turn">
+      <div class="wrap">
+        <div class="wm in" id="turn-wm"><span class="hi">पुकार</span><span class="en">Pukaar</span></div>
+        <div>
+          <p class="one in" id="turn-one"></p>
+          <div class="who" id="turn-who"></div>
+        </div>
+      </div>
+    </section>
+    <section class="mode" id="term">
+      <div class="stage">
+        <div class="head in shown"><h2 id="term-title"></h2><span class="eyebrow" id="term-eyebrow"></span></div>
+        <div class="win in shown">
+          <div class="bar"><i></i><i></i><i></i><b id="term-bar"></b></div>
+          <div class="screen" id="term-screen"></div>
+        </div>
+        <span class="stamp" id="term-stamp"></span>
+      </div>
+    </section>
+    <section class="mode" id="gaps"><div class="stage" id="gaps-stage"></div></section>
+    <section class="mode" id="phone">
+      <div class="stage">
+        <div class="dev"><iframe id="phone-frame" title="phone"></iframe></div>
+        <div class="side">
+          <span class="eyebrow" id="phone-cap"></span>
+          <div class="in" id="phone-stat"><div class="big"><span id="phone-n">0</span><small>s</small></div>
+            <div class="sub">to a working report page<br />on <mark class="hl">slow 3G</mark></div>
+            <div class="src" id="phone-src"></div></div>
+        </div>
+      </div>
+    </section>
+    <section class="mode" id="close">
+      <div class="wrap">
+        <p class="call in" id="close-call"></p>
+        <div class="wm in" id="close-wm"><span class="hi">पुकार</span><span class="en">Pukaar</span></div>
+        <div class="url in" id="close-url"></div>
+        <div class="meta in" id="close-meta"></div>
+      </div>
+    </section>
+    <script>
+      const DATA = /*__DATA__*/ null;
+      const $ = (id) => document.getElementById(id);
+      const show = (el, ms = 0) => setTimeout(() => el.classList.add("shown"), ms);
+      const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      /** "plain [marked] plain": square brackets become a marker highlight, swept in after the text lands. */
+      const marked = (s) => esc(s).replace(/\[([^\]]+)\]/g, '<mark class="hl">$1</mark>');
+      const sweep = (root, ms = 250) => setTimeout(() => root.querySelectorAll("mark.hl").forEach((m) => m.classList.add("on")), ms);
+      const ICON = {
+        officer: '<svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+        pradhan: '<svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V10l7-5 7 5v11"/><path d="M10 21v-6h4v6"/></svg>',
+        villager: '<svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+        rule: '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/></svg>',
+        voice: '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg>',
+        heard: '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>',
+        wake: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+        report: '<svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 013 3v6a3 3 0 01-6 0V5a3 3 0 013-3z"/><path d="M19 11a7 7 0 01-14 0M12 18v4"/></svg>',
+      };
+
+      window.__prepare = async () => {
+        await document.fonts.ready;
+        const m = DATA.mode;
+        document.body.className = DATA.bg ?? (m === "hook" || m === "close" ? "night" : "paper");
+        $(m === "terminal" ? "term" : m).classList.add("on");
+        if (m === "hook") {
+          // beats: [{text: "words [marked]"} | {brand: true, pre: "That's"}]
+          window.__hook = {
+            beat(k) {
+              const root = $("hook");
+              const b = DATA.beats[k];
+              const prev = [...root.children];
+              prev.forEach((el, i) => el.classList.add(i < prev.length - 1 || b.brand ? "gone" : "old"));
+              if (b.brand) {
+                root.querySelectorAll(".beat").forEach((el) => el.classList.add("gone"));
+                const d = document.createElement("div");
+                d.className = "brand";
+                d.innerHTML = `<span class="w that">${esc(b.pre)}</span><span class="w hi">पुकार</span><span class="w en">Pukaar</span>`;
+                root.appendChild(d);
+                d.querySelectorAll(".w").forEach((w, i) => show(w, 40 + i * 180));
+                return;
+              }
+              const d = document.createElement("div");
+              d.className = "beat";
+              // words slam in one by one; a [marked] phrase stays one unit so its highlight sweeps once
+              const parts = b.text.match(/\[[^\]]+\]|[^\s\[]+/g);
+              d.innerHTML = parts.map((p) => `<span class="w">${marked(p)}</span>`).join("");
+              root.appendChild(d);
+              d.querySelectorAll(".w").forEach((w, i) => show(w, i * 70));
+              sweep(d, parts.length * 70 + 120);
+            },
+          };
+        }
+        if (m === "turn") {
+          $("turn-one").innerHTML = marked(DATA.one);
+          $("turn-who").innerHTML = DATA.who
+            .map((w) => `<div class="tick in"><span class="ic">${ICON[w.icon]}</span><span>${esc(w.big)}<small>${esc(w.small)}</small></span></div>`)
+            .join("");
+          window.__turn = {
+            show(k) {
+              if (k === 0) show($("turn-wm"));
+              if (k === 1) { show($("turn-one")); sweep($("turn-one"), 350); }
+              if (k >= 2) show($("turn-who").children[k - 2]);
+            },
+          };
+        }
+        if (m === "terminal") {
+          $("term-title").textContent = DATA.title;
+          $("term-eyebrow").textContent = DATA.eyebrow ?? "";
+          $("term-bar").textContent = DATA.bar ?? "";
+          $("term-stamp").textContent = DATA.stamp ?? "";
+          const scr = $("term-screen");
+          // lines: {cmd, out:[...]} groups; each group types its command, then prints its output
+          window.__term = {
+            async group(k) {
+              const g = DATA.groups[k];
+              scr.querySelectorAll(".l").forEach((l) => { l.classList.add("dim"); l.classList.remove("hot"); });
+              const c = document.createElement("div");
+              c.className = "l cmd";
+              scr.appendChild(c);
+              for (let i = 1; i <= g.cmd.length; i++) {
+                c.textContent = g.cmd.slice(0, i);
+                await new Promise((r) => setTimeout(r, 900 / g.cmd.length));
+              }
+              await new Promise((r) => setTimeout(r, 150));
+              for (const [i, o] of g.out.entries()) {
+                const d = document.createElement("div");
+                d.className = "l" + (g.hot?.includes(i) ? " hot" : "");
+                d.innerHTML = esc(o).replace(/\b(SUCCEEDED|ok|delivered|CREATE_COMPLETE|UPDATE_COMPLETE)\b/g, '<span class="ok">$1</span>');
+                scr.appendChild(d);
+              }
+              // keep the newest output in view
+              while (scr.scrollHeight > scr.clientHeight && scr.firstChild) scr.firstChild.remove();
+            },
+          };
+        }
+        if (m === "gaps") {
+          const st = $("gaps-stage");
+          st.innerHTML =
+            `<h2 class="in">${marked(DATA.title)}</h2>` +
+            DATA.rows
+              .map((r) => `<div class="row in"><span class="gap">${esc(r.gap)}</span><span class="arrow">→</span><div class="tick"><span class="ic">${ICON[r.icon]}</span><span>${esc(r.big)}<small>${esc(r.small)}</small></span></div></div>`)
+              .join("");
+          show(st.children[0], 50);
+          sweep(st.children[0], 400);
+          window.__gaps = { show: (k) => show(st.children[k + 1]) };
+        }
+        if (m === "phone") {
+          $("phone-cap").textContent = DATA.caption;
+          $("phone-src").textContent = DATA.source ?? "";
+          const fr = $("phone-frame");
+          await new Promise((res) => { fr.onload = res; fr.src = DATA.url; setTimeout(res, 15000); });
+          await new Promise((r) => setTimeout(r, 2500));
+          window.__phone = {
+            stat() {
+              const box = $("phone-stat");
+              show(box);
+              sweep(box, 500);
+              // count up over 0.8 s, ease-out, to the measured value
+              const n = $("phone-n"), goal = DATA.value, t0 = performance.now();
+              const step = (now) => {
+                const t = Math.min(1, (now - t0) / 800), e = 1 - Math.pow(1 - t, 3);
+                n.textContent = (goal * e).toFixed(1);
+                if (t < 1) requestAnimationFrame(step);
+              };
+              requestAnimationFrame(step);
+            },
+          };
+        }
+        if (m === "close") {
+          $("close-call").innerHTML = marked(DATA.call).replace(/\n/g, "<br>");
+          $("close-url").textContent = DATA.url;
+          $("close-meta").innerHTML = DATA.meta.map(esc).join("<br>");
+          window.__close = {
+            show(k) {
+              if (k === 0) { show($("close-call")); sweep($("close-call"), 300); }
+              if (k === 1) ["close-wm", "close-url", "close-meta"].forEach((id, i) => show($(id), i * 220));
+            },
+          };
+        }
+      };
+    </script>
+  </body>
+</html>
