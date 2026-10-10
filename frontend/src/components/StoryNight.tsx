@@ -146,7 +146,7 @@ export function StoryNight() {
   const clipW = x(shown) - PAD.l + 2;
 
   return (
-    <section className="story band" aria-labelledby="story-h">
+    <section id="story" className="story band" aria-labelledby="story-h">
       <div className="wrap story-grid">
         <div className="story-chart">
           <figure className="story-fig">

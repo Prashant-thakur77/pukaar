@@ -151,6 +151,7 @@ function ReplayBanner() {
 function ReplayBannerInner() {
   const { t, lang } = useT();
   const { data, refresh } = usePoll(() => api.replayStatus(), [], 15000);
+  const officer = useAuth((s) => s.user?.role === 'officer');
   // The console announces replay start/reset so the banner updates at once.
   useEffect(() => {
     const on = () => void refresh();
@@ -158,7 +159,8 @@ function ReplayBannerInner() {
     return () => window.removeEventListener(REPLAY_EVENT, on);
   }, [refresh]);
   // Finished: the worker stopped at the last hour, but replay data stays until Reset.
-  const finished = Boolean(data && !data.active && data.hours_total > 0 && data.hours_done >= data.hours_total);
+  // Only officers (who can press Reset) see it after it ends; the public sees it while it runs.
+  const finished = Boolean(officer && data && !data.active && data.hours_total > 0 && data.hours_done >= data.hours_total);
   if (!data || (!data.active && !data.stale && !finished)) return null;
   const pct = data.hours_total ? Math.round((data.hours_done / data.hours_total) * 100) : 0;
   const title = (lang === 'hi' ? data.title_hi || data.title : data.title || data.title_hi) || data.source || data.scenario || '—';
@@ -243,15 +245,27 @@ function useNetworkWatch() {
 }
 
 export default function Shell() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const { lang } = useT();
   useNetworkWatch();
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
   useEffect(() => {
-    window.scrollTo({ top: 0 });
-  }, [pathname]);
+    // Links like /#story land on that section; everything else starts at the top.
+    const target = hash ? document.getElementById(hash.slice(1)) : null;
+    if (!target) {
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    target.scrollIntoView();
+    // Data arriving above the section can push it down; settle once more unless the reader scrolled.
+    const landed = window.scrollY;
+    const tm = setTimeout(() => {
+      if (window.scrollY === landed) target.scrollIntoView();
+    }, 900);
+    return () => clearTimeout(tm);
+  }, [pathname, hash]);
   const villager = pathname.startsWith('/report') || pathname.startsWith('/t/');
   return (
     <>

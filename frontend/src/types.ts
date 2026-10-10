@@ -81,6 +81,8 @@ export interface Village extends SampleFlag {
   thresholds: Thresholds | null;
   latest_reading: Reading | null;
   open_alert_id: string | null;
+  /** True while a replay owns this village's level. */
+  replay?: boolean;
 }
 
 export interface DraftCheck {

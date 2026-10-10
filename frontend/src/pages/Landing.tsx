@@ -200,6 +200,14 @@ export default function Landing() {
             ))}
           </ul>
           {error && !data && <p className="counter-error">{t('landing.counters.error')}</p>}
+          {data && !data.replay.active && data.villages.length > 0 && raised.length === 0 && top?.level === 'normal' && (
+            <p className="counter-clear">
+              {t('landing.clear', { n: data.villages.length })}{' '}
+              <Link to="/live">
+                {t('landing.clear.link')} <ArrowRight aria-hidden="true" />
+              </Link>
+            </p>
+          )}
         </div>
       </section>
 

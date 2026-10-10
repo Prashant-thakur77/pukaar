@@ -112,7 +112,7 @@ function AlertCard({ alert, signedIn }: { alert: Alert; signedIn: boolean }) {
 /** IMD 24 h rain bands (mm) used by services/risk_rules.py. */
 const IMD_BANDS = { watch: 64.5, warning: 115.6, critical: 204.5 };
 
-function Evidence({ village, trace }: { village: Village; trace: DecisionTrace | null }) {
+function Evidence({ village, trace, traceReplay }: { village: Village; trace: DecisionTrace | null; traceReplay: boolean }) {
   const { t, lang, pick } = useT();
   const traceReading = trace?.evidence?.find((e) => e.kind === 'reading') ?? null;
   const reports = (trace?.evidence ?? []).filter((e): e is TraceEvidence => e.kind === 'report');
@@ -130,6 +130,10 @@ function Evidence({ village, trace }: { village: Village; trace: DecisionTrace |
   const sweepAt = useLatest ? lr!.at : traceReading?.at ? String(traceReading.at) : null;
   const sweepLabel = sweepAt ? t(useLatest ? 'village.ev.latest' : 'village.ev.alert', { t: fmtTime(sweepAt, lang) }) : null;
   const alertSweepAt = traceReading?.at ? String(traceReading.at) : typeof trace?.generated_at === 'string' ? trace.generated_at : null;
+  // The rules card explains the alert's sweep. Hide it when that sweep was a replay, or when a
+  // newer reading has come in and the village has since moved off the alert's level.
+  const traceStale = Boolean(lr && alertSweepAt && lr.at > alertSweepAt && trace?.level !== village.level);
+  const showRules = !traceReplay && !trace?.replay && !traceStale;
 
   return (
     <div className="evidence-grid">
@@ -175,7 +179,7 @@ function Evidence({ village, trace }: { village: Village; trace: DecisionTrace |
         )}
         {sweepLabel && <p className="ev-sweep small">{sweepLabel}</p>}
       </Reveal>
-      {trace?.rules_fired && trace.rules_fired.length > 0 && (
+      {showRules && trace?.rules_fired && trace.rules_fired.length > 0 && (
         <Reveal className="ev-card ev-wide" delay={140}>
           <header className="ev-head">
             <ListChecks aria-hidden="true" />
@@ -252,7 +256,8 @@ export default function VillagePage() {
   const v = data.village;
   const latestAlert = [...data.alerts].sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null;
   const trace = latestAlert?.decision_trace ?? null;
-  const readings = [...data.readings].sort((a, b) => a.at.localeCompare(b.at));
+  // One time axis: live readings, or only the replay's while a replay runs (never 2023 and 2026 together).
+  const readings = data.readings.filter((r) => Boolean(r.replay) === Boolean(v.replay)).sort((a, b) => a.at.localeCompare(b.at));
   // Hysteresis: a level rises at once but drops one step only after 3 calm sweeps.
   const traceHolds = Boolean(trace && latestAlert?.level === v.level && holdLine(trace, lang));
   const hold =
@@ -334,7 +339,7 @@ export default function VillagePage() {
             <GaugeIcon aria-hidden="true" /> {t('village.why')}
           </h2>
           <p className="muted">{t('village.why.lead')}</p>
-          <Evidence village={v} trace={trace} />
+          <Evidence village={v} trace={trace} traceReplay={Boolean(latestAlert?.replay)} />
         </section>
 
         {readings.length > 1 && (
