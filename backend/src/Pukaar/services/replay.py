@@ -22,6 +22,7 @@ _LOG = get_logger("replay")
 DEFAULT_SCENARIO = "himachal_2023_07"
 WORKER_BUDGET_SECONDS = 780  # the worker Lambda times out at 900 s
 STALE_AFTER_SECONDS = 300
+CLEAR_AFTER_SECONDS = 1800  # a finished replay stays on screen this long (long enough to record a demo)
 
 
 def max_speed(hours_total: int) -> float:
@@ -55,6 +56,24 @@ def reset(repo: Repo) -> ReplayState:
         repo.update_village(v.id, level="normal", calm_sweeps=0, level_since=None, open_alert_id=None, replay=False)
     log(_LOG, "replay reset", removed=removed)
     return repo.get_replay()
+
+
+def clear_if_finished(repo: Repo, now: datetime | None = None) -> bool:
+    """Reset a replay that finished (or whose worker died) more than 30 minutes ago.
+
+    Called by the live sweep: otherwise hysteresis walks down from the replay's
+    last level for hours and the "replay finished" banner never goes away.
+    """
+    st = repo.get_replay()
+    if not st.scenario or is_running(repo):
+        return False
+    beat = st.updated_at or st.started_at
+    now = now or clock.now()
+    if beat is not None and (now - clock.parse(beat)).total_seconds() < CLEAR_AFTER_SECONDS:
+        return False
+    log(_LOG, "clearing finished replay before the live sweep", scenario=st.scenario, updated_at=beat)
+    reset(repo)
+    return True
 
 
 def start(repo: Repo, scenario: str = DEFAULT_SCENARIO) -> ReplayState:
