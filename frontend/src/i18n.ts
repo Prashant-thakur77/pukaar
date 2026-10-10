@@ -122,6 +122,13 @@ export const dict = {
     hi: 'पृष्ठभूमि: मंडी के पास ब्यास घाटी, असली ऊँचाई के आँकड़ों से। पानी का स्तर केवल चित्रण है, पूर्वानुमान नहीं।',
     en: 'Background: the Beas valley near Mandi, from real elevation data. The water level is an illustration, not a forecast.',
   },
+  'spine.eyebrow': { hi: 'AWS पर बना', en: 'Built on AWS' },
+  'spine.title': { hi: 'पूर्वानुमान से फ़ोन तक की कड़ी', en: 'The chain from forecast to phone' },
+  'spine.note': {
+    hi: 'हर कड़ी AWS पर चलती है और सबूत के साथ दर्ज होती है। मॉडल न चले तो भी चेतावनी तय हिंदी साँचे से जाती है।',
+    en: 'Every link runs on AWS and leaves an audit row. If the model is down, the alert still goes out from the fixed Hindi template.',
+  },
+  'thesis.label': { hi: 'पुकार का सिद्धांत', en: "Pukaar's rule" },
   'story.heading': { hi: 'वह रात जब नदी उठी', en: 'The night the river rose' },
   'story.figTitle': {
     hi: 'गोहर, जुलाई 2023: अगले 24 घंटे की बारिश का पूर्वानुमान और हर घंटे का स्तर',

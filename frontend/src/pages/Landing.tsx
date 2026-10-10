@@ -8,6 +8,7 @@ import { CountUp } from '../components/CountUp';
 import { LevelBadge } from '../components/Level';
 import { QRCode } from '../components/QRCode';
 import { Reveal } from '../components/Reveal';
+import { Spine } from '../components/Spine';
 import { StoryNight } from '../components/StoryNight';
 import { Valley } from '../components/Valley';
 import { usePoll } from '../hooks/usePoll';
@@ -235,6 +236,8 @@ export default function Landing() {
         </div>
       </section>
 
+      <Spine />
+
       <section className="band band-night fact" aria-labelledby="fact-title">
         <div className="wrap fact-grid">
           <Reveal variant="slide">
@@ -256,6 +259,26 @@ export default function Landing() {
               </a>
             </p>
           </Reveal>
+        </div>
+      </section>
+
+      <section className="thesis band" aria-label={t('thesis.label')}>
+        <div className="wrap">
+          <p className="thesis-lines" lang={lang}>
+            {lang === 'hi' ? (
+              <>
+                <span>कोड तय करता है।</span>
+                <span>इंसान मंज़ूरी देता है।</span>
+                <span className="hl-line">गाँव सुनता है।</span>
+              </>
+            ) : (
+              <>
+                <span>Code decides.</span>
+                <span>A person approves.</span>
+                <span className="hl-line">The village hears.</span>
+              </>
+            )}
+          </p>
         </div>
       </section>
 
