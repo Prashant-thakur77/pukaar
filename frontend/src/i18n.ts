@@ -118,6 +118,8 @@ export const dict = {
   'map.current': { hi: 'अभी के स्तर', en: 'Current levels' },
   'map.answer': { hi: 'जवाब वाले स्तर', en: 'Levels from this answer' },
   'map.marker': { hi: '{name}: {level}', en: '{name}: {level}' },
+  'map.view3d': { hi: 'पहाड़ों का 3D दृश्य दिखाएँ', en: 'Show the 3D mountain view' },
+  'map.view2d': { hi: 'समतल नक्शा दिखाएँ', en: 'Show the flat map' },
   'map.unavailable': { hi: 'नक्शा लोड नहीं हुआ। नीचे सूची देखें।', en: 'The map could not load. Use the list below.' },
 
   // village

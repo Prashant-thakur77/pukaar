@@ -42,6 +42,11 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: { cacheName: 'osm-tiles', expiration: { maxEntries: 300, maxAgeSeconds: 7 * 24 * 3600 } },
           },
+          {
+            urlPattern: ({ url }) => url.hostname === 's3.amazonaws.com' && url.pathname.startsWith('/elevation-tiles-prod/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'dem-tiles', expiration: { maxEntries: 300, maxAgeSeconds: 30 * 24 * 3600 } },
+          },
         ],
       },
     }),
