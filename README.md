@@ -13,6 +13,9 @@ Built for Environmental Hacks (WeMakeDevs x AWS), Heat and Water track.
 
 **Live:** https://main.d15r7ktz99l46x.amplifyapp.com · deployed on AWS (`us-east-1`, stack `pukaar-dev`) · public pages need no sign-in.
 
+**Demo video (2:41):** [![Pukaar demo video: the 3D architecture scene](docs/media/pukaar-demo-poster.png)](docs/media/pukaar-demo.mp4)
+[Watch the demo](docs/media/pukaar-demo.mp4) · [35-second trailer](docs/media/pukaar-trailer.mp4) · [script, chapters and captions](docs/submission/demo-script.md) · [submission writeup](docs/submission/writeup.md). The live scenes are recorded from the deployed site during a labelled replay on AWS, and the Hindi voice is the real Polly output. The video pipeline is in [video/](video/).
+
 | Landing | Officer console | Villager report (phone) |
 |---|---|---|
 | ![Landing page](docs/screens/landing-1440-dark.png) | ![Officer console during a replay](docs/screens/console-1440-light.png) | ![Hindi-first report page](docs/screens/report-390-light.png) |

@@ -1,0 +1,25 @@
+A mountain stream can flood a village in hours, often at night. The forecast sees it coming. The village never hears it. That's Pukaar.
+
+On the night of 30 June 2025, cloudbursts hit Mandi district: at least 10 dead, 34 missing. Forecasts exist, but they are numbers on a website, not a warning anyone hears.
+
+Pukaar turns a forecast into a spoken Hindi alert on every phone in the village. A district officer approves it in one tap, and villagers confirm they heard it.
+
+Here's Gohar, in Mandi, July 2023, replayed through Pukaar's real rules. The river forecast passes its own 90th percentile: Watch. Rain passes 64.5 millimetres with the river high: Warning. Then 115.6: Critical. 72 hours before the river's peak day.
+
+Now the same night, running live on AWS. Every 15 minutes, EventBridge wakes a Lambda that sets each village's level by rule, never by a model.
+
+The officer on duty sees the Hindi draft. Step Functions has paused, waiting for one tap. The model only fills a fixed template, and a checker rejects any number not in the decision trace. Bedrock access is still pending on this account, so it says rule-fallback, and the alert still goes out. Approve.
+
+Amazon Polly speaks it in Hindi: Every phone gets the voice and one button: मिल गया, got it. Pukaar times each alert, from the river rising to the first person who heard it. In a replay, it goes to test phones only.
+
+Every decision lands in an audit log: Cedar allowed the officer's approval, and refused a village pradhan who tried, with the policy and the reason.
+
+Villagers report back by voice, photo or text, from any phone, even offline. On slow 3G, the page is ready in 4.6 seconds.
+
+The whole loop is serverless on AWS. EventBridge Scheduler runs the sweep Lambda, with no retries and a dead-letter queue. One DynamoDB table, with conditional writes, so an alert is never sent twice. Step Functions waits for the officer; no answer moves to the next one. Bedrock drafts through Strands, Polly speaks, and the audio lands in S3. Telegram delivers it, and the tap comes back through API Gateway. Cognito signs officers in, Cedar checks every action, and 9 CloudWatch alarms watch it all.
+
+This is live: 40 approval workflows so far, 36 succeeded. Polly's Hindi audio in S3, and the health check, right now. Nothing runs between requests: no servers, no database instance.
+
+In our 2025 back-test, the global forecasts missed the Mandi cloudburst. So a verified villager report can raise a level on its own.
+
+The river will still rise. Now the village hears first.

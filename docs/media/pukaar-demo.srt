@@ -1,0 +1,353 @@
+1
+00:00:00,100 --> 00:00:02,203
+A mountain stream can
+flood a village in hours,
+
+2
+00:00:02,253 --> 00:00:03,420
+often at night.
+
+3
+00:00:03,470 --> 00:00:04,684
+The forecast sees it coming.
+
+4
+00:00:04,734 --> 00:00:06,472
+The village never hears it.
+
+5
+00:00:06,522 --> 00:00:07,874
+That's Pukaar.
+
+6
+00:00:08,074 --> 00:00:10,456
+On the night of 30 June 2025,
+
+7
+00:00:10,506 --> 00:00:12,109
+cloudbursts hit Mandi district:
+
+8
+00:00:12,160 --> 00:00:14,588
+at least 10 dead, 34 missing.
+
+9
+00:00:14,638 --> 00:00:16,926
+Forecasts exist, but they
+are numbers on a website,
+
+10
+00:00:16,976 --> 00:00:18,535
+not a warning anyone hears.
+
+11
+00:00:18,585 --> 00:00:19,703
+Pukaar turns a forecast
+
+12
+00:00:19,753 --> 00:00:20,871
+into a spoken Hindi alert
+
+13
+00:00:20,921 --> 00:00:22,764
+on every phone in the village.
+
+14
+00:00:22,814 --> 00:00:24,908
+A district officer approves it in one tap,
+
+15
+00:00:24,958 --> 00:00:27,235
+and villagers confirm they heard it.
+
+16
+00:00:27,935 --> 00:00:29,098
+Here's Gohar, in Mandi,
+
+17
+00:00:29,148 --> 00:00:30,077
+July 2023,
+
+18
+00:00:30,127 --> 00:00:32,175
+replayed through Pukaar's real rules.
+
+19
+00:00:32,225 --> 00:00:34,762
+The river forecast passes
+its own 90th percentile:
+
+20
+00:00:34,812 --> 00:00:35,710
+Watch.
+
+21
+00:00:35,760 --> 00:00:37,949
+Rain passes 64.5 millimetres
+
+22
+00:00:37,999 --> 00:00:38,830
+with the river high:
+
+23
+00:00:38,880 --> 00:00:39,909
+Warning.
+
+24
+00:00:39,959 --> 00:00:41,584
+Then 115.6:
+
+25
+00:00:41,634 --> 00:00:42,649
+Critical.
+
+26
+00:00:43,099 --> 00:00:43,895
+72 hours
+
+27
+00:00:43,945 --> 00:00:45,609
+before the river's peak day.
+
+28
+00:00:45,659 --> 00:00:48,259
+Now the same night, running live on AWS.
+
+29
+00:00:48,309 --> 00:00:49,331
+Every 15 minutes,
+
+30
+00:00:49,381 --> 00:00:50,615
+EventBridge wakes a Lambda
+
+31
+00:00:50,665 --> 00:00:52,398
+that sets each village's level by rule,
+
+32
+00:00:52,448 --> 00:00:53,697
+never by a model.
+
+33
+00:00:53,747 --> 00:00:55,783
+The officer on duty sees the Hindi draft.
+
+34
+00:00:55,832 --> 00:00:57,196
+Step Functions has paused,
+
+35
+00:00:57,246 --> 00:00:58,772
+waiting for one tap.
+
+36
+00:00:58,822 --> 00:01:00,479
+The model only fills a fixed template,
+
+37
+00:01:00,529 --> 00:01:02,006
+and a checker rejects any number
+
+38
+00:01:02,056 --> 00:01:03,719
+not in the decision trace.
+
+39
+00:01:03,769 --> 00:01:05,831
+Bedrock access is still
+pending on this account,
+
+40
+00:01:05,881 --> 00:01:07,357
+so it says rule-fallback,
+
+41
+00:01:07,407 --> 00:01:09,347
+and the alert still goes out.
+
+42
+00:01:09,397 --> 00:01:10,487
+Approve.
+
+43
+00:01:11,487 --> 00:01:13,482
+Amazon Polly speaks it in Hindi:
+
+44
+00:01:19,582 --> 00:01:20,840
+Every phone gets the voice
+
+45
+00:01:20,890 --> 00:01:22,114
+and one button:
+
+46
+00:01:22,164 --> 00:01:22,987
+मिल गया, got it.
+
+47
+00:01:23,037 --> 00:01:27,599
+Pukaar times each alert, from the river
+rising to the first person who heard it.
+
+48
+00:01:27,649 --> 00:01:28,244
+In a replay,
+
+49
+00:01:28,294 --> 00:01:29,988
+it goes to test phones only.
+
+50
+00:01:30,038 --> 00:01:31,812
+Every decision lands in an audit log:
+
+51
+00:01:31,862 --> 00:01:33,698
+Cedar allowed the officer's approval,
+
+52
+00:01:33,748 --> 00:01:35,671
+and refused a village pradhan who tried,
+
+53
+00:01:35,721 --> 00:01:38,150
+with the policy and the reason.
+
+54
+00:01:38,200 --> 00:01:40,506
+Villagers report back
+by voice, photo or text,
+
+55
+00:01:40,556 --> 00:01:42,510
+from any phone, even offline.
+
+56
+00:01:42,560 --> 00:01:43,534
+On slow 3G,
+
+57
+00:01:43,584 --> 00:01:46,135
+the page is ready in 4.6 seconds.
+
+58
+00:01:47,135 --> 00:01:49,483
+The whole loop is serverless on AWS.
+
+59
+00:01:49,533 --> 00:01:51,899
+EventBridge Scheduler
+runs the sweep Lambda,
+
+60
+00:01:51,949 --> 00:01:54,437
+with no retries and a dead-letter queue.
+
+61
+00:01:54,487 --> 00:01:55,680
+One DynamoDB table,
+
+62
+00:01:55,730 --> 00:01:56,741
+with conditional writes,
+
+63
+00:01:56,791 --> 00:01:58,787
+so an alert is never sent twice.
+
+64
+00:01:58,837 --> 00:02:00,562
+Step Functions waits for the officer;
+
+65
+00:02:00,612 --> 00:02:02,604
+no answer moves to the next one.
+
+66
+00:02:02,654 --> 00:02:04,103
+Bedrock drafts through Strands,
+
+67
+00:02:04,153 --> 00:02:04,892
+Polly speaks,
+
+68
+00:02:04,942 --> 00:02:06,733
+and the audio lands in S3.
+
+69
+00:02:06,783 --> 00:02:07,758
+Telegram delivers it,
+
+70
+00:02:07,808 --> 00:02:10,308
+and the tap comes back
+through API Gateway.
+
+71
+00:02:10,358 --> 00:02:12,771
+Cognito signs officers in,
+Cedar checks every action,
+
+72
+00:02:12,821 --> 00:02:14,991
+and 9 CloudWatch alarms watch it all.
+
+73
+00:02:15,041 --> 00:02:15,738
+This is live:
+
+74
+00:02:15,788 --> 00:02:17,322
+40 approval workflows so far,
+
+75
+00:02:17,372 --> 00:02:18,888
+36 succeeded.
+
+76
+00:02:18,938 --> 00:02:20,622
+Polly's Hindi audio in S3,
+
+77
+00:02:20,672 --> 00:02:21,581
+and the health check,
+
+78
+00:02:21,631 --> 00:02:22,685
+right now.
+
+79
+00:02:22,735 --> 00:02:24,301
+Nothing runs between requests:
+
+80
+00:02:24,351 --> 00:02:26,423
+no servers, no database instance.
+
+81
+00:02:26,473 --> 00:02:27,927
+In our 2025 back-test,
+
+82
+00:02:27,977 --> 00:02:31,005
+the global forecasts missed
+the Mandi cloudburst.
+
+83
+00:02:31,055 --> 00:02:32,365
+So a verified villager report
+
+84
+00:02:32,415 --> 00:02:34,068
+can raise a level on its own.
+
+85
+00:02:34,118 --> 00:02:35,391
+The river will still rise.
+
+86
+00:02:35,441 --> 00:02:37,241
+Now the village hears first.

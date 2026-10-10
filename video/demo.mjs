@@ -198,9 +198,10 @@ export function scenes(f, live) {
         await h.page.evaluate(() => window.__turn.show(2));
         await h.chunk(1, 1, -0.1);
         await h.page.evaluate(() => window.__turn.show(3));
-        await h.chunk(1, 1, 0.9);
+        await h.chunk(1, 1, 0.6);
         await h.page.evaluate(() => window.__turn.show(4));
       },
+      tail: 1.1,
     },
     // ============================================================ the Gohar story, on the live landing page
     {
@@ -268,6 +269,7 @@ export function scenes(f, live) {
     // ============================================================ the officer approves
     {
       id: "approve",
+      chapter: "The officer approves",
       tag: "Officer console",
       screen: "The officer console signed in as a demo officer (Cognito): the pending Gohar critical alert with its Hindi draft, the rule-fallback label, then Approve and the confirmation.",
       lines: [
@@ -308,6 +310,7 @@ export function scenes(f, live) {
     // ============================================================ the village hears it
     {
       id: "heard",
+      chapter: "The village hears",
       tag: "The village hears",
       screen: "The Gohar village page after approval: the alert delivered, the Listen button playing the real Polly (Kajal, hi-IN) MP3, the time-to-ear stopwatch and the deliveries.",
       audio: [{ line: 0, dt: 2.6, path: live.voice, gain_db: -3 }],
@@ -322,22 +325,27 @@ export function scenes(f, live) {
         await openApp(page, f, "/village/gohar", () => page.locator(".alert-card").first().waitFor({ timeout: 60_000 }));
         // the page fills in section by section; place nothing until the layout has stopped moving
         await page.waitForLoadState("networkidle").catch(() => {});
-        await page.waitForTimeout(3000);
+        // open the details once off camera, so the alert endpoint is warm when the scene opens them
+        const toggle = page.locator(".alert-card").first().locator("button[aria-expanded]");
+        await toggle.click();
+        await page.locator(".tte").waitFor({ timeout: 30_000 }).catch(() => {});
+        await toggle.click();
+        await page.waitForTimeout(2000);
         await page.locator(".alert-card").first().evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + scrollY - 140));
         await page.waitForTimeout(500);
       },
       async run(h) {
         const card = h.page.locator(".alert-card").first();
         await h.box(card, { dim: 0.2, pad: 8 });
-        await h.cue(1, 0);
+        await h.cue(1, -0.4);
         await h.unbox();
+        // open the details now, so the stopwatch has loaded by the time it is named
+        await card.locator("button[aria-expanded]").click();
         await h.box(card.locator(".ac-row"), { dim: 0.2 });
         await h.cue(2, -0.3);
         await h.unbox();
-        await card.locator("button[aria-expanded]").click();
         await h.page.locator(".tte").waitFor({ timeout: 15_000 });
-        await h.page.waitForLoadState("networkidle").catch(() => {});
-        await h.page.waitForTimeout(900); // the details panel finishes opening before the camera moves
+        await h.page.waitForTimeout(500); // the details panel finishes opening before the camera moves
         await h.zoom(h.page.locator(".tte"), { scale: 1.3 });
         await h.page.waitForTimeout(520); // boxes are placed from the settled transform, not mid-zoom
         await h.box(h.page.locator(".tte"), { dim: 0.15 });
@@ -387,9 +395,10 @@ export function scenes(f, live) {
         ),
       ],
       async run(h) {
-        await h.cue(1, 0);
+        await h.cue(1, -0.2);
         await h.page.evaluate(() => window.__phone.stat());
       },
+      tail: 1.4,
     },
     // ============================================================ architecture in 3D
     {
