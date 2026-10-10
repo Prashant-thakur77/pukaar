@@ -118,6 +118,10 @@ export const dict = {
   'map.current': { hi: 'अभी के स्तर', en: 'Current levels' },
   'map.answer': { hi: 'जवाब वाले स्तर', en: 'Levels from this answer' },
   'map.marker': { hi: '{name}: {level}', en: '{name}: {level}' },
+  'landing.terrain': {
+    hi: 'पृष्ठभूमि: मंडी के पास ब्यास घाटी, असली ऊँचाई के आँकड़ों से। पानी का स्तर केवल चित्रण है, पूर्वानुमान नहीं।',
+    en: 'Background: the Beas valley near Mandi, from real elevation data. The water level is an illustration, not a forecast.',
+  },
   'map.view3d': { hi: 'पहाड़ों का 3D दृश्य दिखाएँ', en: 'Show the 3D mountain view' },
   'map.view2d': { hi: 'समतल नक्शा दिखाएँ', en: 'Show the flat map' },
   'map.unavailable': { hi: 'नक्शा लोड नहीं हुआ। नीचे सूची देखें।', en: 'The map could not load. Use the list below.' },

@@ -32,7 +32,7 @@ export default defineConfig({
         // report page opens with no network; API calls are never cached. MapLibre
         // is left out so a phone on 2G does not download it in the background.
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
-        globIgnores: ['**/maplibre*', '**/*latin-ext*', '**/*cyrillic*', '**/*greek*', '**/*vietnamese*'],
+        globIgnores: ['**/maplibre*', '**/HeroScene*', '**/*latin-ext*', '**/*cyrillic*', '**/*greek*', '**/*vietnamese*'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
