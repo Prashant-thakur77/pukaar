@@ -142,6 +142,21 @@ account.
 Infrastructure as code: [infra/template.yaml](infra/template.yaml) (AWS SAM),
 state machine [infra/approval.asl.json](infra/approval.asl.json).
 
+## Built for cheap phones (measured)
+
+The villager report page on the live site, first visit with an empty cache,
+390 px phone screen, CPU slowed 4x (Chrome DevTools emulation, 11 Oct 2026):
+
+| Network | Ready to record (the Hindi "बोलें" button is on screen) | Downloaded |
+|---|---|---|
+| Slow 3G (400 kbit/s, 400 ms latency) | 4.6 s | 129 kB |
+| Fast 3G (1.6 Mbit/s, 150 ms latency) | 1.5 s | 129 kB |
+
+After the first visit the page is cached by a service worker and opens with no
+network; reports made offline are queued in the browser and sent when the
+phone reconnects. The 3D map and the 3D landing scene are never downloaded on
+this page, and are skipped on phones with data saver or under 4 GB of memory.
+
 ## Try it from your terminal (no sign-in)
 
 These call the live API on AWS (API Gateway -> Lambda -> DynamoDB):
