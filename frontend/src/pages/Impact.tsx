@@ -50,7 +50,7 @@ function Scenario({ sc, i }: { sc: BacktestScenario; i: number }) {
         ))}
       </ul>
       <div className="table-wrap" tabIndex={0} role="region" aria-label={sc.title}>
-        <table className="data-table">
+        <table className="data-table stack-sm">
           <thead>
             <tr>
               <th scope="col">{t('impact.bt.village')}</th>
@@ -67,19 +67,19 @@ function Scenario({ sc, i }: { sc: BacktestScenario; i: number }) {
             {sc.villages.map((v) => (
               <tr key={v.village_id}>
                 <th scope="row">{v.village}</th>
-                <td>
+                <td data-label={t('impact.bt.reached')}>
                   <LevelBadge level={reached(v)} size="sm" />
                 </td>
-                <td className="nowrap">{when(v.first_watch)}</td>
-                <td className="nowrap">{when(v.first_warning)}</td>
-                <td className="nowrap">{when(v.first_critical)}</td>
-                <td className="nowrap">
+                <td className="nowrap" data-label={t('impact.bt.first', { l: t('level.watch') })}>{when(v.first_watch)}</td>
+                <td className="nowrap" data-label={t('impact.bt.first', { l: t('level.warning') })}>{when(v.first_warning)}</td>
+                <td className="nowrap" data-label={t('impact.bt.first', { l: t('level.critical') })}>{when(v.first_critical)}</td>
+                <td className="nowrap" data-label={t('impact.bt.peak')}>
                   {fmtNumber(v.peak_discharge, lang, 2)} m³/s
                   {v.thresholds && <span className="small muted"> / {fmtNumber(v.thresholds.critical, lang, 2)}</span>}
                   {v.peak_discharge_day && <span className="small muted"> · {fmtDate(v.peak_discharge_day, lang)}</span>}
                 </td>
-                <td className="nowrap">{fmtNumber(v.max_rain_24h_mm, lang, 1)} mm</td>
-                <td className="nowrap">{v.lead_hours_watch_to_peak_day == null ? '—' : `${fmtNumber(v.lead_hours_watch_to_peak_day, lang)} h`}</td>
+                <td className="nowrap" data-label={t('impact.bt.rain')}>{fmtNumber(v.max_rain_24h_mm, lang, 1)} mm</td>
+                <td className="nowrap" data-label={t('impact.bt.lead')}>{v.lead_hours_watch_to_peak_day == null ? '—' : `${fmtNumber(v.lead_hours_watch_to_peak_day, lang)} h`}</td>
               </tr>
             ))}
           </tbody>
