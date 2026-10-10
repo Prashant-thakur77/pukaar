@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import { api } from '../api';
+import { AckFunnel } from '../components/AckFunnel';
 import { AlertStatusChip, DeliveryChips, ReplayChip } from '../components/Chips';
 import { CountUp } from '../components/CountUp';
 import { LevelBadge, LevelIcon, LevelLegend } from '../components/Level';
@@ -93,6 +94,12 @@ export default function Live() {
               )}
             </section>
           </aside>
+
+          {data && (
+            <div className="live-funnel">
+              <AckFunnel alerts={data.recent_alerts} />
+            </div>
+          )}
 
           <section aria-labelledby="vil-h" className="live-villages">
             <h2 id="vil-h" className="h-sec">
