@@ -161,6 +161,8 @@ export const dict = {
   'funnel.delivered': { hi: 'फ़ोन पर पहुँची', en: 'Delivered to a phone' },
   'funnel.acked': { hi: '"मिल गया" दबाया', en: 'Tapped "मिल गया"' },
   'funnel.rate': { hi: 'जिन फ़ोन पर चेतावनी पहुँची, उनमें से {pct}% ने "मिल गया" दबाया।', en: '{pct}% of the phones that received an alert confirmed it.' },
+  'funnel.delivered.replay': { hi: 'पहुँची (नकली चैनल, रीप्ले)', en: 'Delivered (stub channel, replay)' },
+  'funnel.rate.replay': { hi: 'रीप्ले की चेतावनियाँ असली फ़ोन तक कभी नहीं जातीं, इसलिए कोई "मिल गया" नहीं दबा सकता।', en: 'Replay alerts never reach real phones, so nobody can tap "मिल गया".' },
   'funnel.rate.none': { hi: 'अभी तक कोई चेतावनी फ़ोन पर नहीं भेजी गई।', en: 'No alert has been delivered to a phone yet.' },
   'map.view3d': { hi: 'पहाड़ों का 3D दृश्य दिखाएँ', en: 'Show the 3D mountain view' },
   'map.view2d': { hi: 'समतल नक्शा दिखाएँ', en: 'Show the flat map' },
