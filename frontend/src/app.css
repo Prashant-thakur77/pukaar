@@ -1311,3 +1311,30 @@ button.map-key-item:hover { background: var(--surface-2); }
   .story-step { opacity: 1; transform: none; transition: none; min-height: 0; }
   .story-clip-rect, .rain-dot, .hl { transition: none; }
 }
+
+/* ---------- The spine: forecast-to-phone chain ---------- */
+.spine-chain { list-style: none; margin: var(--s-6) 0 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--s-3); counter-reset: link; }
+.spine-link { position: relative; display: grid; gap: 8px; align-content: start; padding: var(--s-4); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 0 rgb(20 26 51 / 5%); }
+.spine-link:not(:last-child)::after { content: ''; position: absolute; top: 38px; right: calc(-1 * var(--s-3)); width: var(--s-3); height: 2px; background: var(--marigold); }
+.spine-icon { width: 44px; height: 44px; border-radius: var(--r-sm); display: grid; place-items: center; background: var(--night-1, #0b1026); color: var(--marigold); }
+.spine-icon svg { width: 22px; height: 22px; }
+.spine-step { font-family: var(--font-display); font-size: 1.5rem; line-height: 1; letter-spacing: 0.02em; }
+.spine-step:lang(hi) { font-family: var(--font-hi); font-weight: 800; font-size: 1.15rem; line-height: 1.3; letter-spacing: 0; }
+.spine-what { font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.45; }
+.spine-aws { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.72rem; font-weight: 700; color: var(--accent-text); background: var(--accent-soft); border-radius: var(--r-xs); padding: 4px 6px; justify-self: start; }
+.spine-note { margin-top: var(--s-5); max-width: 70ch; }
+@media (max-width: 1080px) { .spine-chain { grid-template-columns: repeat(3, minmax(0, 1fr)); } .spine-link:nth-child(3n)::after { display: none; } }
+@media (max-width: 640px) {
+  .spine-chain { grid-template-columns: 1fr; }
+  .spine-link { grid-template-columns: 44px 1fr; column-gap: 12px; }
+  .spine-link > :not(.spine-icon) { grid-column: 2; }
+  .spine-icon { grid-row: span 3; }
+  .spine-link:not(:last-child)::after { display: block; top: auto; bottom: calc(-1 * var(--s-3)); right: auto; left: calc(var(--s-4) + 21px); width: 2px; height: var(--s-3); }
+}
+
+/* ---------- Thesis band ---------- */
+.thesis { background: var(--night-1, #0b1026); color: var(--night-ink); padding: var(--s-8) 0; }
+.thesis-lines { margin: 0; display: grid; gap: 0.1em; font-family: var(--font-display); font-size: clamp(2.6rem, 8vw, 6.5rem); line-height: 0.98; letter-spacing: 0.01em; }
+.thesis-lines:lang(hi) { font-family: var(--font-hi); font-weight: 800; font-size: clamp(2rem, 6vw, 4.6rem); line-height: 1.25; letter-spacing: 0; }
+.thesis-lines span:not(.hl-line) { color: rgb(238 241 251 / 55%); }
+.hl-line { color: var(--marigold-ink); background: var(--marigold); justify-self: start; padding: 0 0.15em; }
