@@ -1248,6 +1248,7 @@ button.map-key-item:hover { background: var(--surface-2); }
   .data-table.stack-sm tr { padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
   .data-table.stack-sm tbody th[scope='row'] { background: none; border: 0; padding: 4px 4px 8px; font-size: var(--fs-md); letter-spacing: 0.04em; color: var(--ink); }
   .data-table.stack-sm td { display: flex; justify-content: space-between; gap: var(--s-3); border: 0; padding: 6px 4px; white-space: normal; text-align: right; }
+  .data-table.compact.stack-sm tbody th[scope='row'] { text-transform: none; letter-spacing: 0; font-weight: 800; }
   .data-table.stack-sm td::before { content: attr(data-label); flex: 0 0 45%; text-align: left; font-size: var(--fs-xs); font-weight: 700; color: var(--ink-3); }
 }
 
@@ -1338,3 +1339,18 @@ button.map-key-item:hover { background: var(--surface-2); }
 .thesis-lines:lang(hi) { font-family: var(--font-hi); font-weight: 800; font-size: clamp(2rem, 6vw, 4.6rem); line-height: 1.25; letter-spacing: 0; }
 .thesis-lines span:not(.hl-line) { color: rgb(238 241 251 / 55%); }
 .hl-line { color: var(--marigold-ink); background: var(--marigold); justify-self: start; padding: 0 0.15em; }
+
+/* Time to ear: four recorded marks from level rise to the first acknowledgement. */
+.tte { margin: 0 0 var(--s-4); padding: var(--s-3) var(--s-4); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); }
+.tte-head { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--s-3); font-weight: 800; }
+.tte-head svg { width: 18px; height: 18px; color: var(--accent-text); }
+.tte-total { margin-left: auto; font-family: var(--font-display); font-size: 1.6rem; font-weight: 400; letter-spacing: 0.02em; }
+.tte-marks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); }
+.tte-marks li { display: grid; align-content: start; gap: 2px; padding: var(--s-2); border-radius: var(--r-sm); background: var(--surface); border: 1px solid var(--line); opacity: 0.55; }
+.tte-marks li.is-done { opacity: 1; border-color: var(--marigold); }
+.tte-total.is-pending { font-family: inherit; font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0; color: var(--ink-3); }
+.tte-icon svg { width: 16px; height: 16px; color: var(--accent-text); }
+.tte-label { font-size: var(--fs-xs); font-weight: 800; }
+.tte-at { font-size: var(--fs-xs); color: var(--ink-3); }
+.tte-gap { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: var(--fs-xs); font-weight: 700; color: var(--accent-text); }
+@media (max-width: 640px) { .tte-marks { grid-template-columns: 1fr 1fr; } }

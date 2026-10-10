@@ -8,6 +8,7 @@ import { LevelBadge } from '../components/Level';
 import { ListenButton } from '../components/ListenButton';
 import { Reveal } from '../components/Reveal';
 import { Sparkline } from '../components/Sparkline';
+import { TimeToEar } from '../components/TimeToEar';
 import { DeniedNote, EmptyState, ErrorState, Skeleton, SkeletonCards } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
 import { enumLabels, useT } from '../i18n';
@@ -28,32 +29,33 @@ function AlertDetails({ alert }: { alert: Alert }) {
   if (!data) return null;
   return (
     <div className="alert-details">
+      {data.deliveries.length > 0 && <TimeToEar alert={data.alert} deliveries={data.deliveries} />}
       <h4 className="h-sub">{t('village.deliveries')}</h4>
       {data.deliveries.length === 0 ? (
         <p className="small muted">{t('state.empty')}</p>
       ) : (
         <div className="table-wrap" tabIndex={0} role="region" aria-label={t('village.deliveries')}>
-          <table className="data-table compact">
+          <table className="data-table compact stack-sm">
             <thead>
               <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Channel</th>
-                <th scope="col">Status</th>
-                <th scope="col">Sent</th>
-                <th scope="col">Acknowledged</th>
+                <th scope="col">{t('village.dl.name')}</th>
+                <th scope="col">{t('village.dl.channel')}</th>
+                <th scope="col">{t('village.dl.status')}</th>
+                <th scope="col">{t('village.dl.sent')}</th>
+                <th scope="col">{t('village.dl.ack')}</th>
               </tr>
             </thead>
             <tbody>
               {data.deliveries.map((d) => (
                 <tr key={d.recipient_id}>
-                  <td>{d.name}</td>
-                  <td>{d.channel === 'stub' ? t('console.channel.stub') : t('console.channel.telegram')}</td>
-                  <td>
+                  <th scope="row">{d.name}</th>
+                  <td data-label={t('village.dl.channel')}>{d.channel === 'stub' ? t('console.channel.stub') : t('console.channel.telegram')}</td>
+                  <td data-label={t('village.dl.status')}>
                     {d.status}
                     {d.error && <span className="small bad-text"> · {d.error}</span>}
                   </td>
-                  <td>{fmtTime(d.sent_at, lang)}</td>
-                  <td>{d.acknowledged_at ? <span className="ok-text">✓ {fmtTime(d.acknowledged_at, lang)}</span> : '—'}</td>
+                  <td data-label={t('village.dl.sent')}>{fmtTime(d.sent_at, lang)}</td>
+                  <td data-label={t('village.dl.ack')}>{d.acknowledged_at ? <span className="ok-text">✓ {fmtTime(d.acknowledged_at, lang)}</span> : '—'}</td>
                 </tr>
               ))}
             </tbody>

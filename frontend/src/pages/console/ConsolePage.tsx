@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TimeToEar } from '../../components/TimeToEar';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { Bell, ChevronDown, Cloud, FileText, History, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
 import { api } from '../../api';
@@ -237,6 +238,8 @@ function Deliveries({ alertId }: { alertId: string }) {
   const ds = data?.deliveries ?? [];
   if (!ds.length) return <p className="small muted">{t('console.deliveries.none')}</p>;
   return (
+    <>
+    {data && <TimeToEar alert={data.alert} deliveries={ds} />}
     <ul className="dl-list">
       {ds.map((d) => (
         <li key={d.recipient_id}>
@@ -251,5 +254,6 @@ function Deliveries({ alertId }: { alertId: string }) {
         </li>
       ))}
     </ul>
+    </>
   );
 }
