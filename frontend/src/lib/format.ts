@@ -26,8 +26,12 @@ export function fmtAgo(iso: string | null | undefined, lang: Lang, now = Date.no
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return iso;
   const sec = Math.round((t - now) / 1000);
-  // Replay records carry archived timestamps; a date reads better than "1,187 days ago".
-  if (Math.abs(sec) > 7 * 86400) return fmtTime(iso, lang);
+  // Replay records carry archived timestamps; a date reads better than "1,187 days ago",
+  // and it names the year when that is not this year ("10 Jul 2023", not "10 Jul").
+  if (Math.abs(sec) > 7 * 86400) {
+    if (new Date(t).getFullYear() === new Date(now).getFullYear()) return fmtTime(iso, lang);
+    return new Intl.DateTimeFormat(locale(lang), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(t));
+  }
   const rtf = new Intl.RelativeTimeFormat(locale(lang), { numeric: 'auto' });
   const abs = Math.abs(sec);
   if (abs < 60) return rtf.format(sec, 'second');
