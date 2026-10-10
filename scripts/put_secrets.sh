@@ -10,8 +10,15 @@ REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
 STACK="${PUKAAR_STACK:-pukaar-dev}"
 
 put_secret() {  # name; value on stdin
-  python3 -c 'import json,sys; print(json.dumps({"Name": sys.argv[1], "Value": sys.stdin.read().rstrip("\n"), "Type": "SecureString", "Overwrite": True}))' "$1" |
-    aws ssm put-parameter --region "$REGION" --cli-input-json file:///dev/stdin >/dev/null
+  # Newer AWS CLI versions cannot read --cli-input-json from a pipe, so the JSON
+  # goes to an owner-only file in memory (/dev/shm when present) and is removed
+  # at once. The value never appears on a command line.
+  local tmp
+  tmp="$(mktemp -p "$( [[ -d /dev/shm ]] && echo /dev/shm || echo "${TMPDIR:-/tmp}" )")"
+  chmod 600 "$tmp"
+  python3 -c 'import json,sys; print(json.dumps({"Name": sys.argv[1], "Value": sys.stdin.read().rstrip("\n"), "Type": "SecureString", "Overwrite": True}))' "$1" >"$tmp"
+  aws ssm put-parameter --region "$REGION" --cli-input-json "file://$tmp" >/dev/null || { rm -f "$tmp"; return 1; }
+  rm -f "$tmp"
   echo "stored $1"
 }
 
