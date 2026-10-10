@@ -122,6 +122,17 @@ export const dict = {
     hi: 'पृष्ठभूमि: मंडी के पास ब्यास घाटी, असली ऊँचाई के आँकड़ों से। पानी का स्तर केवल चित्रण है, पूर्वानुमान नहीं।',
     en: 'Background: the Beas valley near Mandi, from real elevation data. The water level is an illustration, not a forecast.',
   },
+  'story.heading': { hi: 'वह रात जब नदी उठी', en: 'The night the river rose' },
+  'story.figTitle': {
+    hi: 'गोहर, जुलाई 2023: अगले 24 घंटे की बारिश का पूर्वानुमान और हर घंटे का स्तर',
+    en: 'Gohar, July 2023: rain forecast for the next 24 hours and the level each hour',
+  },
+  'story.caption': {
+    hi: 'स्रोत: Open-Meteo के पुराने पूर्वानुमान और नदी के आँकड़े, पुकार के असली नियमों से दोबारा चलाए गए। नीचे की पट्टी हर घंटे का स्तर है। समय IST में।',
+    en: "Source: Open-Meteo archived forecast and river data, run through Pukaar's real rules. The strip below is the level each hour. Times in IST.",
+  },
+  'story.axis': { hi: 'मिमी बारिश, अगले 24 घंटे', en: 'mm of rain, next 24 h' },
+  'story.more': { hi: 'पूरा बैक-टेस्ट देखें', en: 'See the full back-test' },
   'funnel.title': { hi: 'चेतावनी से "मिल गया" तक', en: 'From warning to "मिल गया"' },
   'funnel.scope': { hi: 'हाल की {n} चेतावनियों में', en: 'Across the latest {n} alerts' },
   'funnel.replay': { hi: '{n} रीप्ले से', en: '{n} from the replay' },

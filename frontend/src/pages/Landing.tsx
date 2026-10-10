@@ -8,6 +8,7 @@ import { CountUp } from '../components/CountUp';
 import { LevelBadge } from '../components/Level';
 import { QRCode } from '../components/QRCode';
 import { Reveal } from '../components/Reveal';
+import { StoryNight } from '../components/StoryNight';
 import { Valley } from '../components/Valley';
 import { usePoll } from '../hooks/usePoll';
 import { prefersReducedMotion } from '../hooks/useMotion';
@@ -200,6 +201,8 @@ export default function Landing() {
           {error && !data && <p className="counter-error">{t('landing.counters.error')}</p>}
         </div>
       </section>
+
+      <StoryNight />
 
       <section className="band band-paper how" aria-labelledby="how-title">
         <div className="wrap">

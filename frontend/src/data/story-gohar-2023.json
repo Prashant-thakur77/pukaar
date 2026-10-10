@@ -1,0 +1,1221 @@
+{
+ "village": "Gohar",
+ "village_hi": "गोहर",
+ "district": "Mandi",
+ "scenario": "Himachal Pradesh, 7-11 July 2023",
+ "scenario_hi": "हिमाचल प्रदेश, 7-11 जुलाई 2023",
+ "sources": {
+  "rain": "https://historical-forecast-api.open-meteo.com/v1/forecast (hourly precipitation, best_match)",
+  "river": "https://flood-api.open-meteo.com/v1/flood (daily river_discharge, archived)"
+ },
+ "imd_bands_mm": {
+  "watch": 64.5,
+  "warning": 115.6,
+  "critical": 204.5
+ },
+ "discharge_thresholds": {
+  "watch": 0.94,
+  "warning": 1.42,
+  "critical": 2.08,
+  "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+ },
+ "points": [
+  {
+   "at": "2023-07-07T00:00:00Z",
+   "rain_24h_mm": 47.4,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T01:00:00Z",
+   "rain_24h_mm": 49.5,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T02:00:00Z",
+   "rain_24h_mm": 49.6,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T03:00:00Z",
+   "rain_24h_mm": 49.8,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T04:00:00Z",
+   "rain_24h_mm": 49.8,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T05:00:00Z",
+   "rain_24h_mm": 49.9,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T06:00:00Z",
+   "rain_24h_mm": 50.3,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T07:00:00Z",
+   "rain_24h_mm": 52.0,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T08:00:00Z",
+   "rain_24h_mm": 49.9,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T09:00:00Z",
+   "rain_24h_mm": 48.5,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T10:00:00Z",
+   "rain_24h_mm": 48.2,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T11:00:00Z",
+   "rain_24h_mm": 48.1,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T12:00:00Z",
+   "rain_24h_mm": 51.1,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T13:00:00Z",
+   "rain_24h_mm": 52.3,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T14:00:00Z",
+   "rain_24h_mm": 55.1,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T15:00:00Z",
+   "rain_24h_mm": 58.0,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T16:00:00Z",
+   "rain_24h_mm": 60.2,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T17:00:00Z",
+   "rain_24h_mm": 63.3,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T18:00:00Z",
+   "rain_24h_mm": 62.0,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T19:00:00Z",
+   "rain_24h_mm": 44.7,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T20:00:00Z",
+   "rain_24h_mm": 44.2,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T21:00:00Z",
+   "rain_24h_mm": 47.0,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T22:00:00Z",
+   "rain_24h_mm": 47.9,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-07T23:00:00Z",
+   "rain_24h_mm": 47.3,
+   "discharge": 0.3,
+   "discharge_peak": 0.83,
+   "rain_level": "normal",
+   "river_level": "normal",
+   "level": "normal",
+   "rules": []
+  },
+  {
+   "at": "2023-07-08T00:00:00Z",
+   "rain_24h_mm": 49.5,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-08T01:00:00Z",
+   "rain_24h_mm": 50.6,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-08T02:00:00Z",
+   "rain_24h_mm": 56.1,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-08T03:00:00Z",
+   "rain_24h_mm": 60.4,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-08T04:00:00Z",
+   "rain_24h_mm": 63.2,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-08T05:00:00Z",
+   "rain_24h_mm": 66.8,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T06:00:00Z",
+   "rain_24h_mm": 69.6,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T07:00:00Z",
+   "rain_24h_mm": 74.8,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T08:00:00Z",
+   "rain_24h_mm": 77.0,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T09:00:00Z",
+   "rain_24h_mm": 79.2,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T10:00:00Z",
+   "rain_24h_mm": 82.7,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T11:00:00Z",
+   "rain_24h_mm": 89.6,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T12:00:00Z",
+   "rain_24h_mm": 90.4,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T13:00:00Z",
+   "rain_24h_mm": 92.8,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T14:00:00Z",
+   "rain_24h_mm": 93.9,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T15:00:00Z",
+   "rain_24h_mm": 94.2,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T16:00:00Z",
+   "rain_24h_mm": 95.5,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T17:00:00Z",
+   "rain_24h_mm": 99.9,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T18:00:00Z",
+   "rain_24h_mm": 106.4,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T19:00:00Z",
+   "rain_24h_mm": 106.7,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T20:00:00Z",
+   "rain_24h_mm": 106.1,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T21:00:00Z",
+   "rain_24h_mm": 105.9,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T22:00:00Z",
+   "rain_24h_mm": 105.0,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-08T23:00:00Z",
+   "rain_24h_mm": 106.3,
+   "discharge": 0.3,
+   "discharge_peak": 0.97,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T00:00:00Z",
+   "rain_24h_mm": 110.1,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T01:00:00Z",
+   "rain_24h_mm": 113.8,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T02:00:00Z",
+   "rain_24h_mm": 118.2,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "warning",
+   "river_level": "watch",
+   "level": "critical",
+   "rules": [
+    "rain_24h>=115.6mm:warning",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T03:00:00Z",
+   "rain_24h_mm": 123.5,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "warning",
+   "river_level": "watch",
+   "level": "critical",
+   "rules": [
+    "rain_24h>=115.6mm:warning",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T04:00:00Z",
+   "rain_24h_mm": 125.7,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "warning",
+   "river_level": "watch",
+   "level": "critical",
+   "rules": [
+    "rain_24h>=115.6mm:warning",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T05:00:00Z",
+   "rain_24h_mm": 126.8,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "warning",
+   "river_level": "watch",
+   "level": "critical",
+   "rules": [
+    "rain_24h>=115.6mm:warning",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T06:00:00Z",
+   "rain_24h_mm": 126.4,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "warning",
+   "river_level": "watch",
+   "level": "critical",
+   "rules": [
+    "rain_24h>=115.6mm:warning",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T07:00:00Z",
+   "rain_24h_mm": 120.3,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "warning",
+   "river_level": "watch",
+   "level": "critical",
+   "rules": [
+    "rain_24h>=115.6mm:warning",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T08:00:00Z",
+   "rain_24h_mm": 116.7,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "warning",
+   "river_level": "watch",
+   "level": "critical",
+   "rules": [
+    "rain_24h>=115.6mm:warning",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T09:00:00Z",
+   "rain_24h_mm": 111.4,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "critical",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T10:00:00Z",
+   "rain_24h_mm": 106.0,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "critical",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T11:00:00Z",
+   "rain_24h_mm": 97.1,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T12:00:00Z",
+   "rain_24h_mm": 92.7,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T13:00:00Z",
+   "rain_24h_mm": 89.1,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T14:00:00Z",
+   "rain_24h_mm": 86.6,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T15:00:00Z",
+   "rain_24h_mm": 83.4,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T16:00:00Z",
+   "rain_24h_mm": 79.9,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T17:00:00Z",
+   "rain_24h_mm": 72.4,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "watch",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "rain_24h>=64.5mm:watch",
+    "discharge>=0.94:watch",
+    "two_sources_agree:+1"
+   ]
+  },
+  {
+   "at": "2023-07-09T18:00:00Z",
+   "rain_24h_mm": 63.6,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-09T19:00:00Z",
+   "rain_24h_mm": 61.1,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "warning",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-09T20:00:00Z",
+   "rain_24h_mm": 58.8,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-09T21:00:00Z",
+   "rain_24h_mm": 59.1,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-09T22:00:00Z",
+   "rain_24h_mm": 62.3,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-09T23:00:00Z",
+   "rain_24h_mm": 59.7,
+   "discharge": 0.45,
+   "discharge_peak": 1.08,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T00:00:00Z",
+   "rain_24h_mm": 53.3,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T01:00:00Z",
+   "rain_24h_mm": 48.2,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T02:00:00Z",
+   "rain_24h_mm": 38.2,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T03:00:00Z",
+   "rain_24h_mm": 28.4,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T04:00:00Z",
+   "rain_24h_mm": 23.4,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T05:00:00Z",
+   "rain_24h_mm": 18.6,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T06:00:00Z",
+   "rain_24h_mm": 15.8,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T07:00:00Z",
+   "rain_24h_mm": 15.0,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T08:00:00Z",
+   "rain_24h_mm": 15.1,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T09:00:00Z",
+   "rain_24h_mm": 15.9,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T10:00:00Z",
+   "rain_24h_mm": 16.8,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T11:00:00Z",
+   "rain_24h_mm": 16.5,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T12:00:00Z",
+   "rain_24h_mm": 16.5,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T13:00:00Z",
+   "rain_24h_mm": 16.5,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T14:00:00Z",
+   "rain_24h_mm": 15.1,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T15:00:00Z",
+   "rain_24h_mm": 15.1,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T16:00:00Z",
+   "rain_24h_mm": 15.2,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T17:00:00Z",
+   "rain_24h_mm": 15.2,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T18:00:00Z",
+   "rain_24h_mm": 15.2,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T19:00:00Z",
+   "rain_24h_mm": 15.2,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T20:00:00Z",
+   "rain_24h_mm": 14.9,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T21:00:00Z",
+   "rain_24h_mm": 13.3,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T22:00:00Z",
+   "rain_24h_mm": 9.2,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-10T23:00:00Z",
+   "rain_24h_mm": 7.7,
+   "discharge": 0.83,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  },
+  {
+   "at": "2023-07-11T00:00:00Z",
+   "rain_24h_mm": 7.3,
+   "discharge": 0.97,
+   "discharge_peak": 1.14,
+   "rain_level": "normal",
+   "river_level": "watch",
+   "level": "watch",
+   "rules": [
+    "discharge>=0.94:watch"
+   ]
+  }
+ ],
+ "first": {
+  "watch": "2023-07-08T00:00:00Z",
+  "warning": "2023-07-08T05:00:00Z",
+  "critical": "2023-07-09T02:00:00Z"
+ },
+ "peak_discharge_day": "2023-07-11",
+ "lead_hours_watch_to_peak_day": 72.0
+}
