@@ -217,8 +217,9 @@ def sweep_all(repo: Repo, *, now: datetime | None = None, fetch=None, workflow: 
 
     now = now or clock.now()
     results = []
-    from Pukaar.services.replay import is_running
+    from Pukaar.services.replay import clear_if_finished, is_running
 
+    clear_if_finished(repo, now)  # a finished replay must not leak into live levels
     replay_active = is_running(repo)
     if workflow is not None:
         restart_stuck(repo, workflow, now)
