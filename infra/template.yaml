@@ -541,7 +541,7 @@ Resources:
       Platform: WEB
       CustomRules:
         # Single-page app: any path without a file extension serves index.html.
-        - Source: "</^[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest|webp|mp3|wav)$)([^.]+$)/>"
+        - Source: "</^[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest|webp|mp3|wav|bin)$)([^.]+$)/>"
           Target: /index.html
           Status: "200"
 
