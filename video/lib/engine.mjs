@@ -155,8 +155,9 @@ export function pageHelpers() {
     };
   };
   window.__v = {
-    init() {
+    init(keepSticky = false) {
       document.documentElement.style.scrollBehavior = "auto";
+      if (keepSticky) return apply(0); // a scroll story needs its sticky chart; such a scene does not zoom
       // A transform on <body> makes fixed and sticky bars scroll with the page anyway; pin them to the top of the
       // document instead, so a zoom never shows a nav bar floating mid-page.
       for (const el of document.body.querySelectorAll("*")) {
@@ -418,7 +419,7 @@ export async function recordScene(browser, scene, tl, work, env) {
     await page.evaluate(() => window.__prepare());
   }
   if (scene.prepare) await scene.prepare(page, env);
-  await page.evaluate(() => window.__v?.init());
+  await page.evaluate((keep) => window.__v?.init(keep), !!scene.keepSticky);
   await sleep(400);
   marks.start = since();
   const clock = { now: () => since() - marks.start };

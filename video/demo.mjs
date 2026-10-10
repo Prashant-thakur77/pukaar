@@ -220,16 +220,20 @@ export function scenes(f, live) {
         L(`Then ${imd.warning}: | Critical.`, `Then ${sayDec(imd.warning)}: | Critical.`),
         L(`${f.leadHours} hours | before the river's peak day.`, `${sayInt(f.leadHours)} hours | before the river's peak day.`, { pre: 0.45 }),
       ],
+      keepSticky: true,
       async prepare(page) {
         await openApp(page, f, "/", () => page.locator(".story-step").first().waitFor({ timeout: 60_000 }));
+        await page.locator(".hero-3d.is-ready, .hero canvas").first().waitFor({ timeout: 30_000 }).catch(() => {});
         await page.waitForTimeout(2500); // the hero's 3D valley loads its heightmap
+        // the story reads small at 1920 px: lay the page out 1.45x larger (CSS zoom keeps the sticky chart working)
+        await page.evaluate(() => (document.documentElement.style.zoom = "1.45"));
       },
       async run(h) {
         // the hero valley: the water rises with the scroll
         await h.page.evaluate(() => window.__v.scrollTo(380, 2600));
         const steps = h.page.locator(".story-step");
         const toStep = (i, ms = 900) =>
-          steps.nth(i).evaluate((el, ms) => window.__v.scrollTo(el.getBoundingClientRect().top + scrollY - innerHeight * 0.42, ms), ms);
+          steps.nth(i).evaluate((el, ms) => window.__v.scrollTo(el.getBoundingClientRect().top + scrollY - innerHeight * 0.26, ms), ms);
         await h.chunk(0, 1, 0);
         await toStep(0, 1100);
         for (let i = 1; i <= 4; i++) {
@@ -253,8 +257,11 @@ export function scenes(f, live) {
         await page.waitForTimeout(4000);
       },
       async run(h) {
+        const map = h.page.locator(".live-grid > *").first();
+        await h.at(0.2);
+        await h.zoom(map, { scale: 1.3, ms: 900 });
         await h.cue(1, 0.2);
-        await h.box(h.page.locator(".live-grid > *").first(), { dim: 0.18 });
+        await h.box(map, { dim: 0.18, pad: 4 });
       },
     },
     // ============================================================ the officer approves
