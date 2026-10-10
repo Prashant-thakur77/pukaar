@@ -71,8 +71,10 @@ def deliver(repo: Repo, alert: Alert, *, action: str = "deliver", recall: bool =
             continue
         try:
             _send_one(alert, r, channel, audio)
+            # a re-send keeps the first send time: "when did the voice first reach this phone" must not move
+            first = prior.sent_at if prior is not None and prior.sent_at else clock.iso(clock.now())
             repo.put_delivery(Delivery(alert_id=alert.id, recipient_id=r.id, name=r.name, channel=channel,
-                                       status="sent", sent_at=clock.iso(clock.now()), attempts=attempts))
+                                       status="sent", sent_at=first, attempts=attempts))
             sent += 1
             metric("DeliverySent", 1, Channel=channel)
         except Exception as exc:

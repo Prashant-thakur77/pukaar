@@ -65,6 +65,21 @@ def test_approve_then_deliver_then_recall_once(repo, frozen, workflow):
     assert repo.get_village("thunag").open_alert_id is None
 
 
+def test_resend_keeps_the_first_send_time(repo, frozen, workflow):
+    """Time to ear reads the first send; the automatic re-send must not move it."""
+    from datetime import timedelta
+
+    s, a, _ = drafted_and_asked(repo)
+    decide(repo, workflow, a.id, "approved", "officer1")
+    s.handle({"step": "deliver", "alert_id": a.id})
+    first = {d.recipient_id: d.sent_at for d in repo.list_deliveries(a.id)}
+    frozen["now"] = frozen["now"] + timedelta(minutes=5)
+    s.handle({"step": "recall", "alert_id": a.id})
+    after = repo.list_deliveries(a.id)
+    assert all(d.attempts == 2 for d in after)
+    assert {d.recipient_id: d.sent_at for d in after} == first
+
+
 def test_late_or_repeated_approval_is_rejected(repo, frozen, workflow):
     _, a, _ = drafted_and_asked(repo)
     version = repo.get_alert(a.id).token_version
