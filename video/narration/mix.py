@@ -25,6 +25,10 @@ for c in plan["clips"]:
     y = librosa.resample(y, orig_sr=sr, target_sr=SR).astype(np.float32)
     y = pyln.normalize.loudness(y, meter.integrated_loudness(y), -16.0).astype(np.float32)
     y *= 10 ** (c.get("gain_db", 0) / 20)
+    if c.get("env"):  # optional gain envelope [[seconds into the clip, dB], ...] (the pitch's Polly L-cut)
+        tt = np.arange(len(y)) / SR
+        pts = np.array(c["env"], dtype=float)
+        y *= (10 ** (np.interp(tt, pts[:, 0], pts[:, 1]) / 20)).astype(np.float32)
     y[:f] *= ramp; y[-f:] *= ramp[::-1]
     a = int(round(c["t"] * SR))
     total[a:a + len(y)] += y[: max(0, len(total) - a)]
@@ -64,6 +68,26 @@ if mus:
     gain[-fo:] *= np.linspace(1, 0, fo)
     mix = mix + (m * gain[:, None]).astype(np.float32)
     mix = pyln.normalize.loudness(mix, meter.integrated_loudness(mix), -16.0).astype(np.float32)
+# sound effects (the pitch): stereo, placed as they are, outside the voice side-chain
+for x in plan.get("sfx", []):
+    y, sr = sf.read(x["path"], dtype="float32", always_2d=True)
+    if sr != SR:
+        y = librosa.resample(y.T, orig_sr=sr, target_sr=SR).T
+    if y.shape[1] == 1:
+        y = np.repeat(y, 2, axis=1)
+    if x.get("dur"):
+        y = y[: int(x["dur"] * SR)]
+    fd = int((x.get("fade") or 0.02) * SR)
+    fd = min(fd, len(y) // 2)
+    if fd > 0:
+        y[:fd] *= np.linspace(0, 1, fd)[:, None]; y[-fd:] *= np.linspace(1, 0, fd)[:, None]
+    y = y * 10 ** (x.get("gain_db", -12) / 20)
+    a = int(round(x["t"] * SR))
+    if a < len(mix):
+        k = min(len(y), len(mix) - a)
+        mix[a:a + k] += y[:k]
+if plan.get("target_lufs"):
+    mix = pyln.normalize.loudness(mix, meter.integrated_loudness(mix), plan["target_lufs"]).astype(np.float32)
 tmp = sys.argv[2] + ".raw.wav"
 sf.write(tmp, mix, SR, subtype="FLOAT")
 subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", tmp, "-af", "alimiter=limit=0.84:attack=2:release=50:level=disabled",

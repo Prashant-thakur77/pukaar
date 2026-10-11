@@ -3,6 +3,7 @@
 //
 //   node video/record.mjs demo      # video/demo.mjs    -> docs/media/pukaar-demo.mp4 (+ silent cut, .srt, poster)
 //   node video/record.mjs trailer   # video/trailer.mjs -> docs/media/pukaar-trailer.mp4
+//   node video/record.mjs pitch     # video/pitch.mjs   -> docs/media/pukaar-pitch.mp4 (own compositor, video/lib/compose.mjs)
 //
 // Options: --only a,b (re-record only these scenes), --plan (narrate and print the timing only), --preview (with
 // --only: just those scenes, into video/.out/preview.mp4).
@@ -42,8 +43,8 @@ import {
 import { pukaarFacts } from "./lib/facts.mjs";
 
 const KIND = process.argv[2];
-if (!["demo", "trailer"].includes(KIND)) {
-  console.error("usage: node video/record.mjs demo|trailer [--only a,b] [--plan] [--preview]");
+if (!["demo", "trailer", "pitch"].includes(KIND)) {
+  console.error("usage: node video/record.mjs demo|trailer|pitch [--only a,b] [--plan] [--preview]");
   process.exit(2);
 }
 const arg = (k) => {
@@ -151,6 +152,11 @@ async function main() {
       if (l.take.score < 0.9) log(`low Whisper score ${l.take.score}: "${l.text}" heard "${l.take.asr}"`);
   writeFileSync(join(WORK, "timeline.json"), JSON.stringify(tls, null, 1));
   if (PLAN) return browser.close();
+  // a video with its own compositor (the pitch): frame-by-frame scenes, live captures, score and sound design
+  if (def.compose) {
+    await def.compose({ browser, scenes, tls, facts, live, work: WORK, media: MEDIA, only: ONLY, words: nw, total });
+    return browser.close();
+  }
   if (PREVIEW) {
     if (!ONLY) throw new Error("--preview needs --only");
     const keep = scenes.map((s, i) => [s, tls[i]]).filter(([s]) => ONLY.has(s.id));

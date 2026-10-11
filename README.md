@@ -13,6 +13,9 @@ Built for Environmental Hacks (WeMakeDevs x AWS), Heat and Water track.
 
 **Live:** https://main.d15r7ktz99l46x.amplifyapp.com · deployed on AWS (`us-east-1`, stack `pukaar-dev`) · public pages need no sign-in.
 
+**Pitch video (4:20):** [![Pukaar pitch video](docs/media/pukaar-pitch-poster.jpg)](docs/media/pukaar-pitch.mp4)
+[Watch the pitch](docs/media/pukaar-pitch.mp4) · [captions](docs/media/pukaar-pitch.srt) · [sources and credits](docs/media/pukaar-pitch-credits.md). The problem in India, Nepal and the world with sourced numbers and real headlines, why warnings fail, the live loop on AWS (a real approval during a labelled replay, the real Polly voice), and what comes next. Footage and images are openly licensed and credited; the Telegram screens are labelled reproductions of the bot's real message.
+
 **Demo video (2:41):** [![Pukaar demo video: the 3D architecture scene](docs/media/pukaar-demo-poster.png)](docs/media/pukaar-demo.mp4)
 [Watch the demo](docs/media/pukaar-demo.mp4) · [35-second trailer](docs/media/pukaar-trailer.mp4) · [script, chapters and captions](docs/submission/demo-script.md) · [submission writeup](docs/submission/writeup.md). The live scenes are recorded from the deployed site during a labelled replay on AWS, and the Hindi voice is the real Polly output. The video pipeline is in [video/](video/).
 

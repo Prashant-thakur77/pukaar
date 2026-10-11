@@ -1004,6 +1004,10 @@ select { appearance: none; padding-right: 44px; }
   .report-feed { grid-template-columns: 1fr; }
   .v-level { justify-items: start; }
 }
+@media (max-width: 420px) {
+  /* the header has no room for both status dots on a phone; the network one matters more (offline report queue) */
+  .livepill.in-header { display: none; }
+}
 
 @media (max-width: 560px) {
   .hdr-inner { gap: 4px; padding: 0 12px; }

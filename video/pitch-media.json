@@ -1,0 +1,293 @@
+{
+ "about": "Every still, satellite image and clip in the pitch video (video/pitch.mjs), with its source, licence and the exact attribution. video/pitch-media.mjs prepares them into video/.out/pitch/ (stills resized, clips cut to frame sequences). 'src' is the downloaded file name; 'url' is the direct file. Kind: REAL = the actual event or its aftermath, PLACE = the real place, GENERIC = stand-in footage (never captioned as a specific event).",
+ "items": [
+  {
+   "name": "flood-mark",
+   "src": "mandi-2023-panchvaktra-flood-mark.jpg",
+   "type": "still",
+   "kind": "REAL",
+   "what": "Panchvaktra temple, Mandi, with the painted Beas flood mark of 9 July 2023 (photographed Aug 2024)",
+   "page": "https://commons.wikimedia.org/wiki/File:Panchvaktra_temple_with_Flood_water_mark_in_mandi_himachal_pradesh.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/3/36/Panchvaktra_temple_with_Flood_water_mark_in_mandi_himachal_pradesh.jpg",
+   "license": "CC BY 4.0",
+   "credit": "\"Panchvaktra temple with Flood water mark in mandi himachal pradesh\" by Madhrakangri, CC BY 4.0, via Wikimedia Commons"
+  },
+  {
+   "name": "uttarkashi",
+   "src": "uttarkashi-2013-bhagirathi-flood.jpg",
+   "type": "still",
+   "kind": "REAL",
+   "what": "The Bhagirathi in flood at Uttarkashi, 17 June 2013",
+   "page": "https://commons.wikimedia.org/wiki/File:Uttarkashi_flood_2013.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/4/47/Uttarkashi_flood_2013.jpg",
+   "license": "CC BY-SA 4.0",
+   "credit": "\"Uttarkashi flood 2013\" by sumit, CC BY-SA 4.0, via Wikimedia Commons"
+  },
+  {
+   "name": "rudraprayag",
+   "src": "rudraprayag-2013-aerial-pib.jpg",
+   "type": "still",
+   "kind": "REAL",
+   "what": "Aerial view of flood-ravaged Rudraprayag, Uttarakhand, 23 June 2013",
+   "page": "https://commons.wikimedia.org/wiki/File:An_aerial_view_of_flood-ravaged_Rudraprayag,_in_Uttarakhand.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/3/31/An_aerial_view_of_flood-ravaged_Rudraprayag%2C_in_Uttarakhand.jpg",
+   "license": "GODL-India",
+   "credit": "\"An aerial view of flood-ravaged Rudraprayag, in Uttarakhand\", Press Information Bureau, Government of India (Ministry of Defence), GODL-India, via Wikimedia Commons"
+  },
+  {
+   "name": "kedarnath",
+   "src": "kedarnath-2014-temple-aftermath.jpg",
+   "type": "still",
+   "kind": "REAL",
+   "what": "Kedarnath, June 2014, a year after the flood",
+   "page": "https://commons.wikimedia.org/wiki/File:Kedarnath_Temple_in_2014.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/6/64/Kedarnath_Temple_in_2014.jpg",
+   "license": "CC BY-SA 4.0",
+   "credit": "\"Kedarnath Temple in 2014\" by Kiranmadhu.e, CC BY-SA 4.0, via Wikimedia Commons"
+  },
+  {
+   "name": "teesta",
+   "src": "sikkim-2023-teesta-debris-bridge.jpg",
+   "type": "still",
+   "kind": "REAL",
+   "autocontrast": true,
+   "what": "The Teesta valley the morning after the South Lhonak outburst, 4 Oct 2023, 07:25",
+   "page": "https://commons.wikimedia.org/wiki/File:Sikkim_flood_2023_(10).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/3/31/Sikkim_flood_2023_%2810%29.jpg",
+   "license": "CC BY-SA 4.0",
+   "credit": "\"Sikkim flood 2023 (10)\" by Vijayakumar Blathur, CC BY-SA 4.0, via Wikimedia Commons"
+  },
+  {
+   "name": "sat-teesta-before",
+   "src": "sat-sikkim-chungthang-teesta3-2023-05-14-before.jpg",
+   "type": "still",
+   "kind": "REAL",
+   "what": "Sentinel-2, Chungthang and the Teesta-III dam, 14 May 2023 (scene S2A_45RXL_20230514_0_L2A)",
+   "page": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2A_45RXL_20230514_0_L2A",
+   "license": "Copernicus Sentinel data licence",
+   "credit": "Contains modified Copernicus Sentinel data 2023 (AWS Open Data sentinel-cogs, via Element 84 Earth Search)",
+   "s2": {
+    "bbox": [
+     88.6,
+     27.57,
+     88.68,
+     27.64
+    ],
+    "scene": "S2A_45RXL_20230514_0_L2A"
+   }
+  },
+  {
+   "name": "sat-teesta-after",
+   "src": "sat-sikkim-chungthang-teesta3-2023-11-15-after.jpg",
+   "type": "still",
+   "kind": "REAL",
+   "what": "Sentinel-2, Chungthang, 15 Nov 2023, after the outburst flood (scene S2B_45RXL_20231115_0_L2A)",
+   "page": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2B_45RXL_20231115_0_L2A",
+   "license": "Copernicus Sentinel data licence",
+   "credit": "Contains modified Copernicus Sentinel data 2023 (AWS Open Data sentinel-cogs, via Element 84 Earth Search)",
+   "s2": {
+    "bbox": [
+     88.6,
+     27.57,
+     88.68,
+     27.64
+    ],
+    "scene": "S2B_45RXL_20231115_0_L2A"
+   }
+  },
+  {
+   "name": "esa-before",
+   "src": "nepal-2026-glacier-flood-before-esa.jpg",
+   "type": "still",
+   "kind": "REAL",
+   "what": "ESA: Sentinel-2, Langtang/Rasuwa, 24 Aug 2026, before the glacier-collapse flood (false colour)",
+   "page": "https://commons.wikimedia.org/wiki/File:Nepal_glacier_collapse_and_flood_24_August_2026.jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/3/31/Nepal_glacier_collapse_and_flood_24_August_2026.jpg",
+   "license": "CC BY-SA 3.0 IGO",
+   "credit": "\"Nepal glacier collapse and flood, 24 August 2026\": contains modified Copernicus Sentinel data (2026), processed by ESA, CC BY-SA 3.0 IGO, via Wikimedia Commons"
+  },
+  {
+   "name": "esa-after",
+   "src": "nepal-2026-glacier-flood-after-esa.jpg",
+   "type": "still",
+   "kind": "REAL",
+   "what": "ESA: Landsat-9, 26 Aug 2026, about two hours after the collapse (false colour)",
+   "page": "https://commons.wikimedia.org/wiki/File:Nepal_glacier_collapse_and_flood_(after)_(55504451912).jpg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/0/0b/Nepal_glacier_collapse_and_flood_%28after%29_%2855504451912%29.jpg",
+   "license": "CC BY 4.0",
+   "credit": "\"Nepal glacier collapse and flood (after)\": contains Landsat-9 data, processed by ESA, CC BY 4.0, via Wikimedia Commons"
+  },
+  {
+   "name": "monsoon-globe",
+   "src": "nasa-asian-monsoon-visualization.webm",
+   "type": "clip",
+   "kind": "GENERIC",
+   "from": 101,
+   "dur": 9,
+   "what": "NASA GPM visualisation of the Asian monsoon (2014 data)",
+   "page": "https://commons.wikimedia.org/wiki/File:Monsoons_Wet,_Dry,_Repeat.webm",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/0/0c/Monsoons_Wet%2C_Dry%2C_Repeat.webm",
+   "license": "Public domain (NASA)",
+   "credit": "\"Monsoons: Wet, Dry, Repeat\", NASA's Goddard Space Flight Center, public domain, via Wikimedia Commons"
+  },
+  {
+   "name": "rain-shaft",
+   "src": "pixabay-212725-heavy-rain-clouds.mp4",
+   "type": "clip",
+   "kind": "GENERIC",
+   "from": 0,
+   "dur": 6,
+   "slow": 2,
+   "what": "Storm clouds dropping a rain shaft on hills (time-lapse)",
+   "page": "https://pixabay.com/videos/sky-rain-heavy-rain-clouds-212725/",
+   "url": "https://cdn.pixabay.com/video/2024/05/20/212725_large.mp4",
+   "license": "Pixabay Content License",
+   "credit": "Video by distillvideos on Pixabay (Pixabay Content License)"
+  },
+  {
+   "name": "torrent",
+   "src": "pexels-1220878-river-raging-waters.mp4",
+   "type": "clip",
+   "kind": "GENERIC",
+   "from": 12,
+   "dur": 8,
+   "what": "A glacier-fed mountain torrent",
+   "page": "https://www.pexels.com/video/river-with-raging-waters-1220878/",
+   "url": "https://videos.pexels.com/video-files/1220878/1220878-hd_1920_1080_25fps.mp4",
+   "license": "Pexels License",
+   "credit": "Video by amit mondal on Pexels (Pexels License)"
+  },
+  {
+   "name": "monsoon-ridges",
+   "src": "pexels-28249694-monsoon-mountains.mp4",
+   "type": "clip",
+   "kind": "GENERIC",
+   "from": 4,
+   "dur": 8,
+   "what": "Monsoon clouds rolling over forested ridges",
+   "page": "https://www.pexels.com/video/monsoon-mountains-28249694/",
+   "url": "https://videos.pexels.com/video-files/28249694/12340047_1920_1080_60fps.mp4",
+   "license": "Pexels License",
+   "credit": "Video by buddy sagar on Pexels (Pexels License)"
+  },
+  {
+   "name": "nepal-valley",
+   "src": "pexels-38611952-sindhupalchok-valley-nepal.mp4",
+   "type": "clip",
+   "kind": "PLACE",
+   "from": 6,
+   "dur": 12,
+   "what": "Drone up a river valley in Sindhupalchok, Nepal (not the Trishuli school)",
+   "page": "https://www.pexels.com/video/aerial-view-of-sindhupalchok-valley-nepal-38611952/",
+   "url": "https://videos.pexels.com/video-files/38611952/16398800_1920_1080_30fps.mp4",
+   "license": "Pexels License",
+   "credit": "Video by Bibek Bohara on Pexels (Pexels License)"
+  },
+  {
+   "name": "barot",
+   "src": "barot-valley-mandi.webm",
+   "type": "clip",
+   "kind": "PLACE",
+   "from": 0,
+   "dur": 12,
+   "what": "Barot valley, Mandi district (Jan 2025)",
+   "page": "https://commons.wikimedia.org/wiki/File:Barot_Valley,_Mandi.webm",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Barot_Valley%2C_Mandi.webm",
+   "license": "CC BY 4.0",
+   "credit": "\"Barot Valley, Mandi\" by Meerah Dhiman, CC BY 4.0, via Wikimedia Commons"
+  },
+  {
+   "name": "kullu",
+   "src": "kullu-village-life.webm",
+   "type": "clip",
+   "kind": "PLACE",
+   "from": 2,
+   "dur": 16,
+   "what": "A village in Kullu district at dusk (first 32 s only)",
+   "page": "https://commons.wikimedia.org/wiki/File:Village_Life_kullu_Himachal_Pradesh.webm",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/7/73/Village_Life_kullu_Himachal_Pradesh.webm",
+   "license": "CC BY-SA 4.0",
+   "credit": "\"Village Life kullu Himachal Pradesh\" by Rajani Gairshail, CC BY-SA 4.0, via Wikimedia Commons"
+  },
+  {
+   "name": "night",
+   "src": "@footage/night.mp4",
+   "type": "clip",
+   "kind": "GENERIC",
+   "from": 0.5,
+   "dur": 10,
+   "what": "Moon behind clouds over a hillside settlement at night",
+   "page": "https://www.pexels.com/video/moon-behind-clouds-over-city-13208093/",
+   "url": "https://videos.pexels.com/video-files/13208093/13208093-hd_1920_1080_30fps.mp4",
+   "license": "Pexels License",
+   "credit": "Pexels video 13208093 (Pexels License)"
+  },
+  {
+   "name": "storm",
+   "src": "@footage/timelapse.mp4",
+   "type": "clip",
+   "kind": "GENERIC",
+   "from": 0.5,
+   "dur": 8,
+   "what": "Time-lapse of storm clouds over forested ridges",
+   "page": "https://www.pexels.com/video/mountain-timelapse-17791400/",
+   "url": "https://videos.pexels.com/video-files/17791400/17791400-hd_1920_1080_25fps.mp4",
+   "license": "Pexels License",
+   "credit": "Pexels video 17791400 (Pexels License)"
+  },
+  {
+   "name": "roof-rain",
+   "src": "@footage/rain.mp4",
+   "type": "clip",
+   "kind": "GENERIC",
+   "from": 2,
+   "dur": 12,
+   "what": "Heavy monsoon rain over houses on a wooded hillside",
+   "page": "https://www.pexels.com/video/video-of-heavy-rainfall-from-roof-top-5091073/",
+   "url": "https://videos.pexels.com/video-files/5091073/5091073-hd_1920_1080_30fps.mp4",
+   "license": "Pexels License",
+   "credit": "Pexels video 5091073 (Pexels License)"
+  },
+  {
+   "name": "flood-river",
+   "src": "@footage/river.mp4",
+   "type": "clip",
+   "kind": "GENERIC",
+   "from": 1,
+   "dur": 8,
+   "zoom": 1.25,
+   "y": 1,
+   "what": "A swollen, muddy river in flood (cropped to keep sluice gates out)",
+   "page": "https://www.pexels.com/video/rushing-flood-6182356/",
+   "url": "https://videos.pexels.com/video-files/6182356/6182356-hd_1920_1080_30fps.mp4",
+   "license": "Pexels License",
+   "credit": "Pexels video 6182356 (Pexels License)"
+  },
+  {
+   "name": "dawn",
+   "src": "@footage/dawn.mp4",
+   "type": "clip",
+   "kind": "GENERIC",
+   "from": 0.5,
+   "dur": 14,
+   "what": "Morning light over Himalayan foothills",
+   "page": "https://www.pexels.com/video/rishikesh-16232800/",
+   "url": "https://videos.pexels.com/video-files/16232800/16232800-uhd_3840_2160_30fps.mp4",
+   "license": "Pexels License",
+   "credit": "Pexels video 16232800 (Pexels License)"
+  },
+  {
+   "name": "valley",
+   "src": "@footage/valley.mp4",
+   "type": "clip",
+   "kind": "GENERIC",
+   "from": 1,
+   "dur": 14,
+   "what": "Aerial: a Himalayan valley with a river and a village on both banks",
+   "page": "https://www.pexels.com/video/scenic-aerial-view-of-mountain-valley-village-33838656/",
+   "url": "https://videos.pexels.com/video-files/33838656/14360617_3840_2160_60fps.mp4",
+   "license": "Pexels License",
+   "credit": "Pexels video 33838656 (Pexels License)"
+  }
+ ]
+}
