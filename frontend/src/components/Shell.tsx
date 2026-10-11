@@ -26,6 +26,10 @@ import { fmtTime } from '../lib/format';
 import { REPLAY_EVENT } from '../lib/events';
 import { TourHost } from './Tour';
 import { LivePill } from './LivePill';
+import { ValleyLine } from './Art';
+
+/** The villager pages stay light on cheap phones: no display font, not even in the header. */
+const isVillagerRoute = (p: string) => p.startsWith('/report') || p.startsWith('/t/');
 
 const NAV = [
   { to: '/live', key: 'nav.live' },
@@ -163,7 +167,7 @@ function Header() {
   const nextTheme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
 
   return (
-    <header className={`site-header${pathname === '/' ? ' is-over-hero' : ''}`}>
+    <header className={`site-header${pathname === '/' ? ' is-over-hero' : ''}${isVillagerRoute(pathname) ? ' is-light' : ''}`}>
       <div className="hdr-inner">
         <Link to="/" className="hdr-brand" aria-label="Pukaar पुकार — home">
           <Wordmark small />
@@ -226,10 +230,10 @@ function SampleRibbon() {
   const { t } = useT();
   if (!sample) return null;
   return (
-    <div className="sample-ribbon" role="note" title={t('shell.sample.note')}>
+    <aside className="sample-ribbon" aria-label="Sample data" title={t('shell.sample.note')}>
       <strong>SAMPLE DATA</strong> <span lang="hi">नमूना डेटा</span>
       <span className="sr-only">{t('shell.sample.note')}</span>
-    </div>
+    </aside>
   );
 }
 
@@ -332,7 +336,8 @@ function Footer() {
         </nav>
       </div>
       <div className="ftr-giant" aria-hidden="true">
-        <span>PUKAAR</span>
+        <ValleyLine className="ftr-valley" />
+        <span lang="hi">पुकार</span>
       </div>
       <div className="ftr-base">
         <span>{en ? 'Built in Mandi, Himachal' : 'मंडी, हिमाचल में बना'}</span>
@@ -385,7 +390,7 @@ export default function Shell() {
     }, 900);
     return () => clearTimeout(tm);
   }, [pathname, hash]);
-  const villager = pathname.startsWith('/report') || pathname.startsWith('/t/');
+  const villager = isVillagerRoute(pathname);
   return (
     <>
       <a href="#main" className="skip-link">
@@ -398,7 +403,11 @@ export default function Shell() {
         <Outlet />
       </main>
       {villager ? null : <Footer />}
-      {pathname.startsWith('/t/') && <Call112 variant="fab" />}
+      {pathname.startsWith('/t/') && (
+        <aside aria-label={lang === 'hi' ? 'आपातकाल' : 'Emergency'}>
+          <Call112 variant="fab" />
+        </aside>
+      )}
       <TourHost />
     </>
   );

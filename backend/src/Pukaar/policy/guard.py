@@ -45,6 +45,7 @@ DENY_HINTS = {
     "view_rollcall": "You can only see the roll-call of your own villages.",
     "remind_rollcall": "Only a district officer, or the pradhan of this village, can send a roll-call reminder.",
     "set_shelter_status": "Only a district officer, or the pradhan of this village, can update its shelters.",
+    "block_road": "Only a district officer, or the pradhan of this village, can mark its roads blocked.",
     "view_after_action": "Only a district officer, or the pradhan of this village, can read this after-action report.",
     "view_gauge_proposal": "Only a district officer, or the pradhan of this village, can see its gauge proposal.",
     "set_gauge_thresholds": "Only a district officer can change a gauge's thresholds.",

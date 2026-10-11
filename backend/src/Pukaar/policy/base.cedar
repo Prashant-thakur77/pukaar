@@ -43,6 +43,23 @@ permit (
 )
 when { context.village_id != "" && principal.village_ids.contains(context.village_id) };
 
+@id("officer-roadblocks")
+@desc("Officers mark a road or bridge on any village's evacuation routes blocked, renew the block or clear it.")
+permit (
+  principal is Pukaar::Officer,
+  action == Pukaar::Action::"block_road",
+  resource is Pukaar::Village
+);
+
+@id("pradhan-own-roadblocks")
+@desc("A pradhan marks roads on their own village's evacuation routes blocked, renews or clears them; never another village's.")
+permit (
+  principal is Pukaar::Pradhan,
+  action == Pukaar::Action::"block_road",
+  resource is Pukaar::Village
+)
+when { context.village_id != "" && principal.village_ids.contains(context.village_id) };
+
 @id("system-deliver-approved")
 @desc("The system delivers an alert only after an officer approved it.")
 permit (
@@ -88,13 +105,14 @@ forbid (
 when { context.replay == true && context.channel == "telegram" };
 
 @id("agents-never-send")
-@desc("A model agent can never approve, send, change a level or change the shelter ledger.")
+@desc("A model agent can never approve, send, change a level, change the shelter ledger or mark a road blocked.")
 forbid (
   principal is Pukaar::Agent,
   action in [
     Pukaar::Action::"approve", Pukaar::Action::"decline", Pukaar::Action::"deliver",
     Pukaar::Action::"auto_send", Pukaar::Action::"failsafe", Pukaar::Action::"issue_directive",
-    Pukaar::Action::"open_rollcall", Pukaar::Action::"remind_rollcall", Pukaar::Action::"set_shelter_status"
+    Pukaar::Action::"open_rollcall", Pukaar::Action::"remind_rollcall", Pukaar::Action::"set_shelter_status",
+    Pukaar::Action::"block_road"
   ],
   resource
 );

@@ -51,7 +51,7 @@
 .ag-status.is-pending { color: #f6d95c; border-color: rgb(242 204 53 / 0.45); background: rgb(242 204 53 / 0.08); }
 :lang(hi) .ag-status { letter-spacing: 0; font-size: 0.78rem; }
 .ag-band-status { display: grid; gap: 8px; justify-items: end; }
-.ag-honest { margin: var(--s-5) 0 0; max-width: 80ch; font-family: var(--font-mono); font-size: 0.74rem; line-height: 1.6; letter-spacing: 0.02em; color: var(--ink-3); }
+.ag-honest { margin: var(--s-5) 0 0; max-width: 80ch; font-family: var(--font-mono); font-size: 0.74rem; line-height: 1.6; letter-spacing: 0.02em; color: var(--ink-2); }
 .ag-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 800; color: var(--accent-text); text-decoration: none; }
 .ag-link svg { width: 18px; height: 18px; transition: transform var(--dur-2) var(--ease-out); }
 .ag-link:hover svg { transform: translateX(3px); }
@@ -85,6 +85,10 @@
 :lang(hi) .ag-name { font-family: var(--font-hi); font-weight: 800; font-size: 1.45rem; line-height: 1.25; text-transform: none; }
 .ag-name-alt { margin: 4px 0 0; font-size: 0.85rem; color: rgb(238 246 251 / 0.6); }
 .ag-role { margin: 0; line-height: 1.55; color: rgb(238 246 251 / 0.82); }
+.ag-evidence {
+  margin: 0; padding: 6px 10px; border-left: 2px solid rgb(242 204 53 / 0.55); font-size: 0.82rem; line-height: 1.5;
+  color: rgb(238 246 251 / 0.78);
+}
 .ag-prims { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .ag-prims li {
   max-width: 100%; padding: 4px 10px; border-radius: 999px; border: 1px solid rgb(238 246 251 / 0.18);

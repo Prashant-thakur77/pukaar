@@ -141,10 +141,10 @@ Sources and verdicts: the research summary in [REFERENCE_REVIEW.md](REFERENCE_RE
 | 2 | Gauges over IoT Core | 1 | live (verified: MQTT with X.509 through IoT Core raised Gohar in a labelled simulation) |
 | 3 | Guardrails on villager text | 1 | live (verified: a prompt-attack report was held by Bedrock Guardrails) |
 | 4 | Visitor tour | 1 | live |
-| 5 | Safe places and routes | 2 | live (OSM coverage thin for Thunag and Gohar; road-blocking not yet built) |
+| 5 | Safe places and routes | 2 | live (OSM coverage thin for Thunag and Gohar; road blocks cross out baked routes and promote the next one; routes are not recomputed) |
 | 6 | After-action email | 2 | live; e-mail needs verified SES addresses (sandbox) |
 | 7 | Live push (AppSync Events) | 2 | live (verified: a level change reached a subscribed browser 75 ms after the API answered) |
-| 8 | Satellite before/after | 2 | built (Sentinel-2: 3 Jun, 23 Jul and 6 Sep 2023; split slider on /impact) |
+| 8 | Satellite before/after | 2 | live (Sentinel-2: 3 Jun, 23 Jul and 6 Sep 2023; split slider on /impact) |
 | 9 | SMS channel | 3 | blocked: owner must activate AWS End User Messaging; India needs DLT registration |
 | 10 | Voice call | 3 | needs an Indian telecom partner: Amazon Connect does not place calls to Indian numbers |
 | 11 | Web Push to officers | 3 | live (RFC 8291 test vector, VAPID keys in SSM, Approve/Decline from the notification; the new service worker installs, takes over and serves /, /how and /report offline) |

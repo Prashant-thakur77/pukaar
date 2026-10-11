@@ -791,7 +791,9 @@ export interface AgentStatus {
   state: AgentState;
   label_en: string;
   label_hi: string;
+  /** What the status is based on (the last draft, or the cached model-access probe). */
   evidence: string;
+  evidence_hi?: string;
 }
 
 export interface AgentTool {
@@ -968,12 +970,42 @@ export interface SafePlace {
   walk_min: number;
   rank: number;
   ledger: ShelterLedger;
+  /** An active road block crosses this place's baked route (absent on older servers). */
+  route_blocked?: boolean;
+  route_blocks?: { id: string; label: string; note: string }[];
+  /** The first baked route, by rank, that no block crosses. */
+  best_open_route?: boolean;
 }
 
 export interface RouteFeature {
   type: 'Feature';
   geometry: { type: 'LineString'; coordinates: [number, number][] } | { type: 'Point'; coordinates: [number, number] };
-  properties: { feature: 'route' | 'start'; rank?: number; place_id?: string; steep?: boolean; name?: string };
+  properties: {
+    feature: 'route' | 'start';
+    rank?: number;
+    place_id?: string;
+    steep?: boolean;
+    name?: string;
+    blocked?: boolean;
+    best?: boolean;
+    block_note?: string;
+  };
+}
+
+/** A road or bridge on a baked route that a pradhan or officer marked blocked (7 days unless renewed). */
+export interface RoadBlock {
+  id: string;
+  lat: number;
+  lon: number;
+  label: string;
+  note: string;
+  created_by: string;
+  created_at: string;
+  renewed_by: string | null;
+  renewed_at: string | null;
+  expires_at: string;
+  /** Places whose baked route passes through this block. */
+  place_ids: string[];
 }
 
 export interface SafePlacesView extends SampleFlag {
@@ -981,6 +1013,9 @@ export interface SafePlacesView extends SampleFlag {
   available: boolean;
   places: SafePlace[];
   routes: { type: 'FeatureCollection'; features: RouteFeature[] };
+  roadblocks?: RoadBlock[];
+  route_limit_en?: string;
+  route_limit_hi?: string;
   river_level_m?: number | null;
   river_level_method?: string | null;
   candidates?: Record<string, number> | null;

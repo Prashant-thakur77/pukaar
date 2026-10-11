@@ -26,6 +26,7 @@ import { holdLine } from '../lib/evidence';
 import { humanizeSummary } from '../lib/humanize';
 import { useAuth } from '../store';
 import type { Alert, DecisionTrace, GaugeView, Level, PublicRollCall, SoilView, TraceEvidence, Village } from '../types';
+import { Kicker, ValleyLine } from '../components/Art';
 
 function AlertDetails({ alert }: { alert: Alert }) {
   const { t, lang } = useT();
@@ -403,7 +404,7 @@ export default function VillagePage() {
           </Link>
           <div className="v-hero-grid">
             <div>
-              <p className="eyebrow">{t('village.district', { d: v.district })}</p>
+              <Kicker className="v-kicker">{t('village.district', { d: v.district })}</Kicker>
               <h1 className="v-name">
                 <span lang="hi">{v.name_hi}</span>
                 <span className="v-name-en">{v.name}</span>
@@ -436,6 +437,7 @@ export default function VillagePage() {
             </p>
           )}
         </div>
+        <ValleyLine quiet className="v-valley" />
       </section>
 
       <div className="wrap v-body">

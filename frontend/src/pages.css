@@ -111,9 +111,9 @@
 .state.has-word { gap: 10px; padding: var(--s-7) var(--s-4); }
 .state-word {
   margin: 0; font-family: var(--font-display); text-transform: uppercase; line-height: 0.9;
-  font-size: clamp(2.6rem, 5vw, 4rem); color: transparent; -webkit-text-stroke: 1.5px var(--line-2);
+  font-size: clamp(2.6rem, 5vw, 4rem); color: transparent; -webkit-text-stroke: 1.5px var(--word);
 }
-.state-word:lang(hi) { font-family: var(--font-hi); font-weight: 800; -webkit-text-stroke: 0; color: var(--line-2); }
+.state-word:lang(hi) { font-family: var(--font-hi); font-weight: 800; -webkit-text-stroke: 0; color: var(--word); }
 .state.has-word .state-title { font-family: var(--font-body); font-size: var(--fs-md); font-weight: 800; }
 .state.has-word .state-body { font-size: var(--fs-sm); }
 
@@ -391,12 +391,10 @@
   .console-head .ch-tools .call112 { display: none; }
 }
 
-/* Dark theme: lift the header band off the black page */
-:root[data-theme='dark'] :is(.pg-band, .village-page .v-hero, .impact-hero.band-night) { background: linear-gradient(180deg, #0d2540 0%, #081828 100%); border-bottom-color: rgb(79 179 255 / 0.22); }
+/* Dark theme: lift cards off the black page (header bands take their fields from editorial.css) */
 :root[data-theme='dark'] .live-map.card { border-color: var(--line-2); }
 :root[data-theme='dark'] .pending-card.ticket { box-shadow: 0 18px 40px -28px rgb(0 0 0 / 0.8); }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) :is(.pg-band, .village-page .v-hero, .impact-hero.band-night) { background: linear-gradient(180deg, #0d2540 0%, #081828 100%); border-bottom-color: rgb(79 179 255 / 0.22); }
   :root:not([data-theme='light']) .live-map.card { border-color: var(--line-2); }
   :root:not([data-theme='light']) .pending-card.ticket { box-shadow: 0 18px 40px -28px rgb(0 0 0 / 0.8); }
 }
@@ -1067,8 +1065,14 @@ label.check-row { cursor: pointer; }
   border-radius: 12px; box-shadow: var(--sh-2); font-size: 12px; font-weight: 700;
 }
 .live-map .safe-legend { top: 58px; }
-/* On the overview map the village markers stay on top and place names show on hover or focus only. */
-.live-map .sp-host { z-index: 0; }
+/* A pin that would sit on its village marker is spread above it (VillageMap's fan), with a leader line
+ * back to its true spot. The pin is above the village layer, so both stay visible and tappable. */
+.sp-host.is-fanned::before {
+  content: ''; position: absolute; left: 50%; bottom: 0; width: var(--leader-len, 0); height: 0;
+  border-top: 2px dashed rgb(255 255 255 / 0.95); filter: drop-shadow(0 0 1.5px rgb(4 24 43 / 0.9));
+  transform-origin: 0 0; transform: rotate(var(--leader-angle, 0rad)); pointer-events: none;
+}
+/* On the overview map place names show on hover or focus only. */
 .live-map .sp { scale: 0.8; }
 .live-map .sp-label { display: none; }
 .live-map .sp:hover .sp-label, .live-map .sp:focus-visible .sp-label { display: grid; z-index: 3; }
@@ -1077,6 +1081,20 @@ label.check-row { cursor: pointer; }
 .sl-pin svg.lucide { width: 11px; height: 11px; rotate: 45deg; }
 .sl-line { width: 26px; height: 0; border-top: 4px solid #1f8fd6; border-radius: 4px; box-shadow: 0 0 8px 2px rgb(79 179 255 / 0.55); }
 .sl-line.is-steep { border-top-style: dashed; box-shadow: none; }
+.sl-line.is-blocked { border-top: 4px dashed #c8102e; box-shadow: none; }
+
+/* A road block on the map: a crimson cross on a white disc, decoration only (the list says it in words). */
+.rb-host { z-index: 2; pointer-events: none; }
+.map.is-far .rb-host { display: none; }
+.rb-x {
+  position: relative; display: block; width: 24px; height: 24px; border-radius: 50%; background: #c8102e;
+  border: 2.5px solid #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
+}
+.rb-x::before, .rb-x::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 12px; height: 2.5px; border-radius: 2px; background: #fff;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.rb-x::after { transform: translate(-50%, -50%) rotate(-45deg); }
 .sl-attrib { flex-basis: 100%; font-size: 11px; font-weight: 600; color: var(--ink-3); }
 
 .map-safe {
@@ -1140,6 +1158,34 @@ label.check-row { cursor: pointer; }
 .wtg-card .link svg.lucide { width: 14px; height: 14px; }
 .wtg-foot { display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: var(--s-3); }
 .wtg-foot p { margin: 0; max-width: 90ch; }
+
+/* Road blocks in "Where to go": crimson for a blocked route, the river-blue route icon for the promoted one. */
+.wtg-best { margin: 0; display: inline-flex; align-items: center; gap: 6px; font-weight: 800; color: var(--accent-text); }
+.wtg-best svg.lucide { width: 16px; height: 16px; }
+.wtg-card.is-blocked { border-color: var(--lv-critical); }
+.wtg-blocked { display: grid; gap: 4px; padding: 8px 10px; border-radius: var(--r-sm, 8px); background: var(--lv-critical-bg); color: var(--lv-critical-ink); }
+.wtg-blocked p { margin: 0; display: flex; gap: 6px; align-items: flex-start; font-weight: 700; overflow-wrap: anywhere; }
+.wtg-blocked svg.lucide { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+.wtg-blocked .wtg-blocked-none { font-weight: 800; }
+.wtg-facts.is-struck li { text-decoration: line-through; text-decoration-color: var(--lv-critical); }
+.wtg-mark { justify-self: start; display: inline-flex; align-items: center; gap: 6px; }
+.wtg-mark svg.lucide { width: 16px; height: 16px; }
+.wtg-tap-hint { margin: 0; }
+.wtg-block-form { display: grid; gap: var(--s-3); padding: var(--s-4); border-left: 4px solid var(--lv-critical); }
+.wtg-block-form h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; }
+.wtg-block-form h3 svg.lucide { width: 20px; height: 20px; color: var(--lv-critical-ink); }
+.wtg-block-form h3:focus { outline: none; }
+.wtg-block-form p { margin: 0; }
+.wtg-block-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.wtg-all-blocked { margin: 0; padding: var(--s-3) var(--s-4); display: flex; gap: 8px; align-items: flex-start; border-left: 4px solid var(--lv-critical); color: var(--lv-critical-ink); font-weight: 700; }
+.wtg-all-blocked svg.lucide { width: 18px; height: 18px; flex: none; margin-top: 2px; }
+.wtg-rbs { display: grid; gap: var(--s-2); }
+.wtg-rbs h3 { margin: 0; font-size: 1.05rem; }
+.wtg-rbs ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.wtg-rb { display: grid; gap: 4px; padding: var(--s-3); border-radius: var(--r-md); border: 1px solid var(--line); border-left: 4px solid var(--lv-critical); background: var(--surface); }
+.wtg-rb p { margin: 0; overflow-wrap: anywhere; }
+.wtg-rb-what { display: flex; gap: 6px; align-items: flex-start; font-weight: 700; }
+.wtg-rb-what svg.lucide { width: 16px; height: 16px; flex: none; margin-top: 3px; color: var(--lv-critical-ink); }
 @media (max-width: 560px) {
   .wtg-list { grid-template-columns: 1fr; }
   .safe-legend { font-size: 11px; gap: 2px 10px; padding: 6px 8px; max-width: calc(100% - 70px); }

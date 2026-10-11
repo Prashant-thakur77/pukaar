@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
+import { Lehar, ValleyLine } from './Art';
 
-/** A big Anton headline whose last word is set in gold. */
+/** A display headline whose last word is set apart: italic and river-blue in English, river-blue in Hindi. */
 export function Headline({ text, className = '' }: { text: string; className?: string }) {
   const words = text.trim().split(/\s+/);
   const last = words.pop() ?? '';
@@ -14,7 +15,7 @@ export function Headline({ text, className = '' }: { text: string; className?: s
 
 export type Stat = { key: string; value: ReactNode; label: ReactNode; tone?: 'alert' };
 
-/** A row of hero numbers: huge Anton numeral, thin top rule, tiny caption. */
+/** A row of hero numbers: large serif numeral, thin top rule, short caption. */
 export function StatStrip({ stats, className = '' }: { stats: Stat[]; className?: string }) {
   return (
     <ul className={`stat-strip ${className}`}>
@@ -29,8 +30,9 @@ export function StatStrip({ stats, className = '' }: { stats: Stat[]; className?
 }
 
 /**
- * The page header band: a full-width dark (or cream) block with a gold eyebrow,
- * a huge uppercase title and a one-line lead. Children render under the lead.
+ * The page header band: a soft gradient field (mist by day, the river at night) with an ornamented
+ * kicker, a serif title and a one-line lead, and the valley drawn in line at its foot.
+ * Children render under the lead.
  */
 export function PageBand({
   eyebrow,
@@ -55,9 +57,9 @@ export function PageBand({
     <header className={`pg-band pg-${tone} ${className}`}>
       <div className="wrap-wide pg-inner">
         <div className="pg-text">
-          <p className="pg-eyebrow">
-            {live && <span className="live-dot" aria-hidden="true" />}
-            {eyebrow}
+          <p className="pg-eyebrow kicker">
+            {live ? <span className="live-dot" aria-hidden="true" /> : <Lehar />}
+            <span className="kicker-text">{eyebrow}</span>
           </p>
           <h1 className="pg-title">
             <Headline text={title} />
@@ -67,6 +69,7 @@ export function PageBand({
         {aside && <div className="pg-aside">{aside}</div>}
       </div>
       {children && <div className="wrap-wide pg-extra">{children}</div>}
+      <ValleyLine quiet className="pg-valley" />
     </header>
   );
 }

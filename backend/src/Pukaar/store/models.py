@@ -353,6 +353,29 @@ class ShelterStatus(BaseModel):
     updated_at: str
 
 
+class RoadBlock(BaseModel):
+    """A road or path that a pradhan or officer says is blocked, at one point on a baked route.
+
+    Routes are baked offline, so a block never creates a new route: every baked
+    route passing within ROADBLOCK_RADIUS_M of the point counts as blocked, and the
+    next baked route is promoted. Lapses after 7 days unless someone renews it.
+    """
+
+    id: str
+    village_id: str
+    lat: float
+    lon: float
+    label: str = ""  # the road or bridge, as the person named it (optional)
+    note: str
+    created_by: str
+    created_at: str
+    renewed_by: str | None = None
+    renewed_at: str | None = None
+    expires_at: str
+    cleared_by: str | None = None
+    cleared_at: str | None = None
+
+
 class AuditRow(BaseModel):
     at: str
     id: str

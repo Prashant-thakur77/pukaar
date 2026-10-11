@@ -63,11 +63,16 @@ def dev_approval_link(alert_id: str, principal: Principal = Depends(Allowed("dev
 
 @router.get("/health/deep")
 def health_deep(_: Principal = Depends(Allowed("health_deep"))) -> dict:
-    llm = _llm()
-    if llm is None:
-        return {"bedrock": "disabled", "model": get_settings().bedrock_model_id}
-    text = llm.generate_text("Reply with the single word OK.", "ping", max_tokens=5)
-    return {"bedrock": "ok" if text else "failed", "model": llm.model_name}
+    """One 1-token model call, now; the answer also refreshes the cached flag the /agents page reads."""
+    from Pukaar.services import model_probe
+
+    s = get_settings()
+    if not s.llm_enabled:
+        return {"bedrock": "disabled", "model": s.bedrock_model_id}
+    rec = model_probe.maybe_run(get_repo(), force=True) or {}
+    state = rec.get("state")
+    return {"bedrock": {"live": "ok", "pending": "pending model access"}.get(state or "", "failed"),
+            "model": s.bedrock_model_id, "detail": rec.get("detail", "probe did not run")}
 
 
 @router.get("/alerts")
@@ -232,6 +237,73 @@ def set_shelter(village_id: str, place_id: str, body: ShelterBody,
         resource=f"shelter:{village_id}/{place_id}", decision="allow",
         reason=f"{old.status if old else 'UNCONFIRMED'} -> {status}"
                + (f"; capacity {body.capacity}" if body.capacity is not None else "")))
+    return safe_places.view(repo, village_id)
+
+
+class RoadBlockBody(BaseModel):
+    lat: float
+    lon: float
+    note: str
+    label: str = ""
+
+
+def _roadblock_audit(principal: Principal, action: str, village_id: str, block_id: str, reason: str) -> None:
+    get_repo().append_audit(AuditRow(
+        at=clock.iso(clock.now()), id=new_id("aud"), actor=principal.username, role=principal.role, action=action,
+        resource=f"roadblock:{village_id}/{block_id}", decision="allow", reason=reason))
+
+
+@router.post("/villages/{village_id}/roadblocks")
+def add_roadblock(village_id: str, body: RoadBlockBody,
+                  principal: Principal = Depends(Allowed("block_road", "village", "village_id",
+                                                         village_from_path=True))) -> dict:
+    """Mark a point on a baked evacuation route blocked (7 days unless renewed). Routes are not recomputed."""
+    repo = get_repo()
+    if repo.get_village(village_id) is None:
+        raise HTTPException(404, "Village not found")
+    try:
+        block = safe_places.new_roadblock(village_id, new_id("rb"), body.lat, body.lon, body.label, body.note,
+                                          principal.username, clock.now())
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    repo.put_roadblock(block)
+    hit = sorted(safe_places.blocked_routes(village_id, [block]))
+    _roadblock_audit(principal, "road_blocked", village_id, block.id,
+                     f"open -> BLOCKED at {block.lat},{block.lon}"
+                     + (f" ({block.label})" if block.label else "") + f"; routes to {', '.join(hit) or 'none'}")
+    return safe_places.view(repo, village_id)
+
+
+def _existing_block(village_id: str, block_id: str):
+    block = get_repo().get_roadblock(village_id, block_id)
+    if block is None or block.cleared_at is not None or block.expires_at <= clock.iso(clock.now()):
+        raise HTTPException(404, "Road block not found (it may have been cleared or expired)")
+    return block
+
+
+@router.post("/villages/{village_id}/roadblocks/{block_id}/renew")
+def renew_roadblock(village_id: str, block_id: str,
+                    principal: Principal = Depends(Allowed("block_road", "village", "village_id",
+                                                           village_from_path=True))) -> dict:
+    """Keep a block for another 7 days from now."""
+    repo = get_repo()
+    old = _existing_block(village_id, block_id)
+    block = safe_places.renewed(old, principal.username, clock.now())
+    repo.put_roadblock(block)
+    _roadblock_audit(principal, "road_block_renewed", village_id, block_id,
+                     f"expires {old.expires_at} -> {block.expires_at}")
+    return safe_places.view(repo, village_id)
+
+
+@router.post("/villages/{village_id}/roadblocks/{block_id}/clear")
+def clear_roadblock(village_id: str, block_id: str,
+                    principal: Principal = Depends(Allowed("block_road", "village", "village_id",
+                                                           village_from_path=True))) -> dict:
+    """The road is open again: the routes through it count once more."""
+    repo = get_repo()
+    block = safe_places.cleared(_existing_block(village_id, block_id), principal.username, clock.now())
+    repo.put_roadblock(block)
+    _roadblock_audit(principal, "road_block_cleared", village_id, block_id, "BLOCKED -> open")
     return safe_places.view(repo, village_id)
 
 

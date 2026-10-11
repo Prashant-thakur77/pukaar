@@ -72,7 +72,8 @@ def test_registry_is_read_from_code(repo, frozen):
     assert {"approve", "decline", "deliver", "auto_send", "failsafe", "issue_directive"} <= never
     assert {"set_level", "choose_recipients"} <= never
     assert set(agents_svc.forbidden_agent_actions()) == {"approve", "decline", "deliver", "auto_send", "failsafe",
-                                                         "issue_directive", "open_rollcall", "remind_rollcall", "set_shelter_status"}
+                                                         "issue_directive", "open_rollcall", "remind_rollcall", "set_shelter_status",
+                                                         "block_road"}
     assert by_id["drafting-agent"]["max_turns"] == 4
     assert "time_window_hi" in by_id["drafting-agent"]["output_fields"]
     assert any("Strands" in p for p in by_id["drafting-agent"]["primitives"])

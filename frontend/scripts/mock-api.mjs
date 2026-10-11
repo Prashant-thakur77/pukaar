@@ -361,6 +361,10 @@ const server = http.createServer(async (req, res) => {
       ],
     });
   }
+  if (seg[0] === 'safe' && seg[1]) {
+    if (seg[1] === 'expired') return send(res, 410, { detail: { code: 'expired' } });
+    return send(res, 200, { first_name: 'Meena', village_name: 'Gohar', village_name_hi: 'गोहर', at: iso(0.4 * H), status: 'safe', exercise: false, simulated: true });
+  }
   if (p === '/ask/officer') {
     if (!needUser()) return;
     const top = [...VILLAGES].sort((a, b) => READINGS[b.id].at(-1).rain_24h_mm - READINGS[a.id].at(-1).rain_24h_mm);

@@ -1,0 +1,552 @@
+/* =====================================================================================================
+   Editorial layer (loaded last). Pukaar's water identity, set with more confidence:
+   - one bilingual serif for display (Tiro Devanagari Hindi), sentence case, regular weight, tight tracking;
+     Hindi and English share the family, so neither reads as a translation of the other;
+   - soft layered gradient fields with a still grain (tokens in theme.css), used for heroes, a few bands
+     and key cards; flat pages elsewhere;
+   - hairline cards instead of shadows, quiet pills, numbers in the serif, generous section rhythm;
+   - hand-drawn line art (components/Art.tsx): the lehar ornament, the valley, a field of Hindi words;
+   - motion is short and small: 24 px rises, no endless bobbing, a still grain. Reduced motion stops it all.
+   ===================================================================================================== */
+
+/* ---------- 1. base ---------- */
+:root body, :root[data-theme] body { background: var(--bg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) body { background: var(--bg); } }
+::selection { background: rgb(79 179 255 / 0.32); }
+
+/* ---------- 2. type ---------- */
+.display-2, .display-3, .hero-h1, .pg-title, .how-h, .story-title, .thesis-lines, .step-title, .how .step-title, .qr-title,
+.ag-name, .ag-round-title, .ag-stack-h, .sn-card-name, .af-title, .how-step-title, .how-card h3, .tour-title, .nf-title,
+.state-word, .vt-en, .tk-en, .impact .sc-title-en, .sc-title-en, .approve-village .bi-en, .v-name, .login-art-word,
+:is(.live, .console, .village-page, .impact, .audit) :is(.h-sec, .panel-title), .wm-hi, .wm-en {
+  font-family: var(--font-display); font-weight: 400; text-transform: none; font-synthesis: none;
+}
+.display-2, .display-3, .hero-h1, .pg-title, .how-h, .story-title, .thesis-lines, .af-title, .nf-title {
+  letter-spacing: -0.022em; text-wrap: balance;
+}
+/* Hindi inside (or as) a display line: the same serif, never synthetic bold, room for the matras. */
+:is(.display-2, .display-3, .hero-h1, .pg-title, .how-h, .story-title, .thesis-lines, .step-title, .how-step-title, .how-card h3,
+  .ag-name, .ag-stack-h, .sn-card-name, .af-title, .qr-title, .nf-title, .v-name, .state-word, .wm-hi):is([lang='hi'], :lang(hi)),
+:is(.display-2, .display-3, .hero-h1, .pg-title, .how-h, .story-title, .thesis-lines, .step-title, .how-step-title, .how-card h3,
+  .ag-name, .ag-stack-h, .sn-card-name, .af-title, .qr-title, .nf-title, .v-name) [lang='hi'] {
+  font-family: var(--font-display); font-weight: 400; font-synthesis: none; line-height: 1.3;
+}
+.display-2 { font-size: clamp(2.4rem, 4.8vw, 4.5rem); line-height: 1.04; }
+.display-3 { font-size: clamp(1.9rem, 3.2vw, 2.9rem); line-height: 1.08; }
+.how-h { font-size: clamp(2.2rem, 4.6vw, 4rem); line-height: 1.05; }
+.how-h:lang(hi) { font-size: clamp(2rem, 4.2vw, 3.5rem); }
+.lead, .how-lead, .pg-lead { font-size: clamp(1.06rem, 0.4vw + 0.98rem, 1.25rem); line-height: 1.6; }
+
+/* The set-apart word: italic serif in the river's ink (English); the same colour, upright, in Hindi. */
+.hl-gold, .hh-gold { font-style: normal; background: var(--text-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--text-grad-solid); filter: none; padding-right: 0.06em; }
+.hl-gold:lang(en), .hh-gold:lang(en) { font-style: italic; }
+/* On bands that are dark in both themes, the set-apart word is the river itself. */
+.hero .hh-gold, .thesis .hl-line,
+:is(.sn-path-band, .ag-think, .ag-ask, .how-cta, .how-forest, .spine, .cta-panel, .fact, .console-head, .v-hero, .login-art, .officer-preview, .all-clear) .hl-gold {
+  background: var(--river-grad); -webkit-background-clip: text; background-clip: text; color: #4fb3ff;
+}
+
+/* Section labels: small tracked capitals after a short hairline (Hindi: unspaced, a little larger). */
+.eyebrow, .how-eyebrow {
+  display: inline-flex; align-items: center; gap: 12px; font-family: var(--font-body); font-size: 0.72rem; font-weight: 650; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--accent-text);
+}
+.eyebrow::before, .how-eyebrow::before { content: ''; width: 22px; height: 1px; background: currentColor; opacity: 0.6; flex: none; }
+.eyebrow:lang(hi), .how-eyebrow:lang(hi) { font-size: 0.85rem; letter-spacing: 0; }
+
+/* ---------- 3. the kicker: lehar ornament + label between fading hairlines ---------- */
+.kicker, .pg-eyebrow.kicker {
+  display: inline-flex; align-items: center; gap: 12px; width: fit-content; max-width: 100%; margin: 0 0 var(--s-5); padding: 9px 2px;
+  font-family: var(--font-body); font-size: 0.95rem; font-weight: 550; letter-spacing: 0.005em; line-height: 1.35; text-transform: none;
+  color: var(--accent-text);
+  border-block: 1px solid transparent;
+  border-image: linear-gradient(90deg, color-mix(in srgb, currentColor 55%, transparent), color-mix(in srgb, currentColor 18%, transparent) 70%, transparent) 1;
+}
+.kicker::before { content: none; }
+.kicker:lang(hi) { font-size: 1rem; }
+.lehar { flex: none; width: 58px; height: auto; overflow: visible; }
+.lehar-line { opacity: 0.55; }
+.kicker .lehar-call { animation: lehar-call 3.6s var(--ease-out) infinite; }
+@keyframes lehar-call { 0%, 55%, 100% { opacity: 1; } 25% { opacity: 0.3; } }
+
+/* ---------- 4. buttons: quiet pills, sentence case ---------- */
+.btn,
+:is(.live, .console, .village-page, .report, .track, .approve, .audit, .impact, .login, .pg-band, .nf, .how) .btn {
+  text-transform: none; letter-spacing: 0; font-size: 0.95rem; font-weight: 600; border-width: 1px;
+  transition: transform 160ms var(--ease-out), background-color 160ms, border-color 160ms, box-shadow 240ms var(--ease-out), color 160ms;
+}
+:is(.live, .console, .village-page, .report, .track, .approve, .audit, .impact, .login, .pg-band, .nf, .how) .btn:lang(hi),
+:is(.live, .console, .village-page, .report, .track, .approve, .audit, .impact, .login, .pg-band, .nf, .how) .btn [lang='hi'] { font-size: 1rem; }
+.btn-lg, :is(.how) .btn.btn-lg { font-size: 1rem; }
+.btn-xl { font-size: 1.05rem; }
+.btn-sm { font-size: 0.85rem; }
+.btn::after, .btn-accent::before { content: none; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:active:not(:disabled), .btn-press:active:not(:disabled) { transform: translateY(0) scale(0.985); }
+
+/* Primary: the river. White ink on deep blue by day (5:1), navy ink on light blue at night and on dark bands. */
+.btn-accent {
+  --bg-b: #1874c0; --fg-b: #fff; border-color: transparent; color: #fff;
+  background: linear-gradient(180deg, #1874c0 0%, #0f5c9e 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 24px -14px rgb(15 92 158 / 0.9);
+}
+.btn-accent:hover:not(:disabled) { background: linear-gradient(180deg, #1a7ccc 0%, #0f5c9e 100%); border-color: transparent; }
+:root[data-theme='dark'] .btn-accent, .hero .btn-accent, .cta-panel .btn-accent, .login-art .btn-accent {
+  color: #04182b; background: linear-gradient(180deg, #b4e2ff 0%, #6cc0ff 55%, #4fa9f5 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 12px 30px -14px rgb(79 179 255 / 0.8);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .btn-accent {
+    color: #04182b; background: linear-gradient(180deg, #b4e2ff 0%, #6cc0ff 55%, #4fa9f5 100%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 12px 30px -14px rgb(79 179 255 / 0.8);
+  }
+}
+/* Ink: the dark pill, lit from above. */
+.btn-ink {
+  --fg-b: #f2f8fc; color: #f2f8fc; border-color: transparent;
+  background: linear-gradient(180deg, #23384f 0%, #0b1a2c 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 10px 24px -14px rgb(6 17 31 / 0.8);
+}
+.btn-ink:hover:not(:disabled) { opacity: 1; background: linear-gradient(180deg, #2a425c 0%, #0e2034 100%); }
+/* Glass on night. */
+.btn-night { --bg-b: rgb(255 255 255 / 0.07); --fg-b: #eaf4fb; --bd-b: rgb(234 244 251 / 0.3); backdrop-filter: blur(8px); }
+.btn-night:hover:not(:disabled) { --bg-b: rgb(255 255 255 / 0.13); border-color: rgb(234 244 251 / 0.6); }
+.btn-ghost { --bd-b: var(--line-2); }
+.btn-ghost:hover:not(:disabled) { border-color: var(--ink-3); }
+
+/* ---------- 5. header and wordmark ---------- */
+.site-header { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: saturate(1.5) blur(16px); -webkit-backdrop-filter: saturate(1.5) blur(16px); border-bottom-color: var(--hair); }
+.site-header.is-over-hero { background: rgb(6 17 31 / 0.72); border-bottom-color: rgb(234 244 251 / 0.08); }
+.hdr-link, .hdr-link:lang(hi), :root[lang='hi'] .hdr-link { text-transform: none; letter-spacing: 0; font-size: 0.93rem; font-weight: 600; padding: 0 12px; }
+.hdr-link.is-active { box-shadow: none; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 8px; text-decoration-color: var(--accent); }
+.wm-hi { font-size: 1.75rem; line-height: 1; letter-spacing: 0; }
+.wm-en { font-style: italic; font-size: 1.02rem; letter-spacing: 0.01em; opacity: 0.78; }
+.wordmark.is-small .wm-hi { font-size: 1.55rem; }
+.site-header.is-light .wm-hi { font-family: var(--font-hi); font-weight: 800; font-size: 1.5rem; }
+.site-header.is-light .wm-en { font-family: var(--font-body); font-style: normal; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.16em; text-transform: uppercase; }
+.call112 .c112-num { font-family: var(--font-body); font-weight: 800; font-size: 1.12rem; letter-spacing: 0.01em; }
+
+/* ---------- 6. cards: hairlines, no shadows, no sheen ---------- */
+.card, .panel, .qr-card, .how-card, .sn-card, .ag-stack-col, .sn-watch-board, .ev-card, .trend-card, .village-tile, .alert-row, .demo-user, .measure, .scenario {
+  box-shadow: none;
+}
+.card, .panel { border-color: var(--hair); border-radius: 20px; }
+.panel::after, .card::after, .alert-card::after, .ag-card::after { background: none; }
+.village-tile:hover, .ev-card:hover { box-shadow: 0 18px 40px -30px rgb(11 31 51 / 0.45); }
+
+/* Art tiles: a squircle of gradient light behind a white line icon (Sarvam-like, in water colours). */
+.art-tile, .af-icon, .ag-icon, .how-card-icon, .step-icon, .how .step-icon, .login-badge {
+  border-radius: 30%; background: var(--tile-sky); color: #fff; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5), 0 10px 22px -14px rgb(31 120 214 / 0.8);
+}
+:is(.af-icon, .ag-icon, .how-card-icon, .step-icon, .login-badge) svg { color: #fff; filter: drop-shadow(0 1px 1px rgb(4 24 43 / 0.25)); }
+.ag-card:nth-child(5n + 2) .ag-icon, .how-card:nth-child(4n + 2) .how-card-icon, .af-grid > :nth-child(2) .af-icon, .steps > :nth-child(2) .step-icon { background: var(--tile-teal); }
+.ag-card:nth-child(5n + 3) .ag-icon, .how-card:nth-child(4n + 3) .how-card-icon, .steps > :nth-child(3) .step-icon { background: var(--tile-deep); }
+.ag-card:nth-child(5n + 4) .ag-icon, .how-card:nth-child(4n + 4) .how-card-icon { background: var(--tile-glacier); }
+.ag-card:nth-child(5n + 4) .ag-icon svg, .how-card:nth-child(4n + 4) .how-card-icon svg { color: #0b2742; filter: none; }
+.step-icon i { border-color: #4fb3ff; }
+
+/* ---------- 7. motion: short and small ---------- */
+.reveal, .reveal-slide { transform: translateY(24px); transition: opacity 0.8s var(--ease-expo) var(--d, 0ms), transform 0.9s var(--ease-expo) var(--d, 0ms); }
+.reveal.is-in { transform: none; }
+.hf-card { animation: hf-in 800ms var(--ease-expo) forwards; }
+/* A still grain on the dark bands (it used to crawl). */
+.hero::after, .site-footer::after, .thesis::after, .spine::after, .fact::after { animation: none; inset: 0; opacity: 0.09; background-image: var(--grain); background-size: 180px; }
+.hero::after { background-image: var(--grain), repeating-linear-gradient(105deg, transparent 0 26px, rgb(180 220 255 / 0.04) 26px 27px); }
+
+/* ---------- 8. the line art ---------- */
+.valley-art { display: block; pointer-events: none; overflow: visible; }
+.valley-art * { vector-effect: non-scaling-stroke; }
+.valley-art .va-far, .valley-art .va-rain { opacity: 0.55; }
+.valley-art .va-rain { opacity: 0.35; }
+.valley-art .va-ripple { opacity: 0.6; }
+.valley-art .va-call { animation: lehar-call 3.6s var(--ease-out) infinite; }
+.word-field { position: absolute; inset: 0; z-index: 0; display: grid; align-content: space-around; overflow: hidden; pointer-events: none; user-select: none;
+  font-family: var(--font-display); font-size: clamp(1.5rem, 3vw, 2.6rem); line-height: 1.2; white-space: nowrap; color: rgb(138 208 255 / 0.05); }
+.word-field span:nth-child(even) { transform: translateX(-12%); }
+
+/* =====================================================================================================
+   Page header band (PageBand: /live, /how, /agents, /sensors, /impact, /audit). Mist field by day, the river at
+   night, the valley drawn at its foot. The console keeps its night head, made calmer (section 15).
+   ===================================================================================================== */
+.pg-band:not(.console-head) {
+  background: var(--mesh-field); color: var(--band-ink); border-bottom: 1px solid var(--band-line);
+  padding: clamp(48px, 7vw, 104px) 0 clamp(84px, 10vw, 140px);
+}
+.pg-band:not(.console-head)::after {
+  inset: 0; right: 0; top: 0; width: auto; aspect-ratio: auto; border-radius: 0; z-index: -1;
+  background: var(--grain); background-size: 180px; opacity: 0.07; mix-blend-mode: multiply;
+}
+:root[data-theme='dark'] .pg-band:not(.console-head)::after { mix-blend-mode: screen; opacity: 0.05; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .pg-band:not(.console-head)::after { mix-blend-mode: screen; opacity: 0.05; } }
+.valley-art.is-quiet { width: 100%; height: clamp(64px, 8vw, 118px); }
+.pg-valley { position: absolute; z-index: -1; left: 0; right: 0; bottom: -1px; color: var(--band-accent); opacity: 0.3; }
+.pg-band:not(.console-head) .pg-eyebrow { color: var(--band-accent); }
+.pg-band:not(.console-head) .pg-eyebrow .live-dot { background: var(--lv-normal); }
+.pg-title { font-size: clamp(2.7rem, 5.8vw, 5.4rem); line-height: 1.02; color: inherit; overflow-wrap: break-word; }
+.pg-title:lang(hi), :lang(hi) > .pg-title, .pg-title [lang='hi'] { font-size: clamp(2.4rem, 5vw, 4.6rem); line-height: 1.28; }
+.pg-band:not(.console-head) .pg-lead { color: var(--band-ink-2); max-width: 54ch; }
+.pg-band:not(.console-head) :is(.pg-updated, .muted) { color: var(--band-ink-3); }
+.pg-band:not(.console-head) .livepill { color: var(--band-ink-3); }
+.pg-band:not(.console-head) .livepill.is-on { color: var(--ok); }
+.pg-band:not(.console-head) .btn-ghost { --fg-b: var(--band-ink); --bd-b: var(--band-line); --bg-b: var(--band-chip); }
+.pg-band:not(.console-head) .btn-ghost:hover:not(:disabled) { border-color: var(--band-accent); --fg-b: var(--band-accent); }
+.pg-band:not(.console-head) .chip { background: var(--band-chip); color: var(--band-ink-2); border-color: var(--band-line); }
+.pg-band:not(.console-head) .chip-warn { color: var(--lv-warning-ink); }
+.pg-band:not(.console-head) .chip-good { color: var(--lv-normal-ink); }
+.pg-band:not(.console-head) .skel { background: var(--band-line); }
+.pg-band:not(.console-head) .tour-pill { color: var(--band-accent); border-color: color-mix(in srgb, var(--band-accent) 50%, transparent); background: var(--band-chip); }
+.pg-band:not(.console-head) .tour-pill:hover { border-color: var(--band-accent); background: var(--band-chip); }
+:is(.pg-band:not(.console-head), .ag-card) .ag-status { color: var(--band-ink-2); border-color: var(--band-line); background: var(--band-chip); }
+:is(.pg-band:not(.console-head), .ag-card) .ag-status.is-live { color: var(--lv-normal-ink); border-color: color-mix(in srgb, var(--lv-normal) 45%, transparent); background: var(--lv-normal-bg); }
+:is(.pg-band:not(.console-head), .ag-card) .ag-status.is-deterministic { color: var(--band-accent); border-color: color-mix(in srgb, var(--band-accent) 40%, transparent); background: var(--band-chip); }
+:is(.pg-band:not(.console-head), .ag-card) .ag-status.is-pending { color: var(--lv-watch-ink); border-color: color-mix(in srgb, var(--lv-watch) 55%, transparent); background: var(--lv-watch-bg); }
+
+/* Numbers with confidence: the serif, lining figures, a hairline above, a plain caption below. */
+.stat-strip .stat, .live .mini-counter { border-top-color: var(--band-line); padding-top: 16px; }
+.stat-num, .live .mc-num {
+  font-family: var(--font-display); font-weight: 400; font-size: clamp(2.6rem, 4.6vw, 4.3rem); line-height: 1; letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums tabular-nums; color: var(--band-ink);
+}
+.stat-label, .live .mc-label {
+  font-family: var(--font-body); font-size: 0.86rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--band-ink-3);
+}
+.stat.is-alert { border-top-color: var(--band-accent); }
+.stat.is-alert .stat-num { color: var(--band-accent); }
+
+/* =====================================================================================================
+   Landing
+   ===================================================================================================== */
+/* hero: the real terrain at night, a soft river glow over it, the serif headline */
+.hero::before {
+  background:
+    linear-gradient(90deg, rgb(6 17 31 / 0.9) 0%, rgb(6 17 31 / 0.62) 40%, rgb(6 17 31 / 0.1) 72%, transparent 100%),
+    radial-gradient(50% 60% at 90% 0%, rgb(79 179 255 / 0.22), transparent 70%),
+    radial-gradient(40% 50% at 10% 100%, rgb(29 111 214 / 0.3), transparent 70%),
+    linear-gradient(0deg, rgb(6 17 31 / 0.85) 0%, transparent 32%);
+}
+.hero .kicker { color: #a9dcff; margin-bottom: var(--s-5); }
+.hero-h1 { text-transform: none; font-size: clamp(3rem, 6.2vw, 6rem); line-height: 1; letter-spacing: -0.025em; color: #f2f8fc; margin-bottom: var(--s-5); }
+.hero-h1:lang(hi), :root[lang='hi'] .hero-h1 { font-family: var(--font-display); font-weight: 400; line-height: 1.24; font-size: clamp(2.6rem, 5.6vw, 5.2rem); }
+.hero-sub { font-family: var(--font-display); font-weight: 400; transform: none; color: #cfe9ff; font-size: clamp(1.4rem, 2.2vw, 1.95rem); line-height: 1.4; margin: 0 0 var(--s-4); }
+.hero-sub:lang(en) { font-family: var(--font-display); font-style: italic; font-weight: 400; color: #cfe9ff; font-size: clamp(1.15rem, 1.6vw, 1.4rem); }
+.hero-lead { color: #b6d3ea; font-size: 1.06rem; }
+.hero-ctas .btn-xl { border-radius: 999px; }
+/* the floating proof cards: glass and serif numbers, still */
+.hf-card { border-radius: 22px; }
+.hf-gold { background: rgb(9 30 52 / 0.62); color: #eaf4fb; border: 1px solid rgb(138 208 255 / 0.28); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 30px 60px -24px rgb(0 0 0 / 0.7); }
+.hf-num { font-family: var(--font-display); font-size: 4.2rem; line-height: 0.95; letter-spacing: -0.03em; }
+.hf-gold .hf-num { background: var(--river-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #8ad0ff; }
+.hf-cap, .hf-cap:lang(hi), :root[lang='hi'] .hf-cap { font: 500 0.86rem/1.45 var(--font-body); letter-spacing: 0; text-transform: none; }
+.hf-eyebrow { font: 600 0.78rem/1.2 var(--font-body); letter-spacing: 0.01em; text-transform: none; color: #a9dcff; }
+.hf-hi { font-family: var(--font-display); font-weight: 400; font-size: 1.08rem; line-height: 1.6; border-left-color: #4fb3ff; }
+.hf-cream { background: rgb(242 248 252 / 0.94); color: #0b1f33; }
+
+/* counters: a mist field in the light theme, deep water at night; serif numerals */
+.band-marigold { background: var(--mesh-field); color: var(--band-ink); padding: var(--s-8) 0 var(--s-7); }
+.band-marigold::before { height: 30px; }
+.band-marigold .eyebrow, .band-marigold .eyebrow-ink { color: var(--band-accent); }
+.band-marigold .counter-num, .band-marigold [class*='num'] { font-family: var(--font-display); color: var(--band-ink); text-shadow: none; }
+.band-marigold .counter-num { font-size: clamp(3.2rem, 6.4vw, 5.6rem); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: lining-nums tabular-nums; }
+.band-marigold li, .band-marigold .counters li { border-top: 1px solid var(--band-line) !important; padding-top: 18px; }
+.counter-label { font-size: 0.92rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--band-ink-2); }
+.band-marigold a, .counter-clear a { color: var(--band-accent); }
+.counter-clear { color: var(--band-ink); }
+
+/* agent-first / sensor-first: two product cards on the page, each with an art tile */
+.af-band { background: var(--bg); color: var(--ink); padding: clamp(64px, 9vw, 128px) 0; }
+.af-band .af-eyebrow { color: var(--accent-text); margin: 0 0 var(--s-6); }
+.af-card {
+  color: var(--ink); background: var(--mesh-card); border: 1px solid var(--hair); border-radius: 28px; min-height: 340px;
+  padding: clamp(26px, 3.4vw, 44px); gap: 14px;
+}
+.af-card::after {
+  right: -18%; top: -38%; width: 70%;
+  background: repeating-radial-gradient(circle, transparent 0 30px, color-mix(in srgb, var(--accent) 12%, transparent) 30px 31px);
+}
+.af-card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.af-icon { width: 64px; height: 64px; }
+.af-kicker { font-family: var(--font-body); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: none; color: var(--accent-text); }
+.af-title { font-size: clamp(2.8rem, 5vw, 4.4rem); line-height: 1; color: var(--ink); }
+.af-title:lang(hi), :lang(hi) .af-title { font-size: clamp(2.4rem, 4.4vw, 3.6rem); line-height: 1.25; }
+.af-body { color: var(--ink-2); font-size: 1.04rem; }
+.af-go, :lang(hi) .af-go { font-size: 0.95rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--accent-text); }
+
+/* the loop: light cards, a small serif number, an art tile */
+.how-head { margin-bottom: clamp(36px, 5vw, 64px); }
+.how .step {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--hair); border-radius: 24px; padding: clamp(24px, 3vw, 36px);
+}
+.how .step:hover { transform: translateY(-3px); box-shadow: 0 24px 50px -36px rgb(11 31 51 / 0.5); }
+.how .step-num {
+  position: static; order: -1; display: block; margin-bottom: 18px; font-family: var(--font-body); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em;
+  color: var(--ink-3); -webkit-text-fill-color: currentColor; background: none; opacity: 1;
+}
+.how .step { display: flex; flex-direction: column; }
+.how .step-icon { width: 60px; height: 60px; border-radius: 30%; margin-bottom: var(--s-5); }
+.how .step-title { color: var(--ink); font-size: clamp(1.9rem, 2.6vw, 2.4rem); line-height: 1.05; letter-spacing: -0.015em; }
+.how .step p { color: var(--ink-2); margin-bottom: 0; }
+
+/* the chain: deep water with a still grain */
+.spine { background: var(--mesh-deep); }
+.spine .display-2 { color: #f2f8fc; }
+.spine-step { font-family: var(--font-display); font-size: 1.45rem; letter-spacing: -0.01em; }
+.spine .spine-link { background: rgb(4 24 43 / 0.32); border-color: rgb(234 244 251 / 0.12); border-radius: 18px; }
+.spine .spine-icon { background: var(--tile-sky); color: #fff; border-radius: 30%; }
+
+/* the fact: the night in crimson, the date in Devanagari numerals */
+.band-night.fact { background: var(--mesh-crimson); }
+.fact h2 [lang='hi'] { font-family: var(--font-display); font-weight: 400; font-size: clamp(3rem, 7vw, 5.8rem); line-height: 1.15; color: #fff; }
+.fact-en { font-family: var(--font-display); font-style: italic; font-size: clamp(1.3rem, 2vw, 1.75rem); color: #ffd9d0; }
+.fact-text { font-family: var(--font-display); font-weight: 400; font-size: clamp(1.35rem, 2.3vw, 1.9rem); line-height: 1.6; }
+
+/* the thesis: three lines in the serif, the last one the river */
+.thesis { background: var(--mesh-night); }
+.thesis-lines { font-size: clamp(2.6rem, 7vw, 6rem); line-height: 1.04; letter-spacing: -0.03em; color: rgb(234 244 251 / 0.5); }
+.thesis-lines:lang(hi) { line-height: 1.3; letter-spacing: 0; }
+.thesis-lines .hl-line:lang(en) { font-style: italic; }
+
+/* the closing band: an inset night panel with the valley drawn at its foot and Hindi words like type on a bed */
+.band-paper.cta { background: var(--bg); padding: clamp(48px, 7vw, 96px) 0 clamp(40px, 5vw, 72px); }
+main:has(> .landing) + .site-footer { margin-top: 0; }
+.cta-panel {
+  position: relative; isolation: isolate; overflow: hidden; border-radius: clamp(22px, 3vw, 34px);
+  background: var(--mesh-night); color: #eaf4fb; padding: clamp(36px, 6vw, 88px) clamp(22px, 5vw, 72px) clamp(130px, 14vw, 220px);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+.cta-panel::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: var(--grain); background-size: 180px; opacity: 0.09; mix-blend-mode: overlay; }
+.cta-panel .cta-grid { position: relative; z-index: 1; }
+.cta-panel .display-2 { color: #f2f8fc; }
+.cta-panel .lead { color: #b6d3ea; }
+.cta-valley { position: absolute; z-index: 0; left: 50%; bottom: 0; width: max(100%, 900px); height: auto; transform: translateX(-50%); color: #8ad0ff; opacity: 0.5; }
+.cta-words { color: rgb(138 208 255 / 0.045); -webkit-mask: linear-gradient(90deg, transparent 0%, #000 40%, #000 100%); mask: linear-gradient(90deg, transparent 0%, #000 40%, #000 100%); }
+.cta-panel .qr-card { background: #fff; color: #0b1f33; border: 0; border-radius: 22px; }
+.cta-panel .qr-title { font-size: 1.9rem; color: #0b1f33; }
+
+/* the story band keeps its paper; its headings take the serif */
+.story-title { letter-spacing: -0.02em; line-height: 1.08; }
+
+/* ---------- footer: the night river, the valley in line, and पुकार in the serif with water running through it ---------- */
+.site-footer { background: var(--mesh-night); }
+.ftr-script { font-family: var(--font-display); font-weight: 400; transform: none; font-size: clamp(2rem, 3.4vw, 2.9rem); line-height: 1.3; color: #a9dcff; }
+.ftr-h { font-weight: 650; letter-spacing: 0.2em; color: #8ad0ff; }
+.ftr-h:lang(hi) { letter-spacing: 0; font-size: 0.85rem; }
+.ftr-giant { margin: 0 auto -0.2em; overflow: hidden; padding-top: clamp(20px, 4vw, 48px); }
+.ftr-giant span {
+  font-family: var(--font-display); font-weight: 400; font-size: clamp(7rem, 27vw, 26rem); line-height: 1.2; letter-spacing: 0;
+  animation-duration: 16s;
+}
+.ftr-giant span { position: relative; }
+.ftr-valley { position: absolute; left: 50%; top: 0; width: max(100%, 980px); height: auto; transform: translateX(-50%); color: #8ad0ff; opacity: 0.28; }
+.ftr-base { background: transparent; letter-spacing: 0.14em; }
+.ftr-base [lang='hi'] { font-family: var(--font-display); font-size: 0.95rem; }
+@media (max-width: 640px) { .ftr-giant span { font-size: 34vw; } }
+
+/* =====================================================================================================
+   /how, /agents, /sensors
+   ===================================================================================================== */
+.how-band { padding: clamp(64px, 9vw, 128px) 0; }
+.how-h { margin-bottom: clamp(32px, 4.4vw, 56px); }
+/* the loop: light numbered cards on a soft field */
+.how-loop { background: var(--mesh-soft); }
+.how-step { background: var(--surface); color: var(--ink); border: 1px solid var(--hair); border-radius: 24px; }
+.how-num {
+  font-family: var(--font-display); font-size: clamp(2.6rem, 3.6vw, 3.4rem); line-height: 1; letter-spacing: -0.02em;
+  background: var(--text-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--text-grad-solid);
+}
+.how-step-title { font-size: clamp(1.45rem, 2vw, 1.8rem); line-height: 1.12; letter-spacing: -0.01em; }
+.how-step-title:lang(hi) { font-family: var(--font-display); font-weight: 400; font-size: 1.45rem; line-height: 1.35; }
+.how-what { color: var(--ink-2); }
+.how-aws { border-color: color-mix(in srgb, var(--accent) 35%, transparent); background: var(--accent-soft); color: var(--accent-text); }
+.how-why { border-top-color: var(--hair); }
+.how-why-k { font-family: var(--font-body); font-weight: 650; letter-spacing: 0.18em; color: var(--accent-text); }
+.how-why p { color: var(--ink); }
+.how-why .how-cite { color: var(--ink-3); }
+.how-cite:hover { color: var(--accent-text); }
+/* evidence: a field with big serif numbers */
+.how-gold { background: var(--mesh-field); color: var(--band-ink); }
+.how-gold .how-eyebrow { color: var(--band-accent); }
+.how-stat { border-top: 1px solid var(--band-line); padding-top: 20px; }
+.how-stat-num { font-family: var(--font-display); font-weight: 400; font-size: clamp(4rem, 9vw, 7.6rem); line-height: 1; letter-spacing: -0.04em; font-variant-numeric: lining-nums; }
+.how-stat-cap { font-weight: 500; color: var(--band-ink-2); }
+.how-gold .how-cite { color: var(--band-ink-2); }
+.how-gold .how-cite:hover { color: var(--band-accent); }
+/* hardware: deep water */
+.how-forest { background: var(--mesh-deep); }
+.how-hw-list svg { color: #8ad0ff; }
+/* trust cards */
+.how-card { border-color: var(--hair); border-radius: 22px; background: var(--mesh-card); }
+.how-card h3 { font-size: 1.65rem; line-height: 1.1; letter-spacing: -0.01em; }
+.how-card h3:lang(hi) { font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; line-height: 1.3; }
+.how-card-icon { width: 48px; height: 48px; }
+/* the closing band of /how */
+.how-cta { background: var(--mesh-night); position: relative; isolation: isolate; overflow: hidden; padding-bottom: clamp(150px, 17vw, 250px); }
+.how-cta .cta-valley { opacity: 0.4; }
+
+/* /agents */
+.ag-card { background: var(--mesh-card); color: var(--ink); border: 1px solid var(--hair); border-radius: 24px; }
+.ag-card::before { height: 0; }
+.ag-icon { width: 54px; height: 54px; }
+.ag-name { font-size: clamp(1.8rem, 2.6vw, 2.3rem); line-height: 1.05; letter-spacing: -0.015em; }
+:lang(hi) .ag-name { font-family: var(--font-display); font-weight: 400; font-size: 1.7rem; line-height: 1.3; }
+.ag-name-alt { color: var(--ink-3); }
+.ag-role { color: var(--ink-2); }
+.ag-evidence { color: var(--ink-2); border-left-color: var(--lv-watch); }
+.ag-prims li { border-color: var(--line-2); color: var(--ink-2); }
+.ag-sec, .ag-foot { border-top-color: var(--hair); }
+.ag-k { font-family: var(--font-body); font-weight: 650; letter-spacing: 0.16em; color: var(--accent-text); }
+.ag-k-never { color: var(--bad); }
+.ag-tools li { background: var(--accent-soft); color: var(--accent-text); }
+.ag-never svg { color: var(--bad); }
+.ag-cedar { border-color: color-mix(in srgb, var(--bad) 45%, transparent); color: var(--bad); }
+.ag-foot p { color: var(--ink-2); }
+.ag-meta li { background: var(--surface-3); color: var(--ink-3); }
+.ag-card .ag-link { color: var(--accent-text); }
+.ag-tile { color: var(--accent-text); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, transparent); font-family: var(--font-body); letter-spacing: 0.1em; }
+.ag-think { background: var(--mesh-night); }
+.ag-round-title { font-size: 1.45rem; line-height: 1.15; letter-spacing: -0.01em; }
+:lang(hi) .ag-round-title { font-family: var(--font-display); font-weight: 400; line-height: 1.35; }
+.ag-stack-col { border-color: var(--hair); border-radius: 22px; }
+.ag-stack-h { font-size: 1.75rem; letter-spacing: -0.01em; }
+:lang(hi) .ag-stack-h { font-family: var(--font-display); font-weight: 400; }
+
+/* /sensors: the device path over the real valley (the Sentinel-2 scene /impact already shows), as a dim duotone */
+.sn-path-band { background: var(--mesh-night); }
+.sn-path-band::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: url('/satellite/2023/2023-06-03.jpg') center 40% / cover no-repeat;
+  filter: grayscale(1) contrast(1.15); mix-blend-mode: luminosity; opacity: 0.2;
+  -webkit-mask: linear-gradient(180deg, transparent 0%, #000 30%, #000 75%, transparent 100%); mask: linear-gradient(180deg, transparent 0%, #000 30%, #000 75%, transparent 100%);
+}
+.sn-sat-credit { margin: var(--s-5) 0 0; font-size: 0.78rem; color: rgb(234 244 251 / 0.72); }
+@media (max-width: 760px) { .sn-path-band::after { content: none; } .sn-sat-credit { display: none; } }
+.sn-node-title { font-family: var(--font-display); font-size: 23px; text-transform: none; letter-spacing: 0; }
+.sn-card { background: var(--mesh-card); border-color: var(--hair); border-radius: 24px; }
+.sn-card::before { height: 0; }
+.sn-card.is-fresh { border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.sn-card-name { font-size: 2rem; letter-spacing: -0.015em; line-height: 1.05; }
+:lang(hi) .sn-card-name { font-family: var(--font-display); font-weight: 400; font-size: 1.75rem; line-height: 1.3; }
+.sn-stage-num { font-family: var(--font-display); font-size: clamp(3rem, 4.4vw, 3.9rem); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: lining-nums tabular-nums; }
+.sn-k { font-family: var(--font-body); font-weight: 650; letter-spacing: 0.16em; }
+.sn-spark { border-radius: 14px; border-color: var(--hair); }
+.sn-watch { background: var(--mesh-soft); }
+.sn-watch-board { border-color: var(--hair); border-radius: 22px; background: var(--mesh-card); }
+
+/* =====================================================================================================
+   App pages
+   ===================================================================================================== */
+/* section headings on app pages: the serif, sentence case */
+:is(.live, .console, .village-page, .impact, .audit) :is(.h-sec, .panel-title) { font-size: clamp(1.55rem, 2.2vw, 2rem); line-height: 1.1; letter-spacing: -0.012em; }
+:is(.live, .console, .village-page, .impact, .audit) :is(.h-sec, .panel-title):lang(hi) { font-family: var(--font-display); font-weight: 400; font-size: 1.55rem; line-height: 1.3; }
+:is(.live, .console, .village-page, .audit, .impact, .track) .chip { font-size: 0.74rem; font-weight: 650; letter-spacing: 0.02em; text-transform: none; }
+
+/* empty states: the word in outline serif */
+.state-word { font-size: clamp(2.6rem, 5vw, 4rem); line-height: 1; letter-spacing: -0.02em; }
+.state-word:lang(hi) { font-family: var(--font-display); font-weight: 400; }
+
+/* /live */
+.live .mini-counter { border-top: 1px solid var(--band-line); }
+.vt-en { font-style: italic; font-size: 1.2rem; letter-spacing: 0; color: var(--ink-2); }
+.vt-hi { font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; }
+.live .officer-preview.card { background: var(--mesh-night); }
+.live .all-clear, .village-page .all-clear { background: var(--mesh-deep); }
+.live-map.card { border-radius: 24px; }
+.map-hud, .map-legend-float { border-left: 0; border-radius: 999px; padding-inline: 14px; font-family: var(--font-body); letter-spacing: 0.06em; }
+.map-legend-float { border-radius: 16px; }
+
+/* A marker MapLibre fades behind a hill (3D terrain) drops its name: a faint label is unreadable, and the list says it in words. */
+.maplibregl-marker[style*='opacity: 0.2'] .mk-label { visibility: hidden; }
+
+/* /village/:id: the level page keeps the night, with the river glow and the valley at its foot */
+.village-page .v-hero { background: var(--mesh-night); padding-bottom: clamp(64px, 8vw, 120px); }
+.village-page .v-hero::after { right: -10vw; top: -50%; background: radial-gradient(circle, color-mix(in srgb, var(--lv) 26%, transparent), transparent 62%); }
+.village-page .v-hero .kicker { color: #a9dcff; margin: var(--s-4) 0 var(--s-3); }
+.village-page .v-name { font-size: clamp(3.2rem, 8vw, 6.6rem); line-height: 1.12; letter-spacing: -0.02em; }
+.village-page .v-name [lang='hi'] { font-family: var(--font-display); font-weight: 400; line-height: 1.2; }
+.village-page .v-name-en { font-family: var(--font-display); font-style: italic; text-transform: none; font-size: 0.72em; line-height: 1.2; letter-spacing: -0.01em;
+  background: var(--river-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #8ad0ff; }
+.village-page .back-link { font-family: var(--font-body); letter-spacing: 0.02em; text-transform: none; font-size: 0.9rem; font-weight: 600; }
+.village-page .v-meta { font-family: var(--font-body); letter-spacing: 0; }
+.v-valley { position: absolute; z-index: -1; left: 0; right: 0; bottom: -1px; color: #8ad0ff; opacity: 0.26; }
+.ev-value { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.03em; font-variant-numeric: lining-nums tabular-nums; }
+.ev-head h3 { font-family: var(--font-body); font-weight: 650; letter-spacing: 0.14em; }
+
+/* /impact */
+.impact-band .pg-title { max-width: 18ch; }
+.sc-summary { font-family: var(--font-display); font-weight: 400; border-radius: 14px; background: var(--mesh-night); color: #cfe9ff; }
+.impact .score-counts dd { font-family: var(--font-display); font-variant-numeric: lining-nums; }
+.impact .score-grid > li.is-pukaar :is(.score-counts dt, p, .muted) { color: var(--ink-2); }
+
+/* /login: the night panel with the word, the tagline and the valley */
+.login-art { background: var(--mesh-night); align-content: center; gap: 6px; isolation: isolate; }
+.login-art::after { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--grain); background-size: 180px; opacity: 0.08; mix-blend-mode: overlay; }
+.login-art-word { font-size: clamp(5rem, 10vw, 8.4rem); line-height: 1.2; color: #f2f8fc; }
+.login-art-orn { width: 120px; color: #8ad0ff; justify-self: center; }
+.login-art-tag { position: relative; font-family: var(--font-display); font-size: clamp(1.2rem, 1.8vw, 1.5rem); color: #a9dcff; text-align: center; }
+.login-valley { position: absolute; left: 50%; bottom: 0; width: max(100%, 760px); height: auto; transform: translateX(-50%); color: #8ad0ff; opacity: 0.42; }
+.login-rings { opacity: 0.5; }
+.login-badge { width: 52px; height: 52px; }
+.demo-user { border-width: 1px; border-color: var(--hair); border-radius: 18px; }
+.demo-user:hover { box-shadow: none; border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: var(--mesh-card); }
+
+/* /report stays light: CSS gradients only, the body face (already loaded), never the display font */
+.report { background: radial-gradient(70% 300px at 50% 0%, rgb(138 208 255 / 0.26), transparent 72%); }
+:root[data-theme='dark'] .report { background: radial-gradient(70% 300px at 50% 0%, rgb(47 125 246 / 0.16), transparent 72%); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .report { background: radial-gradient(70% 300px at 50% 0%, rgb(47 125 246 / 0.16), transparent 72%); } }
+.report-title { letter-spacing: -0.015em; }
+.report .big-btn { border-radius: 26px; }
+.report :is(.h-sec, .panel-title), .report-steps li::before, .rec-timer { font-family: var(--font-body); font-weight: 800; text-transform: none; letter-spacing: 0; }
+.report-steps { border-color: var(--hair); border-radius: 22px; }
+
+/* /t/:code, /a/:token: the code and the clock in the body face, tabular */
+.track-code, .track-code-h, .countdown { font-family: var(--font-body); font-weight: 800; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.approve-card { border-radius: 26px; border-color: var(--hair); }
+.approve-village .bi-en { font-style: italic; text-transform: none; font-size: 0.62em; line-height: 1.2; }
+
+/* /safe/:token */
+.safe-when time { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.03em; font-variant-numeric: lining-nums tabular-nums; }
+
+/* 404 */
+.nf { padding-block: clamp(40px, 7vw, 96px); }
+.nf-card {
+  position: relative; isolation: isolate; overflow: hidden; display: grid; justify-items: start; gap: var(--s-4);
+  padding: clamp(32px, 6vw, 72px) clamp(22px, 5vw, 64px) clamp(110px, 12vw, 180px);
+  border-radius: 30px; background: var(--mesh-field); color: var(--band-ink); border: 1px solid var(--band-line);
+}
+.nf-card .kicker { color: var(--band-accent); margin: 0; }
+.nf-title { font-size: clamp(2.6rem, 6vw, 5rem); line-height: 1.08; color: var(--band-ink); }
+.nf-title:lang(hi) { line-height: 1.3; }
+.nf-valley { position: absolute; z-index: -1; left: 0; right: 0; bottom: -1px; color: var(--band-accent); opacity: 0.32; }
+
+/* ---------- 15. officer console: calmer, never slower ---------- */
+.console-head.pg-band { background: var(--mesh-night); }
+.console-head.pg-band::after { background: none; }
+.console-head .stat-strip .stat { border-top-color: rgb(234 244 251 / 0.14); }
+.console-head .stat-num { color: #f2f8fc; }
+.console-head .stat-label { color: rgb(234 244 251 / 0.66); }
+.console-head .stat.is-alert .stat-num { color: #8ad0ff; }
+.console-head .stat.is-alert { border-top-color: #8ad0ff; }
+.console-head .btn-ghost { --bg-b: rgb(255 255 255 / 0.06); --fg-b: #eaf4fb; --bd-b: rgb(234 244 251 / 0.3); }
+.console-head .btn-ghost:hover:not(:disabled) { border-color: #8ad0ff; --fg-b: #cfe9ff; }
+.console-head .pg-eyebrow { font-family: var(--font-body); font-size: 0.9rem; font-weight: 550; letter-spacing: 0.01em; text-transform: none; color: #a9dcff; }
+.ctab { font-size: 0.9rem; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.ctab svg.lucide { color: #8ad0ff; }
+.console .panel { border-color: var(--hair); border-radius: 22px; }
+.console .panel-title { border-bottom-color: var(--hair); }
+.tk-en { font-style: italic; font-size: clamp(1.8rem, 3vw, 2.5rem); line-height: 1.1; letter-spacing: -0.015em; }
+
+/* ---------- 16. small screens ---------- */
+@media (max-width: 720px) {
+  .kicker { gap: 10px; font-size: 0.88rem; }
+  .lehar { width: 46px; }
+  .pg-band:not(.console-head) { padding-bottom: 96px; }
+  .cta-panel { padding-bottom: 120px; }
+  .af-card { min-height: 0; }
+  .hf-num { font-size: 3.4rem; }
+}
+
+/* ---------- 17. reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .kicker .lehar-call, .valley-art .va-call { animation: none; }
+  .reveal, .reveal-slide { transform: none; }
+}

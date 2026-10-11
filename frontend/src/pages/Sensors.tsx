@@ -36,6 +36,7 @@ import { useReducedMotion } from '../hooks/useMotion';
 import { useT } from '../i18n';
 import { fmtAgo, fmtNumber } from '../lib/format';
 import type { SensorVillage, WatchFinding } from '../types';
+import { ValleyLine } from '../components/Art';
 
 type Txt = { hi: string; en: string };
 const HW = 'https://github.com/Prashant-thakur77/pukaar/tree/main/docs/hardware';
@@ -346,6 +347,11 @@ export default function Sensors() {
               </ul>
             )}
           </div>
+          <p className="sn-sat-credit">
+            {en
+              ? 'Behind: the Beas near Pandoh and Mandi from Sentinel-2, 3 June 2023. Contains modified Copernicus Sentinel data 2023.'
+              : 'पीछे: पंडोह और मंडी के पास ब्यास, Sentinel-2 से, 3 जून 2023। Contains modified Copernicus Sentinel data 2023.'}
+          </p>
         </div>
       </section>
 
@@ -473,6 +479,7 @@ export default function Sensors() {
             </Link>
           </div>
         </div>
+        <ValleyLine className="cta-valley" />
       </section>
     </div>
   );

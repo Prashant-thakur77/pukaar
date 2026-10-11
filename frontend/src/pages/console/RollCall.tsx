@@ -242,9 +242,9 @@ function OpenForm({ villages, onOpened }: { villages: Village[]; onOpened: (id: 
 
   return (
     <form className="stack rc-open" onSubmit={submit}>
-      <h4 className="h-sub">
+      <h3 className="h-sub">
         <HeartHandshake aria-hidden="true" /> {t('rollcall.open')}
-      </h4>
+      </h3>
       <label className="field">
         <span className="field-label">{t('rollcall.village')}</span>
         <span className="select-wrap">

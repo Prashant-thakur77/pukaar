@@ -8,14 +8,44 @@
  * warning = orange (mid), critical = crimson (dark).
  */
 
+/*
+ * Display face: Tiro Devanagari Hindi (Tiro Typeworks, SIL OFL 1.1, see fonts/OFL.txt). One family draws both
+ * scripts, so a Hindi headline and its English line share weight, contrast and rhythm instead of looking translated.
+ * Self-hosted, regular and Latin italic only; swap so text shows at once in the fallback serif.
+ */
+@font-face {
+  font-family: 'Tiro Devanagari Hindi';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/tiro-devanagari-hindi-devanagari-400.woff2') format('woff2');
+  unicode-range: U+0900-097F, U+1CD0-1CF4, U+1CF7-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B0A;
+}
+@font-face {
+  font-family: 'Tiro Devanagari Hindi';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/tiro-devanagari-hindi-latin-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Tiro Devanagari Hindi';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/tiro-devanagari-hindi-latin-400-italic.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   color-scheme: light;
 
   /* type */
   --font-body: 'Inter Variable', 'Noto Sans Devanagari Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-hi: 'Noto Sans Devanagari Variable', 'Noto Sans Devanagari', 'Mangal', 'Inter Variable', sans-serif;
-  --font-display: 'Anton', 'Bebas Neue', 'Noto Sans Devanagari Variable', Impact, 'Arial Narrow', sans-serif;
-  --font-script: 'Kalam', 'Noto Sans Devanagari Variable', cursive;
+  --font-display: 'Tiro Devanagari Hindi', 'Noto Serif Devanagari', Georgia, 'Times New Roman', serif;
+  --font-script: var(--font-display);
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --fs-xs: 0.75rem;
@@ -107,6 +137,8 @@
   --ink-3: #557089;
   --line: #d6e6f1;
   --line-2: #b9d3e5;
+  /* Big decorative outline words (empty states): at least 3:1 on every surface, like large text. */
+  --word: #728ba1;
   --focus: #1d7fc4;
 
   --accent: #1f8fd6;
@@ -138,6 +170,55 @@
   --sh-3: 0 22px 48px -18px rgb(11 31 51 / 0.22), 0 4px 10px rgb(11 31 51 / 0.06);
   --sh-accent: 0 10px 26px -10px rgb(47 125 246 / 0.6);
   --glass: rgb(255 255 255 / 0.78);
+
+  /* ---- gradient fields (Sarvam-style soft mesh, kept to river blues and glacier teal) ---- */
+  /* Static film grain, laid over fields with low opacity. */
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0.9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  /* Always-dark fields: the night river (heroes, closing band, footer), deep water, the crimson fact. */
+  --mesh-night:
+    radial-gradient(55% 70% at 88% 0%, rgb(79 179 255 / 0.30), transparent 70%),
+    radial-gradient(45% 60% at 0% 100%, rgb(29 111 214 / 0.32), transparent 72%),
+    radial-gradient(40% 50% at 62% 115%, rgb(45 196 190 / 0.16), transparent 70%),
+    linear-gradient(170deg, #0a1e35 0%, #06111f 72%);
+  --mesh-deep:
+    radial-gradient(60% 80% at 100% 0%, rgb(94 214 208 / 0.22), transparent 70%),
+    radial-gradient(50% 70% at 0% 100%, rgb(79 179 255 / 0.20), transparent 72%),
+    linear-gradient(160deg, #072a44 0%, #0b4660 62%, #0c5a74 100%);
+  --mesh-crimson:
+    radial-gradient(60% 80% at 100% 0%, rgb(255 140 150 / 0.28), transparent 70%),
+    radial-gradient(50% 70% at 0% 100%, rgb(90 0 20 / 0.45), transparent 72%),
+    linear-gradient(160deg, #b3122a 0%, #8f0d24 100%);
+  /* Art tiles: small squircles of light behind a white line icon. */
+  --tile-sky: radial-gradient(120% 120% at 25% 15%, #d9f1ff 0%, #6cc0ff 42%, #1f78d6 100%);
+  --tile-teal: radial-gradient(120% 120% at 25% 15%, #d4fbf4 0%, #4cc9bb 45%, #0d6e7a 100%);
+  --tile-glacier: radial-gradient(120% 120% at 25% 15%, #ffffff 0%, #a8daf7 40%, #3a86c2 100%);
+  --tile-deep: radial-gradient(120% 120% at 25% 15%, #8fd0ff 0%, #2b6fb4 48%, #0b2742 100%);
+  --tile-crimson: radial-gradient(120% 120% at 25% 15%, #ffd6dc 0%, #f06a7e 45%, #a3102a 100%);
+
+  /* Theme-aware: the light field is mist over water, the dark one the same river at night. */
+  --mesh-field:
+    radial-gradient(48% 62% at 50% -10%, rgb(79 179 255 / 0.42), transparent 72%),
+    radial-gradient(38% 55% at 4% 8%, rgb(138 208 255 / 0.42), transparent 70%),
+    radial-gradient(34% 50% at 98% 22%, rgb(110 220 212 / 0.28), transparent 70%),
+    linear-gradient(180deg, #e4f2fc 0%, #f2f8fc 100%);
+  --mesh-soft:
+    radial-gradient(60% 90% at 100% 0%, rgb(138 208 255 / 0.30), transparent 70%),
+    radial-gradient(50% 80% at 0% 100%, rgb(110 220 212 / 0.18), transparent 70%),
+    var(--bg);
+  --mesh-card:
+    radial-gradient(90% 70% at 0% 0%, rgb(138 208 255 / 0.20), transparent 62%),
+    var(--surface);
+  /* Ink on a field band. ink-3 keeps 4.5:1 on the brightest spot of the light field. */
+  --band-ink: #0b1f33;
+  --band-ink-2: #284560;
+  --band-ink-3: #3f5b75;
+  --band-line: rgb(11 31 51 / 0.14);
+  --band-accent: #0f5f95;
+  --band-chip: rgb(255 255 255 / 0.6);
+  /* The set-apart word in a headline: deep river ink by day (3:1+ as large text on the field), the river at night. */
+  --text-grad: linear-gradient(100deg, #1a7cc4 0%, #0f5f95 55%, #173f86 100%);
+  --text-grad-solid: #0f5f95;
+  --hair: color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 /* Dark tokens: same block twice (explicit toggle, and system preference). */
@@ -153,6 +234,7 @@
   --ink-3: #8fb0cb;
   --line: #1a3854;
   --line-2: #24496b;
+  --word: #5b82a6;
   --focus: #8ad0ff;
   --accent: #4fb3ff;
   --accent-ink: #04182b;
@@ -178,6 +260,26 @@
   --sh-2: 0 8px 22px -8px rgb(0 0 0 / 0.6);
   --sh-3: 0 26px 56px -20px rgb(0 0 0 / 0.75);
   --glass: rgb(12 33 54 / 0.82);
+  --mesh-field:
+    radial-gradient(48% 62% at 50% -10%, rgb(47 125 246 / 0.34), transparent 72%),
+    radial-gradient(38% 55% at 4% 8%, rgb(79 179 255 / 0.16), transparent 70%),
+    radial-gradient(34% 50% at 98% 22%, rgb(45 196 190 / 0.14), transparent 70%),
+    linear-gradient(180deg, #0a1d33 0%, #06111f 100%);
+  --mesh-soft:
+    radial-gradient(60% 90% at 100% 0%, rgb(47 125 246 / 0.16), transparent 70%),
+    radial-gradient(50% 80% at 0% 100%, rgb(45 196 190 / 0.08), transparent 70%),
+    var(--bg);
+  --mesh-card:
+    radial-gradient(90% 70% at 0% 0%, rgb(79 179 255 / 0.10), transparent 62%),
+    var(--surface);
+  --band-ink: #eaf4fb;
+  --band-ink-2: #c3dbee;
+  --band-ink-3: #9cc0dc;
+  --band-line: rgb(238 246 251 / 0.14);
+  --band-accent: #8ad0ff;
+  --band-chip: rgb(238 246 251 / 0.06);
+  --text-grad: linear-gradient(100deg, #8ad0ff 0%, #4fb3ff 45%, #3d8bf7 100%);
+  --text-grad-solid: #4fb3ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -193,6 +295,7 @@
     --ink-3: #8fb0cb;
     --line: #1a3854;
     --line-2: #24496b;
+    --word: #5b82a6;
     --focus: #8ad0ff;
     --accent: #4fb3ff;
     --accent-ink: #04182b;
@@ -218,7 +321,27 @@
     --sh-2: 0 8px 22px -8px rgb(0 0 0 / 0.6);
     --sh-3: 0 26px 56px -20px rgb(0 0 0 / 0.75);
     --glass: rgb(12 33 54 / 0.82);
-  }
+    --mesh-field:
+      radial-gradient(48% 62% at 50% -10%, rgb(47 125 246 / 0.34), transparent 72%),
+      radial-gradient(38% 55% at 4% 8%, rgb(79 179 255 / 0.16), transparent 70%),
+      radial-gradient(34% 50% at 98% 22%, rgb(45 196 190 / 0.14), transparent 70%),
+      linear-gradient(180deg, #0a1d33 0%, #06111f 100%);
+    --mesh-soft:
+      radial-gradient(60% 90% at 100% 0%, rgb(47 125 246 / 0.16), transparent 70%),
+      radial-gradient(50% 80% at 0% 100%, rgb(45 196 190 / 0.08), transparent 70%),
+      var(--bg);
+    --mesh-card:
+      radial-gradient(90% 70% at 0% 0%, rgb(79 179 255 / 0.10), transparent 62%),
+      var(--surface);
+    --band-ink: #eaf4fb;
+    --band-ink-2: #c3dbee;
+    --band-ink-3: #9cc0dc;
+    --band-line: rgb(238 246 251 / 0.14);
+    --band-accent: #8ad0ff;
+    --band-chip: rgb(238 246 251 / 0.06);
+    --text-grad: linear-gradient(100deg, #8ad0ff 0%, #4fb3ff 45%, #3d8bf7 100%);
+    --text-grad-solid: #4fb3ff;
+}
 }
 
 /* Level helpers: set --lv, --lv-ink, --lv-bg on any element. */

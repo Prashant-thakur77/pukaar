@@ -7,6 +7,7 @@ import { capFeedUrl } from '../lib/cap';
 import { TourButton } from '../components/Tour';
 import { Reveal } from '../components/Reveal';
 import { useT } from '../i18n';
+import { ValleyLine } from '../components/Art';
 
 type Txt = { hi: string; en: string };
 type Source = { label: string; href: string };
@@ -363,6 +364,7 @@ export default function How() {
             </Ext>
           </div>
         </div>
+        <ValleyLine className="cta-valley" />
       </section>
     </div>
   );

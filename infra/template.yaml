@@ -368,6 +368,17 @@ Resources:
               Action: polly:SynthesizeSpeech
               # SynthesizeSpeech only scopes to lexicons; Pukaar uses none.
               Resource: "*"
+            # The model-access probe (services/model_probe.py): at most one 1-token Converse call every 6 hours,
+            # on the drafting model in this region only (Converse is authorised as bedrock:InvokeModel). The
+            # cross-region inference profile routes to the three US regions' foundation models.
+            - Sid: ModelAccessProbe
+              Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource:
+                - !Sub arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
             - Sid: StartApproval
               Effect: Allow
               Action: states:StartExecution

@@ -163,9 +163,10 @@ Amazon (valid 24 hours). Check with
 Then set the recipients (comma list) and the sender, and redeploy:
 
 ```
-aws ssm put-parameter --region us-east-1 --name /pukaar/after_action_to --type String \
+aws ssm put-parameter --region us-east-1 --name /pukaar/after_action_to --type SecureString \
   --value "duty-officer@example.org,sdm@example.org" --overwrite
-sam deploy --parameter-overrides AfterActionFrom=pukaar-sender@example.org   # plus your usual overrides
+echo "AFTER_ACTION_FROM=pukaar-sender@example.org" >> .env.deploy.local   # gitignored; make deploy reads it
+make deploy
 ```
 
 An officer's address can also be added as `"email"` on their entry in

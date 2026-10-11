@@ -4,9 +4,10 @@ import type { ExpressionSpecification, Map as MlMap, Marker } from 'maplibre-gl'
 import { Tent } from 'lucide-react';
 import { dict, useT } from '../i18n';
 import { LEVEL_ICON, levelRank } from '../lib/levels';
-import { routeCollection, viewPoints } from '../lib/safePlaces';
+import { fanOffsets, routeCollection, viewPoints } from '../lib/safePlaces';
 import { fmtNumber } from '../lib/format';
 import { prefersReducedMotion } from '../hooks/useMotion';
+import { usePrefs } from '../store';
 import type { Level, SafePlace, SafePlacesView } from '../types';
 
 export interface MapVillage {
@@ -37,6 +38,8 @@ interface Props {
   /** When set, the map shows a "Safe places" layer switch (the live map). */
   safeToggle?: { on: boolean; onChange: (on: boolean) => void };
   onSafeSelect?: (placeId: string, villageId: string) => void;
+  /** Tapping a walking route calls this with the tapped point (the village page's "Mark blocked"). */
+  onRouteSelect?: (sel: { placeId: string; villageId: string | null; lon: number; lat: number }) => void;
 }
 
 // Stable defaults: a fresh `[]` on every render would retrigger the marker
@@ -48,34 +51,90 @@ const NO_SAFE: SafePlacesView[] = [];
 /** River blue for the walking routes; MapLibre paints on the canvas, so these are literal colours. */
 const ROUTE_BLUE = '#1f8fd6';
 const ROUTE_GLOW = '#4fb3ff';
+/** A blocked route is crossed out in crimson. */
+const ROUTE_BLOCKED = '#c8102e';
 const SAFE_SOURCE = 'safe-routes';
-const SAFE_LAYERS = ['safe-route-glow', 'safe-route-casing', 'safe-route-solid', 'safe-route-steep'];
-const byRank = (best: number, other: number): ExpressionSpecification => ['case', ['==', ['get', 'rank'], 1], best, other];
+const SAFE_LAYERS = ['safe-route-glow', 'safe-route-casing', 'safe-route-solid', 'safe-route-steep', 'safe-route-blocked', 'safe-route-hit'];
+/** The best open route (or, from an older server, rank 1) is drawn strongest. */
+const byBest = (best: number, other: number): ExpressionSpecification => ['case', ['==', ['get', 'best'], true], best, other];
+const OPEN: ExpressionSpecification = ['!=', ['get', 'blocked'], true];
 
-/** Glow, white casing, then the line: solid on easy ground, dashed where the grade is over 20 %. */
+/** Glow, white casing, then the line: solid on easy ground, dashed where the grade is over 20 %, crimson where blocked. */
 function addRouteLayers(m: MlMap) {
   const width = (lo: number, hi: number): ExpressionSpecification => ['interpolate', ['linear'], ['zoom'], 10, lo, 16, hi];
   m.addLayer({
-    id: 'safe-route-glow', type: 'line', source: SAFE_SOURCE,
+    id: 'safe-route-glow', type: 'line', source: SAFE_SOURCE, filter: OPEN,
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': ROUTE_GLOW, 'line-width': width(8, 18), 'line-blur': 6, 'line-opacity': byRank(0.55, 0.25) },
+    paint: { 'line-color': ROUTE_GLOW, 'line-width': width(8, 18), 'line-blur': 6, 'line-opacity': byBest(0.6, 0.25) },
   });
   m.addLayer({
     id: 'safe-route-casing', type: 'line', source: SAFE_SOURCE,
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '#ffffff', 'line-width': width(4, 9), 'line-opacity': byRank(0.95, 0.6) },
+    paint: { 'line-color': '#ffffff', 'line-width': width(4, 9), 'line-opacity': byBest(0.95, 0.6) },
   });
   m.addLayer({
-    id: 'safe-route-solid', type: 'line', source: SAFE_SOURCE, filter: ['!', ['get', 'steep']],
+    id: 'safe-route-solid', type: 'line', source: SAFE_SOURCE, filter: ['all', ['!', ['get', 'steep']], OPEN],
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': ROUTE_BLUE, 'line-width': width(2.5, 5.5), 'line-opacity': byRank(1, 0.65) },
+    paint: { 'line-color': ROUTE_BLUE, 'line-width': width(2.5, 5.5), 'line-opacity': byBest(1, 0.65) },
   });
   m.addLayer({
-    id: 'safe-route-steep', type: 'line', source: SAFE_SOURCE, filter: ['==', ['get', 'steep'], true],
+    id: 'safe-route-steep', type: 'line', source: SAFE_SOURCE, filter: ['all', ['==', ['get', 'steep'], true], OPEN],
     layout: { 'line-cap': 'butt', 'line-join': 'round' },
-    paint: { 'line-color': ROUTE_BLUE, 'line-width': width(2.5, 5.5), 'line-dasharray': [1.4, 1.2], 'line-opacity': byRank(1, 0.65) },
+    paint: { 'line-color': ROUTE_BLUE, 'line-width': width(2.5, 5.5), 'line-dasharray': [1.4, 1.2], 'line-opacity': byBest(1, 0.65) },
+  });
+  m.addLayer({
+    id: 'safe-route-blocked', type: 'line', source: SAFE_SOURCE, filter: ['==', ['get', 'blocked'], true],
+    layout: { 'line-cap': 'butt', 'line-join': 'round' },
+    paint: { 'line-color': ROUTE_BLOCKED, 'line-width': width(2.5, 5.5), 'line-dasharray': [2, 1.2], 'line-opacity': 0.9 },
+  });
+  // Wide and invisible: a finger-sized target for tapping a route.
+  m.addLayer({
+    id: 'safe-route-hit', type: 'line', source: SAFE_SOURCE,
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#000000', 'line-width': 24, 'line-opacity': 0 },
   });
 }
+
+/** Is the page in dark mode right now (the theme switch, or the system setting when it says "system")? */
+function useDarkTheme(): boolean {
+  const theme = usePrefs((s) => s.theme);
+  const [systemDark, setSystemDark] = useState(
+    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches,
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const on = () => setSystemDark(mq.matches);
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
+  return theme === 'dark' || (theme === 'system' && systemDark);
+}
+
+/**
+ * Dark mode darkens the base map only: the OSM raster is inverted and muted with raster paint
+ * properties (brightness-min above brightness-max inverts it), so the route glow, the blocked
+ * crimson and the hillshade above it keep their own colours. A CSS filter on the canvas would mute them all.
+ */
+function applyBaseTheme(m: MlMap, dark: boolean) {
+  if (!m.getLayer('osm')) return;
+  m.setPaintProperty('osm', 'raster-brightness-min', dark ? 0.82 : 0);
+  m.setPaintProperty('osm', 'raster-brightness-max', dark ? 0.08 : 1);
+  m.setPaintProperty('osm', 'raster-hue-rotate', dark ? 200 : 0);
+  m.setPaintProperty('osm', 'raster-saturation', dark ? -0.6 : 0);
+  m.setPaintProperty('osm', 'raster-contrast', dark ? -0.1 : 0);
+  if (m.getLayer('hillshade')) {
+    m.setPaintProperty('hillshade', 'hillshade-shadow-color', dark ? '#000000' : '#1b2340');
+    m.setPaintProperty('hillshade', 'hillshade-highlight-color', dark ? 'rgba(255,255,255,0.12)' : '#ffffff');
+  }
+  m.setSky(
+    dark
+      ? { 'sky-color': '#0b1d33', 'horizon-color': '#1c2e45', 'fog-color': '#1c2e45', 'sky-horizon-blend': 0.6, 'horizon-fog-blend': 0.6, 'fog-ground-blend': 0.4 }
+      : OSM_STYLE.sky,
+  );
+}
+/** Road-block crosses show from this zoom in (street level), where the routes themselves can be read. */
+const BLOCK_MIN_ZOOM = 12.5;
 /** Below this width (or on compact maps) text labels collide, so markers get numbers and a key. */
 const NARROW_PX = 560;
 
@@ -165,12 +224,21 @@ export function VillageMap({
   fitSafe = false,
   safeToggle,
   onSafeSelect,
+  onRouteSelect,
 }: Props) {
   const { t, lang } = useT();
+  const dark = useDarkTheme();
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Map<string, Marker>>(new Map());
   const safeMarkers = useRef<Map<string, Marker>>(new Map());
+  const blockMarkers = useRef<Map<string, Marker>>(new Map());
+  // Read inside map event handlers, which are registered once.
+  const routeSelect = useRef(onRouteSelect);
+  useEffect(() => {
+    routeSelect.current = onRouteSelect;
+  }, [onRouteSelect]);
+  const routeVillage = useRef<Map<string, string>>(new Map());
   const pointMarkers = useRef<Marker[]>([]);
   const lib = useRef<typeof import('maplibre-gl') | null>(null);
   const [els, setEls] = useState<Record<string, HTMLElement>>({});
@@ -235,24 +303,38 @@ export function VillageMap({
       }
     })();
     const safeMap = safeMarkers.current;
+    const blockMap = blockMarkers.current;
     return () => {
       cancelled = true;
       markerMap.forEach((mk) => mk.remove());
       markerMap.clear();
       safeMap.forEach((mk) => mk.remove());
       safeMap.clear();
+      blockMap.forEach((mk) => mk.remove());
+      blockMap.clear();
       map.current?.remove();
       map.current = null;
     };
   }, [compact]);
 
   // Terrain and camera pitch follow the 2D/3D switch.
+  // freezeElevation on every camera move: without it MapLibre (5.x) leaves the camera's ground height
+  // frozen at whatever it was when the move began, which is 0 m before the terrain tiles arrive, so at
+  // street zoom in the hills the camera ends up inside the mountain. With it, the height is recomputed
+  // when the move ends and then follows the terrain tiles as they load.
   useEffect(() => {
     const m = map.current;
     if (!m || !ready) return;
     m.setTerrain(is3d ? { source: 'dem', exaggeration: TERRAIN_EXAGGERATION } : null);
-    m.easeTo({ pitch: is3d ? PITCH_3D : 0, bearing: is3d ? -15 : 0, duration: prefersReducedMotion() ? 0 : 900 });
+    m.easeTo({ pitch: is3d ? PITCH_3D : 0, bearing: is3d ? -15 : 0, duration: prefersReducedMotion() ? 0 : 900, freezeElevation: true });
   }, [is3d, ready]);
+
+  // Dark mode on the base raster only (see applyBaseTheme).
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready) return;
+    applyBaseTheme(m, dark);
+  }, [dark, ready]);
 
   // Sync village markers.
   useEffect(() => {
@@ -303,7 +385,7 @@ export function VillageMap({
         const tilt = is3dRef.current;
         // A village's own walking routes need street-level zoom; the overview stays at valley level.
         const maxZoom = safePts.length ? 15 : 11;
-        m.fitBounds(b, { padding, maxZoom, pitch: tilt ? PITCH_3D : 0, bearing: tilt ? -15 : 0, duration: fitted.current && !prefersReducedMotion() ? 600 : 0 });
+        m.fitBounds(b, { padding, maxZoom, pitch: tilt ? PITCH_3D : 0, bearing: tilt ? -15 : 0, duration: fitted.current && !prefersReducedMotion() ? 600 : 0, freezeElevation: true });
         fitted.current = key;
       }
     }
@@ -317,12 +399,52 @@ export function VillageMap({
     type RouteData = Parameters<import('maplibre-gl').GeoJSONSource['setData']>[0];
     const data = routeCollection(safe) as unknown as RouteData;
     const src = m.getSource(SAFE_SOURCE) as import('maplibre-gl').GeoJSONSource | undefined;
+    routeVillage.current = new Map(safe.flatMap((v) => v.places.map((p) => [p.id, v.village_id] as [string, string])));
     if (src) src.setData(data);
     else if (safe.length) {
       m.addSource(SAFE_SOURCE, { type: 'geojson', data });
       addRouteLayers(m);
+      m.on('click', 'safe-route-hit', (e) => {
+        const pid = e.features?.[0]?.properties?.place_id;
+        if (!routeSelect.current || typeof pid !== 'string') return;
+        routeSelect.current({ placeId: pid, villageId: routeVillage.current.get(pid) ?? null, lon: e.lngLat.lng, lat: e.lngLat.lat });
+      });
+      m.on('mouseenter', 'safe-route-hit', () => {
+        if (routeSelect.current) m.getCanvas().style.cursor = 'pointer';
+      });
+      m.on('mouseleave', 'safe-route-hit', () => {
+        m.getCanvas().style.cursor = '';
+      });
     }
     for (const id of SAFE_LAYERS) if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', safe.length ? 'visible' : 'none');
+
+    // Road blocks: a crimson cross at each blocked point (decoration; the cards and list say it in words).
+    const blockSeen = new Set<string>();
+    for (const v of safe) {
+      for (const b of v.roadblocks ?? []) {
+        const key = `${v.village_id}:${b.id}`;
+        blockSeen.add(key);
+        let mk = blockMarkers.current.get(key);
+        if (!mk) {
+          const el = document.createElement('div');
+          el.className = 'rb-host';
+          el.setAttribute('aria-hidden', 'true');
+          el.innerHTML = '<span class="rb-x"></span>';
+          mk = new ml.Marker({ element: el, anchor: 'center' }).setLngLat([b.lon, b.lat]).addTo(m);
+          el.removeAttribute('role');
+          el.removeAttribute('tabindex');
+          el.removeAttribute('aria-label');
+          blockMarkers.current.set(key, mk);
+        } else mk.setLngLat([b.lon, b.lat]);
+        mk.getElement().title = b.label ? `${b.label}: ${b.note}` : b.note;
+      }
+    }
+    for (const [key, mk] of blockMarkers.current) {
+      if (!blockSeen.has(key)) {
+        mk.remove();
+        blockMarkers.current.delete(key);
+      }
+    }
 
     const next: Record<string, HTMLElement> = {};
     const seen = new Set<string>();
@@ -332,7 +454,7 @@ export function VillageMap({
       if (!mk) {
         const el = document.createElement('div');
         el.className = 'sp-host';
-        mk = new ml.Marker({ element: el, anchor: 'bottom' }).setLngLat([place.lon, place.lat]).addTo(m);
+        mk = new ml.Marker({ element: el, anchor: 'bottom', opacityWhenCovered: '0.6' }).setLngLat([place.lon, place.lat]).addTo(m);
         el.removeAttribute('aria-label');
         el.removeAttribute('role');
         el.removeAttribute('tabindex');
@@ -352,6 +474,72 @@ export function VillageMap({
       return same ? prev : next;
     });
   }, [safe, safePlaces, ready]);
+
+  // A safe-place pin that would sit on its village's marker at this zoom is spread on a small arc
+  // above it, with a leader line to its true spot; zoom in and it returns to that spot.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready || !safePlaces.length) return;
+    const byVillage = new Map(villages.map((v) => [v.id, v]));
+    let raf = 0;
+    const layout = () => {
+      raf = 0;
+      const groups = new Map<string, { mk: Marker; p: [number, number] }[]>();
+      for (const { key, place, villageId } of safePlaces) {
+        const mk = safeMarkers.current.get(key);
+        if (!mk) continue;
+        const pt = m.project([place.lon, place.lat]);
+        const list = groups.get(villageId) ?? [];
+        list.push({ mk, p: [pt.x, pt.y] });
+        groups.set(villageId, list);
+      }
+      const vpts = new Map(villages.map((v) => {
+        const pt = m.project([v.lon, v.lat]);
+        return [v.id, [pt.x, pt.y] as [number, number]];
+      }));
+      // Keep fanned pins below the safe-places legend that floats over the top of the map.
+      const legend = box.current?.parentElement?.querySelector<HTMLElement>('.safe-legend');
+      const topPx = legend ? legend.offsetTop + legend.offsetHeight : 0;
+      for (const [vid, items] of groups) {
+        const vp = byVillage.has(vid) ? vpts.get(vid) : undefined;
+        const others = [...vpts].filter(([id]) => id !== vid).map(([, p]) => p);
+        const offs = vp ? fanOffsets(vp, items.map((i) => i.p), others, topPx) : items.map((): [number, number] => [0, 0]);
+        items.forEach(({ mk }, i) => {
+          const [dx, dy] = offs[i];
+          const prev = mk.getOffset();
+          if (prev.x === dx && prev.y === dy) return;
+          mk.setOffset([dx, dy]);
+          const el = mk.getElement();
+          el.classList.toggle('is-fanned', dx !== 0 || dy !== 0);
+          el.style.setProperty('--leader-len', `${Math.hypot(dx, dy).toFixed(1)}px`);
+          el.style.setProperty('--leader-angle', `${Math.atan2(-dy, -dx).toFixed(3)}rad`);
+        });
+      }
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(layout);
+    };
+    layout();
+    m.on('move', schedule);
+    return () => {
+      m.off('move', schedule);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [ready, safePlaces, villages, safeEls]);
+
+  // Road-block crosses only make sense where the routes are visible: hide them at valley zoom,
+  // where one would sit on the village marker itself.
+  useEffect(() => {
+    const m = map.current;
+    const el = box.current;
+    if (!m || !el || !ready) return;
+    const sync = () => el.classList.toggle('is-far', m.getZoom() < BLOCK_MIN_ZOOM);
+    sync();
+    m.on('zoomend', sync);
+    return () => {
+      m.off('zoomend', sync);
+    };
+  }, [ready]);
 
   // Extra labelled points (from the analyst agent).
   useEffect(() => {
@@ -413,6 +601,12 @@ export function VillageMap({
             <span className="sl-line is-steep" aria-hidden="true" />
             {t('map.safe.legend.steep')}
           </span>
+          {safe.some((v) => (v.roadblocks ?? []).length > 0) && (
+            <span className="sl-item">
+              <span className="sl-line is-blocked" aria-hidden="true" />
+              {t('map.safe.legend.blocked')}
+            </span>
+          )}
           <span className="sl-attrib">© OpenStreetMap contributors (ODbL)</span>
         </div>
       )}

@@ -49,12 +49,12 @@ export default function Safe() {
     return (
       <div className="safe-page">
         <WaterLines />
-        <article className="safe-card is-quiet" role="alert">
+        <div className="safe-card is-quiet" role="alert">
           <CircleAlert className="safe-icon-quiet" aria-hidden="true" />
           <Both k={title} as="h1" className="safe-title-sm" />
           <Both k={body} className="safe-why" />
           <Call112 />
-        </article>
+        </div>
       </div>
     );
   }

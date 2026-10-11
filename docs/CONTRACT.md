@@ -89,7 +89,7 @@ Error     401 {detail: "Sign in required."}
 GET  /health                 {status, mode: "aws"|"local", workflow, model,
                               services{dynamodb,bedrock,polly,transcribe,telegram}, replay_active}
 GET  /dev/approval-link/{id} local mode only, officer: {url, token, officer} (demo of the one-tap link)
-GET  /health/deep            officer: one tiny model call
+GET  /health/deep            officer: one 1-token Converse call now; {bedrock: "ok"|"pending model access"|"failed"|"disabled", model, detail}; refreshes the cached model-access flag
 GET  /me                     {username, role, village_ids}
 POST /me/telegram-link       officer: {} -> {code, command, expires_in_seconds}  (one-time; send the
                              command to the bot to receive approval links in Telegram)
@@ -142,6 +142,17 @@ GET  /villages/{id}/safe-places  {village_id, available, places[SafePlace], rout
 POST /villages/{id}/shelters/{place_id}  officer (any village) or pradhan (own village):
                              {status: "OPEN"|"STANDBY"|"FULL"|"CLOSED", capacity?, note?} -> the safe-places view;
                              404 for a place that is not baked for that village; audited ("shelter_changed")
+                             The safe-places view also carries roadblocks[{id, lat, lon, label, note, created_by,
+                             created_at, renewed_by, renewed_at, expires_at, place_ids}], each place's route_blocked,
+                             route_blocks[{id,label,note}] and best_open_route, each route line's blocked, best and
+                             block_note, and route_limit_en/route_limit_hi (routes are baked, never recomputed)
+POST /villages/{id}/roadblocks  officer (any village) or pradhan (own village), Cedar block_road:
+                             {lat, lon, note, label?} -> the safe-places view; 400 when the note is empty or the
+                             point is more than 60 m from every baked route of the village; every baked route within
+                             30 m of the point counts as blocked; lapses after 7 days; audited ("road_blocked")
+POST /villages/{id}/roadblocks/{bid}/renew  same Cedar: 7 more days from now; audited ("road_block_renewed")
+POST /villages/{id}/roadblocks/{bid}/clear  same Cedar: the road is open again; audited ("road_block_cleared");
+                             404 for a block that is cleared, expired or unknown
 GET  /alerts?status=&village_id=   [Alert]
 GET  /alerts/{id}            {alert, deliveries[], timeline[Event], audit[Audit]}
 GET  /alerts/{id}/after-action?fresh=&format=   officer, or pradhan of the alert's village (Cedar

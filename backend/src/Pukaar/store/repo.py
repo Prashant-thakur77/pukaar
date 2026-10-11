@@ -4,6 +4,7 @@ Keys:
   VILLAGE#id  META | READING#iso | SENSOR#iso#device | SENSORLAST#device | REPORT#iso#id | DEDUPE#window | RECIPIENT#id
               | EVENT#date | DIRECTIVE#iso#id | CHECKLIST#item | SHELTER#place_id | ROLLCALL#iso#id (pointer, TTL 30 days)
               | STAFFGAUGE#id (virtual staff gauge: reference photo key, scale, marks)
+              | ROADBLOCK#id (a blocked road on a baked route; TTL 7 days unless renewed)
   ALERT#id    META | DELIVERY#recipient | TIMELINE#iso#n
   ROLLCALL#id META | ASKED#recipient | RESP#recipient   (safety roll-call; TTL 30 days)
   SAFESHARE#id META                   (family link pointer; TTL 7 days)
@@ -14,6 +15,7 @@ Keys:
   AUDIT#date  iso#id                  (append only; no update or delete path)
   REPLAY      META
   OFFICER#username META (Telegram chat) | PUSH#id (Web Push subscription; TTL 180 days) | PUSHTEST (rate limit)
+  MODELPROBE  META                   (last Bedrock model-access probe; at most one per 6 hours)
 Sparse GSI gsi1: gsi1pk = "OPEN#ALERT" / "OPEN#REPORT" while work is open.
 """
 
@@ -43,6 +45,7 @@ from Pukaar.store.models import (
     Recipient,
     ReplayState,
     Report,
+    RoadBlock,
     RollCall,
     RollCallAsked,
     RollCallResponse,
@@ -406,6 +409,42 @@ class Repo:
     def list_shelters(self, village_id: str) -> dict[str, ShelterStatus]:
         rows = [_model(ShelterStatus, i) for i in self._query(f"VILLAGE#{village_id}", "SHELTER#")]
         return {r.place_id: r for r in rows}
+
+    # -- Bedrock model-access probe (one item) ----------------------------
+    def get_model_probe(self) -> dict[str, Any] | None:
+        item = self._get("MODELPROBE", "META")
+        return {k: v for k, v in _from_dynamo(item).items() if k not in _KEY_FIELDS} if item else None
+
+    def claim_model_probe(self, now_iso: str, not_before_iso: str) -> bool:
+        """Claim the next probe: succeeds only if none has run since not_before_iso (one sweep wins a race)."""
+        try:
+            self._update("MODELPROBE", "META", {"checked_at": now_iso},
+                         condition=Attr("pk").not_exists() | Attr("checked_at").lt(not_before_iso))
+            return True
+        except ConflictError:
+            return False
+
+    def put_model_probe(self, fields: dict[str, Any]) -> None:
+        self._update("MODELPROBE", "META", fields)
+
+    # -- road blocks on evacuation routes --------------------------------
+    def put_roadblock(self, b: RoadBlock) -> None:
+        """Write (or renew, or clear) a road block; DynamoDB drops it 7 days after its expiry time at the latest."""
+        expires = int(clock.parse(b.expires_at).timestamp())
+        self._put({"pk": f"VILLAGE#{b.village_id}", "sk": f"ROADBLOCK#{b.id}", "kind": "roadblock", "ttl": expires,
+                   **b.model_dump()})
+
+    def get_roadblock(self, village_id: str, block_id: str) -> RoadBlock | None:
+        item = self._get(f"VILLAGE#{village_id}", f"ROADBLOCK#{block_id}")
+        return _model(RoadBlock, item) if item else None
+
+    def list_roadblocks(self, village_id: str, *, active_only: bool = True) -> list[RoadBlock]:
+        """Blocks for a village, oldest first. TTL deletion is lazy, so expiry is checked here too."""
+        rows = [_model(RoadBlock, i) for i in self._query(f"VILLAGE#{village_id}", "ROADBLOCK#")]
+        if active_only:
+            now = clock.iso(clock.now())
+            rows = [b for b in rows if b.cleared_at is None and b.expires_at > now]
+        return sorted(rows, key=lambda b: b.created_at)
 
     # -- virtual staff gauges -------------------------------------------
     def put_staff_gauge(self, g: StaffGauge) -> None:

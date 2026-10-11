@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Bot, Mic, Radar, RadioTower, UserCheck, Volume2 } from 'lucide-react';
 import { api } from '../api';
+import { Kicker, ValleyLine, WordField } from '../components/Art';
 import { Call112, PukaarMark } from '../components/Shell';
 import { CountUp } from '../components/CountUp';
 import { LevelBadge } from '../components/Level';
@@ -157,7 +158,7 @@ export default function Landing() {
         )}
         <div className="hero-inner">
           <div className="hero-copy" data-tour="hero">
-            <p className="eyebrow eyebrow-night hero-eyebrow">{t('landing.eyebrow')}</p>
+            <Kicker className="hero-eyebrow">{t('landing.eyebrow')}</Kicker>
             <h1 id="hero-title" className="hero-h1">
               <span className="hh-line">{lang === 'hi' ? 'नदी से पहले,' : 'The call that'}</span>
               <span className="hh-line">{lang === 'hi' ? 'गाँव तक पहुँचने' : 'reaches the village'}</span>
@@ -275,9 +276,9 @@ export default function Landing() {
 
       <section className="band af-band" aria-labelledby="af-title">
         <div className="wrap">
-          <p id="af-title" className="eyebrow af-eyebrow">
+          <Kicker id="af-title" className="af-eyebrow">
             {lang === 'hi' ? 'एजेंट पहले · सेंसर पहले' : 'Agent-first · Sensor-first'}
-          </p>
+          </Kicker>
           <div className="af-grid">
             <Reveal>
               <Link to="/agents" className="af-card">
@@ -401,17 +402,20 @@ export default function Landing() {
       </section>
 
       <section className="band band-paper cta" aria-labelledby="cta-title">
-        <div className="wrap cta-grid">
+        <div className="wrap">
+        <div className="cta-panel">
+        <WordField className="cta-words" />
+        <div className="cta-grid">
           <Reveal variant="slide">
             <h2 id="cta-title" className="display-2">
               {t('landing.cta.title')}
             </h2>
             <p className="lead">{t('landing.cta.body')}</p>
             <div className="cta-row">
-              <Link to="/report" className="btn btn-lg btn-ink btn-press">
+              <Link to="/report" className="btn btn-lg btn-accent btn-press">
                 <Mic aria-hidden="true" /> {t('landing.cta.report')}
               </Link>
-              <Link to="/impact" className="btn btn-lg btn-ghost btn-press">
+              <Link to="/impact" className="btn btn-lg btn-night btn-press">
                 {t('nav.impact')} <ArrowRight aria-hidden="true" />
               </Link>
             </div>
@@ -424,6 +428,9 @@ export default function Landing() {
               <p className="qr-url">{reportUrl.replace(/^https?:\/\//, '')}</p>
             </div>
           </Reveal>
+        </div>
+        <ValleyLine className="cta-valley" />
+        </div>
         </div>
       </section>
     </div>

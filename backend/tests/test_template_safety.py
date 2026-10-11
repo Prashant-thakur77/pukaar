@@ -256,6 +256,18 @@ def test_gauge_rule_feeds_the_ingest_lambda_with_errors_to_the_dlq():
     assert callable(gauge_ingest.handler)
 
 
+def test_sweep_may_only_invoke_the_nova_model_for_its_access_probe():
+    """The sweep's one model permission is a plain InvokeModel (what Converse needs) on Nova models and the US profile."""
+    grants = [s for n, s in _statements() if n == "SweepFunction" and any(a.startswith("bedrock:") for a in _as_list(s["Action"]))]
+    assert len(grants) == 1
+    (s,) = grants
+    assert s["Sid"] == "ModelAccessProbe" and _as_list(s["Action"]) == ["bedrock:InvokeModel"]
+    resources = [r["Fn::Sub"] for r in _as_list(s["Resource"])]
+    assert resources and all(":foundation-model/amazon.nova-" in r or ":inference-profile/us.amazon.nova-" in r
+                             for r in resources)
+    assert not any(r.endswith("*:*") or r.endswith("/*") for r in resources)
+
+
 def test_apply_guardrail_scoped_to_the_report_guardrail():
     """Only the worker screens report text, and only with Pukaar's own guardrail."""
     grants = [(n, s) for n, s in _statements() if "bedrock:ApplyGuardrail" in _as_list(s["Action"])]

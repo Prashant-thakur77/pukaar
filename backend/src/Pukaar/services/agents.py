@@ -5,7 +5,9 @@ tool lists come from drafting.DRAFT_TOOLS / analyst.ANALYST_TOOLS, their
 descriptions from llm.tools.TOOL_DOCS, the "never" list from the Cedar
 forbid policy in policy/base.cedar, turn and time budgets from llm.bedrock,
 output fields from the typed output models. Live status is read from what the
-last real draft and report actually used; no model is called here.
+last real draft and report actually used, and from the cached model-access
+probe the sweep runs at most every 6 hours (services/model_probe.py),
+whichever is newer; no model is called here.
 
 No personal data leaves these views: no recipient names, officer usernames,
 report text, phone numbers or chat ids.
@@ -42,6 +44,10 @@ ACTION_TEXT: dict[str, tuple[str, str]] = {
     "auto_send": ("Auto-send without approval", "बिना मंज़ूरी अपने आप भेजना"),
     "failsafe": ("Fire the failsafe template", "फ़ेलसेफ़ संदेश भेजना"),
     "issue_directive": ("Issue an evacuation or other order", "निकासी या कोई आदेश जारी करना"),
+    "open_rollcall": ("Open a safety roll-call", "सुरक्षा हाज़िरी शुरू करना"),
+    "remind_rollcall": ("Remind people in a roll-call", "हाज़िरी की याद दिलाना"),
+    "set_shelter_status": ("Change the shelter ledger", "आश्रय की स्थिति बदलना"),
+    "block_road": ("Mark a road blocked or open", "सड़क बंद या खुली बताना"),
 }
 # By design, not by policy: the typed outputs have no field for these.
 DESIGN_NEVER: list[dict[str, str]] = [
@@ -85,9 +91,9 @@ def _tool(name: str) -> dict[str, Any]:
 
 
 # -- live status --------------------------------------------------------------
-def _status(state: str, en: str, hi_: str, evidence: str = "") -> dict[str, str]:
+def _status(state: str, en: str, hi_: str, evidence: str = "", evidence_hi: str = "") -> dict[str, str]:
     """state: live | fallback | pending | deterministic | unknown."""
-    return {"state": state, "label_en": en, "label_hi": hi_, "evidence": evidence}
+    return {"state": state, "label_en": en, "label_hi": hi_, "evidence": evidence, "evidence_hi": evidence_hi or evidence}
 
 
 def _last_real_draft(repo: Repo) -> Alert | None:
@@ -100,23 +106,65 @@ def _last_real_draft(repo: Repo) -> Alert | None:
     return None
 
 
-def model_status(repo: Repo) -> dict[str, str]:
+def _probe(repo: Repo) -> tuple[str | None, str]:
+    """The cached model-access answer (services/model_probe.py): ("live"|"pending"|None, when it was seen)."""
+    try:
+        rec = repo.get_model_probe() or {}
+    except Exception:
+        rec = {}
+    access = rec.get("access") if rec.get("access") in ("live", "pending") else None
+    return access, str(rec.get("access_checked_at") or "")
+
+
+# What the fallback is called, per agent, while the model cannot be reached.
+_FALLBACK_WORDS = {
+    "draft": ("fixed template in use", "तय ढाँचा इस्तेमाल हो रहा है"),
+    "analyst": ("keyword router in use", "शब्द-आधारित राउटर चल रहा है"),
+}
+
+
+def model_status(repo: Repo, who: str = "draft") -> dict[str, str]:
+    """Status from configuration plus the newest evidence: the last real draft or the cached access probe.
+
+    Never calls a model. The 15-minute sweep refreshes the probe at most every 6 hours,
+    so the page turns "Live" by itself once Bedrock model access is granted.
+    """
+    from Pukaar.services.model_probe import PENDING_EVIDENCE, PENDING_EVIDENCE_HI, PROBE_EVERY
+
     s = get_settings()
     if not s.llm_enabled:
         return _status("fallback", "Rule fallback: model calls are off here",
                        "नियम वाला विकल्प: यहाँ मॉडल बंद है", "PUKAAR_LLM_ENABLED is false")
+    fb_en, fb_hi = _FALLBACK_WORDS.get(who, _FALLBACK_WORDS["draft"])
+    access, access_at = _probe(repo)
     a = _last_real_draft(repo)
-    if a is None:
-        return _status("unknown", "Model configured; no draft yet", "मॉडल तैयार; अभी कोई ड्राफ़्ट नहीं")
-    if a.reasoning_model and a.reasoning_model != "rule-fallback":
-        return _status("live", f"Live: last draft by {_model_label(a.reasoning_model)}",
-                       f"चालू: आख़िरी ड्राफ़्ट {_model_label(a.reasoning_model)} ने लिखा", f"alert at {a.created_at}")
-    reason = (a.draft_check.reason if a.draft_check else "") or ""
-    if reason.startswith("model unavailable"):
-        return _status("pending", "Pending model access: fixed template in use",
-                       "मॉडल की अनुमति बाकी: तय ढाँचा इस्तेमाल हो रहा है", f"last draft {a.created_at}: {reason}")
-    return _status("live", "Model answered; checker chose the template",
-                   "मॉडल ने जवाब दिया; जाँच ने तय ढाँचा चुना", f"last draft {a.created_at}: {reason}")
+    draft_at = a.created_at if a else ""
+    pending = _status("pending", f"Pending model access: {fb_en}", f"मॉडल की अनुमति बाकी: {fb_hi}",
+                      f"{PENDING_EVIDENCE} (checked {access_at})" if access == "pending" else PENDING_EVIDENCE,
+                      PENDING_EVIDENCE_HI)
+    if a is not None and draft_at >= access_at:  # the last real draft is the newest evidence
+        reason = (a.draft_check.reason if a.draft_check else "") or ""
+        if a.reasoning_model and a.reasoning_model != "rule-fallback":
+            return _status("live", f"Live: last draft by {_model_label(a.reasoning_model)}",
+                           f"चालू: आख़िरी ड्राफ़्ट {_model_label(a.reasoning_model)} ने लिखा", f"alert at {a.created_at}")
+        if not reason.startswith("model unavailable"):
+            return _status("live", "Model answered; checker chose the template",
+                           "मॉडल ने जवाब दिया; जाँच ने तय ढाँचा चुना", f"last draft {a.created_at}: {reason}")
+        if access == "live":  # access was confirmed earlier, yet this draft could not reach the model
+            return _status("fallback", f"Model unreachable at the last draft: {fb_en}",
+                           f"पिछले ड्राफ़्ट पर मॉडल नहीं मिला: {fb_hi}",
+                           f"last draft {a.created_at}: {reason}; model access was confirmed at {access_at}")
+        out = dict(pending)
+        out["evidence"] = f"{PENDING_EVIDENCE} (last draft {a.created_at}: {reason})"
+        return out
+    if access == "live":
+        return _status("live", "Live: model access confirmed", "चालू: मॉडल की अनुमति मिल चुकी है",
+                       f"a 1-token check answered at {access_at}")
+    if access == "pending":
+        return pending
+    hours = int(PROBE_EVERY.total_seconds() // 3600)
+    return _status("unknown", "Model configured; access not checked yet", "मॉडल तैयार; अनुमति अभी जाँची नहीं गई",
+                   f"the 15-minute sweep checks model access at most every {hours} hours")
 
 
 def report_model_status(repo: Repo) -> dict[str, str]:
@@ -131,13 +179,25 @@ def report_model_status(repo: Repo) -> dict[str, str]:
                 continue
             if latest is None or r.created_at > latest.created_at:
                 latest = r
-    if latest is None:
-        return _status("unknown", "Model configured; no report yet", "मॉडल तैयार; अभी कोई सूचना नहीं")
-    if latest.parser_source == "model+rules":
+    from Pukaar.services.model_probe import PENDING_EVIDENCE, PENDING_EVIDENCE_HI
+
+    access, access_at = _probe(repo)
+    if latest is not None and latest.parser_source == "model+rules":
         return _status("live", "Live: model and keyword parser together", "चालू: मॉडल और शब्द-पार्सर साथ",
                        f"report at {latest.created_at}")
-    return _status("pending", "Pending model access: keyword parser in use",
-                   "मॉडल की अनुमति बाकी: शब्द-पार्सर चल रहा है", f"report at {latest.created_at} parsed by rules")
+    if access == "live":
+        if latest is None or access_at > latest.created_at:
+            return _status("live", "Live: model access confirmed", "चालू: मॉडल की अनुमति मिल चुकी है",
+                           f"a 1-token check answered at {access_at}")
+        return _status("fallback", "Keyword parser used for the last report", "पिछली सूचना शब्द-पार्सर ने पढ़ी",
+                       f"report at {latest.created_at} parsed by rules; model access was confirmed at {access_at}")
+    if access == "pending" or latest is not None:
+        seen = f"checked {access_at}" if access == "pending" else f"report at {latest.created_at} parsed by rules"
+        return _status("pending", "Pending model access: keyword parser in use",
+                       "मॉडल की अनुमति बाकी: शब्द-पार्सर चल रहा है", f"{PENDING_EVIDENCE} ({seen})",
+                       PENDING_EVIDENCE_HI)
+    return _status("unknown", "Model configured; no report yet", "मॉडल तैयार; अभी कोई सूचना नहीं",
+                   "the 15-minute sweep checks model access at most every 6 hours")
 
 
 def guardrail_status() -> dict[str, Any]:
@@ -206,7 +266,7 @@ def registry(repo: Repo) -> dict[str, Any]:
                            "राउटर वही टूल चलाता है और साफ़ बताता है।",
             "access_en": "Officers only (Cedar action ask_analyst)",
             "access_hi": "सिर्फ़ अधिकारी (Cedar: ask_analyst)",
-            "status": m_status,
+            "status": model_status(repo, "analyst"),
         },
         {
             "id": "report-agent", "name_en": "Report-structuring agent", "name_hi": "सूचना समझने वाला एजेंट",

@@ -244,6 +244,12 @@ export const api = {
   safePlaces: (id: string) => request<SafePlacesView>(`/villages/${enc(id)}/safe-places`, { auth: false }),
   setShelter: (villageId: string, placeId: string, body: { status: ShelterState; capacity?: number | null; note?: string }) =>
     request<SafePlacesView>(`/villages/${enc(villageId)}/shelters/${enc(placeId)}`, { method: 'POST', body }),
+  addRoadblock: (villageId: string, body: { lat: number; lon: number; note: string; label?: string }) =>
+    request<SafePlacesView>(`/villages/${enc(villageId)}/roadblocks`, { method: 'POST', body }),
+  renewRoadblock: (villageId: string, blockId: string) =>
+    request<SafePlacesView>(`/villages/${enc(villageId)}/roadblocks/${enc(blockId)}/renew`, { method: 'POST' }),
+  clearRoadblock: (villageId: string, blockId: string) =>
+    request<SafePlacesView>(`/villages/${enc(villageId)}/roadblocks/${enc(blockId)}/clear`, { method: 'POST' }),
   gaugeProposal: (villageId: string) => request<GaugeProposal>(`/villages/${enc(villageId)}/gauge/proposal`),
   setGaugeThresholds: (villageId: string, t: GaugeThresholdSet & { from_proposal: boolean; note?: string }) =>
     request<{ village_id: string; current: GaugeThresholdSet; previous: GaugeThresholdSet }>(

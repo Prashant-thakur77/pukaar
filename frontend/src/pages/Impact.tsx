@@ -3,7 +3,7 @@ import { CircleCheck, CircleDashed, CloudRain, FlaskConical, Target } from 'luci
 import { loadBacktest } from '../api';
 import { LevelBadge } from '../components/Level';
 import { Reveal } from '../components/Reveal';
-import { Headline } from '../components/PageBand';
+import { PageBand } from '../components/PageBand';
 import { SatelliteCompare } from '../components/SatelliteCompare';
 import { EmptyState, Skeleton } from '../components/States';
 import { useT, type Key } from '../i18n';
@@ -158,17 +158,7 @@ export default function Impact() {
   
   return (
     <div className="impact">
-      <section className="band band-night impact-hero">
-        <div className="wrap">
-          <Reveal variant="slide">
-            <p className="eyebrow eyebrow-night">{t('impact.eyebrow')}</p>
-            <h1 className="display-2 on-night pg-title">
-              <Headline text={t('impact.title')} />
-            </h1>
-            <p className="lead on-night-2">{t('impact.lead')}</p>
-          </Reveal>
-        </div>
-      </section>
+      <PageBand eyebrow={t('impact.eyebrow')} title={t('impact.title')} lead={t('impact.lead')} className="impact-band" />
 
       <section className="band band-paper" aria-labelledby="bt-h">
         <div className="wrap">
