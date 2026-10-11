@@ -1553,3 +1553,4 @@ button.map-key-item:hover { background: var(--surface-2); }
 .thesis, .spine, .fact { position: relative; overflow: hidden; }
 @keyframes grain { 0% { transform: translate(0, 0); } 25% { transform: translate(-4%, 3%); } 50% { transform: translate(3%, -4%); } 75% { transform: translate(-2%, -2%); } 100% { transform: translate(0, 0); } }
 @media (prefers-reduced-motion: reduce) { .hero::after, .site-footer::after, .thesis::after, .spine::after, .fact::after { animation: none; } .reveal { transform: none; } }
+@media (max-width: 640px) { .ftr-giant span { font-size: 30vw; } }

@@ -305,8 +305,6 @@
 .tk-decide .btn { min-height: 54px; width: 100%; justify-content: center; }
 .ticket .btn-approve { --bg-b: var(--gold); --fg-b: var(--night-0); --bd-b: var(--gold); order: 2; }
 .ticket .btn-approve:hover:not(:disabled) { --bg-b: var(--gold-2); border-color: var(--gold-2); }
-.ticket .btn-decline { --bg-b: transparent; --fg-b: var(--ink); --bd-b: var(--line-2); }
-.ticket .btn-decline:hover:not(:disabled) { --fg-b: var(--bad); border-color: var(--bad); }
 .ticket .pc-officers-only { grid-column: 1 / -1; align-items: stretch; }
 .ticket .pc-officers-only .btn { width: 100%; }
 .pending-more { border-radius: 999px; }
@@ -388,11 +386,11 @@
 }
 
 /* Dark theme: lift the header band off the black page */
-:root[data-theme='dark'] .pg-band { background: linear-gradient(180deg, #161c16 0%, #10130e 100%); border-bottom-color: rgb(212 172 88 / 0.22); }
+:root[data-theme='dark'] :is(.pg-band, .village-page .v-hero, .impact-hero.band-night) { background: linear-gradient(180deg, #161c16 0%, #10130e 100%); border-bottom-color: rgb(212 172 88 / 0.22); }
 :root[data-theme='dark'] .live-map.card { border-color: var(--line-2); }
 :root[data-theme='dark'] .pending-card.ticket { box-shadow: 0 18px 40px -28px rgb(0 0 0 / 0.8); }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .pg-band { background: linear-gradient(180deg, #161c16 0%, #10130e 100%); border-bottom-color: rgb(212 172 88 / 0.22); }
+  :root:not([data-theme='light']) :is(.pg-band, .village-page .v-hero, .impact-hero.band-night) { background: linear-gradient(180deg, #161c16 0%, #10130e 100%); border-bottom-color: rgb(212 172 88 / 0.22); }
   :root:not([data-theme='light']) .live-map.card { border-color: var(--line-2); }
   :root:not([data-theme='light']) .pending-card.ticket { box-shadow: 0 18px 40px -28px rgb(0 0 0 / 0.8); }
 }
@@ -630,3 +628,30 @@
   .big-btn { min-height: 148px; }
   .report-steps { padding: 12px 18px; }
 }
+
+/* map key under the dark map (narrow screens) */
+.live-map .map-key { background: var(--night-1); color: var(--cream); border-top: 1px solid var(--night-3); }
+.live-map .map-key-item { color: var(--cream); }
+.live-map button.map-key-item:hover { background: rgb(244 236 228 / 0.06); }
+.live-map .map-key-item .mk-num { background: var(--night-2); color: var(--cream); }
+.alert-row .chip, .ra-row .chip { letter-spacing: 0.04em; padding-inline: 8px; }
+.alert-row { gap: 10px; }
+@media (max-width: 560px) {
+  .live-side .side-sec { padding: 18px 14px; }
+  .alert-row { padding: 12px 12px 12px 14px; }
+}
+
+/* Hindi never gets mono letter-spacing: Devanagari breaks apart when tracked */
+:is(.pg-eyebrow, .field-label, .track > .eyebrow, .tk-eyebrow, .stat-label, .mc-label, .tk-row dt, .code-label, .pg-updated,
+  .map-hud, .trace-toggle, .tte-head, .tte-label, .ev-head h3, .alert-details .h-sub, .back-link, .v-meta, .sys-row dt, .fn-group,
+  .data-table thead th, .ctab, .approve-top .eyebrow, .onetap-label, .login .eyebrow, .impact-hero .eyebrow, .v-hero .eyebrow,
+  .trend-card > .small:first-child, .village-page .nowcast strong, .tk-ago):lang(hi) {
+  font-family: var(--font-hi); letter-spacing: 0.01em; text-transform: none;
+}
+:is(.pg-eyebrow, .stat-label, .mc-label, .map-hud, .tk-eyebrow, .field-label):lang(hi) { font-size: 0.85rem; font-weight: 700; }
+
+/* 404 */
+.nf .state { min-height: 52vh; align-content: center; }
+.nf .state-word { font-size: clamp(8rem, 24vw, 16rem); -webkit-text-stroke-width: 2px; -webkit-text-stroke-color: var(--gold); }
+.nf .state.has-word .state-title { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1; }
+.nf .state-title:lang(hi) { font-family: var(--font-hi); font-weight: 800; }
