@@ -490,6 +490,7 @@ export default function VillagePage() {
                   <div className="ac-top">
                     <strong>{pick(enumLabels.reportType[r.report_type])}</strong>
                     <ReportStateChip state={r.state} />
+                    {r.held && <span className="chip chip-sm chip-held">{lang === 'hi' ? 'जाँच के लिए रोकी गई' : 'Held for review'}</span>}
                     {r.replay && <ReplayChip />}
                   </div>
                   <p>{humanizeSummary(r.summary_en, lang, r.report_type, r.severity) || r.transcript || r.text}</p>

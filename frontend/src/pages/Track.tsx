@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CircleCheck, CircleDot, Search } from 'lucide-react';
+import { CircleCheck, CircleDot, Search, ShieldAlert } from 'lucide-react';
 import { api } from '../api';
 import { ErrorState, Skeleton } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
@@ -57,6 +57,18 @@ export default function Track() {
               </li>
             ))}
           </ol>
+          {data.held && (
+            <p className="rc-held" role="note">
+              <span className="chip chip-held">
+                <ShieldAlert aria-hidden="true" /> {lang === 'hi' ? 'जाँच के लिए रोकी गई' : 'Held for review'}
+              </span>
+              <span className="small">
+                {lang === 'hi'
+                  ? 'आपकी सूचना सुरक्षित है। इसमें कुछ ऐसा था जिसे इंसान को देखना चाहिए, इसलिए अधिकारी इसे पढ़कर तय करेंगे।'
+                  : 'Your report is kept. Something in it needs a person to check, so an officer will read it before it counts.'}
+              </span>
+            </p>
+          )}
           <p className="small muted">
             {pick(enumLabels.reportState[data.state])}
           </p>

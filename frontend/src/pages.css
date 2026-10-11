@@ -747,7 +747,9 @@
 
 /* 4. trust: small cream cards */
 .how-cream { background: var(--bg); color: var(--ink); }
-.how-trust { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.how-trust { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+/* The lead card (Guarded) spans two columns, so five cards fill two full rows of three, or three rows of two. */
+.how-card-lead { grid-column: span 2; }
 .how-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--pg-r); padding: var(--pg-pad); }
 .how-card-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--night-0); color: var(--gold); }
 .how-card-icon svg { width: 22px; height: 22px; }
@@ -771,5 +773,6 @@
 }
 @media (max-width: 720px) {
   .how-stats, .how-trust, .how-steps { grid-template-columns: 1fr; }
+  .how-card-lead { grid-column: auto; }
   .how-cta-row .btn { flex: 1 1 100%; justify-content: center; }
 }

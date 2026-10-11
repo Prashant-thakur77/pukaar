@@ -25,10 +25,17 @@ def alert(a: Alert) -> dict[str, Any]:
     return out
 
 
-def report(r: Report) -> dict[str, Any]:
-    out = r.model_dump(exclude={"photo_key", "audio_key"})
+def report(r: Report, *, public: bool = False) -> dict[str, Any]:
+    out = r.model_dump(exclude={"photo_key", "audio_key", "masked_text"})
     out["photo_url"] = storage.url_for(r.photo_key)
     out["audio_url"] = storage.url_for(r.audio_key)
+    out["held"] = r.held
+    if r.masked_text and r.screen is not None:
+        # Show the guardrail's copy: phone numbers and e-mails masked. The original stays in the table.
+        out[r.screen.field] = r.masked_text
+    if public and r.held:
+        # Words held for review are not published; officers read them in the console.
+        out.update(text="", transcript="", summary_en="", reply_hi="")
     return out
 
 
@@ -38,7 +45,7 @@ def village_detail(repo: Repo, v: Village) -> dict[str, Any]:
         "village": village(repo, v),
         "readings": [r.model_dump() for r in readings],
         "alerts": [alert(a) for a in repo.list_alerts(village_id=v.id, limit=20)],
-        "reports": [report(r) for r in repo.list_reports(v.id, limit=30)],
+        "reports": [report(r, public=True) for r in repo.list_reports(v.id, limit=30)],
         "past_events": [e.model_dump() for e in repo.list_past_events(v.id)],
         "directives": [d.model_dump() for d in repo.list_directives(v.id)[:5]],
         "nowcast": nowcast(readings[0] if readings else None, v.thresholds, v.level),

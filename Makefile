@@ -10,7 +10,7 @@ SAM      ?= sam
 STACK_ENV = eval "$$(scripts/stack_env.sh)"
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo drill gauge-sim it secrets local validate
+        seed reset-demo drill gauge-sim gauge-provision gauge-sim-mqtt it secrets local validate
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -59,6 +59,12 @@ drill: ## Send a labelled drill alert to registered phones (VILLAGE=gohar LEVEL=
 
 gauge-sim: ## Send a SIMULATED rising river gauge to the deployed stack (VILLAGE=gohar, FAST=1 for five readings at once)
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.gauge_sim $(or $(VILLAGE),gohar) $(if $(FAST),--fast,)
+
+gauge-provision: ## Create the AWS IoT thing + certificate for a village gauge, key in SSM (VILLAGE=gohar, DELETE=1 to remove)
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.iot_provision $(or $(VILLAGE),gohar) $(if $(DELETE),--delete,)
+
+gauge-sim-mqtt: ## Publish a SIMULATED rising river over MQTT (AWS IoT Core, X.509) (VILLAGE=gohar, SLOW=1 for real time)
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.gauge_sim_mqtt $(or $(VILLAGE),gohar) $(if $(SLOW),--slow,)
 
 it: ## Run real approval executions against the deployed stack
 	$(PYTHON) scripts/it_workflow.py

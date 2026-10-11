@@ -188,6 +188,20 @@ export interface Report extends SampleFlag {
   flags: string[];
   track_code: string;
   replay: boolean;
+  /** What the guardrail said about the words; null on reports from before screening. */
+  screen?: ReportScreen | null;
+  /** Held for review: the guardrail stopped the words, so only an officer can verify it. */
+  held?: boolean;
+}
+
+export interface ReportScreen {
+  allowed: boolean;
+  action: string;
+  /** prompt_attack, instruction_to_system, hate, insults, violence, misconduct, pii:phone, ... */
+  reasons: string[];
+  engine: 'bedrock-guardrail' | 'local-heuristic';
+  at: string;
+  field: 'text' | 'transcript';
 }
 
 export interface Directive extends SampleFlag {
@@ -448,6 +462,7 @@ export interface TrackView extends SampleFlag {
   report_type: ReportType;
   state: ReportState;
   steps: TrackStep[];
+  held?: boolean;
 }
 
 /** /backtest.json is copied from data/backtest.json at build time (not in CONTRACT). */

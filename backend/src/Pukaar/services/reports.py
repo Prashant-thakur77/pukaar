@@ -9,6 +9,11 @@ Auto-verification (code, never the model): GPS inside the village radius AND
 either a photo whose description agrees with the report type, or a second
 independent report within 500 m and 30 minutes that agrees. Only verified
 reports can raise a level.
+
+Screening: before any structuring, the words (typed text or transcript) go
+through the guardrail (llm/guardrail.py). A held report is kept and shown to
+officers, structured by keyword rules only (no model sees it), never
+auto-verified and never used to corroborate another report.
 """
 
 from __future__ import annotations
@@ -19,10 +24,11 @@ from datetime import timedelta
 from Pukaar.core import clock
 from Pukaar.core.ids import new_id, track_code
 from Pukaar.core.log import get_logger, log
+from Pukaar.llm import guardrail
 from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.services import storage
 from Pukaar.services.report_structuring import structure
-from Pukaar.store.models import Report, Village
+from Pukaar.store.models import AuditRow, Report, ReportScreen, Village
 from Pukaar.store.repo import Repo
 from Pukaar.voice import transcribe
 
@@ -74,7 +80,7 @@ def corroborating(repo: Repo, r: Report) -> Report | None:
     for other in repo.list_reports(r.village_id, limit=50):
         if other.id == r.id or not _has_gps(other) or other.replay != r.replay:
             continue
-        if other.state in {"duplicate", "false"} or "possible_duplicate" in other.flags:
+        if other.state in {"duplicate", "false"} or "possible_duplicate" in other.flags or other.held:
             continue
         if abs((clock.parse(other.created_at) - created).total_seconds()) > CORROBORATION_MINUTES * 60:
             continue
@@ -88,7 +94,7 @@ def corroborating(repo: Repo, r: Report) -> Report | None:
 
 def auto_verify(repo: Repo, r: Report, village: Village, photo_agrees: bool | None = None) -> list[Report]:
     """Returns the reports that became verified_auto (this one and/or its partner)."""
-    if r.state != "unverified" or not inside_village(r, village):
+    if r.state != "unverified" or r.held or not inside_village(r, village):
         return []
     changed: list[Report] = []
     if photo_agrees:
@@ -153,17 +159,30 @@ def process(repo: Repo, report_id: str, llm: BedrockLLM | None, *, workflow=None
         raise KeyError(r.village_id)
     fields: dict = {}
     text = r.text
+    source = "text"
     if r.audio_key and not text.strip():
         transcript = transcribe.transcribe_key(r.audio_key, f"pukaar-{r.id}")
         if transcript:
             fields["transcript"] = transcript
             text = transcript
+            source = "transcript"
         else:
             fields["flags"] = r.flags + ["transcription_unavailable"]
+    held = False
     if text.strip():
-        s = structure(text, village.name, llm, has_photo=bool(r.photo_key))
+        # Screen first: nothing below (rules or model) acts on words the guardrail stopped.
+        verdict = guardrail.screen(text, source)
+        held = not verdict.allowed
+        fields["screen"] = ReportScreen(allowed=verdict.allowed, action=verdict.action, reasons=verdict.reasons,
+                                        engine=verdict.engine, at=clock.iso(clock.now()), field=source).model_dump()
+        if verdict.masked_text:
+            fields["masked_text"] = verdict.masked_text
+            text = verdict.masked_text  # no phone number or e-mail reaches the model
+        s = structure(text, village.name, None if held else llm, has_photo=bool(r.photo_key))
         fields.update(report_type=s.report_type, severity=s.severity, summary_en=s.summary_en, reply_hi=s.reply_hi,
                       parser_source=s.parser_source)
+        if held:
+            _audit_hold(repo, r, verdict)
     photo_agrees = None
     if r.photo_key and llm is not None:
         try:
@@ -177,11 +196,35 @@ def process(repo: Repo, report_id: str, llm: BedrockLLM | None, *, workflow=None
             log(_LOG, "photo description failed", 30, report_id=r.id, error=str(exc)[:200])
     if r.state == "transcribing":
         fields.update(state="unverified", previous_state="transcribing")
+    unwound = held and r.state == "verified_auto"
+    if unwound:
+        # A partner verified it before screening finished: undo that, and the partner's own.
+        fields.update(state="unverified", previous_state="verified_auto", verified_by=None,
+                      flags=[f for f in fields.get("flags", r.flags) if f != "corroborated"])
+        _unwind_partner(repo, r)
     r = repo.update_report(r.id, **fields) if fields else r
     verified = auto_verify(repo, r, village, photo_agrees)
-    if verified:
+    if verified or unwound:
         recompute_village(repo, repo.get_village(village.id) or village, workflow=workflow, replay=r.replay)
     return repo.get_report(r.id) or r
+
+
+def _audit_hold(repo: Repo, r: Report, verdict: guardrail.ScreenResult) -> None:
+    try:
+        repo.append_audit(AuditRow(
+            at=clock.iso(clock.now()), id=new_id("aud"), actor=verdict.engine, role="guardrail",
+            action="screen_report", resource=f"report:{r.id}", decision="deny",
+            reason="held for review: " + ", ".join(verdict.reasons or ["guardrail"]),
+        ))
+    except Exception as exc:  # the report is kept either way
+        log(_LOG, "screen audit write failed", 40, report_id=r.id, error=str(exc)[:200])
+
+
+def _unwind_partner(repo: Repo, held: Report) -> None:
+    for other in repo.list_reports(held.village_id, limit=50):
+        if other.state == "verified_auto" and other.verified_by == f"auto:corroborated-by:{held.id}":
+            repo.update_report(other.id, state="unverified", previous_state="verified_auto", verified_by=None,
+                               flags=[f for f in other.flags if f != "corroborated"])
 
 
 def track_steps(r: Report) -> list[dict]:

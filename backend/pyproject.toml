@@ -19,6 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "awsiotsdk>=1.31.0",
     "moto[dynamodb,lambda,s3,ssm,stepfunctions]>=5.2.3",
     "pytest",
     "xmlschema>=4.3.2",

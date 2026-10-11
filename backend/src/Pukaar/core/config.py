@@ -50,6 +50,13 @@ class Settings:
     cognito_user_pool_id: str
     cognito_client_id: str
     cap_sender: str  # CAP <sender>: no spaces, commas, '<' or '&'
+    guardrail_id: str = ""
+    guardrail_version: str = ""
+    guardrail_timeout_seconds: float = 8.0
+
+    @property
+    def guardrail_enabled(self) -> bool:
+        return self.mode == "aws" and bool(self.guardrail_id and self.guardrail_version)
 
     @property
     def is_local(self) -> bool:
@@ -90,4 +97,7 @@ def get_settings() -> Settings:
         cognito_client_id=os.environ.get("PUKAAR_COGNITO_CLIENT_ID", ""),
         cap_sender=os.environ.get("PUKAAR_CAP_SENDER", "").strip()
         or f"pukaar-{os.environ.get('PUKAAR_STAGE', 'dev')}@{urlsplit(web_url).hostname or 'localhost'}",
+        guardrail_id=os.environ.get("PUKAAR_GUARDRAIL_ID", ""),
+        guardrail_version=os.environ.get("PUKAAR_GUARDRAIL_VERSION", ""),
+        guardrail_timeout_seconds=float(os.environ.get("PUKAAR_GUARDRAIL_TIMEOUT_SECONDS", "8")),
     )

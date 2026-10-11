@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useCallback, useState } from 'react';
-import { CircleCheck, Copy, Flag, Hammer, MapPin, ShieldCheck } from 'lucide-react';
+import { CircleCheck, Copy, Flag, Hammer, MapPin, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { api, ApiError } from '../../api';
 import { ReplayChip, ReportStateChip } from '../../components/Chips';
 import { Snackbar, type SnackbarMsg } from '../../components/Snackbar';
@@ -8,7 +8,7 @@ import { DeniedNote, EmptyState, ErrorState, SkeletonCards } from '../../compone
 import type { PollState } from '../../hooks/usePoll';
 import { enumLabels, useT } from '../../i18n';
 import { fmtAgo } from '../../lib/format';
-import { humanizeFlag, humanizeSummary } from '../../lib/humanize';
+import { heldLabel, humanizeFlag, humanizeSummary, maskedNotes } from '../../lib/humanize';
 import type { Report, ReportState, Village } from '../../types';
 
 const ACTIONS: { state: ReportState; icon: typeof ShieldCheck }[] = [
@@ -71,8 +71,11 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
         <ul className="report-feed">
           {[...list]
             .sort((a, b) => b.created_at.localeCompare(a.created_at))
-            .map((r) => (
-              <li key={r.id} id={`report-${r.id}`} className={`report-card lv-${SEV_LEVEL[r.severity] ?? 'normal'}`}>
+            .map((r) => {
+              const held = heldLabel(r.screen, lang);
+              const masked = maskedNotes(r.screen, lang);
+              return (
+              <li key={r.id} id={`report-${r.id}`} className={`report-card lv-${SEV_LEVEL[r.severity] ?? 'normal'}${held ? ' is-held' : ''}`}>
                 <div className="rc-top">
                   <span className="rc-type">{pick(enumLabels.reportType[r.report_type])}</span>
                   <span className="chip">{pick(enumLabels.severity[r.severity])}</span>
@@ -80,6 +83,14 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
                   {r.replay && <ReplayChip />}
                   <span className="small muted rc-time">{fmtAgo(r.created_at, lang)}</span>
                 </div>
+                {held && (
+                  <div className="rc-held" role="note">
+                    <span className="chip chip-held">
+                      <ShieldAlert aria-hidden="true" /> {held.chip}
+                    </span>
+                    <span className="small">{held.detail}</span>
+                  </div>
+                )}
                 <p className="rc-village">
                   {vname(r.village_id)}
                   {r.lat != null && r.lon != null && (
@@ -95,12 +106,21 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
                     “{r.transcript}”
                   </p>
                 )}
+                {held && r.text && !r.transcript && (
+                  /* Held words are shown to the officer as quoted data, word for word. */
+                  <p className="rc-transcript">“{r.text}”</p>
+                )}
                 <div className="rc-media">
                   {r.photo_url && <img src={r.photo_url} alt={`Photo: ${r.summary_en || r.report_type}`} loading="lazy" />}
                   {r.audio_url && <audio src={r.audio_url} controls preload="none" aria-label="रिपोर्ट की आवाज़ सुनें (Play report audio)" />}
                 </div>
-                {r.flags.length > 0 && (
+                {(r.flags.length > 0 || masked.length > 0) && (
                   <p className="rc-flags">
+                    {masked.map((m) => (
+                      <span key={m} className="chip chip-sm chip-muted">
+                        {m}
+                      </span>
+                    ))}
                     {r.flags.map((f) => {
                       const h = humanizeFlag(f, lang);
                       return h.reportId ? (
@@ -133,7 +153,8 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
                 </div>
                 )}
               </li>
-            ))}
+              );
+            })}
         </ul>
       )}
       <Snackbar msg={snack} onClose={close} closeLabel={t('common.close')} />

@@ -14,11 +14,14 @@ forecast:
 - a reading older than 30 minutes, or no gauge at all, changes nothing.
 
 Status, honestly: **no gauge is installed yet.** Every village is seeded with a
-`-sim` device id and illustrative thresholds, and `make gauge-sim` drives a
-labelled simulator (`backend/src/Pukaar/scripts/gauge_sim.py`). Simulated
-readings carry `simulated: true`, add `gauge_simulated` to the decision trace
-and show a "Simulated" chip on the village page. The sketch below is
-**untested on hardware**.
+`-sim` device id and illustrative thresholds. Two labelled simulators drive it:
+`make gauge-sim-mqtt` publishes over MQTT to AWS IoT Core with a real per-device
+X.509 certificate (`backend/src/Pukaar/scripts/gauge_sim_mqtt.py`), and
+`make gauge-sim` posts signed HTTPS (`backend/src/Pukaar/scripts/gauge_sim.py`).
+Simulated readings carry `simulated: true`, add `gauge_simulated` to the
+decision trace and show a "Simulated" chip on the village page. Both sketches
+([MQTT](esp32-gauge-mqtt/esp32-gauge-mqtt.ino), [HTTPS](esp32-gauge/esp32-gauge.ino))
+are **untested on hardware**.
 
 ## Design
 
@@ -91,9 +94,92 @@ roughly three weeks without sun; the panel covers it on most days. In the dry
 season the interval can stretch to 10 minutes (keep it under the 30-minute
 freshness window).
 
-## How the signature works
+## MQTT over AWS IoT Core (recommended)
 
-The gauge has no Cognito account, so the route `POST /sensors/{village_id}/readings`
+This is how production IoT fleets connect: each gauge has its own X.509
+certificate, speaks MQTT over mutual TLS to the account's AWS IoT Core endpoint,
+and AWS IoT does the authentication before Pukaar's code runs. Sketch:
+[esp32-gauge-mqtt/esp32-gauge-mqtt.ino](esp32-gauge-mqtt/esp32-gauge-mqtt.ino)
+(WiFiClientSecure + PubSubClient, **untested on hardware**).
+
+```
+ gauge (ESP32, own cert) --MQTT/TLS 8883 (or 443 + ALPN x-amzn-mqtt-ca)--> AWS IoT Core
+   topic pukaar/gauge/<village>/<device>/reading
+     -> topic rule pukaar_gauge_<stage>:
+        SELECT *, topic(3) AS village_id, topic(4) AS device_id FROM 'pukaar/gauge/+/+/reading'
+     -> Lambda pukaar-gauge-ingest-<stage> -> gauge.ingest() (same path as HTTPS) -> DynamoDB
+        rule error action and Lambda failures -> SQS pukaar-worker-dlq-<stage> (alarmed)
+```
+
+**Provisioning** (one command per gauge, after `make deploy`):
+
+```
+make gauge-provision VILLAGE=gohar           # thing + certificate + policy, key into SSM
+make gauge-sim-mqtt VILLAGE=gohar            # SIMULATED readings over MQTT with that certificate
+make gauge-provision VILLAGE=gohar DELETE=1  # detach, deactivate and delete it all again
+```
+
+`gauge-provision` (`backend/src/Pukaar/scripts/iot_provision.py`) reads the
+village's registered `gauge.device_id` from the deployed stack, then:
+
+1. creates an IoT **thing** named after the device id;
+2. creates an RSA key pair and an **active certificate**;
+3. attaches the stack's policy `pukaar-gauge-<stage>` to the certificate and
+   the certificate to the thing;
+4. stores the private key and certificate PEM as SSM SecureString parameters
+   `/pukaar/gauge/<device>/key` and `/pukaar/gauge/<device>/cert` (sent by
+   boto3 straight from memory: never printed, never written to disk);
+5. prints the ATS data endpoint, the client id and the topic.
+
+It is idempotent (a thing that already has a certificate and both parameters is
+left alone) and rolls a half-made certificate back if a step fails. For a real
+gauge, copy the two PEMs from SSM into the sketch once
+(`aws ssm get-parameter --with-decryption --name /pukaar/gauge/<device>/key`),
+and turn on flash encryption.
+
+**Topic and payload.** The device publishes to
+`pukaar/gauge/<village_id>/<device_id>/reading`:
+
+```json
+{"at": "2026-10-11T09:30:00Z", "water_level_cm": 182.4, "rain_mm_1h": 1.2, "battery_v": 3.98, "rssi": -67}
+```
+
+The body carries no device id: the topic is the identity, and the policy pins
+the topic to the certificate. The ingest Lambda checks that `water_level_cm` is
+a number, `at` is ISO 8601 within ten minutes of the server clock (MQTT passes a
+broker and an asynchronous rule, so the window is wider than the HTTPS path's
+five minutes), the optional fields are numbers in range, and the device is the
+village's registered gauge. Then it uses the same ingestion as HTTPS: at most
+one reading per device per minute (so a QoS 1 redelivery or a replay is
+ignored), an audit row on a level change, an immediate re-evaluation at watch
+or above. The stored reading records `transport: "mqtt"`. A reading that can
+never be stored is logged and dropped (metric `GaugeRejected`); a storage
+failure goes to the dead-letter queue.
+
+**Policy** (`PukaarGaugePolicy` in `infra/template.yaml`, checked by
+`backend/tests/test_template_safety.py`):
+
+| Action | Resource | Means |
+|---|---|---|
+| `iot:Connect` | `client/${iot:Connection.Thing.ThingName}`, only while the certificate is attached to that thing | a certificate can connect only as its own gauge |
+| `iot:Publish` | `topic/pukaar/gauge/*/${iot:Connection.Thing.ThingName}/reading` | and publish only its own readings |
+
+Nothing else: no subscribe, no receive, no shadows, no `iot:*`. A stolen
+certificate can at worst send readings as that one gauge, and only to the
+village whose registered gauge it is (the Lambda rejects any other village).
+Revoking it is `make gauge-provision DELETE=1` (or marking the certificate
+inactive in the console).
+
+**Cost.** AWS IoT Core bills per message, per connection-minute and per rule
+triggered, with nothing billed by the hour. One reading a minute is about 44,000
+messages, connection-minutes and rule runs a month per gauge: well under ten US
+cents at us-east-1 list prices (check the current IoT Core pricing page), plus
+the Lambda invocations, which are pennies.
+
+## How the signature works (HTTPS path)
+
+The HTTPS route stays for gauges that cannot hold a certificate or reach the
+MQTT endpoint. The gauge has no Cognito account, so the route `POST /sensors/{village_id}/readings`
 is public at API Gateway and authenticates each body itself:
 
 1. **Per-device key**, derived from the stack's existing link secret (SSM

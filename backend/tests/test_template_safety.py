@@ -180,3 +180,79 @@ def test_cap_feed_routes_are_public_get_only():
         routes = [e for e in events if e.get("Path") == path]
         assert [e["Method"] for e in routes] == ["GET"], path
         assert routes[0].get("Auth", {}).get("Authorizer") == "NONE", path
+
+
+# -- river gauges over AWS IoT Core ------------------------------------------
+THING = "${!iot:Connection.Thing.ThingName}"  # IoT policy variable, escaped from Fn::Sub
+
+
+def test_gauge_iot_policy_allows_only_own_client_id_and_own_reading_topic():
+    """A stolen gauge certificate can connect as that gauge and publish its readings; nothing else."""
+    policies = [r for r in RES.values() if r["Type"] == "AWS::IoT::Policy"]
+    assert len(policies) == 1
+    stmts = policies[0]["Properties"]["PolicyDocument"]["Statement"]
+    assert all(s["Effect"] == "Allow" for s in stmts)
+    by_action = {}
+    for s in stmts:
+        actions, resources = _as_list(s["Action"]), _as_list(s["Resource"])
+        assert len(actions) == 1 and len(resources) == 1, s
+        assert "*" not in actions[0], f"wildcard action {actions[0]}"
+        by_action[actions[0]] = (resources[0]["Fn::Sub"], s.get("Condition"))
+    assert set(by_action) == {"iot:Connect", "iot:Publish"}  # no Subscribe, Receive, shadow or jobs
+
+    connect, cond = by_action["iot:Connect"]
+    assert connect == f"arn:${{AWS::Partition}}:iot:${{AWS::Region}}:${{AWS::AccountId}}:client/{THING}"
+    assert cond == {"Bool": {"iot:Connection.Thing.IsAttached": "true"}}
+    publish, _ = by_action["iot:Publish"]
+    assert publish == (f"arn:${{AWS::Partition}}:iot:${{AWS::Region}}:${{AWS::AccountId}}:"
+                       f"topic/pukaar/gauge/*/{THING}/reading")
+
+
+def test_gauge_rule_feeds_the_ingest_lambda_with_errors_to_the_dlq():
+    rule = next(r for r in RES.values() if r["Type"] == "AWS::IoT::TopicRule")["Properties"]["TopicRulePayload"]
+    assert rule["Sql"] == "SELECT *, topic(3) AS village_id, topic(4) AS device_id FROM 'pukaar/gauge/+/+/reading'"
+    assert rule["AwsIotSqlVersion"] == "2016-03-23"
+    assert rule["Actions"] == [{"Lambda": {"FunctionArn": {"Fn::GetAtt": "GaugeIngestFunction.Arn"}}}]
+    assert rule["ErrorAction"]["Sqs"]["QueueUrl"] == {"Fn::Ref": "WorkerDLQ"}
+
+    fn = RES["GaugeIngestFunction"]["Properties"]
+    assert fn["ImageConfig"]["Command"] == ["Pukaar.handlers.gauge_ingest.handler"]
+    assert fn["EventInvokeConfig"]["MaximumRetryAttempts"] == 0
+    assert fn["EventInvokeConfig"]["DestinationConfig"]["OnFailure"]["Destination"] == {"Fn::GetAtt": "WorkerDLQ.Arn"}
+
+    perms = [r["Properties"] for r in RES.values() if r["Type"] == "AWS::Lambda::Permission"
+             and r["Properties"]["Principal"] == "iot.amazonaws.com"]
+    assert len(perms) == 1
+    assert perms[0]["SourceArn"] == {"Fn::GetAtt": "PukaarGaugeRule.Arn"}
+    assert perms[0]["FunctionName"] == {"Fn::GetAtt": "GaugeIngestFunction.Arn"}
+
+    # The handler module the rule names exists and parses the rule's output.
+    from Pukaar.handlers import gauge_ingest
+
+    assert callable(gauge_ingest.handler)
+
+
+def test_apply_guardrail_scoped_to_the_report_guardrail():
+    """Only the worker screens report text, and only with Pukaar's own guardrail."""
+    grants = [(n, s) for n, s in _statements() if "bedrock:ApplyGuardrail" in _as_list(s["Action"])]
+    assert [n for n, _ in grants] == ["WorkerFunction"]
+    for _, s in grants:
+        assert _as_list(s["Action"]) == ["bedrock:ApplyGuardrail"]
+        assert s["Resource"] == {"Fn::GetAtt": "ReportGuardrail.GuardrailArn"}
+
+
+def test_report_guardrail_blocks_prompt_attacks_and_masks_phones():
+    from Pukaar.llm.guardrail import INSTRUCTION_TOPIC
+
+    g = RES["ReportGuardrail"]
+    assert g["Type"] == "AWS::Bedrock::Guardrail"
+    filters = {f["Type"]: f for f in g["Properties"]["ContentPolicyConfig"]["FiltersConfig"]}
+    assert filters["PROMPT_ATTACK"]["InputStrength"] == "HIGH" and filters["PROMPT_ATTACK"]["OutputStrength"] == "NONE"
+    topics = g["Properties"]["TopicPolicyConfig"]["TopicsConfig"]
+    assert any(t["Type"] == "DENY" and t["Name"] == INSTRUCTION_TOPIC for t in topics)
+    pii = {p["Type"]: p["Action"] for p in g["Properties"]["SensitiveInformationPolicyConfig"]["PiiEntitiesConfig"]}
+    assert pii == {"PHONE": "ANONYMIZE", "EMAIL": "ANONYMIZE"}
+    assert RES["ReportGuardrailVersion"]["Type"] == "AWS::Bedrock::GuardrailVersion"
+    env = T["Globals"]["Function"]["Environment"]["Variables"]
+    assert env["PUKAAR_GUARDRAIL_ID"] == {"Fn::GetAtt": "ReportGuardrail.GuardrailId"}
+    assert env["PUKAAR_GUARDRAIL_VERSION"] == {"Fn::GetAtt": "ReportGuardrailVersion.Version"}

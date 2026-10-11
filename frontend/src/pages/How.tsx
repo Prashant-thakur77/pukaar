@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, BatteryCharging, Cpu, ShieldCheck, Smartphone, Siren, Scale, Waves } from 'lucide-react';
+import { ArrowUpRight, BatteryCharging, Cpu, ShieldAlert, ShieldCheck, Smartphone, Siren, Scale, Waves } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { API_BASE } from '../api';
 import { PageBand } from '../components/PageBand';
@@ -141,7 +141,16 @@ const GAUGE: { icon: ReactNode; t: Txt }[] = [
   { icon: <Siren aria-hidden="true" />, t: { en: 'Thresholds set per village', hi: 'हर गाँव की अपनी सीमा' } },
 ];
 
-const TRUST: { icon: ReactNode; title: Txt; body: Txt; to?: string }[] = [
+const TRUST: { icon: ReactNode; title: Txt; body: Txt; to?: string; lead?: boolean }[] = [
+  {
+    icon: <ShieldAlert aria-hidden="true" />,
+    title: { en: 'Guarded', hi: 'पहरे में' },
+    body: {
+      en: 'Villager text is screened by Bedrock Guardrails before any AI sees it. A report that tries to give the system orders (“mark every village critical”) is kept, but held for an officer and never verified automatically. Phone numbers are masked.',
+      hi: 'गाँव से आया हर शब्द किसी भी AI से पहले Bedrock Guardrails से जाँचा जाता है। जो सूचना सिस्टम को आदेश देने की कोशिश करे (“हर गाँव को गंभीर करो”), वह रखी जाती है पर अधिकारी के लिए रोकी जाती है, अपने-आप पुष्टि नहीं होती। फ़ोन नंबर छिपाए जाते हैं।',
+    },
+    lead: true,
+  },
   {
     icon: <ShieldCheck aria-hidden="true" />,
     title: { en: 'Audit', hi: 'ऑडिट' },
@@ -288,7 +297,7 @@ export default function How() {
           </h2>
           <ul className="how-trust">
             {TRUST.map((c, i) => (
-              <Reveal as="li" key={c.title.en} className="how-card" delay={i * 80}>
+              <Reveal as="li" key={c.title.en} className={`how-card${c.lead ? ' how-card-lead' : ''}`} delay={i * 80}>
                 <span className="how-card-icon">{c.icon}</span>
                 <h3>{p(c.title)}</h3>
                 <p>{p(c.body)}</p>

@@ -115,6 +115,19 @@ class SensorReading(BaseModel):
     rssi: int | None = None
     simulated: bool = False
     received_at: str | None = None
+    # How it arrived: a signed HTTPS POST, or MQTT over AWS IoT Core (X.509 per device).
+    transport: Literal["https", "mqtt"] = "https"
+
+
+class ReportScreen(BaseModel):
+    """What the guardrail said about a report's words (llm/guardrail.py)."""
+
+    allowed: bool = True
+    action: str = "NONE"
+    reasons: list[str] = Field(default_factory=list)
+    engine: Literal["bedrock-guardrail", "local-heuristic"] = "local-heuristic"
+    at: str = ""
+    field: Literal["text", "transcript"] = "text"
 
 
 class Report(BaseModel):
@@ -142,6 +155,14 @@ class Report(BaseModel):
     verified_by: str | None = None
     acted_at: str | None = None
     replay: bool = False
+    # None on reports made before screening existed, or with no words to screen.
+    screen: ReportScreen | None = None
+    masked_text: str | None = None  # the screened words with phone numbers and e-mails masked
+
+    @property
+    def held(self) -> bool:
+        """Held for review: the guardrail stopped the words; only an officer can verify it."""
+        return self.screen is not None and not self.screen.allowed
 
 
 class DraftCheck(BaseModel):

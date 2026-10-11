@@ -40,6 +40,8 @@ def health() -> dict:
             "polly": "aws" if not s.is_local else "unavailable locally: text only",
             "transcribe": "aws" if not s.is_local else "unavailable locally: audio kept, text needed",
             "telegram": "configured" if telegram.configured() else "not configured: stub channel",
+            "guardrail": (f"bedrock guardrail {s.guardrail_id} v{s.guardrail_version} screens report text"
+                          if s.guardrail_enabled else "not configured: local heuristic screens report text"),
         },
         "workflow": "local runner (same states as Step Functions)" if s.is_local else "AWS Step Functions",
         "model": s.bedrock_model_id,
@@ -100,7 +102,7 @@ def track(code: str) -> dict:
     v = repo.get_village(r.village_id)
     return {"code": r.track_code, "village_name": v.name if v else r.village_id, "village_name_hi": v.name_hi if v else "",
             "created_at": r.created_at, "report_type": r.report_type, "state": r.state, "steps": track_steps(r),
-            "replay": r.replay}
+            "held": r.held, "replay": r.replay}
 
 
 @router.get("/replay/status")

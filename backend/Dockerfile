@@ -1,6 +1,6 @@
 # Pukaar Lambda images. Build context: the repository root (backend/ and data/).
 #   target api    -> FastAPI behind the Lambda Web Adapter (Lambda `api`)
-#   target worker -> plain handlers via awslambdaric (Lambdas `sweep`, `workflow`, `worker`;
+#   target worker -> plain handlers via awslambdaric (Lambdas `sweep`, `workflow`, `worker`, `gauge-ingest`;
 #                    the function's ImageConfig.Command picks the handler)
 # Local run:  docker build -f backend/Dockerfile --target api -t pukaar-api .
 

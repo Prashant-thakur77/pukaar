@@ -10,7 +10,7 @@ from datetime import timedelta
 from typing import Any, Callable
 
 from Pukaar.core import clock
-from Pukaar.store.models import level_rank
+from Pukaar.store.models import VERIFIED_STATES, level_rank
 from Pukaar.store.repo import Repo
 
 
@@ -42,7 +42,9 @@ class DataTools:
         return [{"id": r.id, "at": r.created_at, "type": r.report_type, "severity": r.severity,
                  "state": r.state, "summary_en": r.summary_en, "label": "UNVERIFIED"
                  if r.state in {"received", "transcribing", "unverified"} else "verified"}
-                for r in self.repo.list_reports(v.id, limit=20) if r.created_at >= since]
+                for r in self.repo.list_reports(v.id, limit=20)
+                # A report the guardrail held never reaches a model until an officer verifies it.
+                if r.created_at >= since and not (r.held and r.state not in VERIFIED_STATES)]
 
     def get_past_events(self, village_id: str) -> list[dict]:
         v = self._village(village_id)
@@ -110,7 +112,7 @@ class DataTools:
             for r in self.repo.list_reports(v.id, limit=50):
                 if r.created_at >= since:
                     out.append({"id": r.id, "village_id": v.id, "at": r.created_at, "type": r.report_type,
-                                "severity": r.severity, "state": r.state, "lat": r.lat, "lon": r.lon})
+                                "severity": r.severity, "state": r.state, "held": r.held, "lat": r.lat, "lon": r.lon})
         counts: dict[str, int] = {}
         for r in out:
             counts[r["village_id"]] = counts.get(r["village_id"], 0) + 1

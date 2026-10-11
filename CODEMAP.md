@@ -282,6 +282,14 @@ The backend was rebuilt into the PLAN.md 4a layout (DECISIONS.md "Build run").
   reading, duplicate pin check, tracking code) -> worker Lambda
   `process_report` (Transcribe batch, model structuring, photo description,
   auto-verification) -> recompute the village.
+- **River gauges**: MQTT to AWS IoT Core (X.509 per device, policy pinned to
+  the thing name) -> topic rule `pukaar/gauge/+/+/reading` ->
+  `handlers/gauge_ingest.py`; or `POST /sensors/{id}/readings` (HMAC) ->
+  `api/routers/sensors.py`. Both call `services/gauge.ingest` (registered
+  device check, one reading per minute, audit on a level change, recompute
+  at watch or above, only ever to raise). Provisioning:
+  `scripts/iot_provision.py`; simulators: `scripts/gauge_sim_mqtt.py`,
+  `scripts/gauge_sim.py`.
 - **Replay**: `POST /replay/start` -> worker `replay` task walks the archived
   hours in `data/replay/<scenario>/scenario.json` through the same
   `recompute_village` with a simulated clock; everything is `replay: true`.

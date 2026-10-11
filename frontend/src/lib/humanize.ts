@@ -1,6 +1,6 @@
 import { enumLabels } from '../i18n';
 import type { Lang } from '../store';
-import type { ReportType, Severity } from '../types';
+import type { ReportScreen, ReportType, Severity } from '../types';
 
 export interface FlagText {
   text: string;
@@ -44,4 +44,62 @@ export function humanizeSummary(summary: string, lang: Lang, type?: ReportType, 
   if (s === 'photo or voice report without text') return lang === 'hi' ? 'फ़ोटो या आवाज़ वाली सूचना, लिखा हुआ कुछ नहीं' : 'Photo or voice report, no text';
   if (!s && type) return `${enumLabels.reportType[type][lang]}${severity ? ` · ${enumLabels.severity[severity][lang]}` : ''}`;
   return s;
+}
+
+type Bi = { hi: string; en: string };
+const INSTRUCTION: Bi = { en: 'possible instruction to the system', hi: 'सिस्टम को आदेश देने की कोशिश हो सकती है' };
+const ABUSE: Bi = { en: 'abusive or harmful language', hi: 'अपमानजनक या हानिकारक भाषा' };
+const SCREEN_REASONS: Record<string, Bi> = {
+  prompt_attack: { en: 'tries to override the system’s rules', hi: 'सिस्टम के नियम बदलवाने की कोशिश' },
+  instruction_to_system: { en: 'gives orders about levels or alerts', hi: 'स्तर या चेतावनी के बारे में आदेश' },
+  hate: { en: 'hateful language', hi: 'नफ़रत भरी भाषा' },
+  insults: { en: 'insulting language', hi: 'अपमानजनक भाषा' },
+  violence: { en: 'violent language', hi: 'हिंसक भाषा' },
+  misconduct: { en: 'talk of wrongdoing', hi: 'ग़लत काम की बात' },
+  word_filter: { en: 'blocked words', hi: 'रोके गए शब्द' },
+  'pii:phone': { en: 'phone number hidden', hi: 'फ़ोन नंबर छिपाया गया' },
+  'pii:email': { en: 'e-mail hidden', hi: 'ई-मेल छिपाया गया' },
+};
+
+/** One guardrail reason code (backend llm/guardrail.py) in plain words. */
+export function screenReason(code: string, lang: Lang): string {
+  const r = SCREEN_REASONS[code];
+  if (r) return r[lang];
+  if (code.startsWith('topic:')) return code.slice(6);
+  return code.replace(/[_:]/g, ' ');
+}
+
+export interface HeldText {
+  /** The chip: "Held for review: <why>". */
+  chip: string;
+  /** Every reason in plain words, and which check made the call. */
+  detail: string;
+}
+
+const INSTRUCTION_CODES = new Set(['prompt_attack', 'instruction_to_system']);
+const ABUSE_CODES = new Set(['hate', 'insults', 'violence', 'misconduct', 'word_filter']);
+
+/** For a report the guardrail held: the chip and its detail line. Null when it was not held. */
+export function heldLabel(screen: ReportScreen | null | undefined, lang: Lang): HeldText | null {
+  if (!screen || screen.allowed) return null;
+  const rs = screen.reasons ?? [];
+  const why = rs.some((r) => INSTRUCTION_CODES.has(r) || r.startsWith('topic:'))
+    ? INSTRUCTION
+    : rs.some((r) => ABUSE_CODES.has(r))
+      ? ABUSE
+      : null;
+  const head = lang === 'hi' ? 'जाँच के लिए रोकी गई' : 'Held for review';
+  const hi = lang === 'hi';
+  const by = screen.engine === 'bedrock-guardrail'
+    ? hi ? 'Bedrock Guardrails ने रोकी' : 'Screened by Bedrock Guardrails'
+    : hi ? 'स्थानीय जाँच ने रोकी' : 'Screened by the local check';
+  const reasons = rs.map((r) => screenReason(r, lang)).join(', ');
+  const tail = hi ? 'अधिकारी पढ़कर तय करें; अपने-आप पुष्टि नहीं होगी।' : 'An officer decides; it is never auto-verified.';
+  return { chip: why ? `${head}: ${why[lang]}` : head, detail: `${by}${reasons ? ` · ${reasons}` : ''}. ${tail}` };
+}
+
+/** Masking notes for a report that passed ("phone number hidden"); empty when nothing was masked. */
+export function maskedNotes(screen: ReportScreen | null | undefined, lang: Lang): string[] {
+  if (!screen || !screen.allowed) return [];
+  return (screen.reasons ?? []).filter((r) => r.startsWith('pii:')).map((r) => screenReason(r, lang));
 }

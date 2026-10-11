@@ -16,7 +16,7 @@ from Pukaar.core.ids import new_id
 from Pukaar.core.log import get_logger, log
 from Pukaar.services import risk_rules
 from Pukaar.services.nowcast import nowcast
-from Pukaar.store.models import OPEN_ALERT_STATUSES, Alert, Reading, Village, level_rank
+from Pukaar.store.models import OPEN_ALERT_STATUSES, VERIFIED_STATES, Alert, Reading, Village, level_rank
 from Pukaar.store.repo import Repo
 
 _LOG = get_logger("sweep")
@@ -51,6 +51,8 @@ def _recent_reports(repo: Repo, village_id: str, now: datetime, include_replay: 
             continue
         if r.state in {"duplicate", "false"}:
             continue
+        if r.held and r.state not in VERIFIED_STATES:
+            continue  # held by the guardrail: counts only once an officer verifies it
         if r.replay and not include_replay:
             continue
         out.append((r, created))
