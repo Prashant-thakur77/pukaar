@@ -1,5 +1,7 @@
 from datetime import timedelta
 
+import pytest
+
 from conftest import NOW
 
 from Pukaar.services import risk_rules as rr
@@ -82,3 +84,23 @@ def test_trace_evidence_lists_reading_and_reports():
     kinds = [e["kind"] for e in a.evidence]
     assert kinds == ["reading", "report"]
     assert a.evidence[0]["thresholds"]["warning"] == 20.0
+
+
+@pytest.mark.parametrize("rain,level", [
+    (0.0, "normal"), (64.49, "normal"), (64.5, "watch"),
+    (115.59, "watch"), (115.6, "warning"),
+    (204.49, "warning"), (204.5, "critical"), (480.0, "critical"),
+])
+def test_rain_band_edges(rain, level):
+    # IMD 24-hour categories: heavy 64.5, very heavy 115.6, extremely heavy 204.5 mm; each band starts exactly at its value
+    assert rr.rain_level(rain) == level
+
+
+@pytest.mark.parametrize("peak,level", [
+    (0.0, "normal"), (9.99, "normal"), (10.0, "watch"),
+    (19.99, "watch"), (20.0, "warning"),
+    (29.99, "warning"), (30.0, "critical"),
+])
+def test_river_percentile_edges(peak, level):
+    # each village's own percentiles: a peak exactly at a threshold counts as that level
+    assert rr.river_level(peak, TH) == level
