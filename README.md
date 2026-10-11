@@ -9,7 +9,7 @@
 
 A flood early-warning loop for Himalayan villages, live on AWS. Forecasts and river gauges come in; a spoken Hindi alert goes out; and every person confirms they heard it.
 
-**[Live site](https://main.d15r7ktz99l46x.amplifyapp.com)** · **[Pitch video](docs/media/pukaar-pitch.mp4)** · **[Demo video](docs/media/pukaar-demo.mp4)** · **[Judge login](#try-it-in-60-seconds)** · **[Architecture](#architecture)** · **[Writeup](docs/submission/writeup.md)**
+**[Live site](https://main.d15r7ktz99l46x.amplifyapp.com)** · **[Pitch video](docs/media/pukaar-pitch.mp4)** · **[Demo video](docs/media/pukaar-demo.mp4)** · **[Judge login](#try-it-in-60-seconds)** · **[Judges' guide](#for-judges-check-every-part)** · **[Architecture](#architecture)** · **[Writeup](docs/submission/writeup.md)**
 
 ![Live on AWS](docs/badges/live-on-aws.svg) ![Environmental Hacks](docs/badges/environmental-hacks.svg) ![Heat and Water track](docs/badges/heat-and-water-track.svg) ![tests 425 + 136 passing](docs/badges/tests-425-136-passing.svg) ![live smoke 77 of 77](docs/badges/live-smoke-77-of-77.svg) ![accessibility 0 axe violations](docs/badges/accessibility-0-axe-violations.svg)
 
@@ -32,6 +32,39 @@ A flood early-warning loop for Himalayan villages, live on AWS. Forecasts and ri
 
 More detail: [DEMO.md](DEMO.md). Emergency number in India: **112**.
 
+## For judges: check every part
+
+About 15 minutes, on the live site, with nothing to install. Sign in as `judge` (password above) where a step says so.
+
+| # | Do this | What you should see | What it proves |
+|---|---|---|---|
+| 1 | Open the [landing page](https://main.d15r7ktz99l46x.amplifyapp.com) | Live counters from AWS: villages watched, forecast checks in the last 24 h, real flood alerts sent, drill alerts delivered, replay alerts approved, villager reports | Real alerts, drills and replays are counted separately; a 0 for real alerts means no village has needed one |
+| 2 | Open [Live](https://main.d15r7ktz99l46x.amplifyapp.com/live) | Five villages on the map with their level; safe places and walking routes; switch to 3D | The 15-minute sweep sets every level from forecasts |
+| 3 | Open [Gohar](https://main.d15r7ktz99l46x.amplifyapp.com/village/gohar) | Level, the evidence behind it (rain against IMD bands, river against Gohar's own record), past alerts, safe places | Code sets the level, never a model |
+| 4 | Sign in as **`judge`**, open the [console](https://main.d15r7ktz99l46x.amplifyapp.com/console), press **Start replay** | A REPLAY banner on every page. The July 2023 Beas floods replay at about 4 s per hour of data (97 hours, 6 to 7 minutes). Sujanpur reaches Critical within seconds; Pandoh and Gohar follow | Archived real forecasts drive the same live loop on AWS; one replay runs at a time, so if one is already running, watch it |
+| 5 | Open a pending alert | The Hindi and English draft, the draft check, the decision trace with values against thresholds. Until Bedrock model access is granted, an amber chip reads "Rule fallback" | The warning never depends on the model |
+| 6 | Press **Listen**, then **Approve** | Amazon Polly reads the Hindi alert. Step Functions moves the alert to delivered; the recipient list shows `stub (no phone)` | Replay alerts never reach real phones |
+| 7 | Sign in as **`judge_pradhan`** in a private window and press **Try anyway** under Approve | Refused, with the policy's reason | Cedar: only district officers approve |
+| 8 | As `judge_pradhan`, open Thunag's safe places and mark a route blocked, then clear it | The route turns red and the next open place is promoted | Village heads keep the shelter ledger and road blocks for their own village only |
+| 9 | Back as `judge`, open the alert's **Audit trail** | Every allow and deny, with the policy and reason, including the pradhan's refusal | An append-only audit log |
+| 10 | Open [Report](https://main.d15r7ktz99l46x.amplifyapp.com/report) on a phone, send a short voice note or text | A tracking code. Turn the network off first and it queues, then sends when you are back online | Villagers report back from cheap phones; Bedrock Guardrails screen the text |
+| 11 | Open [Agents](https://main.d15r7ktz99l46x.amplifyapp.com/agents) and [Sensors](https://main.d15r7ktz99l46x.amplifyapp.com/sensors) | Five agents, what each may never do, and a real decision trace; gauges over AWS IoT Core, labelled as simulated | The AI and sensor paths, stated honestly |
+| 12 | Open [Impact](https://main.d15r7ktz99l46x.amplifyapp.com/impact) | The back-test (July 2023 crosses, Mandi 2025 missed and shown) and the Sentinel-2 before and after of the Beas | Results with their limits |
+| 13 | Open the [CAP feed](https://362iqe4oae.execute-api.us-east-1.amazonaws.com/cap/alerts.atom) | Every published alert as CAP 1.2, the format India's national system uses | Interoperable |
+| 14 | In the console press **Reset replay** | "Replay reset: villages back to normal" | The site is ready for the next judge; the audit trail is kept |
+
+**Telegram:** message [@PukaarRescuebot](https://t.me/PukaarRescuebot) `/start gohar` to receive Gohar's live alerts and team drills, with the "मिल गया" button. A replay never sends to Telegram.
+
+### What is real, what is a replay, what is simulated
+
+| | |
+|---|---|
+| **Real and live on AWS** | The 15-minute sweep on current forecasts, levels, Step Functions approvals, Polly, Telegram delivery and acknowledgement, Bedrock Guardrails, AppSync live push, the CAP feed, Cedar and the audit log |
+| **Replay** | Archived real forecasts from July 2023 and June 2025, run through the same live loop and labelled REPLAY everywhere. Replay alerts go only to test recipients |
+| **Drill** | A labelled test alert ("अभ्यास (DRILL)") sent through the real workflow to phones registered with the bot. Counted apart from real alerts |
+| **Simulated** | River-gauge readings over AWS IoT Core, labelled as simulated until hardware is installed |
+| **Pending** | Bedrock model drafting (account model access); the fixed Hindi template is used and labelled meanwhile |
+
 ## Videos
 
 | Pitch, 4:20 | Demo, 2:44 |
@@ -53,7 +86,7 @@ Footage and images are openly licensed and credited. The Telegram screens in the
 
 ## Contents
 
-[At a glance](#at-a-glance) · [The problem](#the-problem) · [Research and evidence](#research-and-evidence) · [Moment by moment](#what-happens-moment-by-moment) · [Architecture](#architecture) · [AWS in depth](#aws-in-depth) · [Cheap phones](#built-for-cheap-phones-measured) · [Built versus planned](#built-versus-planned) · [Back-test](#what-the-back-test-shows-and-what-it-does-not) · [Safe places](#where-to-go-safe-places-routes-and-the-shelter-ledger) · [Run it locally](#run-it-locally-no-aws-account-needed) · [Team](#team)
+[Judges' guide](#for-judges-check-every-part) · [At a glance](#at-a-glance) · [The problem](#the-problem) · [Research and evidence](#research-and-evidence) · [Moment by moment](#what-happens-moment-by-moment) · [Architecture](#architecture) · [AWS in depth](#aws-in-depth) · [Cheap phones](#built-for-cheap-phones-measured) · [Built versus planned](#built-versus-planned) · [Back-test](#what-the-back-test-shows-and-what-it-does-not) · [Safe places](#where-to-go-safe-places-routes-and-the-shelter-ledger) · [Run it locally](#run-it-locally-no-aws-account-needed) · [Team](#team)
 
 ## At a glance
 
@@ -490,9 +523,9 @@ Deploy to AWS: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 | | |
 |---|---|
+| **Prashant Bahuguna** (team leader) | [@devprashant19](https://github.com/devprashant19) |
 | **Prashant Thakur** | [@Prashant-thakur77](https://github.com/Prashant-thakur77) |
 | **Puneet Yadav** | [@puneetnith28](https://github.com/puneetnith28) |
-| **Prashant Bahuguna** | [@devprashant19](https://github.com/devprashant19) |
 
 ## AI tools used
 
