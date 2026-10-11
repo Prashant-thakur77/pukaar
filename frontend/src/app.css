@@ -1667,7 +1667,6 @@ body { background:
 .report .big-speak .bb-hint { color: var(--ink-3); }
 :root[data-theme='dark'] .report .big-speak .bb-word { color: var(--ink); }
 .report .big-btn:not(.big-speak) .bb-icon { background: rgb(143 208 255 / 0.28); color: #11679e; }
-=======
 /* ---------- visitor tour: one div whose spread shadow dims the page, a gold ring, a cream popover with a hard shadow ---------- */
 .tour-pill {
   display: inline-flex; align-items: center; gap: 8px; min-height: var(--tap); padding: 8px 18px 8px 14px; border-radius: var(--r-pill);

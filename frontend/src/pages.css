@@ -834,6 +834,9 @@ label.check-row { cursor: pointer; }
   .ready-banner { grid-template-columns: 1fr; }
   .ready-banner > svg.lucide { display: none; }
   .check-by { padding-left: 0; }
+}
+
+/* ================================================================
  * "Surakshit Hoon" safety roll-call: console board, public counts, family link
  * ================================================================ */
 .panel-rollcall { grid-area: rc; scroll-margin-top: 140px; }
@@ -948,6 +951,9 @@ label.check-row { cursor: pointer; }
   .safe-water .sw, .safe-ring { animation: none; }
   .safe-ring { opacity: 0.25; transform: none; }
   .rc-bar > span { transition: none; }
+}
+
+/* ================================================================
  * Safe places: map markers, route legend, layer switch, "Where to go"
  * Status colours: open = green, standby = river blue, full = orange,
  * closed = crimson, not checked = dashed and muted.

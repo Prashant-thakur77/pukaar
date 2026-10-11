@@ -147,7 +147,7 @@ Sources and verdicts: the research summary in [REFERENCE_REVIEW.md](REFERENCE_RE
 | 8 | Satellite before/after | 2 | building |
 | 9 | SMS channel | 3 | blocked: owner must activate AWS End User Messaging; India needs DLT registration |
 | 10 | Voice call | 3 | needs an Indian telecom partner: Amazon Connect does not place calls to Indian numbers |
-| 11 | Web Push to officers | 3 | building |
+| 11 | Web Push to officers | 3 | planned |
 | 12 | Learning gauge thresholds | 3 | building |
 | 13 | Agents page (EcoLafaek-style) | 2 | built |
 | 14 | Sensors page and device path | 2 | built |
