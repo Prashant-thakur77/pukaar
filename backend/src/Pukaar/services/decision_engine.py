@@ -98,7 +98,12 @@ def _escalate(repo: Repo, alert: Alert, village: Village, new_level: str, trace:
     from Pukaar.templates import hi
     from Pukaar.voice import polly
 
-    text_hi, text_en = hi.fallback_alert(new_level, village.name_hi, village.name)
+    from Pukaar.services import safe_places
+
+    safe = safe_places.nearest_usable(repo, village.id)
+    if safe:
+        trace = {**trace, "safe_place": safe}
+    text_hi, text_en = hi.fallback_alert(new_level, village.name_hi, village.name, safe)
     # token_version moves on: a link for the old level can no longer approve the new text.
     repo.update_alert(alert.id, level=new_level, decision_trace=trace, text_hi=text_hi, text_en=text_en,
                       token_version=alert.token_version + 1,

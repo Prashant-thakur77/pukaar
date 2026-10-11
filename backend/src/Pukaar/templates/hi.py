@@ -21,6 +21,10 @@ SAFETY_EN = {
     "warning": "Keep away from streams and slopes. Keep essentials ready and be ready to move to high, safe ground.",
     "critical": "Move now to high, safe ground away from streams and slopes. Do not cross bridges or streams.",
 }
+# Optional line, only when a pradhan or officer has marked a baked safe place OPEN or STANDBY.
+# The name comes from data/safe_places (OpenStreetMap) via the decision trace, never from a model.
+SAFE_PLACE_HI = "सबसे पास सुरक्षित जगह: {name}।"
+SAFE_PLACE_EN = "Nearest safe place: {name}."
 CALL_112_HI = "आपात स्थिति में 112 पर कॉल करें।"
 CALL_112_EN = "In an emergency call 112."
 ACK_HI = "संदेश मिलने पर 'मिल गया' दबाएँ।"
@@ -77,8 +81,18 @@ def rollcall_safe_reply(link: str) -> str:
             f"Pukaar: thank you, you are marked safe. Forward this link to your family so they need not call: {link}")
 
 
-def fallback_alert(level: str, village_hi: str, village_en: str) -> tuple[str, str]:
+def safe_place_lines(safe_place: dict | None) -> tuple[str, str]:
+    """The optional "nearest safe place" line in Hindi and English, or two empty strings."""
+    if not safe_place or not (safe_place.get("name_hi") or safe_place.get("name")):
+        return "", ""
+    name_hi = safe_place.get("name_hi") or safe_place["name"]
+    name_en = safe_place.get("name") or name_hi
+    return SAFE_PLACE_HI.format(name=name_hi), SAFE_PLACE_EN.format(name=name_en)
+
+
+def fallback_alert(level: str, village_hi: str, village_en: str, safe_place: dict | None = None) -> tuple[str, str]:
     """The fixed alert text used when no checked model draft exists."""
-    text_hi = f"पुकार: {village_hi} के लिए {LEVEL_HI[level]}। {SAFETY_HI[level]} {CALL_112_HI}"
-    text_en = f"Pukaar: {LEVEL_EN[level]} for {village_en}. {SAFETY_EN[level]} {CALL_112_EN}"
-    return text_hi, text_en
+    place_hi, place_en = safe_place_lines(safe_place)
+    text_hi = f"पुकार: {village_hi} के लिए {LEVEL_HI[level]}। {SAFETY_HI[level]} {place_hi} {CALL_112_HI}"
+    text_en = f"Pukaar: {LEVEL_EN[level]} for {village_en}. {SAFETY_EN[level]} {place_en} {CALL_112_EN}"
+    return " ".join(text_hi.split()), " ".join(text_en.split())

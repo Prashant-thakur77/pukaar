@@ -1,0 +1,372 @@
+{
+  "generated_at": "2026-10-11T10:24:16Z",
+  "attribution": "© OpenStreetMap contributors (ODbL)",
+  "terrain_attribution": "Terrain: Mapzen Terrain Tiles on AWS Open Data (SRTM and others)",
+  "method": {
+    "candidates": "OpenStreetMap amenity=school|college|hospital|clinic|community_centre|townhall|place_of_worship|shelter and building=school|public, within 3 km of the village point; named only; bus shelters dropped",
+    "headroom": "terrain height above the lowest cell within 500 m of the village point, and above the nearest mapped stream within 1 km of the place; the smaller counts; at least 15 m",
+    "routes": "Dijkstra on OpenStreetMap footways, paths, tracks and roads; cost = length x slope penalty (grade over 35 % impassable, 20-35 % x3, under 20 % x1), x4 within 30 m of a mapped waterway; slope-aware, avoids steep chutes",
+    "walking_pace": "3 km/h (hill pace)",
+    "ranking": "walking minutes minus one minute per 10 m of headroom (capped at 100 m); top 3 kept",
+    "terrain": "Mapzen Terrain Tiles (terrarium), zoom 13, bilinear; about 30 m source resolution",
+    "limits": "OpenStreetMap coverage in rural Himachal is incomplete and village points are approximate; every place and route needs checking on the ground by the pradhan before an event."
+  },
+  "villages": {
+    "thunag": {
+      "village_id": "thunag",
+      "village": {
+        "name": "Thunag",
+        "name_hi": "थुनाग",
+        "lat": 31.55929,
+        "lon": 77.16515,
+        "coords_verified": false
+      },
+      "river_level_m": 1844.0,
+      "river_level_method": "lowest terrain cell within 500 m of the village point",
+      "river_level_point": [
+        77.16989,
+        31.55911
+      ],
+      "nearest_mapped_waterway": {
+        "name": "Deola Nal",
+        "kind": "stream",
+        "distance_m": 113,
+        "elevation_m": 1862.7
+      },
+      "mapped_waterway_names": [
+        "Bakalwar Gad",
+        "Bakhli Khad",
+        "Deola Nal",
+        "Surah Khad"
+      ],
+      "village_point_elevation_m": 1893.1,
+      "start": {
+        "lat": 31.5597825,
+        "lon": 77.1650693,
+        "snap_m": 55
+      },
+      "candidates": {
+        "tagged": 4,
+        "unnamed": 1,
+        "bus_shelters": 0,
+        "duplicates": 0,
+        "too_far": 0,
+        "low": 2,
+        "eligible": 1
+      },
+      "places": [
+        {
+          "id": "osm-node-5768019187",
+          "name": "Jai Ma Baglamukhi",
+          "name_hi": "जय माँ बगलामुखी",
+          "kind": "place_of_worship",
+          "headroom_m": 338.1,
+          "route_length_m": 5250,
+          "climb_m": 502,
+          "max_grade": 0.44,
+          "walk_min": 105,
+          "rank": 1
+        }
+      ],
+      "notes": [
+        "Fewer than two routed safe places: OpenStreetMap coverage here is thin."
+      ]
+    },
+    "janjehli": {
+      "village_id": "janjehli",
+      "village": {
+        "name": "Janjehli",
+        "name_hi": "जंजैहली",
+        "lat": 31.51852,
+        "lon": 77.21928,
+        "coords_verified": false
+      },
+      "river_level_m": 2040.0,
+      "river_level_method": "lowest terrain cell within 500 m of the village point",
+      "river_level_point": [
+        77.22086,
+        31.52268
+      ],
+      "nearest_mapped_waterway": {
+        "name": "Bakhli Khad",
+        "kind": "river",
+        "distance_m": 32,
+        "elevation_m": 2059.3
+      },
+      "mapped_waterway_names": [
+        "Bakhli Khad",
+        "Bala Khad",
+        "Bhekhli Nala",
+        "Budhake dar Nala",
+        "Chimti Khad",
+        "Halsi Khad",
+        "Hiuni Khad",
+        "Kulada Khad"
+      ],
+      "village_point_elevation_m": 2065.1,
+      "start": {
+        "lat": 31.5184839,
+        "lon": 77.2191559,
+        "snap_m": 12
+      },
+      "candidates": {
+        "tagged": 6,
+        "unnamed": 1,
+        "bus_shelters": 0,
+        "duplicates": 0,
+        "too_far": 0,
+        "low": 3,
+        "eligible": 2
+      },
+      "places": [
+        {
+          "id": "osm-node-7007371817",
+          "name": "Community Health Center, Janjali",
+          "name_hi": "Community Health Center, Janjali",
+          "kind": "clinic",
+          "headroom_m": 30.4,
+          "route_length_m": 317,
+          "climb_m": 25,
+          "max_grade": 0.14,
+          "walk_min": 7,
+          "rank": 1
+        },
+        {
+          "id": "osm-node-5766355539",
+          "name": "Rest House Janjehli",
+          "name_hi": "Rest House Janjehli",
+          "kind": "rest_house",
+          "headroom_m": 15.1,
+          "route_length_m": 819,
+          "climb_m": 3,
+          "max_grade": 0.09,
+          "walk_min": 17,
+          "rank": 2
+        }
+      ],
+      "notes": []
+    },
+    "gohar": {
+      "village_id": "gohar",
+      "village": {
+        "name": "Gohar",
+        "name_hi": "गोहर",
+        "lat": 31.57975,
+        "lon": 77.04841,
+        "coords_verified": false
+      },
+      "river_level_m": 1176.0,
+      "river_level_method": "lowest terrain cell within 500 m of the village point",
+      "river_level_point": [
+        77.04894,
+        31.58418
+      ],
+      "nearest_mapped_waterway": {
+        "name": "Bhurni Nala",
+        "kind": "stream",
+        "distance_m": 130,
+        "elevation_m": 1215.2
+      },
+      "mapped_waterway_names": [
+        "Bhurni Nala",
+        "Jhuni Khad"
+      ],
+      "village_point_elevation_m": 1257.3,
+      "start": {
+        "lat": 31.5799428,
+        "lon": 77.0491843,
+        "snap_m": 76
+      },
+      "candidates": {
+        "tagged": 1,
+        "unnamed": 0,
+        "bus_shelters": 0,
+        "duplicates": 0,
+        "too_far": 0,
+        "low": 0,
+        "eligible": 1
+      },
+      "places": [
+        {
+          "id": "osm-node-7010437685",
+          "name": "Civil Hospital, Gohar",
+          "name_hi": "Civil Hospital, Gohar",
+          "kind": "hospital",
+          "headroom_m": 17.0,
+          "route_length_m": 1238,
+          "climb_m": 31,
+          "max_grade": 0.16,
+          "walk_min": 25,
+          "rank": 1
+        }
+      ],
+      "notes": [
+        "Fewer than two routed safe places: OpenStreetMap coverage here is thin."
+      ]
+    },
+    "pandoh": {
+      "village_id": "pandoh",
+      "village": {
+        "name": "Pandoh",
+        "name_hi": "पंडोह",
+        "lat": 31.66902,
+        "lon": 77.05359,
+        "coords_verified": false
+      },
+      "river_level_m": 833.0,
+      "river_level_method": "lowest terrain cell within 500 m of the village point",
+      "river_level_point": [
+        77.05074,
+        31.67282
+      ],
+      "nearest_mapped_waterway": {
+        "name": "Jhuni Khad",
+        "kind": "river",
+        "distance_m": 175,
+        "elevation_m": 852.9
+      },
+      "mapped_waterway_names": [
+        "Bakhli Khad",
+        "Beas River",
+        "Deori Nala",
+        "Jagar Nala",
+        "Jhuni Khad",
+        "Satyur Khad"
+      ],
+      "village_point_elevation_m": 862.6,
+      "start": {
+        "lat": 31.6688511,
+        "lon": 77.052505,
+        "snap_m": 104
+      },
+      "candidates": {
+        "tagged": 3,
+        "unnamed": 0,
+        "bus_shelters": 0,
+        "duplicates": 0,
+        "too_far": 0,
+        "low": 0,
+        "eligible": 3
+      },
+      "places": [
+        {
+          "id": "osm-node-7165542076",
+          "name": "PHC, Pandoh",
+          "name_hi": "PHC, Pandoh",
+          "kind": "clinic",
+          "headroom_m": 22.1,
+          "route_length_m": 283,
+          "climb_m": 3,
+          "max_grade": 0.03,
+          "walk_min": 6,
+          "rank": 1
+        },
+        {
+          "id": "osm-node-550075847",
+          "name": "PWD Guest House Pandoh",
+          "name_hi": "PWD Guest House Pandoh",
+          "kind": "rest_house",
+          "headroom_m": 20.1,
+          "route_length_m": 1432,
+          "climb_m": 24,
+          "max_grade": 0.13,
+          "walk_min": 29,
+          "rank": 2
+        },
+        {
+          "id": "osm-node-6993508931",
+          "name": "Bbmb Hospital",
+          "name_hi": "Bbmb Hospital",
+          "kind": "hospital",
+          "headroom_m": 33.2,
+          "route_length_m": 1850,
+          "climb_m": 23,
+          "max_grade": 0.1,
+          "walk_min": 37,
+          "rank": 3
+        }
+      ],
+      "notes": []
+    },
+    "sujanpur": {
+      "village_id": "sujanpur",
+      "village": {
+        "name": "Sujanpur",
+        "name_hi": "सुजानपुर",
+        "lat": 31.83364,
+        "lon": 76.50539,
+        "coords_verified": false
+      },
+      "river_level_m": 518.0,
+      "river_level_method": "lowest terrain cell within 500 m of the village point",
+      "river_level_point": [
+        76.50391,
+        31.83798
+      ],
+      "nearest_mapped_waterway": {
+        "name": "Beas",
+        "kind": "river",
+        "distance_m": 718,
+        "elevation_m": 510.0
+      },
+      "mapped_waterway_names": [
+        "Beas",
+        "Nyugal Khad"
+      ],
+      "village_point_elevation_m": 564.0,
+      "start": {
+        "lat": 31.8339048,
+        "lon": 76.505325,
+        "snap_m": 30
+      },
+      "candidates": {
+        "tagged": 9,
+        "unnamed": 0,
+        "bus_shelters": 0,
+        "duplicates": 0,
+        "too_far": 0,
+        "low": 1,
+        "eligible": 8
+      },
+      "places": [
+        {
+          "id": "osm-node-7641994189",
+          "name": "Johal Hospital",
+          "name_hi": "Johal Hospital",
+          "kind": "hospital",
+          "headroom_m": 45.7,
+          "route_length_m": 533,
+          "climb_m": 3,
+          "max_grade": 0.02,
+          "walk_min": 11,
+          "rank": 1
+        },
+        {
+          "id": "osm-node-6993994085",
+          "name": "Civil Hospital, Sujanpur Tira",
+          "name_hi": "Civil Hospital, Sujanpur Tira",
+          "kind": "hospital",
+          "headroom_m": 45.0,
+          "route_length_m": 615,
+          "climb_m": 3,
+          "max_grade": 0.02,
+          "walk_min": 13,
+          "rank": 2
+        },
+        {
+          "id": "osm-node-2877324271",
+          "name": "Narvadeshwar Temple of Shiva and Parvati",
+          "name_hi": "Narvadeshwar Temple of Shiva and Parvati",
+          "kind": "place_of_worship",
+          "headroom_m": 202.2,
+          "route_length_m": 2120,
+          "climb_m": 168,
+          "max_grade": 0.2,
+          "walk_min": 43,
+          "rank": 3
+        }
+      ],
+      "notes": []
+    }
+  }
+}

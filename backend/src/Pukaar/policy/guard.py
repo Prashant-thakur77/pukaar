@@ -44,6 +44,7 @@ DENY_HINTS = {
     "open_rollcall": "Only a district officer, or the pradhan of this village, can open a safety roll-call here.",
     "view_rollcall": "You can only see the roll-call of your own villages.",
     "remind_rollcall": "Only a district officer, or the pradhan of this village, can send a roll-call reminder.",
+    "set_shelter_status": "Only a district officer, or the pradhan of this village, can update its shelters.",
 }
 
 

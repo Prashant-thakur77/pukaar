@@ -88,14 +88,23 @@ def require_user(request: Request) -> Principal:
 
 
 class Allowed:
-    """Dependency factory: authorize(action) against a resource taken from the path."""
+    """Dependency factory: authorize(action) against a resource taken from the path.
 
-    def __init__(self, action: str, resource_type: str = "app", path_param: str | None = None) -> None:
+    village_from_path: the policy's context.village_id is the path's village id, not the
+    query string, so a pradhan cannot point a write at another village.
+    """
+
+    def __init__(self, action: str, resource_type: str = "app", path_param: str | None = None,
+                 village_from_path: bool = False) -> None:
         self.action, self.resource_type, self.path_param = action, resource_type, path_param
+        self.village_from_path = village_from_path
 
     def __call__(self, request: Request, principal: Principal = Depends(require_user)) -> Principal:
         rid = request.path_params.get(self.path_param, "pukaar") if self.path_param else "pukaar"
-        village = request.query_params.get("village_id", "")
+        if self.village_from_path:
+            village = str(request.path_params.get(self.path_param or "village_id", ""))
+        else:
+            village = request.query_params.get("village_id", "")
         decision = authorize(principal, self.action, self.resource_type, rid, {"village_id": village}, repo=get_repo())
         if not decision.allowed:
             raise HTTPException(status_code=403, detail={"code": "denied", "reason": decision.reason,

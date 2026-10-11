@@ -104,6 +104,7 @@ Each message has a Hindi (`hi-IN`) and an English (`en-IN`) `<info>` block, even
 | A threshold is crossed | Code sets the level: IMD rain bands, each village's own 1984-2024 discharge percentiles, two-source agreement, verified reports; hysteresis on the way down | Lambda, DynamoDB (conditional writes, dedupe per 15-minute window) |
 | The level rises | An approval workflow starts, one per alert | Step Functions (Standard, `waitForTaskToken`) |
 | Drafting | A Strands agent reads the decision trace through read-only tools and fills a fixed Hindi template; a checker rejects any number or place not in the trace. The live stack currently uses the fixed Hindi template labelled `rule-fallback` until Bedrock model access is granted | Bedrock (Amazon Nova) via Strands Agents; Cedar hook on every tool call |
+| Where to go | If the pradhan or an officer has marked a nearby safe place open (or on standby) in the shelter ledger, code adds one line naming the nearest one ("सबसे पास सुरक्षित जगह: …") and records it in the decision trace; the checker rejects a draft that names any other place. The village page shows each place, its height above the river, the walking route, distance, time and climb | Places and routes baked offline from OpenStreetMap and AWS Terrain Tiles; ledger in DynamoDB; Cedar |
 | Voice | The Hindi text becomes speech | Polly (Kajal, hi-IN), MP3 in S3 |
 | Approval | The officer gets a signed one-tap link (30 min, single use) and a console entry; no answer moves to the next officer; a critical alert with no answer goes out unapproved and is flagged | Step Functions timeouts, Cognito, Cedar |
 | Delivery | Spoken alert plus text and a "मिल गया" button; one automatic re-send to anyone who has not acknowledged | Lambda, Telegram Bot API |
@@ -262,7 +263,8 @@ sign-in; the demo accounts are in [DEMO.md](DEMO.md).
 | SMS copy of every approved alert (Amazon SNS, transactional) | Planned: the account starts in the SNS SMS sandbox, so only verified numbers until production access |
 | River gauges over AWS IoT Core (MQTT, X.509 per device, topic rule into the same ingestion) | Built; live after deploy. One thing and certificate per gauge, a policy pinned to the device's own topic, a topic rule into the gauge-ingest Lambda; `make gauge-sim-mqtt` publishes labelled simulated readings with a real certificate. The HTTPS path with per-device signatures stays as a fallback. No physical gauge is installed |
 | CAP 1.2 feed (`/cap/alerts.atom`, `/cap/alerts/{id}.xml`) | Built; schema-validated in tests against the official OASIS XSD |
-| Safe places and evacuation routes on the map; spoken approval; grounded voice Q&A; AgentCore | Planned (stretch) |
+| Safe places, slope-aware walking routes and the shelter ledger | Built (not yet deployed): named places from OpenStreetMap with their height above the river, routes on the map in 2D and 3D, OPEN / STANDBY / FULL / CLOSED set by pradhans (own village) and officers, and the nearest open place named in the alert. See "Where to go: safe places, routes and the shelter ledger" below for the method and its limits. Officers marking a road blocked is not built yet |
+| Spoken approval; grounded voice Q&A; AgentCore | Planned (stretch) |
 
 ## What the back-test shows (and what it does not)
 
@@ -298,6 +300,39 @@ Not yet measured:
 - Transcribe accuracy on Himachali Hindi.
 - False-alarm rate over a full monsoon.
 
+## Where to go: safe places, routes and the shelter ledger
+
+`scripts/build_safe_places.py` bakes, once, the candidate safe places for each
+village from OpenStreetMap (schools, colleges, hospitals and health centres,
+panchayat and community halls, temples, shelters, public buildings and
+government rest houses, within 3 km), keeps only named places at least 15 m
+above the river (terrain height from AWS Terrain Tiles, measured against the
+lowest ground within 500 m of the village and against the nearest mapped
+stream, whichever is less), and finds the walking route to each on the
+OpenStreetMap footpath and road network. Routes are slope-aware and avoid
+steep chutes: footpaths steeper than 35% are cut, stretches over 20% cost three
+times their length (built roads are never cut, because there a steep reading is
+terrain-model noise), and the 30 m beside a stream costs four times, so routes
+leave the water early but can still cross a bridge. Times assume a 3 km/h hill
+pace. Results are committed in [data/safe_places](data/safe_places/summary.json).
+
+| Village | Places found (at least 15 m up) | Best headroom | Routes |
+|---|---|---|---|
+| Thunag | 1 (Jai Ma Baglamukhi temple) | 338 m | 5.3 km, 502 m climb, about 105 min |
+| Janjehli | 2 (Community Health Center; Rest House) | 30 m | 0.3 km and 0.8 km |
+| Gohar | 1 (Civil Hospital) | 17 m | 1.2 km |
+| Pandoh | 3 (PHC; PWD Guest House; BBMB Hospital) | 33 m | 0.3 km, 1.4 km, 1.9 km |
+| Sujanpur | 3 (two hospitals; Narvadeshwar temple) | 202 m | 0.5 km, 0.6 km, 2.1 km |
+
+A place is named in an alert only after the pradhan (own village) or an
+officer marks it OPEN or STANDBY in the shelter ledger; until then the page
+shows "Not checked" and alerts name no place. **Limits:** OpenStreetMap coverage
+in rural Himachal is incomplete (Thunag and Gohar have one usable place each),
+village points are approximate, names appear as OpenStreetMap has them (no
+Hindi name is invented), and a 30 m terrain model cannot see a landslide scar
+or a washed-out path. Every place and route needs checking on the ground by the
+pradhan before an event.
+
 ## Data sources
 
 - Village coordinates: Open-Meteo geocoding (GeoNames). Not verified on the ground.
@@ -306,6 +341,7 @@ Not yet measured:
   historical-forecast API for each village's 2024-2025 range and for the replays.
 - River discharge and its 1984-2024 history: Open-Meteo flood API (GloFAS).
 - Rain bands: India Meteorological Department 24-hour categories (64.5, 115.6 and 204.5 mm).
+- Safe places, footpaths, roads and streams: © OpenStreetMap contributors, ODbL (via the Overpass API, baked 11 Oct 2026). Terrain heights: Mapzen Terrain Tiles on AWS Open Data.
 
 No populations, casualty figures or other numbers are invented. Unknown
 values stay empty.

@@ -1,0 +1,242 @@
+{
+ "type": "FeatureCollection",
+ "attribution": "© OpenStreetMap contributors (ODbL)",
+ "terrain_attribution": "Terrain: Mapzen Terrain Tiles on AWS Open Data (SRTM and others)",
+ "license": "ODbL 1.0 (https://opendatacommons.org/licenses/odbl/); derived database of OpenStreetMap data",
+ "metadata": {
+  "village_id": "gohar",
+  "village": {
+   "name": "Gohar",
+   "name_hi": "गोहर",
+   "lat": 31.57975,
+   "lon": 77.04841,
+   "coords_verified": false
+  },
+  "river_level_m": 1176.0,
+  "river_level_method": "lowest terrain cell within 500 m of the village point",
+  "river_level_point": [
+   77.04894,
+   31.58418
+  ],
+  "nearest_mapped_waterway": {
+   "name": "Bhurni Nala",
+   "kind": "stream",
+   "distance_m": 130,
+   "elevation_m": 1215.2
+  },
+  "mapped_waterway_names": [
+   "Bhurni Nala",
+   "Jhuni Khad"
+  ],
+  "village_point_elevation_m": 1257.3,
+  "start": {
+   "lat": 31.5799428,
+   "lon": 77.0491843,
+   "snap_m": 76
+  },
+  "candidates": {
+   "tagged": 1,
+   "unnamed": 0,
+   "bus_shelters": 0,
+   "duplicates": 0,
+   "too_far": 0,
+   "low": 0,
+   "eligible": 1
+  },
+  "places": [
+   {
+    "id": "osm-node-7010437685",
+    "name": "Civil Hospital, Gohar",
+    "name_hi": "Civil Hospital, Gohar",
+    "kind": "hospital",
+    "headroom_m": 17.0,
+    "route_length_m": 1238,
+    "climb_m": 31,
+    "max_grade": 0.16,
+    "walk_min": 25,
+    "rank": 1
+   }
+  ],
+  "notes": [
+   "Fewer than two routed safe places: OpenStreetMap coverage here is thin."
+  ]
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     77.04841,
+     31.57975
+    ]
+   },
+   "properties": {
+    "feature": "start",
+    "name": "Gohar",
+    "name_hi": "गोहर",
+    "elevation_m": 1257.3
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     77.042358,
+     31.582704
+    ]
+   },
+   "properties": {
+    "id": "osm-node-7010437685",
+    "osm_url": "https://www.openstreetmap.org/node/7010437685",
+    "name": "Civil Hospital, Gohar",
+    "name_hi": "Civil Hospital, Gohar",
+    "kind": "hospital",
+    "kind_en": "Hospital",
+    "kind_hi": "अस्पताल",
+    "elevation_m": 1236.0,
+    "headroom_m": 17.0,
+    "above_village_river_m": 60.0,
+    "above_nearest_stream_m": 17.0,
+    "nearest_stream_m": 113,
+    "straight_m": 661,
+    "route_length_m": 1238,
+    "off_network_m": 129,
+    "climb_m": 31,
+    "max_grade": 0.16,
+    "steep_m": 0,
+    "near_water_m": 576,
+    "walk_min": 25,
+    "rank": 1,
+    "feature": "place"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      77.04841,
+      31.57975
+     ],
+     [
+      77.049184,
+      31.579943
+     ],
+     [
+      77.049546,
+      31.580918
+     ],
+     [
+      77.049356,
+      31.581156
+     ],
+     [
+      77.048937,
+      31.581137
+     ],
+     [
+      77.048256,
+      31.581147
+     ],
+     [
+      77.047857,
+      31.58128
+     ],
+     [
+      77.047462,
+      31.581609
+     ],
+     [
+      77.046733,
+      31.581817
+     ],
+     [
+      77.046392,
+      31.58185
+     ],
+     [
+      77.04577,
+      31.581802
+     ],
+     [
+      77.045727,
+      31.581853
+     ],
+     [
+      77.045714,
+      31.582022
+     ],
+     [
+      77.045683,
+      31.582442
+     ],
+     [
+      77.045601,
+      31.582492
+     ],
+     [
+      77.045418,
+      31.582625
+     ],
+     [
+      77.045204,
+      31.582991
+     ],
+     [
+      77.045089,
+      31.582915
+     ],
+     [
+      77.044865,
+      31.582796
+     ],
+     [
+      77.04478,
+      31.582753
+     ],
+     [
+      77.044448,
+      31.583137
+     ],
+     [
+      77.044045,
+      31.583425
+     ],
+     [
+      77.043605,
+      31.583228
+     ],
+     [
+      77.042844,
+      31.583379
+     ],
+     [
+      77.04249,
+      31.583658
+     ],
+     [
+      77.042264,
+      31.583658
+     ],
+     [
+      77.041808,
+      31.582725
+     ],
+     [
+      77.042358,
+      31.582704
+     ]
+    ]
+   },
+   "properties": {
+    "feature": "route",
+    "rank": 1,
+    "place_id": "osm-node-7010437685",
+    "steep": false
+   }
+  }
+ ]
+}

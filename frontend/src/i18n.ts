@@ -186,6 +186,55 @@ export const dict = {
   'map.view3d': { hi: 'पहाड़ों का 3D दृश्य दिखाएँ', en: 'Show the 3D mountain view' },
   'map.view2d': { hi: 'समतल नक्शा दिखाएँ', en: 'Show the flat map' },
   'map.unavailable': { hi: 'नक्शा लोड नहीं हुआ। नीचे सूची देखें।', en: 'The map could not load. Use the list below.' },
+  'map.safe.toggle': { hi: 'सुरक्षित जगहें', en: 'Safe places' },
+  'map.safe.show': { hi: 'नक्शे पर सुरक्षित जगहें और रास्ते दिखाएँ', en: 'Show safe places and walking routes on the map' },
+  'map.safe.marker': { hi: '{name}: नदी से {m} मीटर ऊपर, {status}', en: '{name}: {m} m above the river, {status}' },
+  'map.safe.legend.place': { hi: 'सुरक्षित जगह', en: 'Safe place' },
+  'map.safe.legend.route': { hi: 'पैदल रास्ता', en: 'Walking route' },
+  'map.safe.legend.steep': { hi: 'खड़ी चढ़ाई (20% से ज़्यादा)', en: 'Steep stretch (over 20%)' },
+  'map.safe.legend.label': { hi: 'सुरक्षित जगहों की कुंजी', en: 'Safe places legend' },
+
+  // safe places: "Where to go"
+  'safe.title': { hi: 'कहाँ जाएँ', en: 'Where to go' },
+  'safe.lead': {
+    hi: 'नदी से ऊँची, नाम वाली जगहें और वहाँ तक का पैदल रास्ता। रास्ता खड़ी ढलानों और नालों के किनारे से बचता है।',
+    en: 'Named places well above the river, and the walking route to each. Routes avoid steep chutes and the edges of streams.',
+  },
+  'safe.headroom': { hi: 'नदी से {m} मीटर ऊपर', en: '{m} m above the river' },
+  'safe.walk': { hi: '{d} · लगभग {min} मिनट पैदल', en: '{d} · about {min} min on foot' },
+  'safe.climb': { hi: '{m} मीटर चढ़ाई', en: '{m} m climb' },
+  'safe.grade': { hi: 'सबसे खड़ा हिस्सा {g}', en: 'Steepest part {g}' },
+  'safe.steep': { hi: '{d} खड़ी चढ़ाई', en: '{d} steep' },
+  'safe.offnet': { hi: '{d} रास्ता नक्शे की सड़कों-पगडंडियों से बाहर है', en: '{d} of the walk is off mapped paths' },
+  'safe.named': { hi: 'चेतावनी में यही जगह बताई जाएगी', en: 'Alerts name this place' },
+  'safe.named.none': {
+    hi: 'अभी कोई जगह खुली या तैयार नहीं बताई गई, इसलिए चेतावनी में किसी जगह का नाम नहीं जाएगा।',
+    en: 'No place is marked open or on standby yet, so alerts name no place.',
+  },
+  'safe.capacity': { hi: '{n} लोगों की जगह', en: 'Room for {n}' },
+  'safe.updated': { hi: '{who} ने {t} बदला', en: 'Set by {who} {t}' },
+  'safe.set': { hi: 'स्थिति बदलें', en: 'Set status' },
+  'safe.set.label': { hi: '{name} की स्थिति', en: 'Status of {name}' },
+  'safe.saved': { hi: 'स्थिति सहेजी गई', en: 'Status saved' },
+  'safe.osm': { hi: 'OpenStreetMap पर देखें', en: 'View on OpenStreetMap' },
+  'safe.none': {
+    hi: 'OpenStreetMap में 3 किमी के अंदर नदी से कम से कम 15 मीटर ऊँची कोई नाम वाली जगह नहीं मिली। प्रधान जी अपनी जगहें जोड़ें।',
+    en: 'OpenStreetMap has no named place at least 15 m above the river within 3 km. The pradhan needs to add places by hand.',
+  },
+  'safe.thin': {
+    hi: 'OpenStreetMap में यहाँ बस एक ही ऊँची जगह मिली। प्रधान जी पास की दूसरी सुरक्षित जगहें नक्शे में जुड़वाएँ।',
+    en: 'OpenStreetMap has only one high place here. The pradhan should get more nearby safe places added to the map.',
+  },
+  'safe.method': {
+    hi: 'तरीका: OpenStreetMap की जगहें, ऊँचाई AWS Terrain Tiles से। रास्ता 35% से ज़्यादा ढलान वाले पैदल रास्ते छोड़ता है, 20-35% को तीन गुना भारी गिनता है, और नालों के 30 मीटर अंदर से बचता है। समय 3 किमी/घंटा की पहाड़ी चाल से।',
+    en: 'Method: places from OpenStreetMap, heights from AWS Terrain Tiles. Routes skip footpaths steeper than 35%, count 20-35% as three times longer, and keep out of the 30 m beside streams where they can. Times assume a 3 km/h hill pace.',
+  },
+  'safe.attrib': { hi: 'जगहें और रास्ते: © OpenStreetMap योगदानकर्ता (ODbL)', en: 'Places and routes: © OpenStreetMap contributors (ODbL)' },
+  'safe.status.OPEN': { hi: 'खुला', en: 'Open' },
+  'safe.status.STANDBY': { hi: 'तैयार', en: 'Standby' },
+  'safe.status.FULL': { hi: 'भरा हुआ', en: 'Full' },
+  'safe.status.CLOSED': { hi: 'बंद', en: 'Closed' },
+  'safe.status.UNCONFIRMED': { hi: 'जाँच बाकी', en: 'Not checked' },
 
   // village
   'village.since': { hi: '{t} से इस स्तर पर', en: 'At this level since {t}' },
@@ -593,6 +642,12 @@ export const dict = {
   },
   'soil.dry': { hi: '0 सूखा ({v})', en: '0 dry ({v})' },
   'soil.wet': { hi: '1 गीला ({v})', en: '1 wet ({v})' },
+  'nav.loop': { hi: 'पूरा चक्र', en: 'The loop' },
+  'nav.loop.sub': { hi: 'पूर्वानुमान से “मिल गया” तक सात क़दम', en: 'Seven steps from forecast to “मिल गया”' },
+  'nav.agents': { hi: 'एजेंट', en: 'Agents' },
+  'nav.agents.sub': { hi: 'क्या करते हैं, क्या कभी नहीं कर सकते', en: 'What they do, what they may never do' },
+  'nav.sensors': { hi: 'सेंसर', en: 'Sensors' },
+  'nav.sensors.sub': { hi: 'नदी के गेज से नियमों तक', en: 'From the river gauge to the rules' },
 } satisfies Record<string, Entry>;
 
 export type Key = keyof typeof dict;

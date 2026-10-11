@@ -2,6 +2,7 @@
 // Dev-only mock of the Pukaar API (docs/CONTRACT.md shapes) for visual checks.
 // EVERYTHING HERE IS SAMPLE DATA: every response carries "_sample": true and the
 // UI shows a "SAMPLE DATA" ribbon. Never deploy this. Run: npm run mock
+import { readFileSync } from 'node:fs';
 import http from 'node:http';
 
 const PORT = Number(process.env.MOCK_PORT ?? 8787);
@@ -198,6 +199,31 @@ const overview = () => ({
   replay: { active: replay.active },
 });
 
+// Safe places: the real baked file from data/safe_places (OpenStreetMap), with an in-memory ledger.
+const ledger = {};
+function safeView(id) {
+  let geo = null;
+  try {
+    geo = JSON.parse(readFileSync(new URL(`../../data/safe_places/${id}.geojson`, import.meta.url), 'utf8'));
+  } catch {
+    /* not baked for this sample village */
+  }
+  const none = { status: 'UNCONFIRMED', capacity: null, note: '', updated_by: null, updated_at: null };
+  const feats = geo?.features ?? [];
+  return {
+    village_id: id,
+    available: Boolean(geo),
+    places: feats
+      .filter((f) => f.properties.feature === 'place')
+      .map((f) => ({ ...f.properties, lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], ledger: ledger[`${id}/${f.properties.id}`] ?? none })),
+    routes: { type: 'FeatureCollection', features: feats.filter((f) => f.properties.feature !== 'place') },
+    notes: geo?.metadata?.notes ?? ['No safe places have been baked for this village.'],
+    attribution: geo?.attribution ?? null,
+    limits_en: 'SAMPLE server. Places come from OpenStreetMap; check each on the ground.',
+    limits_hi: 'नमूना सर्वर। जगहें OpenStreetMap से; हर जगह मौके पर जाँचें।',
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return send(res, 204, {});
   const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -220,6 +246,16 @@ const server = http.createServer(async (req, res) => {
   if (p === '/me') return needUser() && send(res, 200, user);
   if (p === '/public/overview') return send(res, 200, overview());
   if (p === '/villages') return send(res, 200, VILLAGES.map(village));
+  if (seg[0] === 'villages' && seg[1] && (seg[2] === 'safe-places' || seg[2] === 'shelters')) {
+    if (!VILLAGES.find((x) => x.id === seg[1])) return send(res, 404, { detail: 'Village not found' });
+    if (seg[2] === 'shelters') {
+      if (!needUser()) return;
+      if (user.role === 'pradhan' && !user.village_ids.includes(seg[1]))
+        return send(res, 403, { detail: { code: 'denied', reason: 'Only a district officer, or the pradhan of this village, can update its shelters.' } });
+      ledger[`${seg[1]}/${seg[3]}`] = { status: String(body.status ?? '').toUpperCase(), capacity: body.capacity ?? null, note: body.note ?? '', updated_by: user.username, updated_at: new Date().toISOString() };
+    }
+    return send(res, 200, safeView(seg[1]));
+  }
   if (seg[0] === 'villages' && seg[1]) {
     const v = VILLAGES.find((x) => x.id === seg[1]);
     if (!v) return send(res, 404, { detail: 'Village not found' });

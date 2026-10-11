@@ -21,7 +21,14 @@ function preview(v: unknown): string {
 
 export function Ask({ villages }: { villages: Village[] }) {
   const { t, lang } = useT();
-  const [q, setQ] = useState('');
+  // A starter question from /agents arrives as ?ask=…; it is filled in, never sent on its own.
+  const [q, setQ] = useState(() => {
+    try {
+      return (new URLSearchParams(window.location.search).get('ask') ?? '').slice(0, 300);
+    } catch {
+      return '';
+    }
+  });
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<AskResponse | null>(null);
   const [asked, setAsked] = useState('');

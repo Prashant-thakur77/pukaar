@@ -283,9 +283,14 @@ export default function How() {
                 ? 'A small box under a bridge measures the distance down to the water and tells Pukaar the moment the river rises.'
                 : 'पुल के नीचे लगा छोटा डिब्बा पानी तक की दूरी नापता है और नदी चढ़ते ही पुकार को बताता है।'}
             </p>
-            <Ext href={`${GITHUB}/tree/main/docs/hardware`} className="btn how-btn-light">
-              {en ? 'Design, wiring and firmware' : 'डिज़ाइन, वायरिंग और फ़र्मवेयर'}
-            </Ext>
+            <div className="how-cta-row">
+              <Ext href={`${GITHUB}/tree/main/docs/hardware`} className="btn how-btn-light">
+                {en ? 'Design, wiring and firmware' : 'डिज़ाइन, वायरिंग और फ़र्मवेयर'}
+              </Ext>
+              <Link to="/sensors" className="btn how-btn-light">
+                {en ? 'The live gauges' : 'लाइव गेज'}
+              </Link>
+            </div>
             <p className="how-honest">
               {en
                 ? 'Live gauges are simulated and labelled until hardware is installed.'
@@ -343,6 +348,12 @@ export default function How() {
           <div className="how-cta-row">
             <Link to="/live" className="btn btn-accent">
               {en ? 'See it live' : 'लाइव देखें'}
+            </Link>
+            <Link to="/agents" className="btn how-btn-light">
+              {en ? 'The agents' : 'एजेंट'}
+            </Link>
+            <Link to="/sensors" className="btn how-btn-light">
+              {en ? 'The sensors' : 'सेंसर'}
             </Link>
             <Link to="/report" className="btn how-btn-light">
               {en ? 'Report' : 'सूचना दें'}

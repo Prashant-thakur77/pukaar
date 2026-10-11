@@ -1,6 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { History, LogOut, Menu, Moon, Phone, Sun, SunMoon, TriangleAlert, Wifi, WifiOff, X } from 'lucide-react';
+import {
+  Bot,
+  ChevronDown,
+  History,
+  LogOut,
+  Menu,
+  Moon,
+  Phone,
+  RadioTower,
+  Sun,
+  SunMoon,
+  TriangleAlert,
+  Wifi,
+  WifiOff,
+  Workflow,
+  X,
+} from 'lucide-react';
 import { api } from '../api';
 import { useT } from '../i18n';
 import { flushQueue, refreshQueueCount } from '../lib/queue';
@@ -17,6 +33,66 @@ const NAV = [
   { to: '/console', key: 'nav.console' },
   { to: '/impact', key: 'nav.impact' },
 ] as const;
+
+/** "How it works" opens a small menu: the loop, the agents, the sensors. */
+const HOW_GROUP = [
+  { to: '/how', key: 'nav.loop', sub: 'nav.loop.sub', icon: Workflow },
+  { to: '/agents', key: 'nav.agents', sub: 'nav.agents.sub', icon: Bot },
+  { to: '/sensors', key: 'nav.sensors', sub: 'nav.sensors.sub', icon: RadioTower },
+] as const;
+
+function HowMenu() {
+  const { t } = useT();
+  const { pathname } = useLocation();
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const open = openOn === pathname;
+  const ref = useRef<HTMLDivElement>(null);
+  const active = HOW_GROUP.some((g) => pathname === g.to);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpenOn(null);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenOn(null);
+    };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+  return (
+    <div className={`hdr-group${open ? ' is-open' : ''}`} ref={ref}>
+      <button
+        type="button"
+        className={`hdr-link hdr-group-btn${active ? ' is-active' : ''}`}
+        aria-expanded={open}
+        aria-controls="hdr-how-menu"
+        onClick={() => setOpenOn(open ? null : pathname)}
+      >
+        {t('nav.how')} <ChevronDown aria-hidden="true" className="hdr-caret" />
+      </button>
+      <span className="hdr-group-label" aria-hidden="true">
+        {t('nav.how')}
+      </span>
+      <div className="hdr-pop" id="hdr-how-menu">
+        {HOW_GROUP.map((g) => (
+          <NavLink key={g.to} to={g.to} end className={({ isActive }) => `hdr-pop-link${isActive ? ' is-active' : ''}`}>
+            <span className="hdr-pop-icon" aria-hidden="true">
+              <g.icon />
+            </span>
+            <span className="hdr-pop-text">
+              <span className="hdr-pop-title">{t(g.key)}</span>
+              <span className="hdr-pop-sub">{t(g.sub)}</span>
+            </span>
+          </NavLink>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const THEMES: ThemePref[] = ['system', 'light', 'dark'];
 
@@ -92,11 +168,15 @@ function Header() {
           <Wordmark small />
         </Link>
         <nav className={`hdr-nav${open ? ' is-open' : ''}`} aria-label="Main">
-          {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} className={({ isActive }) => `hdr-link${isActive ? ' is-active' : ''}`}>
-              {n.to === '/console' && user?.role === 'pradhan' ? t('console.title.pradhan') : t(n.key)}
-            </NavLink>
-          ))}
+          {NAV.map((n) =>
+            n.to === '/how' ? (
+              <HowMenu key={n.to} />
+            ) : (
+              <NavLink key={n.to} to={n.to} className={({ isActive }) => `hdr-link${isActive ? ' is-active' : ''}`}>
+                {n.to === '/console' && user?.role === 'pradhan' ? t('console.title.pradhan') : t(n.key)}
+              </NavLink>
+            ),
+          )}
           {user && (
             <button type="button" className="hdr-link hdr-signout" onClick={signOut}>
               <LogOut aria-hidden="true" /> {t('shell.signout')}
@@ -219,6 +299,8 @@ function Footer() {
           <Link to="/live">{t('nav.live')}</Link>
           <Link to="/#story">{en ? 'The night the river rose' : 'जिस रात नदी चढ़ी'}</Link>
           <Link to="/how">{t('nav.how')}</Link>
+          <Link to="/agents">{t('nav.agents')}</Link>
+          <Link to="/sensors">{t('nav.sensors')}</Link>
           <Link to="/impact">{t('nav.impact')}</Link>
         </nav>
         <nav className="ftr-col" aria-label={en ? 'Use it' : 'इस्तेमाल करें'}>

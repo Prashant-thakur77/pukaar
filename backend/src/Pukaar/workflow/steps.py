@@ -70,6 +70,8 @@ class Steps:
             trace = dict(alert.decision_trace)
             if result.tools:
                 trace["drafting_tools"] = result.tools
+            if result.safe_place:  # the place named in the text, so the record shows where it came from
+                trace["safe_place"] = result.safe_place
             try:
                 alert = self.repo.update_alert(alert.id, condition=Attr("level").eq(alert.level),
                                                text_hi=result.text_hi, text_en=result.text_en,
@@ -122,7 +124,8 @@ class Steps:
                              repo=self.repo)
         if not decision.allowed:
             raise StepError(f"auto-send denied: {decision.reason}")
-        text_hi, text_en = hi.fallback_alert(alert.level, alert.village_name_hi, alert.village_name)
+        text_hi, text_en = hi.fallback_alert(alert.level, alert.village_name_hi, alert.village_name,
+                                             alert.decision_trace.get("safe_place"))
         self.repo.update_alert(alert.id, status="auto_sent_unapproved", text_hi=text_hi, text_en=text_en,
                                decided_by="system:auto-send", decided_at=clock.iso(clock.now()))
         self.repo.add_timeline(alert.id, "auto_send", "every officer timed out at critical; fixed template, flagged unapproved")
@@ -167,7 +170,8 @@ class Steps:
             return {"alert_id": e.get("alert_id"), "sent": 0}
         error = str(e.get("error"))[:200]
         try:
-            text_hi, text_en = hi.fallback_alert(alert.level, alert.village_name_hi, alert.village_name)
+            text_hi, text_en = hi.fallback_alert(alert.level, alert.village_name_hi, alert.village_name,
+                                                 alert.decision_trace.get("safe_place"))
             broadcast = alert.level == "critical" or alert.approved
             alert = self.repo.update_alert(alert.id, status="failsafe", text_hi=text_hi, text_en=text_en, task_token=None)
             sent = 0

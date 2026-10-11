@@ -1,7 +1,7 @@
 import { type ComponentType, lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ArrowUpRight, Mic, Radar, UserCheck, Volume2 } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Bot, Mic, Radar, RadioTower, UserCheck, Volume2 } from 'lucide-react';
 import { api } from '../api';
 import { Call112, PukaarMark } from '../components/Shell';
 import { CountUp } from '../components/CountUp';
@@ -270,6 +270,54 @@ export default function Landing() {
               </Link>
             </p>
           )}
+        </div>
+      </section>
+
+      <section className="band af-band" aria-labelledby="af-title">
+        <div className="wrap">
+          <p id="af-title" className="eyebrow af-eyebrow">
+            {lang === 'hi' ? 'एजेंट पहले · सेंसर पहले' : 'Agent-first · Sensor-first'}
+          </p>
+          <div className="af-grid">
+            <Reveal>
+              <Link to="/agents" className="af-card">
+                <span className="af-icon" aria-hidden="true">
+                  <Bot />
+                </span>
+                <span className="af-kicker" translate="no">
+                  Amazon Bedrock · Strands · Cedar
+                </span>
+                <span className="af-title">{lang === 'hi' ? 'एजेंट' : 'Agents'}</span>
+                <span className="af-body">
+                  {lang === 'hi'
+                    ? 'पाँच एजेंट, सिर्फ़-पढ़ने वाले टूल, हर कॉल पर Cedar नीति। देखें हर एजेंट क्या कभी नहीं कर सकता, और एक असली फ़ैसला चरण दर चरण।'
+                    : 'Five agents, read-only tools, a Cedar check on every call. See what each may never do, and a real decision round by round.'}
+                </span>
+                <span className="af-go">
+                  {lang === 'hi' ? 'एजेंट देखें' : 'Meet the agents'} <ArrowRight aria-hidden="true" />
+                </span>
+              </Link>
+            </Reveal>
+            <Reveal delay={110}>
+              <Link to="/sensors" className="af-card">
+                <span className="af-icon" aria-hidden="true">
+                  <RadioTower />
+                </span>
+                <span className="af-kicker" translate="no">
+                  AWS IoT Core · MQTT · X.509
+                </span>
+                <span className="af-title">{lang === 'hi' ? 'सेंसर' : 'Sensors'}</span>
+                <span className="af-body">
+                  {lang === 'hi'
+                    ? 'पुल के नीचे का गेज हर मिनट नदी नापता है। हर गेज की ताज़गी, बैटरी, पिछले 24 घंटे की रीडिंग और निगरानी एजेंट की जाँच।'
+                    : 'A gauge under the bridge reads the river every minute. Each gauge’s freshness, battery, last 24 hours and the Watch agent’s checks.'}
+                </span>
+                <span className="af-go">
+                  {lang === 'hi' ? 'सेंसर देखें' : 'See the sensors'} <ArrowRight aria-hidden="true" />
+                </span>
+              </Link>
+            </Reveal>
+          </div>
         </div>
       </section>
 

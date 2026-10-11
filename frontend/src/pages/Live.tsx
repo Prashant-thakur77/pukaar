@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowUpRight, HeartHandshake, MapPin } from 'lucide-react';
 import { api } from '../api';
@@ -14,7 +15,7 @@ import { usePoll } from '../hooks/usePoll';
 import { useT } from '../i18n';
 import { fmtAgo } from '../lib/format';
 import { levelRank } from '../lib/levels';
-import type { Counters } from '../types';
+import type { Counters, SafePlacesView } from '../types';
 
 const COUNTERS: (keyof Counters)[] = ['villages_watched', 'alerts_sent', 'phones_acknowledged', 'reports_received'];
 const DEMO_URL = 'https://github.com/Prashant-thakur77/pukaar/blob/main/DEMO.md';
@@ -47,10 +48,30 @@ function OfficerPreview() {
   );
 }
 
+/** The "Safe places" map layer: fetched for every village the first time it is switched on. */
+function useSafeLayer(ids: string[]) {
+  const [on, setOn] = useState(false);
+  const [views, setViews] = useState<SafePlacesView[]>([]);
+  const key = ids.join(',');
+  useEffect(() => {
+    if (!on || !key) return;
+    let alive = true;
+    Promise.allSettled(key.split(',').map((id) => api.safePlaces(id))).then((rs) => {
+      if (alive) setViews(rs.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : [])));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [on, key]);
+  return { on, setOn, views: on ? views : NO_VIEWS };
+}
+const NO_VIEWS: SafePlacesView[] = [];
+
 export default function Live() {
   const { t, lang } = useT();
   const nav = useNavigate();
   const { data, error, loading, refresh, updatedAt } = usePoll(() => api.overview(), []);
+  const safeLayer = useSafeLayer(data ? data.villages.map((v) => v.id) : []);
   const villages = data ? [...data.villages].sort((a, b) => levelRank(b.level) - levelRank(a.level) || a.name.localeCompare(b.name)) : [];
   const allClear = Boolean(data && !data.replay.active && data.villages.length > 0 && data.villages.every((v) => v.level === 'normal'));
 
@@ -85,7 +106,13 @@ export default function Live() {
         <div className="live-grid">
           <div className="live-map card card-flush" data-tour="live-map">
             {data ? (
-              <VillageMap villages={data.villages} onSelect={(id) => nav(`/village/${id}`)} />
+              <VillageMap
+                villages={data.villages}
+                onSelect={(id) => nav(`/village/${id}`)}
+                safe={safeLayer.views}
+                safeToggle={{ on: safeLayer.on, onChange: safeLayer.setOn }}
+                onSafeSelect={(_, villageId) => nav(`/village/${villageId}`)}
+              />
             ) : (
               <div className="map-wrap">
                 <div className="map-skel skel" aria-hidden="true" />

@@ -3,6 +3,11 @@
 Fixed safety sentences come from templates/hi.py. If the model is down, or its
 draft fails the checker, the fixed template goes out and the alert records
 reasoning_model = "rule-fallback".
+
+When a pradhan or officer has marked a baked safe place OPEN or STANDBY, code
+(never the model) adds one "nearest safe place" line naming it, and records the
+place in the decision trace (trace["safe_place"]). The checker rejects a draft
+that names any other safe place.
 """
 
 from __future__ import annotations
@@ -14,6 +19,7 @@ from typing import Any
 from Pukaar.core.log import get_logger, log
 from Pukaar.llm.bedrock import AlertDraft, BedrockLLM
 from Pukaar.llm.tools import DataTools
+from Pukaar.services import safe_places
 from Pukaar.store.models import DraftCheck, Village
 from Pukaar.store.repo import Repo
 from Pukaar.templates import hi
@@ -29,7 +35,8 @@ DRAFT_SYSTEM = (
     "change it. Call the tools for the village to read the decision trace. Fill only: a Hindi time-window phrase, "
     "one short Hindi advice line (Devanagari), the same advice in English, and a reason of at most 35 words that "
     "cites signals by name and value exactly as the tools give them. Use no number, place or time that is not in "
-    "the tool results. Reports labelled UNVERIFIED must not be presented as facts."
+    "the tool results. Reports labelled UNVERIFIED must not be presented as facts. Do not name a shelter or safe "
+    "place: code adds that line itself from the shelter ledger."
 )
 
 
@@ -41,6 +48,7 @@ class DraftResult:
     reasoning_model: str
     check: DraftCheck
     tools: list[dict[str, Any]]
+    safe_place: dict[str, Any] | None = None
 
 
 def numbers_in(text: str) -> set[str]:
@@ -92,8 +100,13 @@ def rule_reason(level: str, trace: dict[str, Any]) -> str:
     return f"{hi.LEVEL_EN[level]} set by rules: {', '.join(rules[:4])}."
 
 
+def _place_names(place: dict[str, Any] | None) -> set[str]:
+    return {n for n in ((place or {}).get("name"), (place or {}).get("name_hi")) if n}
+
+
 def draft_alert(village: Village, level: str, trace: dict[str, Any], repo: Repo, llm: BedrockLLM | None) -> DraftResult:
-    fallback_hi, fallback_en = hi.fallback_alert(level, village.name_hi, village.name)
+    safe = safe_places.nearest_usable(repo, village.id) if level != "normal" else None
+    fallback_hi, fallback_en = hi.fallback_alert(level, village.name_hi, village.name, safe)
     tools_trace: list[dict[str, Any]] = []
     draft: AlertDraft | None = None
     if llm is not None and level != "normal":
@@ -111,20 +124,24 @@ def draft_alert(village: Village, level: str, trace: dict[str, Any], repo: Repo,
 
     if draft is None:
         return DraftResult(fallback_hi, fallback_en, rule_reason(level, trace), "rule-fallback",
-                           DraftCheck(passed=False, reason="model unavailable; fixed template used"), tools_trace)
+                           DraftCheck(passed=False, reason="model unavailable; fixed template used"), tools_trace,
+                           safe)
 
-    others = [v.name for v in repo.list_villages() if v.id != village.id] + \
-             [v.name_hi for v in repo.list_villages() if v.id != village.id]
-    check = check_draft(draft, village, {"trace": trace, "tools": tools_trace}, others)
+    villages = repo.list_villages()
+    others = [v.name for v in villages if v.id != village.id] + [v.name_hi for v in villages if v.id != village.id]
+    # A safe place may be named only if it is the one in the trace (marked OPEN or STANDBY by a person).
+    others += sorted(safe_places.all_place_names() - _place_names(safe))
+    check = check_draft(draft, village, {"trace": trace, "tools": tools_trace, "safe_place": safe}, others)
     if not check.passed:
         log(_LOG, "draft rejected", 30, village_id=village.id, reason=check.reason)
         return DraftResult(fallback_hi, fallback_en, rule_reason(level, trace), "rule-fallback",
                            DraftCheck(passed=False, reason=f"draft rejected ({check.reason}); fixed template used"),
-                           tools_trace)
+                           tools_trace, safe)
 
+    place_hi, place_en = hi.safe_place_lines(safe)
     text_hi = (f"पुकार: {village.name_hi} के लिए {hi.LEVEL_HI[level]}। {draft.time_window_hi.strip()} "
-               f"{draft.advice_hi.strip()} {hi.SAFETY_HI[level]} {hi.CALL_112_HI}")
+               f"{draft.advice_hi.strip()} {hi.SAFETY_HI[level]} {place_hi} {hi.CALL_112_HI}")
     text_en = (f"Pukaar: {hi.LEVEL_EN[level]} for {village.name}. {draft.advice_en.strip()} "
-               f"{hi.SAFETY_EN[level]} {hi.CALL_112_EN}")
-    return DraftResult(re.sub(r"\s+", " ", text_hi), re.sub(r"\s+", " ", text_en), draft.reason_en.strip(),
-                       llm.model_name if llm else "rule-fallback", check, tools_trace)
+               f"{hi.SAFETY_EN[level]} {place_en} {hi.CALL_112_EN}")
+    return DraftResult(re.sub(r"\s+", " ", text_hi).strip(), re.sub(r"\s+", " ", text_en).strip(),
+                       draft.reason_en.strip(), llm.model_name if llm else "rule-fallback", check, tools_trace, safe)

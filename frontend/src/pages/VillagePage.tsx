@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, Hourglass, ListChecks, MapPin, Megaphone, RadioTower, Scale, TrendingUp, Users, Waves } from 'lucide-react';
+import { ArrowLeft, Tent, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, Hourglass, ListChecks, MapPin, Megaphone, RadioTower, Scale, TrendingUp, Users, Waves } from 'lucide-react';
 import { api } from '../api';
 import { AlertStatusChip, DeliveryChips, ReplayChip, ReportStateChip } from '../components/Chips';
 import { Gauge } from '../components/Gauge';
@@ -10,6 +10,7 @@ import { ReadinessCard, SoilCard } from '../components/Readiness';
 import { Reveal } from '../components/Reveal';
 import { Sparkline } from '../components/Sparkline';
 import { TimeToEar } from '../components/TimeToEar';
+import { WhereToGo } from '../components/WhereToGo';
 import { DeniedNote, EmptyState, ErrorState, Skeleton, SkeletonCards } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
 import { enumLabels, useT } from '../i18n';
@@ -425,6 +426,14 @@ export default function VillagePage() {
             </ul>
           </section>
         )}
+        <section aria-labelledby="wtg-h">
+          <h2 id="wtg-h" className="h-sec">
+            <Tent aria-hidden="true" /> {t('safe.title')}
+          </h2>
+          <p className="muted">{t('safe.lead')}</p>
+          <WhereToGo village={v} />
+        </section>
+
         <section aria-labelledby="why-h" data-tour="why">
           <h2 id="why-h" className="h-sec">
             <GaugeIcon aria-hidden="true" /> {t('village.why')}

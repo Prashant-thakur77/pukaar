@@ -1,0 +1,362 @@
+{
+ "type": "FeatureCollection",
+ "attribution": "© OpenStreetMap contributors (ODbL)",
+ "terrain_attribution": "Terrain: Mapzen Terrain Tiles on AWS Open Data (SRTM and others)",
+ "license": "ODbL 1.0 (https://opendatacommons.org/licenses/odbl/); derived database of OpenStreetMap data",
+ "metadata": {
+  "village_id": "janjehli",
+  "village": {
+   "name": "Janjehli",
+   "name_hi": "जंजैहली",
+   "lat": 31.51852,
+   "lon": 77.21928,
+   "coords_verified": false
+  },
+  "river_level_m": 2040.0,
+  "river_level_method": "lowest terrain cell within 500 m of the village point",
+  "river_level_point": [
+   77.22086,
+   31.52268
+  ],
+  "nearest_mapped_waterway": {
+   "name": "Bakhli Khad",
+   "kind": "river",
+   "distance_m": 32,
+   "elevation_m": 2059.3
+  },
+  "mapped_waterway_names": [
+   "Bakhli Khad",
+   "Bala Khad",
+   "Bhekhli Nala",
+   "Budhake dar Nala",
+   "Chimti Khad",
+   "Halsi Khad",
+   "Hiuni Khad",
+   "Kulada Khad"
+  ],
+  "village_point_elevation_m": 2065.1,
+  "start": {
+   "lat": 31.5184839,
+   "lon": 77.2191559,
+   "snap_m": 12
+  },
+  "candidates": {
+   "tagged": 6,
+   "unnamed": 1,
+   "bus_shelters": 0,
+   "duplicates": 0,
+   "too_far": 0,
+   "low": 3,
+   "eligible": 2
+  },
+  "places": [
+   {
+    "id": "osm-node-7007371817",
+    "name": "Community Health Center, Janjali",
+    "name_hi": "Community Health Center, Janjali",
+    "kind": "clinic",
+    "headroom_m": 30.4,
+    "route_length_m": 317,
+    "climb_m": 25,
+    "max_grade": 0.14,
+    "walk_min": 7,
+    "rank": 1
+   },
+   {
+    "id": "osm-node-5766355539",
+    "name": "Rest House Janjehli",
+    "name_hi": "Rest House Janjehli",
+    "kind": "rest_house",
+    "headroom_m": 15.1,
+    "route_length_m": 819,
+    "climb_m": 3,
+    "max_grade": 0.09,
+    "walk_min": 17,
+    "rank": 2
+   }
+  ],
+  "notes": []
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     77.21928,
+     31.51852
+    ]
+   },
+   "properties": {
+    "feature": "start",
+    "name": "Janjehli",
+    "name_hi": "जंजैहली",
+    "elevation_m": 2065.1
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     77.220055,
+     31.516455
+    ]
+   },
+   "properties": {
+    "id": "osm-node-7007371817",
+    "osm_url": "https://www.openstreetmap.org/node/7007371817",
+    "name": "Community Health Center, Janjali",
+    "name_hi": "Community Health Center, Janjali",
+    "kind": "clinic",
+    "kind_en": "Health centre",
+    "kind_hi": "स्वास्थ्य केंद्र",
+    "elevation_m": 2094.8,
+    "headroom_m": 30.4,
+    "above_village_river_m": 54.8,
+    "above_nearest_stream_m": 30.4,
+    "nearest_stream_m": 162,
+    "straight_m": 241,
+    "route_length_m": 317,
+    "off_network_m": 30,
+    "climb_m": 25,
+    "max_grade": 0.14,
+    "steep_m": 0,
+    "near_water_m": 0,
+    "walk_min": 7,
+    "rank": 1,
+    "feature": "place"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     77.220892,
+     31.524106
+    ]
+   },
+   "properties": {
+    "id": "osm-node-5766355539",
+    "osm_url": "https://www.openstreetmap.org/node/5766355539",
+    "name": "Rest House Janjehli",
+    "name_hi": "Rest House Janjehli",
+    "kind": "rest_house",
+    "kind_en": "Government rest house",
+    "kind_hi": "सरकारी विश्राम गृह",
+    "elevation_m": 2055.1,
+    "headroom_m": 15.1,
+    "above_village_river_m": 15.1,
+    "above_nearest_stream_m": 16.3,
+    "nearest_stream_m": 119,
+    "straight_m": 640,
+    "route_length_m": 819,
+    "off_network_m": 52,
+    "climb_m": 3,
+    "max_grade": 0.09,
+    "steep_m": 0,
+    "near_water_m": 62,
+    "walk_min": 17,
+    "rank": 2,
+    "feature": "place"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      77.21928,
+      31.51852
+     ],
+     [
+      77.219156,
+      31.518484
+     ],
+     [
+      77.219561,
+      31.518013
+     ],
+     [
+      77.219601,
+      31.517933
+     ],
+     [
+      77.219634,
+      31.517615
+     ],
+     [
+      77.219682,
+      31.517546
+     ],
+     [
+      77.220018,
+      31.517283
+     ],
+     [
+      77.220191,
+      31.517048
+     ],
+     [
+      77.220229,
+      31.517004
+     ],
+     [
+      77.220205,
+      31.516945
+     ],
+     [
+      77.220151,
+      31.516924
+     ],
+     [
+      77.220108,
+      31.516897
+     ],
+     [
+      77.220079,
+      31.516862
+     ],
+     [
+      77.220084,
+      31.516799
+     ],
+     [
+      77.220138,
+      31.516718
+     ],
+     [
+      77.22025,
+      31.516575
+     ],
+     [
+      77.220287,
+      31.516476
+     ],
+     [
+      77.220253,
+      31.516395
+     ],
+     [
+      77.220186,
+      31.516347
+     ],
+     [
+      77.220055,
+      31.516455
+     ]
+    ]
+   },
+   "properties": {
+    "feature": "route",
+    "rank": 1,
+    "place_id": "osm-node-7007371817",
+    "steep": false
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      77.21928,
+      31.51852
+     ],
+     [
+      77.219156,
+      31.518484
+     ],
+     [
+      77.218879,
+      31.519107
+     ],
+     [
+      77.218861,
+      31.519147
+     ],
+     [
+      77.218856,
+      31.519524
+     ],
+     [
+      77.218987,
+      31.519952
+     ],
+     [
+      77.219143,
+      31.520347
+     ],
+     [
+      77.219084,
+      31.520765
+     ],
+     [
+      77.219102,
+      31.521079
+     ],
+     [
+      77.219183,
+      31.521195
+     ],
+     [
+      77.219432,
+      31.521557
+     ],
+     [
+      77.219706,
+      31.521726
+     ],
+     [
+      77.220205,
+      31.522519
+     ],
+     [
+      77.220535,
+      31.522901
+     ],
+     [
+      77.220921,
+      31.523107
+     ],
+     [
+      77.221168,
+      31.523363
+     ],
+     [
+      77.221575,
+      31.523804
+     ],
+     [
+      77.221608,
+      31.523883
+     ],
+     [
+      77.221609,
+      31.523965
+     ],
+     [
+      77.221578,
+      31.52404
+     ],
+     [
+      77.221184,
+      31.524365
+     ],
+     [
+      77.220892,
+      31.524106
+     ]
+    ]
+   },
+   "properties": {
+    "feature": "route",
+    "rank": 2,
+    "place_id": "osm-node-5766355539",
+    "steep": false
+   }
+  }
+ ]
+}

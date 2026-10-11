@@ -11,7 +11,7 @@ from Pukaar.core.config import get_settings
 from Pukaar.delivery import dispatch, telegram
 from Pukaar.services import cap
 from Pukaar.services import replay as replay_svc
-from Pukaar.services import rollcall, storage
+from Pukaar.services import rollcall, safe_places, storage
 from Pukaar.services.reports import track_steps
 from Pukaar.store.repo import ConflictError, get_repo
 from Pukaar.templates import hi
@@ -75,6 +75,15 @@ def village(village_id: str) -> dict:
     if v is None:
         raise HTTPException(404, "Village not found")
     return views.village_detail(repo, v)
+
+
+@router.get("/villages/{village_id}/safe-places")
+def village_safe_places(village_id: str) -> dict:
+    """Baked safe places and walking routes (OpenStreetMap, ODbL) with each place's ledger status."""
+    repo = get_repo()
+    if repo.get_village(village_id) is None:
+        raise HTTPException(404, "Village not found")
+    return safe_places.view(repo, village_id)
 
 
 @router.get("/public/overview")

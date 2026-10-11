@@ -137,21 +137,21 @@ Sources and verdicts: the research summary in [REFERENCE_REVIEW.md](REFERENCE_RE
 
 | # | Feature | Wave | Status |
 |---|---|---|---|
-| 1 | CAP 1.2 feed | 1 | building |
-| 2 | Gauges over IoT Core | 1 | building |
-| 3 | Guardrails on villager text | 1 | building |
-| 4 | Visitor tour | 1 | building |
-| 5 | Safe places and routes | 2 | planned |
-| 6 | After-action email | 2 | planned |
-| 7 | Live push (AppSync Events) | 2 | planned |
-| 8 | Satellite before/after | 2 | planned |
-| 9 | SMS channel | 3 | blocked on owner action |
-| 10 | Voice call | 3 | planned (owner action may be needed) |
-| 11 | Web Push to officers | 3 | planned |
-| 12 | Learning gauge thresholds | 3 | planned |
-| 13 | Agents page (EcoLafaek-style) | 2 | building |
-| 14 | Sensors page and device path | 2 | building |
+| 1 | CAP 1.2 feed | 1 | live |
+| 2 | Gauges over IoT Core | 1 | live (verified: MQTT with X.509 through IoT Core raised Gohar in a labelled simulation) |
+| 3 | Guardrails on villager text | 1 | live (verified: a prompt-attack report was held by Bedrock Guardrails) |
+| 4 | Visitor tour | 1 | built |
+| 5 | Safe places and routes | 2 | built (OSM coverage thin for Thunag and Gohar; road-blocking not yet built) |
+| 6 | After-action email | 2 | building |
+| 7 | Live push (AppSync Events) | 2 | building |
+| 8 | Satellite before/after | 2 | building |
+| 9 | SMS channel | 3 | blocked: owner must activate AWS End User Messaging; India needs DLT registration |
+| 10 | Voice call | 3 | needs an Indian telecom partner: Amazon Connect does not place calls to Indian numbers |
+| 11 | Web Push to officers | 3 | building |
+| 12 | Learning gauge thresholds | 3 | building |
+| 13 | Agents page (EcoLafaek-style) | 2 | built |
+| 14 | Sensors page and device path | 2 | built |
 | 15 | Antecedent soil moisture | 2 | built, flag off by default (back-test in [SCORING.md](SCORING.md#soil-moisture-modifier)) |
 | 16 | Two-stage readiness and checklists | 2 | built |
 | 17 | "Surakshit Hoon" roll-call | 2 | built |
-| 18 | Virtual staff gauges | 3 | planned |
+| 18 | Virtual staff gauges | 3 | building |

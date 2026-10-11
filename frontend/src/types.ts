@@ -623,3 +623,211 @@ export interface Backtest {
   rules?: string;
   scenarios: BacktestScenario[];
 }
+
+/* ---- GET /agents, /agents/traces, /sensors (public, read-only) ---- */
+export type AgentState = 'live' | 'fallback' | 'pending' | 'deterministic' | 'unknown';
+
+export interface AgentStatus {
+  state: AgentState;
+  label_en: string;
+  label_hi: string;
+  evidence: string;
+}
+
+export interface AgentTool {
+  name: string;
+  description: string;
+  description_hi?: string;
+  read_only: boolean;
+  aws: string;
+}
+
+export interface AgentNever {
+  action: string;
+  en: string;
+  hi: string;
+  source: string;
+}
+
+export interface WatchFinding {
+  village_id: string;
+  kind: string; // stale | no_data | flatline | jump | battery
+  severity: string; // warn | info
+  at: string | null;
+  value: number | null;
+  message_en: string;
+  message_hi: string;
+}
+
+export interface AgentCard {
+  id: string;
+  name_en: string;
+  name_hi: string;
+  kicker: string;
+  role_en: string;
+  role_hi: string;
+  primitives: string[];
+  tools: AgentTool[];
+  output_fields: string[];
+  never: AgentNever[];
+  policies: { id: string; desc: string }[];
+  max_turns: number;
+  budget_seconds: number | null;
+  fallback_en: string;
+  fallback_hi: string;
+  access_en?: string;
+  access_hi?: string;
+  status: AgentStatus;
+  findings?: WatchFinding[];
+}
+
+export interface AgentRegistry {
+  generated_at: string;
+  model: { id: string; label: string; enabled: boolean; status: AgentStatus };
+  guardrail: { present: boolean; configured: boolean; status: AgentStatus };
+  agents: AgentCard[];
+  counters: {
+    agents: number;
+    read_only_tools: number;
+    cedar_policies: number;
+    tool_calls_today: number;
+    tool_calls_denied_today: number;
+    drafts: number;
+    drafts_by_model: number;
+    drafts_by_template: number;
+    watch_findings: number;
+  };
+}
+
+export type TraceKind = 'sense' | 'rules' | 'tools' | 'draft' | 'approve' | 'deliver';
+
+export interface TraceRound {
+  n: number;
+  kind: TraceKind;
+  actor: 'code' | 'agent' | 'template' | 'person' | 'system';
+  title_en: string;
+  title_hi: string;
+  aws: string;
+  state: 'ok' | 'fallback' | 'pending' | 'skipped' | 'deny';
+  facts: { en: string; hi: string; v: string | number }[];
+  note_en: string;
+  note_hi: string;
+}
+
+export interface AgentTrace {
+  alert_id: string;
+  village_id: string;
+  village_name: string;
+  village_name_hi: string;
+  level: Level;
+  previous_level: Level;
+  status: AlertStatus;
+  created_at: string;
+  replay: boolean;
+  drill: boolean;
+  reasoning_model: string;
+  rounds: TraceRound[];
+}
+
+export interface SensorReadingView {
+  at: string;
+  water_level_cm: number;
+  battery_v: number | null;
+  rssi: number | null;
+  simulated: boolean;
+  transport: string | null;
+  received_at: string | null;
+}
+
+export interface SensorVillage {
+  id: string;
+  name: string;
+  name_hi: string;
+  level: Level;
+  gauge: { device_id: string; watch_cm: number; warning_cm: number; critical_cm: number; installed: boolean };
+  latest: SensorReadingView | null;
+  age_minutes: number | null;
+  fresh: boolean;
+  gauge_level: Level | null;
+  readings_24h: number;
+  simulated: boolean;
+  series: { at: string; cm: number }[];
+  findings: WatchFinding[];
+}
+
+export interface SensorBoard {
+  generated_at: string;
+  window_start: string;
+  fresh_minutes: number;
+  readings_24h: number;
+  by_transport: Record<string, number>;
+  gauges: number;
+  fresh_gauges: number;
+  installed_gauges: number;
+  villages: SensorVillage[];
+  watch: {
+    checks: { kind: string; en: string; hi: string }[];
+    findings: WatchFinding[];
+    thresholds: { stale_minutes: number; flat_min_readings: number; jump_cm_per_min: number; low_battery_v: number };
+  };
+}
+
+/* ---------- safe places (GET /villages/{id}/safe-places) ---------- */
+
+export type ShelterState = 'OPEN' | 'STANDBY' | 'FULL' | 'CLOSED';
+/** UNCONFIRMED: no pradhan or officer has said anything about this place yet. */
+export type ShelterLedgerState = ShelterState | 'UNCONFIRMED';
+
+export interface ShelterLedger {
+  status: ShelterLedgerState;
+  capacity: number | null;
+  note: string;
+  updated_by: string | null;
+  updated_at: string | null;
+}
+
+export interface SafePlace {
+  id: string;
+  osm_url: string;
+  name: string;
+  name_hi: string;
+  kind: string;
+  kind_en: string;
+  kind_hi: string;
+  lat: number;
+  lon: number;
+  elevation_m: number;
+  /** Height above the river near the village (and above the nearest mapped stream), whichever is less. */
+  headroom_m: number;
+  route_length_m: number;
+  off_network_m: number;
+  climb_m: number;
+  max_grade: number;
+  steep_m: number;
+  near_water_m: number;
+  walk_min: number;
+  rank: number;
+  ledger: ShelterLedger;
+}
+
+export interface RouteFeature {
+  type: 'Feature';
+  geometry: { type: 'LineString'; coordinates: [number, number][] } | { type: 'Point'; coordinates: [number, number] };
+  properties: { feature: 'route' | 'start'; rank?: number; place_id?: string; steep?: boolean; name?: string };
+}
+
+export interface SafePlacesView extends SampleFlag {
+  village_id: string;
+  available: boolean;
+  places: SafePlace[];
+  routes: { type: 'FeatureCollection'; features: RouteFeature[] };
+  river_level_m?: number | null;
+  river_level_method?: string | null;
+  candidates?: Record<string, number> | null;
+  notes: string[];
+  attribution: string | null;
+  terrain_attribution?: string | null;
+  license?: string | null;
+  limits_en: string;
+  limits_hi: string;
+}

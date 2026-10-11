@@ -13,9 +13,9 @@ from Pukaar.core.ids import new_id
 from Pukaar.handlers import worker
 from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.policy.guard import Principal, authorize
-from Pukaar.services import analyst, checklist
+from Pukaar.services import analyst, checklist, safe_places
 from Pukaar.services import replay as replay_svc
-from Pukaar.store.models import Directive
+from Pukaar.store.models import SHELTER_STATES, AuditRow, Directive, ShelterStatus
 from Pukaar.store.repo import ConflictError, get_repo
 from Pukaar.templates import hi
 from Pukaar.workflow.client import RetryLater, decide, get_workflow
@@ -168,6 +168,42 @@ def tick_checklist(village_id: str, item: str, body: ChecklistBody | None = None
     except KeyError:
         raise HTTPException(404, "Checklist item not found") from None
     return checklist.view(repo, village_id)
+
+
+class ShelterBody(BaseModel):
+    status: str
+    capacity: int | None = None
+    note: str = ""
+
+
+@router.post("/villages/{village_id}/shelters/{place_id}")
+def set_shelter(village_id: str, place_id: str, body: ShelterBody,
+                principal: Principal = Depends(Allowed("set_shelter_status", "village", "village_id",
+                                                       village_from_path=True))) -> dict:
+    """Shelter ledger: a pradhan (own village) or an officer marks a baked safe place OPEN, STANDBY, FULL or CLOSED."""
+    repo = get_repo()
+    if repo.get_village(village_id) is None:
+        raise HTTPException(404, "Village not found")
+    if place_id not in safe_places.place_ids(village_id):
+        raise HTTPException(404, "Safe place not found for this village")
+    status = body.status.strip().upper()
+    if status not in SHELTER_STATES:
+        raise HTTPException(400, f"status must be one of {', '.join(SHELTER_STATES)}")
+    if body.capacity is not None and not 0 <= body.capacity <= 100000:
+        raise HTTPException(400, "capacity must be between 0 and 100000")
+    old = repo.list_shelters(village_id).get(place_id)
+    now = clock.iso(clock.now())
+    row = ShelterStatus(village_id=village_id, place_id=place_id, status=status,  # type: ignore[arg-type]
+                        capacity=body.capacity, note=body.note.strip()[:200], updated_by=principal.username,
+                        updated_at=now)
+    repo.put_shelter(row)
+    # The authorize() row records the permission; this one records what changed.
+    repo.append_audit(AuditRow(
+        at=now, id=new_id("aud"), actor=principal.username, role=principal.role, action="shelter_changed",
+        resource=f"shelter:{village_id}/{place_id}", decision="allow",
+        reason=f"{old.status if old else 'UNCONFIRMED'} -> {status}"
+               + (f"; capacity {body.capacity}" if body.capacity is not None else "")))
+    return safe_places.view(repo, village_id)
 
 
 class ReplayBody(BaseModel):

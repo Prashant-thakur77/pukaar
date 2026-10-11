@@ -2,7 +2,7 @@
 
 Keys:
   VILLAGE#id  META | READING#iso | SENSOR#iso#device | SENSORLAST#device | REPORT#iso#id | DEDUPE#window | RECIPIENT#id
-              | EVENT#date | DIRECTIVE#iso#id | CHECKLIST#item | ROLLCALL#iso#id (pointer, TTL 30 days)
+              | EVENT#date | DIRECTIVE#iso#id | CHECKLIST#item | SHELTER#place_id | ROLLCALL#iso#id (pointer, TTL 30 days)
   ALERT#id    META | DELIVERY#recipient | TIMELINE#iso#n
   ROLLCALL#id META | ASKED#recipient | RESP#recipient   (safety roll-call; TTL 30 days)
   SAFESHARE#id META                   (family link pointer; TTL 7 days)
@@ -44,6 +44,7 @@ from Pukaar.store.models import (
     RollCallAsked,
     RollCallResponse,
     SensorReading,
+    ShelterStatus,
     TimelineEvent,
     Village,
 )
@@ -354,6 +355,14 @@ class Repo:
 
     def list_checklist(self, village_id: str) -> list[ChecklistItem]:
         return [_model(ChecklistItem, i) for i in self._query(f"VILLAGE#{village_id}", "CHECKLIST#")]
+
+    # -- shelter ledger --------------------------------------------------
+    def put_shelter(self, s: ShelterStatus) -> None:
+        self._put({"pk": f"VILLAGE#{s.village_id}", "sk": f"SHELTER#{s.place_id}", **s.model_dump()})
+
+    def list_shelters(self, village_id: str) -> dict[str, ShelterStatus]:
+        rows = [_model(ShelterStatus, i) for i in self._query(f"VILLAGE#{village_id}", "SHELTER#")]
+        return {r.place_id: r for r in rows}
 
     # -- alerts ----------------------------------------------------------
     def put_alert(self, a: Alert) -> None:

@@ -32,12 +32,13 @@ Every record that came from replay data carries `replay: true`.
   sign in with Cognito `InitiateAuth` (`USER_PASSWORD_AUTH`) by plain `fetch`
   to `https://cognito-idp.<region>.amazonaws.com/`; otherwise use dev login.
 
-Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`,
+Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`, `GET /villages/{id}/safe-places`,
 `POST /reports`, `POST /alerts/{id}/ack`, `GET /approval/{token}`,
 `POST /approval/{token}`, `POST /telegram/webhook`, `GET /public/overview`,
 `GET /track/{code}`, `GET /replay/status`, `GET /alerts/{id}/audio`, `GET /safe/{token}`,
 `POST /sensors/{id}/readings` (river gauge, HMAC-signed body, see docs/hardware/README.md),
 `GET /cap/alerts.atom` and `GET /cap/alerts/{id}.xml` (CAP 1.2 feed of published alerts, XML),
+`GET /agents`, `GET /agents/traces?limit=5`, `GET /sensors` (read-only, no personal data),
 `POST /auth/dev-login` (local only). Everything else needs an officer or
 pradhan token and passes `policy.guard.authorize()`.
 
@@ -100,6 +101,15 @@ GET  /villages/{id}          {village, readings[<=96], alerts[], reports[], past
 POST /villages/{id}/checklist/{item}  officer (any village) or pradhan (own village only), Cedar
                              action tick_checklist: {done: bool} -> Checklist; 404 unknown village or item;
                              each change writes an Audit row (checklist_tick / checklist_untick)
+GET  /villages/{id}/safe-places  {village_id, available, places[SafePlace], routes (GeoJSON FeatureCollection:
+                             route lines {feature:"route", rank, place_id, steep} and the start point), notes[],
+                             attribution "© OpenStreetMap contributors (ODbL)", limits_en, limits_hi, river_level_m}
+                             SafePlace = baked OSM place {id, name, name_hi, kind, headroom_m, route_length_m, walk_min,
+                             climb_m, max_grade, steep_m, rank, osm_url, lat, lon, ...} + ledger {status:
+                             "UNCONFIRMED"|"OPEN"|"STANDBY"|"FULL"|"CLOSED", capacity, note, updated_by, updated_at}
+POST /villages/{id}/shelters/{place_id}  officer (any village) or pradhan (own village):
+                             {status: "OPEN"|"STANDBY"|"FULL"|"CLOSED", capacity?, note?} -> the safe-places view;
+                             404 for a place that is not baked for that village; audited ("shelter_changed")
 GET  /alerts?status=&village_id=   [Alert]
 GET  /alerts/{id}            {alert, deliveries[], timeline[Event], audit[Audit]}
 POST /alerts/{id}/approve    officer: {} -> Alert; 409 {detail{code,message_en,message_hi}} when late;

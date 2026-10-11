@@ -41,6 +41,8 @@ ReportType = Literal[
 ]
 Severity = Literal["low", "medium", "high", "critical"]
 DirectiveType = Literal["evacuate", "shelter_in_place", "advisory", "all_clear"]
+ShelterState = Literal["OPEN", "STANDBY", "FULL", "CLOSED"]
+SHELTER_STATES: tuple[str, ...] = ("OPEN", "STANDBY", "FULL", "CLOSED")
 
 
 def level_rank(level: str) -> int:
@@ -259,6 +261,22 @@ class Directive(BaseModel):
     issued_by: str
     issued_at: str
     active: bool = True
+
+
+class ShelterStatus(BaseModel):
+    """The shelter ledger: what a pradhan or officer last said about one safe place.
+
+    place_id is a baked OpenStreetMap place (data/safe_places/); a place with no
+    row has never been confirmed by anyone and is never named in an alert.
+    """
+
+    village_id: str
+    place_id: str
+    status: ShelterState
+    capacity: int | None = None
+    note: str = ""
+    updated_by: str
+    updated_at: str
 
 
 class AuditRow(BaseModel):

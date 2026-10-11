@@ -1,6 +1,8 @@
 // Typed client for every route in docs/CONTRACT.md.
 import { useAuth, useNet } from './store';
 import type {
+  AgentRegistry,
+  AgentTrace,
   Alert,
   AlertAudio,
   AlertDetail,
@@ -25,6 +27,9 @@ import type {
   RollCallBoard,
   RollCallRemind,
   SafeView,
+  SensorBoard,
+  SafePlacesView,
+  ShelterState,
   Stats,
   TelegramLink,
   TrackView,
@@ -189,6 +194,9 @@ export const api = {
   village: (id: string) => request<VillageDetail>(`/villages/${enc(id)}`),
   setChecklist: (villageId: string, item: string, done: boolean) =>
     request<Checklist>(`/villages/${enc(villageId)}/checklist/${enc(item)}`, { method: 'POST', body: { done } }),
+  safePlaces: (id: string) => request<SafePlacesView>(`/villages/${enc(id)}/safe-places`, { auth: false }),
+  setShelter: (villageId: string, placeId: string, body: { status: ShelterState; capacity?: number | null; note?: string }) =>
+    request<SafePlacesView>(`/villages/${enc(villageId)}/shelters/${enc(placeId)}`, { method: 'POST', body }),
 
   alerts: (p: { status?: AlertStatus; village_id?: string } = {}) => request<Alert[]>(`/alerts${qs(p)}`),
   alert: (id: string) => request<AlertDetail>(`/alerts/${enc(id)}`),
@@ -231,6 +239,9 @@ export const api = {
     request<RollCallBoard>('/rollcalls', { method: 'POST', body: { village_id, exercise } }),
   remindRollcall: (id: string) => request<RollCallRemind>(`/rollcalls/${enc(id)}/remind`, { method: 'POST', body: {} }),
   safe: (token: string) => request<SafeView>(`/safe/${enc(token)}`, { auth: false }),
+  agents: () => request<AgentRegistry>('/agents', { auth: false }),
+  agentTraces: (limit = 5) => request<AgentTrace[]>(`/agents/traces?limit=${limit}`, { auth: false }),
+  sensors: () => request<SensorBoard>('/sensors', { auth: false }),
 };
 
 /** Static back-test results served by the web host, not the API. Null when absent. */

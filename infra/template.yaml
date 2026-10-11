@@ -290,6 +290,8 @@ Resources:
         Health: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /health, Method: GET, Auth: { Authorizer: NONE } } }
         Villages: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /villages, Method: GET, Auth: { Authorizer: NONE } } }
         Village: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/villages/{id}", Method: GET, Auth: { Authorizer: NONE } } }
+        # Read-only: baked OpenStreetMap safe places and routes plus the shelter ledger. Ledger writes go through ANY /{proxy+} (Cognito).
+        SafePlaces: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/villages/{id}/safe-places", Method: GET, Auth: { Authorizer: NONE } } }
         ReportCreate: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /reports, Method: POST, Auth: { Authorizer: NONE } } }
         AlertAck: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/alerts/{id}/ack", Method: POST, Auth: { Authorizer: NONE } } }
         AlertAudio: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/alerts/{id}/audio", Method: GET, Auth: { Authorizer: NONE } } }
@@ -305,6 +307,10 @@ Resources:
         # HTTP API path variables span a whole segment, so {file} is "<alert id>.xml"; FastAPI matches the suffix.
         CapFeed: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /cap/alerts.atom, Method: GET, Auth: { Authorizer: NONE } } }
         CapAlert: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/cap/alerts/{file}", Method: GET, Auth: { Authorizer: NONE } } }
+        # Read-only agent registry, decision traces and gauge board: no personal data (services/agents.py).
+        Agents: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agents, Method: GET, Auth: { Authorizer: NONE } } }
+        AgentTraces: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agents/traces, Method: GET, Auth: { Authorizer: NONE } } }
+        Sensors: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /sensors, Method: GET, Auth: { Authorizer: NONE } } }
         # River gauges have no Cognito account; each body carries a per-device HMAC signature (services/gauge.py).
         SensorReading: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/sensors/{id}/readings", Method: POST, Auth: { Authorizer: NONE } } }
 
