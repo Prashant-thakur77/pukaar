@@ -42,24 +42,24 @@ export function Valley() {
     <svg ref={ref} className="valley" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
       <defs>
         <radialGradient id="vg-sky" cx="50%" cy="38%" r="75%">
-          <stop offset="0" stopColor="#1f2a5c" />
-          <stop offset="0.55" stopColor="#0f1636" />
+          <stop offset="0" stopColor="#16301f" />
+          <stop offset="0.55" stopColor="#0e1a12" />
           <stop offset="1" stopColor="#0c0c08" />
         </radialGradient>
         <linearGradient id="vg-r1" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="#3a4785" />
-          <stop offset="1" stopColor="#1b2350" />
+          <stop offset="0" stopColor="#3d5a40" />
+          <stop offset="1" stopColor="#1c2d1f" />
         </linearGradient>
         <linearGradient id="vg-r2" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="#28336a" />
-          <stop offset="1" stopColor="#141b40" />
+          <stop offset="0" stopColor="#2b4130" />
+          <stop offset="1" stopColor="#142218" />
         </linearGradient>
         <linearGradient id="vg-r3" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="#1a2250" />
-          <stop offset="1" stopColor="#0d1330" />
+          <stop offset="0" stopColor="#1a2a1d" />
+          <stop offset="1" stopColor="#0f1a12" />
         </linearGradient>
         <linearGradient id="vg-r4" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="#10173a" />
+          <stop offset="0" stopColor="#111c14" />
           <stop offset="1" stopColor="#0c0c08" />
         </linearGradient>
         <linearGradient id="vg-river" x1="0" x2="1">
@@ -74,13 +74,13 @@ export function Valley() {
       <rect width="1440" height="900" fill="url(#vg-sky)" />
       <g className="v-stars">
         {STARS.map((s, i) => (
-          <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#dfe5ff" opacity={s.o} />
+          <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#f4efe4" opacity={s.o} />
         ))}
       </g>
       {/* snow-capped far range */}
       <g className="v-layer v-l1">
         <path fill="url(#vg-r1)" d="M0 520 L90 470 L160 488 L250 405 L320 440 L410 360 L470 392 L560 318 L640 372 L720 300 L800 352 L880 310 L960 380 L1040 330 L1120 398 L1200 350 L1290 420 L1360 380 L1440 430 V900 H0Z" />
-        <path fill="#cfd8ff" opacity="0.28" d="M410 360 L470 392 L448 390 L430 378 L414 384Z M560 318 L604 346 L580 344 L566 336 L552 340Z M720 300 L768 334 L742 330 L728 320 L708 326Z M880 310 L920 336 L900 334 L884 326 L868 330Z M1040 330 L1080 358 L1056 354 L1044 348 L1028 352Z" />
+        <path fill="#f4efe4" opacity="0.28" d="M410 360 L470 392 L448 390 L430 378 L414 384Z M560 318 L604 346 L580 344 L566 336 L552 340Z M720 300 L768 334 L742 330 L728 320 L708 326Z M880 310 L920 336 L900 334 L884 326 L868 330Z M1040 330 L1080 358 L1056 354 L1044 348 L1028 352Z" />
       </g>
       <g className="v-layer v-l2">
         <path fill="url(#vg-r2)" d="M0 600 L120 530 L220 575 L330 500 L430 560 L520 515 L600 572 L700 540 L780 590 L870 528 L980 580 L1080 520 L1180 572 L1280 520 L1380 566 L1440 545 V900 H0Z" />

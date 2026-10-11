@@ -1538,3 +1538,18 @@ button.map-key-item:hover { background: var(--surface-2); }
 .fact a { color: #fff; }
 .thesis { background: var(--night-0); }
 .cta { background: var(--cream); }
+
+/* ---------- EcoLafaek motion: 60px rise over 1s (power3-out), headings glide in from the side; film grain on dark bands ---------- */
+.reveal { transform: translateY(60px); transition: opacity 1s cubic-bezier(0.215, 0.61, 0.355, 1) var(--d, 0ms), transform 1s cubic-bezier(0.215, 0.61, 0.355, 1) var(--d, 0ms); }
+.reveal-slide { transform: translateX(-10vw); }
+.reveal.is-in { opacity: 1; transform: none; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.3em; }
+.hero, .site-footer, .band-night, .thesis, .spine, .fact { isolation: isolate; }
+.hero::after, .site-footer::after, .thesis::after, .spine::after, .fact::after {
+  content: ''; position: absolute; inset: -50%; z-index: 2; pointer-events: none; opacity: 0.07; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  animation: grain 0.8s steps(4) infinite;
+}
+.thesis, .spine, .fact { position: relative; overflow: hidden; }
+@keyframes grain { 0% { transform: translate(0, 0); } 25% { transform: translate(-4%, 3%); } 50% { transform: translate(3%, -4%); } 75% { transform: translate(-2%, -2%); } 100% { transform: translate(0, 0); } }
+@media (prefers-reduced-motion: reduce) { .hero::after, .site-footer::after, .thesis::after, .spine::after, .fact::after { animation: none; } .reveal { transform: none; } }

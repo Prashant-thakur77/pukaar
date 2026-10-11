@@ -198,6 +198,13 @@ sign-in; the demo accounts are in [DEMO.md](DEMO.md).
 
 ## What the back-test shows (and what it does not)
 
+![Gohar, July 2023: the 24-hour rain forecast against IMD's bands, with the level Pukaar's rules set each hour](docs/charts/gohar-2023.svg)
+
+| ![Hours of warning before the river's peak day, per village, July 2023](docs/charts/backtest-lead.svg) | ![Peak forecast rain per village, July 2023 against 30 June 2025](docs/charts/two-monsoons.svg) |
+|---|---|
+
+The three charts are built from [data/backtest.json](data/backtest.json) and the Gohar replay by [scripts/build_charts.py](scripts/build_charts.py); no number in them is typed by hand.
+
 The replay runs archived hours through the same code. Rain is the archived
 forecast (Open-Meteo historical forecast API). Discharge is the archived
 GloFAS series from the Open-Meteo flood API.

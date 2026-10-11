@@ -68,7 +68,7 @@
   --tap-xl: 64px;
 
   /* night valley: used for the poster hero in both themes */
-  --night-0: #0c0c08;
+  --night-0: #0c0c0b;
   --night-1: #10120e;
   --night-2: #141a15;
   --night-3: #1b241d;
@@ -78,21 +78,21 @@
   --night-ink-2: #c8b488;
 
   /* EcoLafaek palette: sand gold accent, forest, crimson, cream */
-  --marigold: #d4ac58;
+  --marigold: #d8ad55;
   --marigold-2: #e8c77c;
   --marigold-ink: #1a1408;
-  --gold: #d4ac58;
+  --gold: #d8ad55;
   --gold-2: #e8c77c;
-  --forest: #0c4830;
-  --forest-2: #12603f;
+  --forest: #0d4a33;
+  --forest-2: #0f5a3e;
   --forest-ink: #e9f3ec;
-  --crimson: #a01418;
+  --crimson: #a3141a;
   --crimson-2: #c21f24;
-  --khaki: #c8b488;
-  --cream: #f4ece4;
+  --khaki: #c9b48a;
+  --cream: #f4efe4;
 
   /* ---- light theme (default) ---- */
-  --bg: #f4ece4;
+  --bg: #f8f5ee;
   --bg-2: #ece2d5;
   --surface: #fcfaf6;
   --surface-2: #f7f1e8;
@@ -104,7 +104,7 @@
   --line-2: #cdbfa8;
   --focus: #0c4830;
 
-  --accent: #d4ac58;
+  --accent: #d8ad55;
   --accent-ink: #1a1408;
   --accent-text: #7a5a14;
   --accent-soft: #f5ead0;
@@ -149,7 +149,7 @@
   --line: #2b2e25;
   --line-2: #3c4034;
   --focus: #e8c77c;
-  --accent: #d4ac58;
+  --accent: #d8ad55;
   --accent-ink: #1a1408;
   --accent-text: #e8c77c;
   --accent-soft: rgb(212 172 88 / 0.14);
@@ -189,7 +189,7 @@
     --line: #2b2e25;
     --line-2: #3c4034;
     --focus: #e8c77c;
-    --accent: #d4ac58;
+    --accent: #d8ad55;
     --accent-ink: #1a1408;
     --accent-text: #e8c77c;
     --accent-soft: rgb(212 172 88 / 0.14);
