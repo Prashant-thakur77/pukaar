@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Check, CircleCheck, Copy, Hourglass, LoaderCircle, MapPin, Mic, PenLine, Send, Share2, Square, Trash2, X } from 'lucide-react';
+import { Camera, Check, CircleCheck, Copy, Hourglass, LoaderCircle, MapPin, Mic, PenLine, Ruler, Send, Share2, Square, Trash2, X } from 'lucide-react';
 import { api, ApiError } from '../api';
 import { LevelBadge } from '../components/Level';
+import { StaffCompare } from '../components/StaffGauge';
+import { useStaffGauges } from '../hooks/useStaffGauges';
 import { useMediaRecorder } from '../hooks/useMediaRecorder';
 import { useT } from '../i18n';
 import { fmtAgo } from '../lib/format';
@@ -45,6 +47,10 @@ export default function Report() {
   const [copied, setCopied] = useState(false);
   const [mine, setMine] = useState(myTrackCodes);
   const rec = useMediaRecorder(MAX_MS);
+  // "Compare with the marked rock": a village's virtual staff gauges and the mark the villager taps.
+  const { gauges: staffGauges } = useStaffGauges(villageId || null);
+  const [staffOpen, setStaffOpen] = useState(false);
+  const [staffPick, setStaffPick] = useState<{ gauge: string | null; mark: number | null }>({ gauge: null, mark: null });
   const fileRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
@@ -96,6 +102,8 @@ export default function Report() {
 
   function pickVillage(id: string) {
     setVillageId(id);
+    setStaffOpen(false);
+    setStaffPick({ gauge: null, mark: null });
     writeLS('pukaar.myVillage', id);
   }
 
@@ -128,6 +136,11 @@ export default function Report() {
     }
   }
 
+  // A mark is sent only with the photo an officer checks it against (the server insists too).
+  const staffSend = staffPick.mark != null && photo ? { staff_gauge_id: staffPick.gauge ?? staffGauges?.[0]?.id ?? null, staff_mark: staffPick.mark } : {};
+  const staffLabel =
+    staffPick.mark != null ? (staffGauges?.find((g) => g.id === (staffPick.gauge ?? staffGauges[0]?.id))?.marks.find((m) => m.value === staffPick.mark)?.label ?? null) : null;
+
   async function queue() {
     const id = await saveReportOffline({
       village_id: villageId,
@@ -136,6 +149,8 @@ export default function Report() {
       lon: gps?.lon ?? null,
       audio: toPendingAttachment(rec.audioBlob, 'voice.webm'),
       photo: toPendingAttachment(photo, 'photo.jpg'),
+      staff_gauge_id: staffSend.staff_gauge_id ?? undefined,
+      staff_mark: staffSend.staff_mark ?? undefined,
     });
     await refreshQueueCount();
     setPhase({ k: 'queued', id });
@@ -164,6 +179,7 @@ export default function Report() {
         photo,
         lat: gps?.lat,
         lon: gps?.lon,
+        ...staffSend,
       });
       rememberTrackCode(res.track_code);
       setMine(myTrackCodes());
@@ -186,6 +202,8 @@ export default function Report() {
     setWriting(false);
     setErr(null);
     setCopied(false);
+    setStaffOpen(false);
+    setStaffPick({ gauge: null, mark: null });
     setPhase({ k: 'compose' });
   }
 
@@ -392,6 +410,30 @@ export default function Report() {
           </label>
         )}
       </div>
+
+      {staffGauges && staffGauges.length > 0 && !rec.isRecording &&
+        (staffOpen ? (
+          <StaffCompare
+            gauges={staffGauges}
+            photoUrl={photoUrl}
+            onTakePhoto={() => fileRef.current?.click()}
+            gaugeId={staffPick.gauge}
+            value={staffPick.mark}
+            onChange={(gauge, mark) => {
+              if (gauge === null && mark === null) setStaffOpen(false);
+              else setStaffPick({ gauge, mark });
+            }}
+          />
+        ) : (
+          <button type="button" className={`sg-open btn-press${staffLabel ? ' is-done' : ''}`} onClick={() => setStaffOpen(true)}>
+            <Ruler aria-hidden="true" />
+            <span>
+              <strong>{t('staff.compare.open')}</strong>
+              <span className="small">{staffLabel ? t('staff.chosen', { m: staffLabel }) : t('staff.compare.hint')}</span>
+            </span>
+            {staffLabel && <Check aria-hidden="true" className="bb-check" />}
+          </button>
+        ))}
 
       {err && (
         <p className="error-text" role="alert">

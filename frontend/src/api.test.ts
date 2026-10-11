@@ -25,6 +25,31 @@ describe('api client', () => {
     expect((fetchMock.mock.calls[1][1]?.headers as Record<string, string>).Authorization).toBeUndefined();
   });
 
+  it('web push: the key is fetched signed out; subscriptions carry the token and remove with DELETE', async () => {
+    useAuth.setState({ token: 'tok123' });
+    fetchMock
+      .mockResolvedValueOnce(json(200, { key: 'BAAA', configured: true }))
+      .mockResolvedValueOnce(json(200, { id: 'abc', user_agent: 'Chrome on Android', created_at: 'x', last_sent_at: null }))
+      .mockResolvedValueOnce(json(200, { ok: true, id: 'abc' }))
+      .mockResolvedValueOnce(json(429, { detail: { code: 'rate_limited', reason: 'One test notification a minute.' } }));
+    await api.vapidKey();
+    await api.addPushSubscription({ endpoint: 'https://fcm.googleapis.com/fcm/send/x', keys: { p256dh: 'B', auth: 'A' } });
+    await api.removePushSubscription('abc');
+    const err = (await api.pushTest().catch((e) => e)) as ApiError;
+    const [u0, i0] = fetchMock.mock.calls[0];
+    expect(String(u0)).toMatch(/\/push\/vapid-public-key$/);
+    expect((i0?.headers as Record<string, string>).Authorization).toBeUndefined();
+    const [, i1] = fetchMock.mock.calls[1];
+    expect(i1?.method).toBe('POST');
+    expect(JSON.parse(String(i1?.body)).keys.p256dh).toBe('B');
+    expect((i1?.headers as Record<string, string>).Authorization).toBe('Bearer tok123');
+    const [u2, i2] = fetchMock.mock.calls[2];
+    expect(String(u2)).toMatch(/\/me\/push-subscriptions\/abc$/);
+    expect(i2?.method).toBe('DELETE');
+    expect(err.status).toBe(429);
+    expect(err.code).toBe('rate_limited');
+  });
+
   it('turns a 409 late approval into a typed error with both languages', async () => {
     fetchMock.mockResolvedValueOnce(json(409, { detail: { code: 'late', message_en: 'Already decided.', message_hi: 'पहले ही फ़ैसला हो चुका है।' } }));
     const err = (await api.approve('a1').catch((e) => e)) as ApiError;

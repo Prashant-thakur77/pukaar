@@ -3,6 +3,7 @@
 Keys:
   VILLAGE#id  META | READING#iso | SENSOR#iso#device | SENSORLAST#device | REPORT#iso#id | DEDUPE#window | RECIPIENT#id
               | EVENT#date | DIRECTIVE#iso#id | CHECKLIST#item | SHELTER#place_id | ROLLCALL#iso#id (pointer, TTL 30 days)
+              | STAFFGAUGE#id (virtual staff gauge: reference photo key, scale, marks)
   ALERT#id    META | DELIVERY#recipient | TIMELINE#iso#n
   ROLLCALL#id META | ASKED#recipient | RESP#recipient   (safety roll-call; TTL 30 days)
   SAFESHARE#id META                   (family link pointer; TTL 7 days)
@@ -12,6 +13,7 @@ Keys:
   TRACK#code  META                    (pointer from a tracking code to its report)
   AUDIT#date  iso#id                  (append only; no update or delete path)
   REPLAY      META
+  OFFICER#username META (Telegram chat) | PUSH#id (Web Push subscription; TTL 180 days) | PUSHTEST (rate limit)
 Sparse GSI gsi1: gsi1pk = "OPEN#ALERT" / "OPEN#REPORT" while work is open.
 """
 
@@ -36,6 +38,7 @@ from Pukaar.store.models import (
     Delivery,
     Directive,
     PastEvent,
+    PushSubscription,
     Reading,
     Recipient,
     ReplayState,
@@ -45,6 +48,7 @@ from Pukaar.store.models import (
     RollCallResponse,
     SensorReading,
     ShelterStatus,
+    StaffGauge,
     TimelineEvent,
     Village,
 )
@@ -52,6 +56,7 @@ from Pukaar.store.models import (
 M = TypeVar("M", bound=BaseModel)
 _KEY_FIELDS = {"pk", "sk", "gsi1pk", "gsi1sk", "ttl", "kind"}
 ROLLCALL_TTL_DAYS = 30
+PUSH_TTL_DAYS = 180
 
 
 class ConflictError(Exception):
@@ -333,6 +338,44 @@ class Repo:
         item = self._get(f"OFFICER#{username}", "META")
         return str(item["chat_id"]) if item else None
 
+    # -- Web Push subscriptions (officers and pradhans) ----------------------
+    def put_push_subscription(self, sub: PushSubscription) -> None:
+        """Insert or replace; the TTL restarts, so a browser that keeps re-subscribing stays on."""
+        self._put({"pk": f"OFFICER#{sub.username}", "sk": f"PUSH#{sub.id}", "kind": "push_subscription",
+                   "ttl": int(clock.now().timestamp()) + PUSH_TTL_DAYS * 86400, **sub.model_dump()})
+
+    def list_push_subscriptions(self, username: str) -> list[PushSubscription]:
+        """DynamoDB removes expired rows lazily, so rows past their TTL are skipped here."""
+        now = clock.now().timestamp()
+        items = [i for i in self._query(f"OFFICER#{username}", "PUSH#") if int(i.get("ttl", now + 1)) > now]
+        return sorted((_model(PushSubscription, i) for i in items), key=lambda s: s.created_at)
+
+    def delete_push_subscription(self, username: str, sub_id: str) -> bool:
+        try:
+            self.t.delete_item(Key={"pk": f"OFFICER#{username}", "sk": f"PUSH#{sub_id}"},
+                               ConditionExpression=Attr("pk").exists())
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                return False
+            raise
+        return True
+
+    def touch_push_subscription(self, username: str, sub_id: str, at: str) -> None:
+        try:
+            self._update(f"OFFICER#{username}", f"PUSH#{sub_id}", {"last_sent_at": at}, condition=Attr("pk").exists())
+        except ConflictError:
+            pass  # removed meanwhile
+
+    def claim_push_test(self, username: str, min_interval_s: int = 60) -> bool:
+        """Rate limit for test notifications: False if this user sent one less than min_interval_s ago."""
+        now = int(clock.now().timestamp())
+        try:
+            self._put({"pk": f"OFFICER#{username}", "sk": "PUSHTEST", "at_epoch": now, "ttl": now + 86400},
+                      condition=Attr("pk").not_exists() | Attr("at_epoch").lte(now - min_interval_s))
+        except ConflictError:
+            return False
+        return True
+
     # -- past events -----------------------------------------------------
     def put_past_event(self, e: PastEvent) -> None:
         self._put({"pk": f"VILLAGE#{e.village_id}", "sk": f"EVENT#{e.date}", **e.model_dump()})
@@ -363,6 +406,18 @@ class Repo:
     def list_shelters(self, village_id: str) -> dict[str, ShelterStatus]:
         rows = [_model(ShelterStatus, i) for i in self._query(f"VILLAGE#{village_id}", "SHELTER#")]
         return {r.place_id: r for r in rows}
+
+    # -- virtual staff gauges -------------------------------------------
+    def put_staff_gauge(self, g: StaffGauge) -> None:
+        self._put({"pk": f"VILLAGE#{g.village_id}", "sk": f"STAFFGAUGE#{g.id}", "kind": "staff_gauge", **g.model_dump()})
+
+    def get_staff_gauge(self, village_id: str, gauge_id: str) -> StaffGauge | None:
+        item = self._get(f"VILLAGE#{village_id}", f"STAFFGAUGE#{gauge_id}")
+        return _model(StaffGauge, item) if item else None
+
+    def list_staff_gauges(self, village_id: str) -> list[StaffGauge]:
+        gauges = [_model(StaffGauge, i) for i in self._query(f"VILLAGE#{village_id}", "STAFFGAUGE#")]
+        return sorted(gauges, key=lambda g: g.created_at)
 
     # -- alerts ----------------------------------------------------------
     def put_alert(self, a: Alert) -> None:

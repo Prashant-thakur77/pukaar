@@ -18,10 +18,14 @@ import type {
   DevLoginResponse,
   Directive,
   DirectiveType,
+  GaugeProposal,
+  GaugeThresholdSet,
   Health,
   Me,
   PublicOverview,
   ReplayStatus,
+  PushSubscriptionView,
+  PushTestResult,
   Report,
   ReportState,
   RollCall,
@@ -31,9 +35,12 @@ import type {
   SensorBoard,
   SafePlacesView,
   ShelterState,
+  StaffGauge,
   Stats,
   TelegramLink,
   TrackView,
+  VapidKey,
+  NewStaffGauge,
   Village,
   VillageDetail,
 } from './types';
@@ -185,6 +192,9 @@ export interface NewReport {
   lon?: number | null;
   reporter_name?: string;
   offline_created?: boolean;
+  /** "Compare with the marked rock": the staff gauge and the mark's value the villager chose. */
+  staff_gauge_id?: string | null;
+  staff_mark?: number | null;
 }
 
 /** Multipart body for POST /reports, exactly the CONTRACT field names. */
@@ -200,6 +210,10 @@ export function reportForm(r: NewReport): FormData {
   }
   if (r.reporter_name) f.append('reporter_name', r.reporter_name);
   if (r.offline_created) f.append('offline_created', 'true');
+  if (r.staff_gauge_id && r.staff_mark != null && r.photo) {
+    f.append('staff_gauge_id', r.staff_gauge_id);
+    f.append('staff_mark', String(r.staff_mark));
+  }
   return f;
 }
 
@@ -214,6 +228,13 @@ export const api = {
   health: () => request<Health>('/health'),
   me: () => request<Me>('/me'),
   telegramLink: () => request<TelegramLink>('/me/telegram-link', { method: 'POST', body: {} }),
+  vapidKey: () => request<VapidKey>('/push/vapid-public-key', { auth: false }),
+  pushSubscriptions: () => request<PushSubscriptionView[]>('/me/push-subscriptions'),
+  addPushSubscription: (sub: PushSubscriptionJSON) =>
+    request<PushSubscriptionView>('/me/push-subscriptions', { method: 'POST', body: sub }),
+  removePushSubscription: (id: string) =>
+    request<{ ok: boolean; id: string }>(`/me/push-subscriptions/${enc(id)}`, { method: 'DELETE' }),
+  pushTest: () => request<PushTestResult>('/me/push-test', { method: 'POST', body: {} }),
   devLogin: (username: string) => request<DevLoginResponse>('/auth/dev-login', { method: 'POST', body: { username }, auth: false }),
 
   villages: () => request<Village[]>('/villages'),
@@ -223,6 +244,23 @@ export const api = {
   safePlaces: (id: string) => request<SafePlacesView>(`/villages/${enc(id)}/safe-places`, { auth: false }),
   setShelter: (villageId: string, placeId: string, body: { status: ShelterState; capacity?: number | null; note?: string }) =>
     request<SafePlacesView>(`/villages/${enc(villageId)}/shelters/${enc(placeId)}`, { method: 'POST', body }),
+  gaugeProposal: (villageId: string) => request<GaugeProposal>(`/villages/${enc(villageId)}/gauge/proposal`),
+  setGaugeThresholds: (villageId: string, t: GaugeThresholdSet & { from_proposal: boolean; note?: string }) =>
+    request<{ village_id: string; current: GaugeThresholdSet; previous: GaugeThresholdSet }>(
+      `/villages/${enc(villageId)}/gauge/thresholds`,
+      { method: 'POST', body: t },
+    ),
+  staffGauges: (villageId: string) => request<StaffGauge[]>(`/villages/${enc(villageId)}/staff-gauges`, { auth: false }),
+  createStaffGauge: (villageId: string, meta: NewStaffGauge, photo: Blob) => {
+    const f = new FormData();
+    f.append('meta', JSON.stringify(meta));
+    f.append('photo', photo, fileName(photo, 'reference'));
+    return request<StaffGauge>(`/villages/${enc(villageId)}/staff-gauges`, { method: 'POST', form: f });
+  },
+  updateStaffGauge: (villageId: string, gaugeId: string, patch: Partial<Pick<StaffGauge, 'name' | 'name_hi' | 'where' | 'watch_at' | 'warning_at' | 'critical_at' | 'active'>>) =>
+    request<StaffGauge>(`/villages/${enc(villageId)}/staff-gauges/${enc(gaugeId)}`, { method: 'PATCH', body: patch }),
+  confirmStaffReading: (reportId: string, body: { value?: number | null; unreadable?: boolean }) =>
+    request<Report>(`/reports/${enc(reportId)}/staff-reading`, { method: 'POST', body }),
 
   alerts: (p: { status?: AlertStatus; village_id?: string } = {}) => request<Alert[]>(`/alerts${qs(p)}`),
   alert: (id: string) => request<AlertDetail>(`/alerts/${enc(id)}`),

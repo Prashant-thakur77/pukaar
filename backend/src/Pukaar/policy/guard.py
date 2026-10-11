@@ -46,6 +46,11 @@ DENY_HINTS = {
     "remind_rollcall": "Only a district officer, or the pradhan of this village, can send a roll-call reminder.",
     "set_shelter_status": "Only a district officer, or the pradhan of this village, can update its shelters.",
     "view_after_action": "Only a district officer, or the pradhan of this village, can read this after-action report.",
+    "view_gauge_proposal": "Only a district officer, or the pradhan of this village, can see its gauge proposal.",
+    "set_gauge_thresholds": "Only a district officer can change a gauge's thresholds.",
+    "manage_staff_gauge": "Only a district officer, or the pradhan of this village, can set up its staff gauge.",
+    "confirm_staff_reading": "Only a district officer can confirm a staff gauge reading.",
+    "subscribe_push": "Only a signed-in officer or pradhan can get approval alerts on a phone.",
 }
 
 

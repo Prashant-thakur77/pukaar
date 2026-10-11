@@ -243,6 +243,7 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { token: `dev-${u}`, username: u, role: u.startsWith('pradhan') ? 'pradhan' : 'officer' });
   }
   if (p === '/me/telegram-link') return needUser() && send(res, 200, { code: 'K7Q2', command: '/link K7Q2', expires_in_seconds: 600 });
+  if (p === '/push/vapid-public-key') return send(res, 200, { key: null, configured: false });
   if (p === '/me') return needUser() && send(res, 200, user);
   if (p === '/public/overview') return send(res, 200, overview());
   if (p === '/villages') return send(res, 200, VILLAGES.map(village));

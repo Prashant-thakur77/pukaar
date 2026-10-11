@@ -189,6 +189,23 @@ def test_cap_feed_routes_are_public_get_only():
         assert routes[0].get("Auth", {}).get("Authorizer") == "NONE", path
 
 
+def test_web_push_key_is_the_only_public_push_route_and_cors_allows_delete():
+    """Browsers fetch the VAPID public key signed out; subscribing stays behind Cognito (ANY /{proxy+})."""
+    events = [
+        e["Properties"]
+        for r in RES.values()
+        if r["Type"] == "AWS::Serverless::Function"
+        for e in (r["Properties"].get("Events") or {}).values()
+        if e.get("Type") == "HttpApi"
+    ]
+    routes = [e for e in events if e.get("Path") == "/push/vapid-public-key"]
+    assert [e["Method"] for e in routes] == ["GET"]
+    assert routes[0].get("Auth", {}).get("Authorizer") == "NONE"
+    assert not [e for e in events if "/me" in str(e.get("Path")) or "push-" in str(e.get("Path"))]
+    cors = RES["HttpApi"]["Properties"]["CorsConfiguration"]
+    assert "DELETE" in cors["AllowMethods"]  # DELETE /me/push-subscriptions/{id}
+
+
 # -- river gauges over AWS IoT Core ------------------------------------------
 THING = "${!iot:Connection.Thing.ThingName}"  # IoT policy variable, escaped from Fn::Sub
 

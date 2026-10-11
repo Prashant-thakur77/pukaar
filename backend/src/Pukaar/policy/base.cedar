@@ -134,6 +134,37 @@ permit (
 )
 when { context.level == "warning" || context.level == "critical" };
 
+@id("officer-gauge-thresholds")
+@desc("Only a district officer accepts new river-gauge stage thresholds (a proposal learned from the gauge's own record, or values set by hand), and confirms or adjusts a villager's staff gauge reading.")
+permit (
+  principal is Pukaar::Officer,
+  action in [
+    Pukaar::Action::"view_gauge_proposal", Pukaar::Action::"set_gauge_thresholds",
+    Pukaar::Action::"manage_staff_gauge", Pukaar::Action::"confirm_staff_reading"
+  ],
+  resource
+);
+
+@id("pradhan-own-gauges")
+@desc("A pradhan reads the threshold proposal of their own village's gauge and sets up its staff gauge reference points; they cannot accept thresholds or confirm readings.")
+permit (
+  principal is Pukaar::Pradhan,
+  action in [Pukaar::Action::"view_gauge_proposal", Pukaar::Action::"manage_staff_gauge"],
+  resource is Pukaar::Village
+)
+when { context.village_id != "" && principal.village_ids.contains(context.village_id) };
+
+@id("agents-never-set-thresholds")
+@desc("A model agent can never change a gauge threshold, a staff gauge or a reading's confirmation.")
+forbid (
+  principal is Pukaar::Agent,
+  action in [
+    Pukaar::Action::"set_gauge_thresholds", Pukaar::Action::"manage_staff_gauge",
+    Pukaar::Action::"confirm_staff_reading"
+  ],
+  resource
+);
+
 @id("no-replay-rollcall")
 @desc("A replay never opens a roll-call or asks a real phone whether they are safe.")
 forbid (
@@ -150,6 +181,15 @@ permit (
   action == Pukaar::Action::"view_after_action",
   resource is Pukaar::Alert
 );
+
+@id("staff-own-push")
+@desc("Officers and pradhans turn on Web Push approval alerts for their own account, remove their own phones and send themselves a test notification.")
+permit (
+  principal,
+  action == Pukaar::Action::"subscribe_push",
+  resource is Pukaar::App
+)
+when { principal is Pukaar::Officer || principal is Pukaar::Pradhan };
 
 @id("pradhan-after-action-own-village")
 @desc("A pradhan reads the after-action report only for alerts in their own villages.")

@@ -311,6 +311,8 @@ Resources:
         Village: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/villages/{id}", Method: GET, Auth: { Authorizer: NONE } } }
         # Read-only: baked OpenStreetMap safe places and routes plus the shelter ledger. Ledger writes go through ANY /{proxy+} (Cognito).
         SafePlaces: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/villages/{id}/safe-places", Method: GET, Auth: { Authorizer: NONE } } }
+        # Virtual staff gauges: the reference photo and scale the anonymous report page compares against (no personal data).
+        StaffGauges: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/villages/{id}/staff-gauges", Method: GET, Auth: { Authorizer: NONE } } }
         ReportCreate: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /reports, Method: POST, Auth: { Authorizer: NONE } } }
         AlertAck: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/alerts/{id}/ack", Method: POST, Auth: { Authorizer: NONE } } }
         AlertAudio: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/alerts/{id}/audio", Method: GET, Auth: { Authorizer: NONE } } }
@@ -332,6 +334,8 @@ Resources:
         Sensors: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /sensors, Method: GET, Auth: { Authorizer: NONE } } }
         # River gauges have no Cognito account; each body carries a per-device HMAC signature (services/gauge.py).
         SensorReading: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/sensors/{id}/readings", Method: POST, Auth: { Authorizer: NONE } } }
+        # Web Push: the VAPID public key browsers subscribe with (public by design). Subscribing is under /me (Cognito).
+        VapidPublicKey: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /push/vapid-public-key, Method: GET, Auth: { Authorizer: NONE } } }
 
   SweepFunction:
     Type: AWS::Serverless::Function
@@ -802,7 +806,7 @@ Resources:
               audience: [!Ref UserPoolClient]
       CorsConfiguration:
         AllowOrigins: [!If [HasWebOrigin, !Ref WebOrigin, !Sub "https://main.${AmplifyApp.DefaultDomain}"]]
-        AllowMethods: [GET, POST, PATCH, OPTIONS]
+        AllowMethods: [GET, POST, PATCH, DELETE, OPTIONS]
         AllowHeaders: [authorization, content-type]
         MaxAge: 600
       DefaultRouteSettings:

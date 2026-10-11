@@ -1,6 +1,6 @@
 """Reset the demo: stop any replay, remove alerts, reports, readings and
 directives, put every village back to normal, and re-seed. Audit rows stay
-(append-only); Telegram recipients, officer chat links and the shelter ledger stay.
+(append-only); Telegram recipients, officer chat links, Web Push subscriptions and the shelter ledger stay.
 
     python -m Pukaar.scripts.reset_demo
 """

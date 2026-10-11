@@ -1072,6 +1072,11 @@ select { appearance: none; padding-right: 44px; }
 .tg-cmd code { flex: 1; font-size: 0.95rem; word-break: break-all; }
 .tg-cmd .icon-btn { color: var(--night-ink); }
 .tg-cmd .icon-btn:hover { background: rgb(255 255 255 / 0.1); }
+.push-state { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-weight: 600; color: var(--ink-2); }
+.push-state svg { flex: none; width: 20px; height: 20px; margin-top: 2px; }
+.push-state.is-on { color: var(--ok); }
+.push-state.is-blocked, .push-state.is-unsupported { color: var(--bad); }
+.push-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .report-steps { margin-top: var(--s-5); display: grid; gap: 10px; padding: var(--s-4); border-radius: var(--r-lg); background: var(--surface); border: 1px dashed var(--line-2); counter-reset: rs; }
 .report-steps li { display: flex; gap: 12px; align-items: flex-start; color: var(--ink-2); font-size: 1rem; counter-increment: rs; }

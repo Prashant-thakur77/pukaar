@@ -9,13 +9,13 @@ FastAPI API and Lambda handlers for Pukaar. Package: `src/Pukaar/`.
 | `services/` | risk rules, sweep engine, Open-Meteo and replay data, report intake and auto-verification, drafting and draft checker, Ask Pukaar analyst, nowcast, action guard, S3 storage |
 | `llm/` | `BedrockLLM` (Strands agents on Bedrock, typed output, region failover) and the read-only agent tools |
 | `voice/` | Polly (Hindi alert audio) and Transcribe (Hindi voice reports) |
-| `delivery/` | Telegram channel and the dispatcher (per-recipient deliveries, one re-send, acknowledgements) |
+| `delivery/` | Telegram channel, the dispatcher (per-recipient deliveries, one re-send, acknowledgements) and Web Push (RFC 8291 encryption and VAPID, `webpush.py`) |
 | `workflow/` | approval steps for Step Functions, signed one-tap links, AWS and local workflow clients |
 | `policy/` | Cedar policies and the single `authorize()` guard, plus the Strands tool hook |
 | `handlers/` | Lambda entry points: `sweep`, `workflow`, `worker` (the API runs `main:app` behind the Lambda Web Adapter) |
 | `api/` | routes (public, reports, officer, Telegram webhook) and response shapes |
 | `templates/hi.py` | fixed Hindi safety text |
-| `scripts/` | `seed`, `calibrate`, `fetch_replay`, `backtest`, `reset_demo`, `smoke_bedrock` |
+| `scripts/` | `seed`, `calibrate`, `fetch_replay`, `backtest`, `reset_demo`, `smoke_bedrock`, `vapid_keys` |
 
 ## Run locally (no AWS account needed)
 

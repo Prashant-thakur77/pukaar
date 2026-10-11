@@ -17,6 +17,8 @@ export interface PendingReport {
   reporter_name?: string;
   photo?: PendingAttachment;
   audio?: PendingAttachment;
+  staff_gauge_id?: string;
+  staff_mark?: number;
   createdAt: number;
 }
 

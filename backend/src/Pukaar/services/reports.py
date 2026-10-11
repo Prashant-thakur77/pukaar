@@ -28,7 +28,7 @@ from Pukaar.llm import guardrail
 from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.services import storage
 from Pukaar.services.report_structuring import structure
-from Pukaar.store.models import AuditRow, Report, ReportScreen, Village
+from Pukaar.store.models import AuditRow, Report, ReportScreen, StaffReading, Village
 from Pukaar.store.repo import Repo
 from Pukaar.voice import transcribe
 
@@ -114,7 +114,8 @@ def auto_verify(repo: Repo, r: Report, village: Village, photo_agrees: bool | No
 
 def intake(repo: Repo, village: Village, *, text: str = "", audio: tuple[bytes, str] | None = None,
            photo: tuple[bytes, str] | None = None, lat: float | None = None, lon: float | None = None,
-           reporter_name: str | None = None, offline_created: bool = False, replay: bool = False) -> Report:
+           reporter_name: str | None = None, offline_created: bool = False, replay: bool = False,
+           staff_reading: StaffReading | None = None) -> Report:
     rid = new_id("rpt")
     now = clock.now()
     flags: list[str] = []
@@ -135,7 +136,7 @@ def intake(repo: Repo, village: Village, *, text: str = "", audio: tuple[bytes, 
         reply_hi=structured.reply_hi, lat=lat, lon=lon, photo_key=photo_key, audio_key=audio_key,
         state="transcribing" if needs_transcript else "unverified", parser_source=structured.parser_source,
         flags=flags, track_code=track_code(), reporter_name=(reporter_name or None),
-        offline_created=offline_created, replay=replay,
+        offline_created=offline_created, replay=replay, staff_reading=staff_reading,
     )
     dup = find_duplicate(repo, report)
     if dup is not None:

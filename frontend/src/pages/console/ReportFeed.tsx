@@ -4,6 +4,7 @@ import { CircleCheck, Copy, Flag, Hammer, MapPin, ShieldAlert, ShieldCheck } fro
 import { api, ApiError } from '../../api';
 import { ReplayChip, ReportStateChip } from '../../components/Chips';
 import { Snackbar, type SnackbarMsg } from '../../components/Snackbar';
+import { StaffReview } from '../../components/StaffGauge';
 import { DeniedNote, EmptyState, ErrorState, SkeletonCards } from '../../components/States';
 import type { PollState } from '../../hooks/usePoll';
 import { enumLabels, useT } from '../../i18n';
@@ -110,8 +111,18 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
                   /* Held words are shown to the officer as quoted data, word for word. */
                   <p className="rc-transcript">“{r.text}”</p>
                 )}
+                {r.staff_reading ? (
+                  <StaffReview
+                    report={r}
+                    canEdit={canEdit}
+                    onUpdated={(u) => {
+                      setOverrides((o) => ({ ...o, [r.id]: u }));
+                      void refresh();
+                    }}
+                  />
+                ) : null}
                 <div className="rc-media">
-                  {r.photo_url && <img src={r.photo_url} alt={`Photo: ${r.summary_en || r.report_type}`} loading="lazy" />}
+                  {r.photo_url && !r.staff_reading && <img src={r.photo_url} alt={`Photo: ${r.summary_en || r.report_type}`} loading="lazy" />}
                   {r.audio_url && <audio src={r.audio_url} controls preload="none" aria-label="रिपोर्ट की आवाज़ सुनें (Play report audio)" />}
                 </div>
                 {(r.flags.length > 0 || masked.length > 0) && (

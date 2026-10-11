@@ -72,6 +72,7 @@ def build_trace(village: Village, reading: Reading | None, assessment: risk_rule
         "river_level": assessment.river_level,
         "report_level": assessment.report_level,
         "gauge_level": assessment.gauge_level,
+        "staff_level": assessment.staff_level,
         "rules_fired": assessment.rules_fired,
         "contradictions": assessment.contradictions,
         "data_disagrees": bool(assessment.contradictions),

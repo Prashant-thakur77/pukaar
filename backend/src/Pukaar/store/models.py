@@ -80,6 +80,11 @@ class GaugeConfig(BaseModel):
     critical_cm: float
     installed: bool = False
     note: str = ""
+    # Where the three stage thresholds came from. Seeded values are illustrative; an officer can
+    # replace them with a proposal learned from the gauge's own record (services/gauge_learn.py).
+    thresholds_source: str = "seeded (illustrative)"
+    thresholds_set_by: str | None = None
+    thresholds_set_at: str | None = None
 
 
 class Village(BaseModel):
@@ -148,6 +153,73 @@ class ReportScreen(BaseModel):
     field: Literal["text", "transcript"] = "text"
 
 
+class StaffPoint(BaseModel):
+    """A point on the reference photo, in normalised image coordinates (0..1, origin top left)."""
+
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+
+class StaffMark(BaseModel):
+    """One mark on a virtual staff gauge: a CrowdWater-style class ("+3") or a height ("150 cm")."""
+
+    label: str = Field(min_length=1, max_length=12)
+    value: float = Field(ge=-1000, le=5000)  # orders the marks: class number or height in cm
+    height_cm: float | None = Field(default=None, ge=-1000, le=5000)
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+
+class StaffGauge(BaseModel):
+    """A virtual staff gauge (CrowdWater pattern): a reference photo of a fixed object by the khad
+    with a scale drawn on it once. Later photos from the same spot are read against the scale.
+
+    watch_at / warning_at / critical_at: mark values at or above which an officer-confirmed reading
+    means that level (services/staff_gauge.py). None: the reading is an observation only.
+    """
+
+    id: str
+    village_id: str
+    name: str = Field(min_length=1, max_length=80)
+    name_hi: str = Field(default="", max_length=80)
+    where: str = Field(default="", max_length=200)  # how to find the spot and where to stand
+    photo_key: str
+    scale_top: StaffPoint
+    scale_bottom: StaffPoint
+    unit: Literal["class", "cm"] = "class"
+    marks: list[StaffMark]
+    watch_at: float | None = None
+    warning_at: float | None = None
+    critical_at: float | None = None
+    active: bool = True
+    created_by: str
+    created_at: str
+    updated_by: str | None = None
+    updated_at: str | None = None
+
+
+StaffStatus = Literal["unconfirmed", "confirmed", "unreadable"]
+
+
+class StaffReading(BaseModel):
+    """The mark a villager chose against a staff gauge, and what an officer made of it."""
+
+    gauge_id: str
+    gauge_name: str = ""
+    mark: str  # label the villager tapped
+    value: float
+    height_cm: float | None = None
+    chosen_at: str
+    status: StaffStatus = "unconfirmed"
+    confirmed_mark: str | None = None
+    confirmed_value: float | None = None
+    confirmed_height_cm: float | None = None
+    # Level of the confirmed mark against the gauge's configured marks, fixed at confirmation.
+    confirmed_level: Level | None = None
+    confirmed_by: str | None = None
+    confirmed_at: str | None = None
+
+
 class Report(BaseModel):
     id: str
     village_id: str
@@ -176,6 +248,8 @@ class Report(BaseModel):
     # None on reports made before screening existed, or with no words to screen.
     screen: ReportScreen | None = None
     masked_text: str | None = None  # the screened words with phone numbers and e-mails masked
+    # "Compare with the marked rock": the mark the villager chose on a staff gauge (services/staff_gauge.py).
+    staff_reading: StaffReading | None = None
 
     @property
     def held(self) -> bool:
@@ -365,3 +439,19 @@ class RollCallResponse(BaseModel):
     note: str | None = None  # optional free text (140 chars at most) sent after "need help"
     share_id: str | None = None  # opaque id behind the family link, so no chat id is in the link
     simulated: bool = False  # set only by tests and demo tooling for stub recipients, never by a real tap
+
+
+class PushSubscription(BaseModel):
+    """A browser's Web Push subscription for one signed-in officer or pradhan (services/officer_push.py).
+
+    id is derived from the endpoint, so the same browser subscribing again replaces its own row.
+    """
+
+    id: str
+    username: str
+    endpoint: str
+    p256dh: str  # the browser's P-256 public key, base64url
+    auth: str  # the browser's 16-byte auth secret, base64url
+    created_at: str
+    user_agent: str = ""  # a short summary such as "Chrome on Android", never the full header
+    last_sent_at: str | None = None

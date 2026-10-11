@@ -27,27 +27,21 @@ export default defineConfig({
           { name: 'लाइव · Live', url: '/live' },
         ],
       },
-      workbox: {
+      // A hand-written worker (src/sw.ts) so it can handle Web Push for officers. It keeps what
+      // the generated worker did: navigation fallback to /index.html (never /api/), the OSM and
+      // elevation tile caches, cleanup of old precaches, skipWaiting + clientsClaim (autoUpdate).
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
         // The app shell (including /report and its fonts) is precached so the
         // report page opens with no network; API calls are never cached. MapLibre
         // is left out so a phone on 2G does not download it in the background.
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         globIgnores: ['**/maplibre*', '**/HeroScene*', '**/*latin-ext*', '**/*cyrillic*', '**/*greek*', '**/*vietnamese*'],
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.hostname === 'tile.openstreetmap.org',
-            handler: 'CacheFirst',
-            options: { cacheName: 'osm-tiles', expiration: { maxEntries: 300, maxAgeSeconds: 7 * 24 * 3600 } },
-          },
-          {
-            urlPattern: ({ url }) => url.hostname === 's3.amazonaws.com' && url.pathname.startsWith('/elevation-tiles-prod/'),
-            handler: 'CacheFirst',
-            options: { cacheName: 'dem-tiles', expiration: { maxEntries: 300, maxAgeSeconds: 30 * 24 * 3600 } },
-          },
-        ],
+        // One classic script, as registerSW.js registers it.
+        rollupFormat: 'iife',
       },
     }),
   ],

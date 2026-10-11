@@ -36,7 +36,8 @@ def _ssm(name: str) -> str | None:
 
 
 def get_secret(name: str, *, generate_locally: bool = False) -> str | None:
-    """name is one of telegram_token, telegram_webhook_secret, link_secret."""
+    """name is one of telegram_token, telegram_webhook_secret, link_secret, after_action_to,
+    vapid_private_key (SecureString) or vapid_public_key (String; scripts/vapid_keys.py)."""
     env = os.environ.get(f"PUKAAR_{name.upper()}")
     if env:
         return env

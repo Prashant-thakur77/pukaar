@@ -255,6 +255,8 @@ export interface Report extends SampleFlag {
   screen?: ReportScreen | null;
   /** Held for review: the guardrail stopped the words, so only an officer can verify it. */
   held?: boolean;
+  /** "Compare with the marked rock": the mark the villager chose, and the officer's check. */
+  staff_reading?: StaffReading | null;
 }
 
 export interface ReportScreen {
@@ -353,6 +355,142 @@ export interface GaugeConfig {
   critical_cm: number;
   installed: boolean;
   note?: string;
+  /** Where the stage thresholds came from: seeded, learned from the record, or set by hand. */
+  thresholds_source?: string;
+  thresholds_set_by?: string | null;
+  thresholds_set_at?: string | null;
+}
+
+/* ---------- learned gauge thresholds (services/gauge_learn.py) ---------- */
+
+export interface GaugeFault {
+  kind: 'flatline' | 'jump' | 'clock_offset' | 'clock_drift' | 'battery_trend' | 'battery_low' | 'gaps' | string;
+  severity: 'warn' | 'info';
+  count: number;
+  first_at: string | null;
+  last_at: string | null;
+  value: number | null;
+  message_en: string;
+  message_hi: string;
+}
+
+export interface GaugeThresholdSet {
+  watch_cm: number;
+  warning_cm: number;
+  critical_cm: number;
+}
+
+export interface GaugeProposal {
+  village_id: string;
+  device_id: string;
+  status: 'ready' | 'insufficient';
+  basis: {
+    readings: number;
+    days: number;
+    from: string | null;
+    to: string | null;
+    min_days: number;
+    min_readings: number;
+    simulated: boolean;
+    used?: number;
+    excluded?: number;
+  };
+  current: (GaugeThresholdSet & { source: string; set_by: string | null; set_at: string | null }) | null;
+  faults: GaugeFault[];
+  percentiles: { watch: number; warning: number; critical: number };
+  never_auto_applied: true;
+  note_en?: string;
+  note_hi?: string;
+  baseline_cm?: number;
+  baseline_rule?: string;
+  min_separation_cm?: number;
+  raw?: { watch: number; warning: number; critical: number };
+  proposed?: GaugeThresholdSet;
+  adjustments?: { level: 'watch' | 'warning' | 'critical'; from: number; to: number; rule: string }[];
+  curve?: { p: number; cm: number }[];
+  daily?: { date: string; min: number; median: number; max: number }[];
+}
+
+/* ---------- virtual staff gauges (services/staff_gauge.py) ---------- */
+
+export interface StaffPoint {
+  x: number;
+  y: number;
+}
+
+export interface StaffMark extends StaffPoint {
+  label: string;
+  value: number;
+  height_cm?: number | null;
+}
+
+export interface StaffGauge {
+  id: string;
+  village_id: string;
+  name: string;
+  name_hi: string;
+  where: string;
+  photo_url: string | null;
+  scale_top: StaffPoint;
+  scale_bottom: StaffPoint;
+  unit: 'class' | 'cm';
+  marks: StaffMark[];
+  watch_at: number | null;
+  warning_at: number | null;
+  critical_at: number | null;
+  active: boolean;
+  created_by: string;
+  created_at: string;
+  vision_note_en: string;
+  vision_note_hi: string;
+}
+
+export interface NewStaffGauge {
+  name: string;
+  name_hi?: string;
+  where?: string;
+  scale_top: StaffPoint;
+  scale_bottom: StaffPoint;
+  unit: 'class' | 'cm';
+  marks: StaffMark[];
+  watch_at?: number | null;
+  warning_at?: number | null;
+  critical_at?: number | null;
+}
+
+export interface StaffReading {
+  gauge_id: string;
+  gauge_name: string;
+  mark: string;
+  value: number;
+  height_cm?: number | null;
+  chosen_at: string;
+  status: 'unconfirmed' | 'confirmed' | 'unreadable';
+  confirmed_mark?: string | null;
+  confirmed_value?: number | null;
+  confirmed_height_cm?: number | null;
+  confirmed_level?: Level | null;
+  confirmed_by?: string | null;
+  confirmed_at?: string | null;
+}
+
+/** Public village page: mark, time, whether an officer confirmed it (no names). */
+export interface PublicStaffReading {
+  report_id: string;
+  gauge_id: string;
+  gauge_name: string;
+  at: string;
+  mark: string;
+  villager_mark: string;
+  status: StaffReading['status'];
+  level: Level | null;
+  confirmed_at: string | null;
+  replay: boolean;
+}
+
+export interface StaffGaugesView {
+  gauges: StaffGauge[];
+  readings: PublicStaffReading[];
 }
 
 export interface SensorReading {
@@ -391,6 +529,8 @@ export interface VillageDetail extends SampleFlag {
   checklist?: Checklist | null;
   /** An open safety roll-call: counts only, never names. */
   rollcall?: PublicRollCall | null;
+  /** Virtual staff gauges: reference photos with their scales, and recent readings. */
+  staff_gauges?: StaffGaugesView | null;
 }
 
 /** "Surakshit Hoon" safety roll-call, public shape: counts only. */
@@ -483,6 +623,26 @@ export interface TelegramLink extends SampleFlag {
   code: string;
   command: string;
   expires_in_seconds: number;
+}
+
+/** GET /push/vapid-public-key: the applicationServerKey (null until `make vapid-keys` ran). */
+export interface VapidKey {
+  key: string | null;
+  configured: boolean;
+}
+
+/** One of the signed-in user's Web Push subscriptions (never the endpoint or keys). */
+export interface PushSubscriptionView {
+  id: string;
+  user_agent: string;
+  created_at: string;
+  last_sent_at: string | null;
+}
+
+export interface PushTestResult {
+  sent: number;
+  failed: number;
+  removed: number;
 }
 
 export interface ReplayStatus extends SampleFlag {

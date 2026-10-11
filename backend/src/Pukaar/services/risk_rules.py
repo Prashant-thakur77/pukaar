@@ -112,6 +112,7 @@ class Assessment:
     contradictions: list[str] = field(default_factory=list)
     evidence: list[dict[str, Any]] = field(default_factory=list)
     gauge_level: str = "normal"
+    staff_level: str = "normal"
 
 
 def assess(
@@ -195,10 +196,43 @@ def assess(
 
     report_level = "normal"
     impact_verified = False
+    # Reports carrying an officer-confirmed staff gauge reading form one observation with that
+    # reading; every other report is another. Kept apart so one photo never counts twice.
+    staff_level = "normal"
+    staff_report_ids: set[str] = set()
+    report_levels: dict[str, str] = {}
     for report, created_at in reports:
         weight = report_weight(created_at, now)
         if weight <= 0:
             continue
+        sr = report.staff_reading
+        if sr is not None:
+            confirmed = sr.status == "confirmed"
+            evidence.append(
+                {
+                    "kind": "staff_gauge",
+                    "report_id": report.id,
+                    "gauge_id": sr.gauge_id,
+                    "gauge_name": sr.gauge_name,
+                    "at": report.created_at,
+                    "mark": sr.confirmed_mark if confirmed else sr.mark,
+                    "villager_mark": sr.mark,
+                    "height_cm": sr.confirmed_height_cm if confirmed else sr.height_cm,
+                    "status": sr.status,
+                    "confirmed_by": sr.confirmed_by if confirmed else None,
+                    "confirmed_at": sr.confirmed_at if confirmed else None,
+                    "level": sr.confirmed_level if confirmed else None,
+                    "weight": round(weight, 3),
+                    "replay": report.replay,
+                }
+            )
+            # Only a reading an officer confirmed can change a level; the villager's own mark is evidence.
+            if confirmed and sr.confirmed_level and sr.confirmed_level != "normal":
+                eff = sr.confirmed_level if weight >= 0.5 else LEVELS[max(0, level_rank(sr.confirmed_level) - 1)]
+                if eff != "normal":
+                    staff_level = _max(staff_level, eff)
+                    staff_report_ids.add(report.id)
+                    rules.append(f"staff_gauge:{sr.confirmed_mark}:{eff}")
         verified = report.state in VERIFIED_STATES
         sev_level = SEVERITY_TO_LEVEL[report.severity]
         evidence.append(
@@ -223,14 +257,21 @@ def assess(
             effective = AUTO_VERIFIED_CAP
             rules.append(f"auto_verified_capped:{report.id}")
         report_level = _max(report_level, effective)
+        report_levels[report.id] = effective
         if report.report_type in IMPACT_TYPES:
             impact_verified = True
 
     if report_level != "normal":
         rules.append(f"verified_reports:{report_level}")
         level = _max(level, report_level)
+    if staff_level != "normal":
+        rules.append(f"staff_gauge_confirmed:{staff_level}")
+        level = _max(level, staff_level)
 
-    independent = [lvl for lvl in (rain, river, gauge_lvl, report_level) if level_rank(lvl) >= level_rank("watch")]
+    other_reports = _max("normal", *(lvl for rid, lvl in report_levels.items() if rid not in staff_report_ids))
+    staff_obs = _max(staff_level, *(lvl for rid, lvl in report_levels.items() if rid in staff_report_ids))
+    independent = [lvl for lvl in (rain, river, gauge_lvl, other_reports, staff_obs)
+                   if level_rank(lvl) >= level_rank("watch")]
     if len(independent) >= 2:
         level = _up(level)
         rules.append("two_sources_agree:+1")
@@ -251,7 +292,7 @@ def assess(
     if contradictions:
         rules.append("data_disagrees")
 
-    return Assessment(level, rain, river, report_level, rules, contradictions, evidence, gauge_lvl)
+    return Assessment(level, rain, river, report_level, rules, contradictions, evidence, gauge_lvl, staff_level)
 
 
 def apply_hysteresis(current: str, calm_sweeps: int, raw: str) -> tuple[str, int, bool]:

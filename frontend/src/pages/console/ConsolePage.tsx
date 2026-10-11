@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TimeToEar } from '../../components/TimeToEar';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { Bell, ChevronDown, Cloud, Download, FileText, HeartHandshake, History, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
+import { Bell, BellRing, ChevronDown, Cloud, Download, FileText, HeartHandshake, History, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
 import { api, API_BASE, ApiError } from '../../api';
 import { AlertStatusChip, DeliveryChips } from '../../components/Chips';
 import { LevelBadge } from '../../components/Level';
@@ -24,6 +24,7 @@ import { Replay } from './Replay';
 import { ReportFeed } from './ReportFeed';
 import { RollCallPanel } from './RollCall';
 import { SystemCard } from './System';
+import { PushAlerts } from './PushAlerts';
 import { TelegramLink } from './TelegramLink';
 import { VillageQueue } from './VillageQueue';
 
@@ -202,6 +203,12 @@ function Console() {
                   <Send aria-hidden="true" /> {t('console.tg')}
                 </h2>
                 <TelegramLink />
+              </section>
+              <section className="panel" aria-labelledby="push-h">
+                <h2 id="push-h" className="panel-title">
+                  <BellRing aria-hidden="true" /> {t('console.push')}
+                </h2>
+                <PushAlerts />
               </section>
             </>
           )}

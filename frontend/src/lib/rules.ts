@@ -19,11 +19,18 @@ export function describeRule(rule: string, lang: Lang): string {
   if (m) return hi ? `24 घंटे की बारिश ≥ ${m[1]} मिमी → ${lv}` : `24 h rain ≥ ${m[1]} mm → ${lv}`;
   m = cond.match(/^gauge>=([\d.]+)cm$/);
   if (m) return hi ? `नदी गेज ≥ ${m[1]} सेमी → ${lv}` : `River gauge ≥ ${m[1]} cm → ${lv}`;
+  m = cond.match(/^staff_gauge:(.+)$/);
+  if (m)
+    return hi
+      ? `पैमाने वाला पत्थर: निशान ${m[1]}, अधिकारी ने पुष्टि की → ${lv}`
+      : `Staff gauge: mark ${m[1]}, confirmed by an officer → ${lv}`;
   m = cond.match(/^discharge>=([\d.]+)$/);
   if (m) return hi ? `नदी का बहाव ≥ ${m[1]} m³/s → ${lv}` : `River discharge ≥ ${m[1]} m³/s → ${lv}`;
   switch (cond) {
     case 'verified_reports':
       return hi ? `पुष्ट गाँव-सूचनाएँ → ${lv}` : `Verified village reports → ${lv}`;
+    case 'staff_gauge_confirmed':
+      return hi ? `पुष्ट पैमाना-रीडिंग → ${lv}` : `Officer-confirmed staff gauge readings → ${lv}`;
     case 'two_sources_agree':
       return hi ? 'दो अलग स्रोत सहमत → एक स्तर ऊपर' : 'Two independent sources agree → one level up';
     case 'verified_impact_report':

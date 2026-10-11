@@ -40,6 +40,8 @@ export function flushQueue(): Promise<FlushResult> {
           audio: item.audio ? attachmentToFile(item.audio, 'voice.webm') : null,
           photo: item.photo ? attachmentToFile(item.photo, 'photo.jpg') : null,
           offline_created: true,
+          staff_gauge_id: item.staff_gauge_id,
+          staff_mark: item.staff_mark,
         });
         if (item.id != null) {
           await deleteReportOffline(item.id);

@@ -14,7 +14,7 @@ SAM_PARAMS     = $(shell sed -n 's/^parameter_overrides = "\(.*\)"$$/\1/p' samco
 EVENTS_KEY_EXP = $(shell date -u -d '+360 days' +%s 2>/dev/null || date -u -v+360d +%s)
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo drill gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets local validate
+        seed reset-demo drill gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -50,6 +50,9 @@ deploy-web: ## Build the front end against the stack and upload it to Amplify
 
 secrets: ## Store Telegram token and random secrets in SSM, set the Telegram webhook
 	scripts/put_secrets.sh
+
+vapid-keys: ## Make the Web Push (VAPID) key pair in SSM, private key never shown (ROTATE=1 to replace it)
+	cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.vapid_keys $(if $(ROTATE),--rotate,)
 
 seed: ## Seed villages into the deployed table and create Cognito demo users
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.seed

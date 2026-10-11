@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Tent, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, Hourglass, ListChecks, MapPin, Megaphone, RadioTower, Scale, TrendingUp, Users, Waves } from 'lucide-react';
+import { ArrowLeft, Ruler, Tent, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, Hourglass, ListChecks, MapPin, Megaphone, RadioTower, Scale, TrendingUp, Users, Waves } from 'lucide-react';
 import { api } from '../api';
 import { AlertStatusChip, DeliveryChips, ReplayChip, ReportStateChip } from '../components/Chips';
 import { Gauge } from '../components/Gauge';
+import { GaugeProposalPanel } from '../components/GaugeProposal';
+import { StaffGaugeList } from '../components/StaffGauge';
+import { canManageStaffGauge, staffEvidenceLine } from '../lib/staffGauge';
 import { LevelBadge } from '../components/Level';
 import { ListenButton } from '../components/ListenButton';
 import { ReadinessCard, SoilCard } from '../components/Readiness';
@@ -145,8 +148,12 @@ function scaleBands(f: number) {
 }
 
 /** River gauge: the measured stage, a third source beside the rain and river forecasts. */
-function GaugeCard({ gauge }: { gauge: GaugeView | null | undefined }) {
+function GaugeCard({ gauge, villageId, onChanged }: { gauge: GaugeView | null | undefined; villageId: string; onChanged: () => void }) {
   const { t, lang } = useT();
+  const user = useAuth((s) => s.user);
+  const signedIn = Boolean(useAuth((s) => s.token));
+  // Officers anywhere, the village's own pradhan (read only); Cedar decides on the server.
+  const seesProposal = signedIn && Boolean(gauge?.config) && canManageStaffGauge(user, villageId);
   const latest = gauge?.latest ?? null;
   const cfg = gauge?.config;
   const bands = cfg ? { watch: cfg.watch_cm, warning: cfg.warning_cm, critical: cfg.critical_cm } : null;
@@ -200,14 +207,19 @@ function GaugeCard({ gauge }: { gauge: GaugeView | null | undefined }) {
       )}
       {latest?.simulated && <p className="small muted">{t('gauge.sim.note')}</p>}
       {cfg && !cfg.installed && !empty && <p className="small muted">{t('gauge.illustrative')}</p>}
+      {cfg?.thresholds_set_by && (
+        <p className="small muted">{t('learn.current.source', { s: cfg.thresholds_source ?? '', u: cfg.thresholds_set_by })}</p>
+      )}
+      {seesProposal && <GaugeProposalPanel villageId={villageId} canAccept={user?.role === 'officer'} onAccepted={onChanged} />}
     </Reveal>
   );
 }
 
-function Evidence({ village, trace, traceReplay, gauge, soil }: { village: Village; trace: DecisionTrace | null; traceReplay: boolean; gauge?: GaugeView | null; soil?: SoilView | null }) {
+function Evidence({ village, trace, traceReplay, gauge, soil, onChanged }: { village: Village; trace: DecisionTrace | null; traceReplay: boolean; gauge?: GaugeView | null; soil?: SoilView | null; onChanged: () => void }) {
   const { t, lang, pick } = useT();
   const traceReading = trace?.evidence?.find((e) => e.kind === 'reading') ?? null;
   const reports = (trace?.evidence ?? []).filter((e): e is TraceEvidence => e.kind === 'report');
+  const staffEv = (trace?.evidence ?? []).filter((e) => e.kind === 'staff_gauge');
   const lr = village.latest_reading;
   // Rain and river cards show the newest sweep; the rules card shows the sweep that raised the alert.
   const useLatest = Boolean(lr && (!traceReading?.at || lr.at >= String(traceReading.at)));
@@ -272,7 +284,7 @@ function Evidence({ village, trace, traceReplay, gauge, soil }: { village: Villa
         )}
         {sweepLabel && <p className="ev-sweep small">{sweepLabel}</p>}
       </Reveal>
-      <GaugeCard gauge={gauge} />
+      <GaugeCard gauge={gauge} villageId={village.id} onChanged={onChanged} />
       <SoilCard soil={soil} />
       {showRules && trace?.rules_fired && trace.rules_fired.length > 0 && (
         <Reveal className="ev-card ev-wide" delay={140}>
@@ -305,6 +317,22 @@ function Evidence({ village, trace, traceReplay, gauge, soil }: { village: Villa
           )}
         </Reveal>
       )}
+      {showRules && staffEv.length > 0 && (
+        <Reveal className="ev-card ev-wide" delay={160}>
+          <header className="ev-head">
+            <Ruler aria-hidden="true" />
+            <h3>{t('staff.title')}</h3>
+          </header>
+          <ul className="ev-reports">
+            {staffEv.map((e) => (
+              <li key={String(e.report_id)}>
+                <span>{staffEvidenceLine(e, fmtTime(typeof e.at === 'string' ? e.at : null, lang), lang)}</span>
+                {isLevel(String(e.level)) && e.level !== 'normal' && <LevelBadge level={e.level as Level} size="sm" />}
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+      )}
       {reports.length > 0 && (
         <Reveal className="ev-card ev-wide" delay={180}>
           <header className="ev-head">
@@ -331,6 +359,7 @@ export default function VillagePage() {
   const { id = '' } = useParams();
   const { t, lang, pick } = useT();
   const signedIn = Boolean(useAuth((s) => s.token));
+  const user = useAuth((s) => s.user);
   const { data, error, loading, refresh } = usePoll(() => api.village(id), [id], 15000, {
     live: PUBLIC_CHANNELS,
     match: (e) => e.data.village_id === id,
@@ -446,8 +475,18 @@ export default function VillagePage() {
             <GaugeIcon aria-hidden="true" /> {t('village.why')}
           </h2>
           <p className="muted">{t('village.why.lead')}</p>
-          <Evidence village={v} trace={trace} traceReplay={Boolean(latestAlert?.replay)} gauge={data.gauge} soil={data.soil} />
+          <Evidence village={v} trace={trace} traceReplay={Boolean(latestAlert?.replay)} gauge={data.gauge} soil={data.soil} onChanged={refresh} />
         </section>
+
+        {(data.staff_gauges?.gauges.length || canManageStaffGauge(user, v.id)) && (
+          <section aria-labelledby="sg-h">
+            <h2 id="sg-h" className="h-sec">
+              <Ruler aria-hidden="true" /> {t('staff.title')}
+            </h2>
+            <p className="muted">{t('staff.lead')}</p>
+            <StaffGaugeList view={data.staff_gauges} canManage={signedIn && canManageStaffGauge(user, v.id)} villageId={v.id} onChanged={refresh} />
+          </section>
+        )}
 
         <section aria-labelledby="ready-h">
           <h2 id="ready-h" className="h-sec">

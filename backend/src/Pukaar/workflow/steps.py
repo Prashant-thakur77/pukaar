@@ -16,7 +16,7 @@ from Pukaar.core.log import get_logger, log, metric
 from Pukaar.delivery import dispatch
 from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.policy.guard import SYSTEM, authorize
-from Pukaar.services import after_action, events, rollcall
+from Pukaar.services import after_action, events, officer_push, rollcall
 from Pukaar.services.drafting import draft_alert
 from Pukaar.store.models import Alert
 from Pukaar.store.repo import ConflictError, Repo
@@ -105,8 +105,10 @@ class Steps:
         link = tokens.sign(alert.id, officer, alert.token_version, "approve")
         url = f"{get_settings().web_url}/a/{link}"
         sent = dispatch.notify_officer(self.repo, alert, officer, url)
+        pushed = officer_push.notify_approval(self.repo, alert, officer, link, url)  # never raises
         self.repo.add_timeline(alert.id, "asked_officer",
-                               f"{officer} (#{index + 1} of {len(officers)}); telegram={'yes' if sent else 'no'}; console=yes")
+                               f"{officer} (#{index + 1} of {len(officers)}); telegram={'yes' if sent else 'no'}; "
+                               f"push={pushed.sent}; console=yes")
         return {"alert_id": alert.id, "officer": officer}
 
     def step_next_officer(self, e: dict) -> dict:

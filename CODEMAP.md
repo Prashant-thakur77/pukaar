@@ -274,7 +274,9 @@ The backend was rebuilt into the PLAN.md 4a layout (DECISIONS.md "Build run").
   `workflow/steps.py`): draft (Strands drafting agent with read-only tools
   behind the Cedar hook, draft checker, fixed Hindi template on failure,
   Polly MP3 to S3) -> ask officer (task token + signed one-tap link, Telegram
-  if the officer linked a chat) -> approved: deliver (Cedar + action guard,
+  if the officer linked a chat, Web Push to the officer's subscribed phones via
+  `services/officer_push.py` + `delivery/webpush.py`, whose Approve / Decline
+  buttons in `frontend/src/sw.ts` POST the same link) -> approved: deliver (Cedar + action guard,
   Telegram `sendAudio` with a "मिल गया" button, stub channel otherwise) ->
   wait -> recall once -> close; declined: close; timeout: next officer, then
   critical auto-send or expire; any error: failsafe.

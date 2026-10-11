@@ -65,6 +65,29 @@ If Nova 2 Lite is not available to the account, deploy with
 
 No token yet? Press Enter at the prompt: alerts then use the stub channel.
 
+## 3a. Web Push keys (approval alerts on the officer's phone)
+
+```
+make vapid-keys
+```
+
+Run it once, before `make deploy` or after (the API reads the keys from SSM on
+each request, cached for 5 minutes, so no redeploy is needed for the keys
+alone). It makes a P-256 key pair in the script's memory and stores
+`/pukaar/vapid_private_key` (SecureString, never printed) and
+`/pukaar/vapid_public_key` (String, printed). A rerun keeps an existing pair.
+`make vapid-keys ROTATE=1` replaces it; every officer must then open the
+console and turn approval alerts on again (the console notices the new key and
+drops the old subscription). Without keys, `GET /push/vapid-public-key` says
+`configured: false` and the console card says push is not set up.
+
+After the deploy, each officer opens the console **on their phone**, finds
+"Get approval alerts on this phone", taps **Turn on**, allows notifications,
+and taps **Send a test notification**. On iPhone and iPad (iOS 16.4 or later)
+push works only after Share -> Add to Home Screen and opening Pukaar from the
+home screen. When an alert waits for that officer, the phone shows it with
+**✅ मंज़ूर** and **✖ नहीं**; the buttons work with the console closed.
+
 ## 4. Deploy
 
 ```
@@ -179,6 +202,7 @@ eval "$(scripts/stack_env.sh)"
 curl -s "$STACK_ApiUrl/health"                 # {"status": ..., "mode": "aws", ...}
 curl -s "$STACK_ApiUrl/public/overview" | head -c 300
 curl -s -o /dev/null -w '%{http_code}\n' "$STACK_ApiUrl/me"   # 401 without a token
+curl -s "$STACK_ApiUrl/push/vapid-public-key"   # {"key": "B...", "configured": true} after make vapid-keys
 
 TOKEN=$(aws cognito-idp initiate-auth --region us-east-1 --auth-flow USER_PASSWORD_AUTH \
   --client-id "$STACK_UserPoolClientId" \
