@@ -427,6 +427,18 @@ export const dict = {
   'impact.n1': { hi: 'असली गाँवों में लोगों ने चेतावनी पर क्या किया: अभी कोई फ़ील्ड ट्रायल नहीं हुआ।', en: 'What people in real villages did after an alert: no field trial has happened yet.' },
   'impact.n2': { hi: 'गलत चेतावनियों की दर, लंबे समय में।', en: 'False-alarm rate over a full monsoon.' },
   'impact.n3': { hi: 'गाँवों के निर्देशांक की ज़मीनी जाँच।', en: 'Ground-truth checks of village coordinates.' },
+  'impact.sc.title': { hi: 'हम कितनी बार सही थे?', en: 'How often were we right?' },
+  'impact.sc.lead': { hi: 'बैक-टेस्ट को उन गाँवों से मिलाया जहाँ बाढ़ या बादल फटने की खबर छपी, और हर डेटा स्रोत को अलग से भी चलाया।', en: 'The back-test checked against villages where a flood or cloudburst was reported, with each data source also run on its own.' },
+  'impact.sc.rain': { hi: 'सिर्फ़ बारिश', en: 'Rain only' },
+  'impact.sc.river': { hi: 'सिर्फ़ नदी', en: 'River only' },
+  'impact.sc.both': { hi: 'दोनों (पुकार)', en: 'Both (Pukaar)' },
+  'impact.sc.hits': { hi: 'समय पर चेतावनी', en: 'Hits' },
+  'impact.sc.misses': { hi: 'चूक', en: 'Misses' },
+  'impact.sc.fa': { hi: 'झूठी चेतावनी', en: 'False alarms' },
+  'impact.sc.lead_h': { hi: 'औसत (माध्यिका) पहले से: {h} घंटे', en: 'Median lead: {h} h' },
+  'impact.sc.lead_min': { hi: 'औसत (माध्यिका) पहले से: कम से कम {h} घंटे', en: 'Median lead: at least {h} h' },
+  'impact.sc.scored': { hi: 'जिन गाँवों का नतीजा पक्का पता है: {n}', en: 'Villages with a known outcome: {n}' },
+  'impact.sc.caveat': { hi: 'छोटा नमूना (2 घटनाएँ, 4 गाँव)। पुराने पूर्वानुमान बाद के पुनर्विश्लेषण हैं, असल समय के नहीं। ज़मीनी सच मोटा है (कभी-कभी तहसील स्तर), और जिन गाँवों का पता नहीं वे छोड़ दिए; बिना घटना वाला कोई गाँव पक्का नहीं, इसलिए झूठी चेतावनी अभी गिनी नहीं जा सकती।', en: 'Small sample (2 events, 4 villages). Archived forecasts are later reanalyses, not what was known live. Ground truth is coarse (sometimes subdivision level) and uncertain villages are left out; no quiet village is verified yet, so false alarms cannot be counted.' },
   'impact.cloudburst.title': { hi: 'जो हम नहीं पकड़ पाते', en: 'What this does not catch' },
   'impact.cloudburst.body': { hi: '30 जून 2025 की रात मंडी में बादल फटे। हमारे रीप्ले में दुनिया भर के मौसम मॉडल (पुराने पूर्वानुमान और GloFAS नदी-बहाव) 5 में से 4 गाँवों के लिए कोई सीमा पार नहीं कर पाए। बादल फटना बहुत छोटे इलाके और कम समय की घटना है। पुकार ऐसी घटना का पूर्वानुमान करने का दावा नहीं करता; ऐसे में गाँव से आई आवाज़ की सूचना ही सबसे तेज़ रास्ता है।', en: 'In our replay of the 30 June – 1 July 2025 Mandi cloudbursts, global models (archived forecasts and GloFAS discharge) never crossed a threshold for 4 of 5 villages: the cloudburst was missed. Cloudbursts are small and short, below what those models resolve. Pukaar does not claim to forecast them. That is why a verified villager report can raise a village level on its own.' },
 
@@ -443,6 +455,28 @@ export const dict = {
   'login.public': { hi: 'गाँव का हाल देखने के लिए साइन इन ज़रूरी नहीं।', en: 'No sign-in is needed to see village levels.' },
 
   'notfound.title': { hi: 'यह पेज नहीं मिला', en: 'Page not found' },
+
+  'gauge.title': { hi: 'नदी गेज (जल-स्तर)', en: 'River gauge' },
+  'gauge.none': { hi: 'अभी कोई गेज नहीं लगा', en: 'No gauge installed yet' },
+  'gauge.none.lead': {
+    hi: 'पुल के नीचे लगा एक सस्ता गेज नदी का असली स्तर हर मिनट भेजेगा।',
+    en: 'A low-cost gauge under the bridge would send the real river stage every minute.',
+  },
+  'gauge.stale': { hi: '30 मिनट से कोई माप नहीं', en: 'No reading in 30 min' },
+  'gauge.stale.lead': { hi: 'पुराना माप स्तर तय करने में नहीं गिना जाता।', en: 'An old reading does not count towards the level.' },
+  'gauge.stage': { hi: 'गेज शून्य से ऊपर पानी', en: 'Water above the gauge zero' },
+  'gauge.reading': { hi: 'माप {t}', en: 'Reading {t}' },
+  'gauge.battery': { hi: 'बैटरी {v} V', en: 'Battery {v} V' },
+  'gauge.sim': { hi: 'सिम्युलेटेड', en: 'Simulated' },
+  'gauge.sim.note': {
+    hi: 'ये माप सिम्युलेटर से हैं, असली हार्डवेयर से नहीं।',
+    en: 'These readings come from the simulator, not real hardware.',
+  },
+  'gauge.trend': { hi: 'पिछले 24 घंटे', en: 'Last 24 hours' },
+  'gauge.illustrative': {
+    hi: 'सीमाएँ उदाहरण हैं; गेज लगने के बाद उसके अपने रिकॉर्ड से तय होंगी।',
+    en: 'Illustrative thresholds, to be set from the gauge\'s own record after installation.',
+  },
 } satisfies Record<string, Entry>;
 
 export type Key = keyof typeof dict;

@@ -100,6 +100,7 @@ export interface DecisionTrace {
   rain_level?: Level;
   river_level?: Level;
   report_level?: Level;
+  gauge_level?: Level;
   rules_fired?: string[];
   contradictions?: string[];
   evidence?: TraceEvidence[];
@@ -267,6 +268,39 @@ export interface PastEvent {
   [key: string]: unknown;
 }
 
+/** Village river gauge (services/gauge.py). Thresholds are stage in cm above the gauge zero. */
+export interface GaugeConfig {
+  device_id: string;
+  watch_cm: number;
+  warning_cm: number;
+  critical_cm: number;
+  installed: boolean;
+  note?: string;
+}
+
+export interface SensorReading {
+  village_id: string;
+  device_id: string;
+  at: string;
+  water_level_cm: number;
+  rain_mm_1h?: number | null;
+  battery_v?: number | null;
+  rssi?: number | null;
+  /** True for the labelled simulator; never real hardware. */
+  simulated: boolean;
+  received_at?: string | null;
+}
+
+export interface GaugeView {
+  config: GaugeConfig;
+  latest: SensorReading | null;
+  /** Latest reading is recent enough (fresh_minutes) to count in the rules. */
+  fresh: boolean;
+  fresh_minutes: number;
+  level: Level | null;
+  series: { at: string; cm: number }[];
+}
+
 export interface VillageDetail extends SampleFlag {
   village: Village;
   readings: Reading[];
@@ -275,6 +309,7 @@ export interface VillageDetail extends SampleFlag {
   past_events: PastEvent[];
   nowcast: Nowcast | null;
   directives?: Directive[];
+  gauge?: GaugeView | null;
 }
 
 export interface AlertDetail extends SampleFlag {

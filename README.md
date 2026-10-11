@@ -240,6 +240,12 @@ sign-in; the demo accounts are in [DEMO.md](DEMO.md).
 | ![Hours of warning before the river's peak day, per village, July 2023](docs/charts/backtest-lead.svg) | ![Peak forecast rain per village, July 2023 against 30 June 2025](docs/charts/two-monsoons.svg) |
 |---|---|
 
+**How often was it right?** Scored against a small, sourced ground truth ([data/ground_truth.json](data/ground_truth.json); method and limits in [docs/SCORING.md](docs/SCORING.md)), with an ablation of the evidence sources:
+
+![Hits and misses per configuration: rain only, river only, both](docs/charts/scores.svg)
+
+Only 4 village-events could be verified from published reporting, so read this as a method, not a verdict: the July 2023 Pandoh flood was caught by all three configurations (rain alone gave about 19 h; the river record gave at least 48 h), and the June 2025 cloudburst villages were missed by all three, which is why a verified villager report, and a river gauge, can raise a level on their own.
+
 The three charts are built from [data/backtest.json](data/backtest.json) and the Gohar replay by [scripts/build_charts.py](scripts/build_charts.py); no number in them is typed by hand.
 
 The replay runs archived hours through the same code. Rain is the archived

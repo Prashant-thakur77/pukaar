@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CircleCheck, CircleDashed, CloudRain, FlaskConical } from 'lucide-react';
+import { CircleCheck, CircleDashed, CloudRain, FlaskConical, Target } from 'lucide-react';
 import { loadBacktest } from '../api';
 import { LevelBadge } from '../components/Level';
 import { Reveal } from '../components/Reveal';
@@ -8,6 +8,7 @@ import { EmptyState, Skeleton } from '../components/States';
 import { useT, type Key } from '../i18n';
 import { fmtDate, fmtNumber, fmtTime } from '../lib/format';
 import { levelRank } from '../lib/levels';
+import scores from '../data/scores.json';
 import { LEVELS, type Backtest, type BacktestScenario, type BacktestVillage, type Level } from '../types';
 
 const MEASURED: Key[] = ['impact.m1', 'impact.m2', 'impact.m3'];
@@ -100,6 +101,53 @@ function Scenario({ sc, i }: { sc: BacktestScenario; i: number }) {
   );
 }
 
+const CONFIG_KEY: Record<string, Key> = { rain: 'impact.sc.rain', river: 'impact.sc.river', both: 'impact.sc.both' };
+
+function Scores() {
+  const { t, lang } = useT();
+  return (
+    <section className="band band-paper scores-band" aria-labelledby="sc-h">
+      <div className="wrap">
+        <h2 id="sc-h" className="h-sec">
+          <Target aria-hidden="true" /> {t('impact.sc.title')}
+        </h2>
+        <p className="muted sc-lead">{t('impact.sc.lead')}</p>
+        <div className="scenarios">
+          {scores.scenarios.map((sc, i) => (
+            <Reveal key={sc.name} className="scenario card score-card" delay={i * 100}>
+              <header className="sc-head">
+                <h3 className="sc-title">
+                  <span lang="hi">{sc.title_hi ?? sc.title}</span>
+                  <span className="sc-title-en">{sc.title}</span>
+                </h3>
+                <p className="small muted">{t('impact.sc.scored', { n: sc.configs[0]?.scored ?? 0 })}</p>
+              </header>
+              <ul className="score-grid">
+                {sc.configs.map((c) => (
+                  <li key={c.key} className={c.key === 'both' ? 'is-pukaar' : undefined}>
+                    <p className="score-name">{t(CONFIG_KEY[c.key] ?? 'impact.sc.both')}</p>
+                    <dl className="score-counts">
+                      <div className="sc-hit"><dt>{t('impact.sc.hits')}</dt><dd>{fmtNumber(c.hits, lang)}</dd></div>
+                      <div className="sc-miss"><dt>{t('impact.sc.misses')}</dt><dd>{fmtNumber(c.misses, lang)}</dd></div>
+                      <div className="sc-fa"><dt>{t('impact.sc.fa')}</dt><dd>{c.scored - c.hits - c.misses > 0 ? fmtNumber(c.false_alarms, lang) : '—'}</dd></div>
+                    </dl>
+                    <p className="small muted">
+                      {c.median_lead_hours == null
+                        ? '—'
+                        : t(c.lead_is_lower_bound ? 'impact.sc.lead_min' : 'impact.sc.lead_h', { h: fmtNumber(c.median_lead_hours, lang) })}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          ))}
+          <p className="caveat">{t('impact.sc.caveat')}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Impact() {
   const { t } = useT();
   const [bt, setBt] = useState<Backtest | null | undefined>(undefined);
@@ -141,6 +189,8 @@ export default function Impact() {
           )}
         </div>
       </section>
+
+      <Scores />
 
       <section className="band band-paper-2">
         <div className="wrap measure-grid">

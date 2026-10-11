@@ -1,0 +1,360 @@
+{
+  "rules": "risk-rules-v1",
+  "ground_truth": "data/ground_truth.json",
+  "scenarios": [
+    {
+      "name": "himachal_2023_07",
+      "title": "Himachal Pradesh, 7-11 July 2023",
+      "title_hi": "हिमाचल प्रदेश, 7-11 जुलाई 2023",
+      "configs": [
+        {
+          "key": "rain",
+          "label": "rain only",
+          "hits": 1,
+          "misses": 0,
+          "false_alarms": 0,
+          "correct_quiet": 0,
+          "scored": 1,
+          "median_lead_hours": 19.0,
+          "lead_is_lower_bound": false
+        },
+        {
+          "key": "river",
+          "label": "river only",
+          "hits": 1,
+          "misses": 0,
+          "false_alarms": 0,
+          "correct_quiet": 0,
+          "scored": 1,
+          "median_lead_hours": 48.0,
+          "lead_is_lower_bound": true
+        },
+        {
+          "key": "both",
+          "label": "both (Pukaar)",
+          "hits": 1,
+          "misses": 0,
+          "false_alarms": 0,
+          "correct_quiet": 0,
+          "scored": 1,
+          "median_lead_hours": 48.0,
+          "lead_is_lower_bound": true
+        }
+      ],
+      "villages": [
+        {
+          "village_id": "thunag",
+          "village": "Thunag",
+          "truth": "uncertain",
+          "event_day": null,
+          "rain": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-08T04:00:00Z",
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "river": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-10T00:00:00Z",
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "both": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-08T04:00:00Z",
+            "first_warning": null,
+            "watch_at_window_start": false
+          }
+        },
+        {
+          "village_id": "janjehli",
+          "village": "Janjehli",
+          "truth": "uncertain",
+          "event_day": null,
+          "rain": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "river": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-11T00:00:00Z",
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "both": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-11T00:00:00Z",
+            "first_warning": null,
+            "watch_at_window_start": false
+          }
+        },
+        {
+          "village_id": "gohar",
+          "village": "Gohar",
+          "truth": "uncertain",
+          "event_day": null,
+          "rain": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-08T05:00:00Z",
+            "first_warning": "2023-07-09T02:00:00Z",
+            "watch_at_window_start": false
+          },
+          "river": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-08T00:00:00Z",
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "both": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-08T00:00:00Z",
+            "first_warning": "2023-07-08T05:00:00Z",
+            "watch_at_window_start": false
+          }
+        },
+        {
+          "village_id": "pandoh",
+          "village": "Pandoh",
+          "truth": "event",
+          "event_day": "2023-07-09",
+          "rain": {
+            "result": "hit",
+            "lead_hours": 19.0,
+            "first_watch": "2023-07-08T05:00:00Z",
+            "first_warning": "2023-07-09T02:00:00Z",
+            "watch_at_window_start": false
+          },
+          "river": {
+            "result": "hit",
+            "lead_hours": 48.0,
+            "first_watch": "2023-07-07T00:00:00Z",
+            "first_warning": null,
+            "watch_at_window_start": true
+          },
+          "both": {
+            "result": "hit",
+            "lead_hours": 48.0,
+            "first_watch": "2023-07-07T00:00:00Z",
+            "first_warning": "2023-07-08T05:00:00Z",
+            "watch_at_window_start": true
+          }
+        },
+        {
+          "village_id": "sujanpur",
+          "village": "Sujanpur",
+          "truth": "uncertain",
+          "event_day": null,
+          "rain": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-07T16:00:00Z",
+            "first_warning": "2023-07-08T13:00:00Z",
+            "watch_at_window_start": false
+          },
+          "river": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-07T00:00:00Z",
+            "first_warning": "2023-07-07T00:00:00Z",
+            "watch_at_window_start": true
+          },
+          "both": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-07T00:00:00Z",
+            "first_warning": "2023-07-07T00:00:00Z",
+            "watch_at_window_start": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "mandi_2025",
+      "title": "Mandi, night of 30 June to 1 July 2025",
+      "title_hi": "मंडी, 30 जून से 1 जुलाई 2025 की रात",
+      "configs": [
+        {
+          "key": "rain",
+          "label": "rain only",
+          "hits": 0,
+          "misses": 3,
+          "false_alarms": 0,
+          "correct_quiet": 0,
+          "scored": 3,
+          "median_lead_hours": null,
+          "lead_is_lower_bound": false
+        },
+        {
+          "key": "river",
+          "label": "river only",
+          "hits": 0,
+          "misses": 3,
+          "false_alarms": 0,
+          "correct_quiet": 0,
+          "scored": 3,
+          "median_lead_hours": null,
+          "lead_is_lower_bound": false
+        },
+        {
+          "key": "both",
+          "label": "both (Pukaar)",
+          "hits": 0,
+          "misses": 3,
+          "false_alarms": 0,
+          "correct_quiet": 0,
+          "scored": 3,
+          "median_lead_hours": null,
+          "lead_is_lower_bound": false
+        }
+      ],
+      "villages": [
+        {
+          "village_id": "thunag",
+          "village": "Thunag",
+          "truth": "event",
+          "event_day": "2025-06-30",
+          "rain": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "river": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "both": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          }
+        },
+        {
+          "village_id": "janjehli",
+          "village": "Janjehli",
+          "truth": "event",
+          "event_day": "2025-06-30",
+          "rain": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "river": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "both": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          }
+        },
+        {
+          "village_id": "gohar",
+          "village": "Gohar",
+          "truth": "event",
+          "event_day": "2025-06-30",
+          "rain": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "river": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "both": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          }
+        },
+        {
+          "village_id": "pandoh",
+          "village": "Pandoh",
+          "truth": "uncertain",
+          "event_day": null,
+          "rain": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "river": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "both": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          }
+        },
+        {
+          "village_id": "sujanpur",
+          "village": "Sujanpur",
+          "truth": "uncertain",
+          "event_day": null,
+          "rain": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2025-06-30T06:00:00Z",
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "river": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "both": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2025-06-30T06:00:00Z",
+            "first_warning": null,
+            "watch_at_window_start": false
+          }
+        }
+      ]
+    }
+  ]
+}

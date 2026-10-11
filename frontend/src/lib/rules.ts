@@ -12,6 +12,8 @@ export function describeRule(rule: string, lang: Lang): string {
   const lv = outcome && isLevel(outcome) ? levelWord(outcome, lang) : outcome;
   let m = cond.match(/^rain_24h>=([\d.]+)mm$/);
   if (m) return hi ? `24 घंटे की बारिश ≥ ${m[1]} मिमी → ${lv}` : `24 h rain ≥ ${m[1]} mm → ${lv}`;
+  m = cond.match(/^gauge>=([\d.]+)cm$/);
+  if (m) return hi ? `नदी गेज ≥ ${m[1]} सेमी → ${lv}` : `River gauge ≥ ${m[1]} cm → ${lv}`;
   m = cond.match(/^discharge>=([\d.]+)$/);
   if (m) return hi ? `नदी का बहाव ≥ ${m[1]} m³/s → ${lv}` : `River discharge ≥ ${m[1]} m³/s → ${lv}`;
   switch (cond) {
@@ -25,6 +27,8 @@ export function describeRule(rule: string, lang: Lang): string {
       return hi ? 'डेटा और सूचनाएँ मेल नहीं खाते: अधिकारी देखें' : 'Data and reports disagree: officer to check';
     case 'auto_verified_capped':
       return hi ? 'अपने-आप पुष्ट सूचना: अधिकतम चेतावनी तक' : 'Auto-verified report: counts up to Warning at most';
+    case 'gauge_simulated':
+      return hi ? 'गेज का माप सिम्युलेटर से है, असली हार्डवेयर से नहीं' : 'Gauge reading is from the simulator, not real hardware';
     case 'no_reading':
       return hi ? 'कोई माप नहीं मिला' : 'No reading available';
   }

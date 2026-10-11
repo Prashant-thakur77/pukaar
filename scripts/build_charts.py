@@ -2,7 +2,8 @@
 
     python3 scripts/build_charts.py      ->  docs/charts/*.svg
 
-Sources: data/backtest.json (the back-test, built by the real rules) and
+Sources: data/backtest.json (the back-test, built by the real rules), data/scores.json
+(the back-test scored against data/ground_truth.json) and
 frontend/src/data/story-gohar-2023.json (Gohar's July 2023 replay, hour by hour).
 Colours are the app's tokens (frontend/src/theme.css): cream, ink, sand gold,
 forest, crimson, plus the level colours.
@@ -170,13 +171,51 @@ def evidence_chart(ev: dict) -> str:
     return svg(W, H, body, "Six sourced numbers on early warning, Himachal and Hindi")
 
 
+def scores_chart(sc: dict) -> str:
+    """One panel per scenario; per configuration a row of unit squares: hits, misses, false alarms."""
+    scen = sc["scenarios"]
+    W, H = 960, 160 + 196 * len(scen)
+    L, T = 210, 118
+    kinds = (("hits", "hit", FOREST), ("misses", "miss", CRIMSON), ("false_alarms", "false alarm", GOLD))
+    body = header("Scored against reported floods · source ablation", "How often were we right?", W)
+    colx = [L + 40, L + 250, L + 460]
+    for k, (_, label, col) in enumerate(kinds):
+        body += text(colx[k], T, label.upper() + ("S" if label != "miss" else "ES"), 10.5, col if col != GOLD else "#7a5a14", 800, extra='letter-spacing="1.4"')
+    body += text(W - 36, T, "MEDIAN LEAD", 10.5, INK3, 800, "end", extra='letter-spacing="1.4"')
+    y0 = T + 22
+    for s in scen:
+        scored = s["configs"][0]["scored"] if s["configs"] else 0
+        body += f'<line x1="36" x2="{W - 36}" y1="{y0}" y2="{y0}" stroke="{LINE}"/>'
+        body += text(36, y0 + 26, s["title"], 15, INK, 800) + text(W - 36, y0 + 26, f"{scored} village{'' if scored == 1 else 's'} with a reported outcome", 11.5, INK3, 600, "end")
+        for r, c in enumerate(s["configs"]):
+            yy = y0 + 58 + r * 46
+            pukaar = c["key"] == "both"
+            if pukaar:
+                body += f'<rect x="28" y="{yy - 24}" width="{W - 56}" height="40" rx="10" fill="{LINE}" fill-opacity="0.45"/>'
+            body += text(L - 14, yy + 2, c["label"], 14, INK, 800 if pukaar else 600, "end")
+            for k, (key, _, col) in enumerate(kinds):
+                n = c[key]
+                if key == "false_alarms" and c["scored"] - c["hits"] - c["misses"] == 0:
+                    body += text(colx[k], yy + 1, "n/a", 13, INK3, 700)
+                    continue
+                for i in range(n):
+                    body += f'<rect x="{colx[k] + i * 22:.1f}" y="{yy - 13}" width="16" height="16" rx="4" fill="{col}"/>'
+                body += text(colx[k] + max(n, 0) * 22 + (4 if n else 0), yy + 1, n, 15, INK, 800)
+            lead = c["median_lead_hours"]
+            body += text(W - 36, yy + 2, "-" if lead is None else f"{'≥ ' if c.get('lead_is_lower_bound') else ''}{lead:g} h", 14, INK, 800, "end")
+        y0 += 196
+    body += text(36, H - 16, "Hit = Watch by the end of the reported event day. False alarm = Warning where nothing happened: n/a, no quiet village verified yet. ≥ = Watch held from the first archived hour.", 11, INK3, 600)
+    return svg(W, H, body, "Hits, misses and false alarms per data-source configuration, per scenario")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     story = json.loads((ROOT / "frontend/src/data/story-gohar-2023.json").read_text(encoding="utf-8"))
     bt = json.loads((ROOT / "data/backtest.json").read_text(encoding="utf-8"))
     ev = json.loads((ROOT / "data/evidence.json").read_text(encoding="utf-8"))
+    sc = json.loads((ROOT / "data/scores.json").read_text(encoding="utf-8"))
     for name, body in (("gohar-2023.svg", gohar_chart(story)), ("backtest-lead.svg", lead_chart(bt)), ("two-monsoons.svg", years_chart(bt)),
-                       ("evidence.svg", evidence_chart(ev))):
+                       ("evidence.svg", evidence_chart(ev)), ("scores.svg", scores_chart(sc))):
         (OUT / name).write_text(body, encoding="utf-8")
         print(OUT / name)
 

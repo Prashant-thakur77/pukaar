@@ -13,6 +13,7 @@ import {
   Hourglass,
   LoaderCircle,
   Lock,
+  RadioTower,
   Scale,
   ShieldAlert,
   Users,
@@ -40,6 +41,7 @@ const VISIBLE = 2;
 const EV_ICON: Record<EvidenceLine['kind'], LucideIcon> = {
   river: Waves,
   rain: CloudRain,
+  gauge: RadioTower,
   reports: FileText,
   agree: Users,
   impact: ShieldAlert,

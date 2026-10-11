@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, CloudRain, FileText, Gauge as GaugeIcon, History, Hourglass, ListChecks, MapPin, Megaphone, Scale, TrendingUp, Users, Waves } from 'lucide-react';
+import { ArrowLeft, BatteryMedium, ChevronDown, CloudRain, FileText, Gauge as GaugeIcon, History, Hourglass, ListChecks, MapPin, Megaphone, RadioTower, Scale, TrendingUp, Users, Waves } from 'lucide-react';
 import { api } from '../api';
 import { AlertStatusChip, DeliveryChips, ReplayChip, ReportStateChip } from '../components/Chips';
 import { Gauge } from '../components/Gauge';
@@ -19,7 +19,7 @@ import { auditLinkForAlert } from '../lib/audit';
 import { holdLine } from '../lib/evidence';
 import { humanizeSummary } from '../lib/humanize';
 import { useAuth } from '../store';
-import type { Alert, DecisionTrace, Level, TraceEvidence, Village } from '../types';
+import type { Alert, DecisionTrace, GaugeView, Level, TraceEvidence, Village } from '../types';
 
 function AlertDetails({ alert }: { alert: Alert }) {
   const { t, lang } = useT();
@@ -112,7 +112,67 @@ function AlertCard({ alert, signedIn }: { alert: Alert; signedIn: boolean }) {
 /** IMD 24 h rain bands (mm) used by services/risk_rules.py. */
 const IMD_BANDS = { watch: 64.5, warning: 115.6, critical: 204.5 };
 
-function Evidence({ village, trace, traceReplay }: { village: Village; trace: DecisionTrace | null; traceReplay: boolean }) {
+/** River gauge: the measured stage, a third source beside the rain and river forecasts. */
+function GaugeCard({ gauge }: { gauge: GaugeView | null | undefined }) {
+  const { t, lang } = useT();
+  const latest = gauge?.latest ?? null;
+  const cfg = gauge?.config;
+  const bands = cfg ? { watch: cfg.watch_cm, warning: cfg.warning_cm, critical: cfg.critical_cm } : null;
+  const empty = !gauge || !latest;
+  return (
+    <Reveal className="ev-card ev-wide ev-gauge" delay={110}>
+      <header className="ev-head">
+        <RadioTower aria-hidden="true" />
+        <h3>{t('gauge.title')}</h3>
+        {gauge?.fresh && gauge.level && isLevel(gauge.level) && <LevelBadge level={gauge.level} size="sm" />}
+        {latest?.simulated && <span className="chip chip-warn">{t('gauge.sim')}</span>}
+      </header>
+      {empty ? (
+        <div className="ev-gauge-empty">
+          <p className="muted">{cfg?.installed ? t('gauge.stale') : t('gauge.none')}</p>
+          <p className="small muted">{cfg?.installed ? t('gauge.stale.lead') : t('gauge.none.lead')}</p>
+        </div>
+      ) : (
+        <div className="ev-gauge-body">
+          <div>
+            <p className={`ev-value${gauge.fresh ? '' : ' is-stale'}`}>
+              {fmtNumber(latest.water_level_cm, lang, 0)} <span>cm</span>
+            </p>
+            <p className="small muted">{t('gauge.stage')}</p>
+            {bands && <Gauge value={gauge.fresh ? latest.water_level_cm : null} bands={bands} unit="cm" label={t('gauge.title')} />}
+            {!gauge.fresh && (
+              <p className="small">
+                <strong>{t('gauge.stale')}</strong> · <span className="muted">{t('gauge.stale.lead')}</span>
+              </p>
+            )}
+            <p className="ev-sweep small">
+              {t('gauge.reading', { t: fmtAgo(latest.at, lang) })}
+              {latest.battery_v != null && (
+                <span className="ev-gauge-batt">
+                  {' '}· <BatteryMedium aria-hidden="true" /> {t('gauge.battery', { v: fmtNumber(latest.battery_v, lang, 2) })}
+                </span>
+              )}
+            </p>
+          </div>
+          <div className="trend-card c-gauge">
+            <p className="small">{t('gauge.trend')}</p>
+            <Sparkline
+              values={gauge.series.map((p) => p.cm)}
+              label={t('gauge.title')}
+              unit=" cm"
+              height={80}
+              marks={bands ? (['watch', 'warning', 'critical'] as const).map((l) => ({ value: bands[l], className: `lv-${l}`, label: l })) : []}
+            />
+          </div>
+        </div>
+      )}
+      {latest?.simulated && <p className="small muted">{t('gauge.sim.note')}</p>}
+      {cfg && !cfg.installed && !empty && <p className="small muted">{t('gauge.illustrative')}</p>}
+    </Reveal>
+  );
+}
+
+function Evidence({ village, trace, traceReplay, gauge }: { village: Village; trace: DecisionTrace | null; traceReplay: boolean; gauge?: GaugeView | null }) {
   const { t, lang, pick } = useT();
   const traceReading = trace?.evidence?.find((e) => e.kind === 'reading') ?? null;
   const reports = (trace?.evidence ?? []).filter((e): e is TraceEvidence => e.kind === 'report');
@@ -179,6 +239,7 @@ function Evidence({ village, trace, traceReplay }: { village: Village; trace: De
         )}
         {sweepLabel && <p className="ev-sweep small">{sweepLabel}</p>}
       </Reveal>
+      <GaugeCard gauge={gauge} />
       {showRules && trace?.rules_fired && trace.rules_fired.length > 0 && (
         <Reveal className="ev-card ev-wide" delay={140}>
           <header className="ev-head">
@@ -339,7 +400,7 @@ export default function VillagePage() {
             <GaugeIcon aria-hidden="true" /> {t('village.why')}
           </h2>
           <p className="muted">{t('village.why.lead')}</p>
-          <Evidence village={v} trace={trace} traceReplay={Boolean(latestAlert?.replay)} />
+          <Evidence village={v} trace={trace} traceReplay={Boolean(latestAlert?.replay)} gauge={data.gauge} />
         </section>
 
         {readings.length > 1 && (

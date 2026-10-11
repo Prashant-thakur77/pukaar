@@ -7,7 +7,7 @@ import { isLevel, levelRank } from './levels';
 export interface EvidenceLine {
   text: string;
   /** Which signal this line is about (for an icon). */
-  kind: 'river' | 'rain' | 'reports' | 'agree' | 'impact' | 'disagree' | 'hold' | 'none';
+  kind: 'river' | 'rain' | 'gauge' | 'reports' | 'agree' | 'impact' | 'disagree' | 'hold' | 'none';
   level?: Level;
 }
 
@@ -88,6 +88,19 @@ export function evidenceLines(trace: DecisionTrace | null | undefined, lang: Lan
     out.push(...pair);
   } else if (rules.includes('no_reading')) {
     out.push({ kind: 'none', text: hi ? 'कोई माप नहीं मिला' : 'No river or rain reading available' });
+  }
+
+  const gauge = ev.find((e) => e.kind === 'gauge');
+  if (gauge && typeof gauge.water_level_cm === 'number') {
+    const lv = isLevel(gauge.gauge_level) ? gauge.gauge_level : undefined;
+    const sim = gauge.simulated ? (hi ? ' (सिम्युलेटेड)' : ' (simulated)') : '';
+    out.push({
+      kind: 'gauge',
+      level: lv,
+      text: hi
+        ? `नदी गेज ${Math.round(gauge.water_level_cm)} सेमी${sim}${lv ? ` → ${levelWord(lv, lang)}` : ''}`
+        : `River gauge ${Math.round(gauge.water_level_cm)} cm${sim}${lv ? ` → ${levelWord(lv, lang)}` : ''}`,
+    });
   }
 
   const reports = ev.filter((e) => e.kind === 'report');

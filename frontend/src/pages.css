@@ -614,6 +614,20 @@
 .impact .band-paper-2 .tick-list li { color: rgb(233 243 236 / 0.86); }
 .impact .caveat { border-radius: 4px 14px 14px 4px; border-left: 3px solid var(--gold); }
 .impact .candid { border-left: 3px solid var(--crimson); }
+.impact .scores-band { border-top: 1px solid var(--line); }
+.impact .sc-lead { max-width: 62ch; margin: 0 0 var(--s-4); }
+.impact .score-grid { list-style: none; margin: var(--s-4) 0 0; padding: 0; display: grid; gap: var(--s-3); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.impact .score-grid > li { border: 1px solid var(--line); border-radius: 14px; padding: var(--s-4); display: grid; gap: var(--s-2); min-width: 0; }
+.impact .score-grid > li.is-pukaar { border-color: var(--gold); background: var(--accent-soft); }
+.impact .score-name { margin: 0; font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); }
+.impact .score-name:lang(hi) { font-family: var(--font-hi); letter-spacing: 0; text-transform: none; font-size: var(--fs-sm); }
+.impact .score-counts { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
+.impact .score-counts dt { font-size: var(--fs-xs); color: var(--ink-3); font-weight: 600; }
+.impact .score-counts dd { margin: 0; font-family: var(--font-display); font-size: 2rem; line-height: 1.1; }
+.impact .score-counts .sc-hit dd { color: var(--ok); }
+.impact .score-counts .sc-miss dd { color: var(--bad); }
+.impact .score-counts .sc-fa dd { color: var(--accent-text); }
+@media (max-width: 720px) { .impact .score-grid { grid-template-columns: 1fr; } }
 
 .audit-page { padding-bottom: var(--s-8); }
 .audit.wrap { padding-top: clamp(24px, 3vw, 40px); gap: var(--s-4); }

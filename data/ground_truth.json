@@ -1,0 +1,63 @@
+{
+  "_note": "Did a damaging flood or cloudburst actually hit this village in the scenario window? Only facts from public reporting fetched and read on 2026-10-11. 'uncertain' means we could not find a village-specific report either way; those villages are left out of every score. No village is marked 'no_event': we could not verify an absence, so false alarms cannot be counted yet. event_day is the first damaging day (UTC date).",
+  "scenarios": {
+    "himachal_2023_07": {
+      "pandoh": {
+        "truth": "event",
+        "event_day": "2023-07-09",
+        "what": "Beas flood waves crossed Pandoh village on 9 and 10 July 2023, taking a bridge and homes.",
+        "source": "https://www.newslaundry.com/2023/08/08/our-lives-are-set-back-25-years-in-himachal-a-village-loses-everything-to-floods-2"
+      },
+      "thunag": {
+        "truth": "uncertain",
+        "what": "Video of a flash flood in the Thunag area was reported in July 2023, but we could not confirm the date falls inside 7-11 July or that the village itself was damaged.",
+        "source": "https://www.tribuneindia.com/news/himachal/video-scary-visuals-of-flash-flood-from-mandis-thunag-in-himachal-pradesh-cloudburst-triggers-major-landslide-in-solans-chewa-village-524420"
+      },
+      "janjehli": {
+        "truth": "uncertain",
+        "what": "No village-specific report found for 7-11 July 2023.",
+        "source": null
+      },
+      "gohar": {
+        "truth": "uncertain",
+        "what": "Mandi district was hit hard on 9-11 July 2023, but no report specific to Gohar was found.",
+        "source": null
+      },
+      "sujanpur": {
+        "truth": "uncertain",
+        "what": "Beas flooding at Khairi (Sujanpur) is reported for 25 June and August 2023, not for 7-11 July.",
+        "source": "https://www.tribuneindia.com/news/himachal/28-of-five-families-rescued-in-hamipur-423690"
+      }
+    },
+    "mandi_2025": {
+      "thunag": {
+        "truth": "event",
+        "event_day": "2025-06-30",
+        "what": "Cloudbursts on the night of 30 June to 1 July 2025; over 150 homes and shops in Thunag market destroyed, 3 deaths in Thunag.",
+        "source": "https://www.downtoearth.org.in/natural-disasters/cloudbursts-devastate-himachals-mandi-at-least-10-dead-34-missing-after-1900-excess-rain-on-july-1"
+      },
+      "gohar": {
+        "truth": "event",
+        "event_day": "2025-06-30",
+        "what": "5 deaths in Gohar subdivision in the same night's cloudbursts (subdivision level, not the town alone).",
+        "source": "https://www.downtoearth.org.in/natural-disasters/cloudbursts-devastate-himachals-mandi-at-least-10-dead-34-missing-after-1900-excess-rain-on-july-1"
+      },
+      "janjehli": {
+        "truth": "event",
+        "event_day": "2025-06-30",
+        "what": "Down To Earth: 'No house or corner of the Seraj Assembly constituency has been untouched' (Janjehli is in Seraj); about 10 percent of the Chail-Janjheli road destroyed.",
+        "source": "https://www.downtoearth.org.in/natural-disasters/cloudbursts-devastate-himachals-mandi-at-least-10-dead-34-missing-after-1900-excess-rain-on-july-1"
+      },
+      "pandoh": {
+        "truth": "uncertain",
+        "what": "No village-specific report found for 30 June to 1 July 2025.",
+        "source": null
+      },
+      "sujanpur": {
+        "truth": "uncertain",
+        "what": "Sujanpur is in Hamirpur district; no report found either way for these dates.",
+        "source": null
+      }
+    }
+  }
+}
