@@ -21,6 +21,7 @@ dependencies = [
 dev = [
     "moto[dynamodb,lambda,s3,ssm,stepfunctions]>=5.2.3",
     "pytest",
+    "xmlschema>=4.3.2",
 ]
 
 [build-system]

@@ -165,3 +165,18 @@ def test_cors_preflight_skips_the_authorizer():
     ]
     pre = [e for e in events if e.get("Method") == "OPTIONS" and e.get("Path") == "/{proxy+}"]
     assert pre and pre[0].get("Auth", {}).get("Authorizer") == "NONE"
+
+
+def test_cap_feed_routes_are_public_get_only():
+    """SACHET and other CAP aggregators fetch the feed with no token; only GET is opened."""
+    events = [
+        e["Properties"]
+        for r in RES.values()
+        if r["Type"] == "AWS::Serverless::Function"
+        for e in (r["Properties"].get("Events") or {}).values()
+        if e.get("Type") == "HttpApi"
+    ]
+    for path in ("/cap/alerts.atom", "/cap/alerts/{file}"):
+        routes = [e for e in events if e.get("Path") == path]
+        assert [e["Method"] for e in routes] == ["GET"], path
+        assert routes[0].get("Auth", {}).get("Authorizer") == "NONE", path

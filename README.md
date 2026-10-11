@@ -77,6 +77,17 @@ Try it in two minutes: open the [live page](https://main.d15r7ktz99l46x.amplifya
 
 Pukaar is built to sit beside these, not replace them: their forecasts are its inputs, and it carries the last mile to a phone and back.
 
+### Interoperable: a CAP 1.2 feed
+
+SACHET, NDMA's national alert platform, is built on the Common Alerting Protocol ([PIB](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2257102)). Every Pukaar alert that actually goes out (approved by an officer, auto-sent at critical after every officer timed out, or sent by the failsafe) is also published as a CAP 1.2 message, so SACHET, Google Public Alerts or any CAP aggregator can read it without custom code. Pending, declined and expired alerts are never published.
+
+- `GET /cap/alerts.atom`: ATOM index of the latest 50 published alerts, newest first, each linking to its XML.
+- `GET /cap/alerts/{alert id}.xml`: one `<alert>` (`application/cap+xml`), 404 if the alert was not published.
+
+On the deployed API: [`https://362iqe4oae.execute-api.us-east-1.amazonaws.com/cap/alerts.atom`](https://362iqe4oae.execute-api.us-east-1.amazonaws.com/cap/alerts.atom).
+
+Each message has a Hindi (`hi-IN`) and an English (`en-IN`) `<info>` block, event Flood, category Met, and urgency, severity, certainty and response type mapped from the level (watch: Expected, Moderate, Possible, Monitor; warning: Expected, Severe, Likely, Prepare; critical: Immediate, Extreme, Likely, Evacuate). It is effective from the decision and expires 12 hours later. The area is a 5 km circle around the village point; a parameter says the point is geocoded, not verified on the ground. The rules that fired and the level are `<parameter>`s. Replays of archived floods and drills are `status=Exercise`, never `Actual`; a raised level with an earlier published alert for the village is `msgType=Update` and references it. The sender name says "(demo)": this is not an official government channel. Code: [backend/src/Pukaar/services/cap.py](backend/src/Pukaar/services/cap.py); [backend/tests/test_cap.py](backend/tests/test_cap.py) validates every level against the official OASIS CAP 1.2 schema.
+
 ## Who it is for
 
 - **District and block disaster officers**: they approve every alert on their
@@ -140,7 +151,7 @@ Every row is deployed in stack `pukaar-dev` (`us-east-1`) and defined in
 |---|---|---|---|
 | **EventBridge Scheduler** | Runs the sweep every 15 minutes | `rate(15 minutes)`, `MaximumRetryAttempts: 0` (a late sweep is useless; the next one comes), dead-letter queue `pukaar-sweep-dlq-dev` | `infra/template.yaml` (`SweepSchedule`) |
 | **Lambda** (4 functions, container images from one Dockerfile) | `pukaar-api-dev` (FastAPI behind the Lambda Web Adapter, 2048 MB, 29 s), `pukaar-sweep-dev`, `pukaar-workflow-dev` (one function, dispatch on `step`), `pukaar-worker-dev` (Transcribe, replay) | X-Ray tracing on every function, one IAM role per function, 30-day log retention | `backend/Dockerfile`, `backend/src/Pukaar/handlers/` |
-| **API Gateway HTTP API** | Every route | Cognito JWT authorizer on the catch-all route; an explicit short list of public routes (health, overview, report, acknowledgement, signed approval link, Telegram webhook); CORS limited to the web origin; stage throttling 20 req/s, burst 50 | `infra/template.yaml` (`HttpApi`) |
+| **API Gateway HTTP API** | Every route | Cognito JWT authorizer on the catch-all route; an explicit short list of public routes (health, overview, report, acknowledgement, signed approval link, Telegram webhook, CAP feed); CORS limited to the web origin; stage throttling 20 req/s, burst 50 | `infra/template.yaml` (`HttpApi`) |
 | **Step Functions** (Standard) | One approval execution per alert: draft, ask officer, deliver, wait, re-send, close | `waitForTaskToken` callbacks with the timeout as a deploy parameter; `States.Timeout` moves to the next officer; `States.ALL` on every task goes to a failsafe; 2-hour execution limit; error-level logging; X-Ray | [infra/approval.asl.json](infra/approval.asl.json), `backend/src/Pukaar/workflow/steps.py` |
 | **DynamoDB** | All state in one table | On-demand, `pk`/`sk`, one sparse GSI used as the open-work queue, TTL, point-in-time recovery, conditional writes for sweep dedupe and single-use approval tokens; audit rows are append-only | `backend/src/Pukaar/store/repo.py` |
 | **Bedrock** (Amazon Nova 2 Lite, via Strands Agents) | Drafts the Hindi alert, structures reports, describes photos, answers officers ("Ask Pukaar") | Typed output, at most 4 turns, a fresh agent per call; whole-call retry in `us-west-2` on throttling, 5xx or timeouts; every tool call passes a Cedar hook; any failure returns `None` and the rule fallback runs. The live stack currently runs on that fallback (fixed Hindi template, labelled `rule-fallback`) until Bedrock model access is granted | `backend/src/Pukaar/llm/bedrock.py`, `backend/src/Pukaar/llm/tools.py` |
@@ -206,6 +217,7 @@ curl -s $API/health                 # which AWS services the stack is using righ
 curl -s $API/public/overview        # village levels, counters, recent alerts with delivery status
 curl -s $API/villages/gohar         # one village: readings, alerts with Hindi text, nowcast, past events
 curl -s $API/replay/status          # whether an archived-flood replay is running (always labelled replay)
+curl -s $API/cap/alerts.atom        # CAP 1.2 feed: every published alert, each linking to its XML
 curl -s -o /dev/null -w '%{http_code}\n' $API/me   # 401: officer routes need a Cognito token
 ```
 
@@ -232,7 +244,8 @@ sign-in; the demo accounts are in [DEMO.md](DEMO.md).
 | Outbound voice call with "press 1" to acknowledge (Amazon Connect, playing the Polly clip) | Planned: reaches basic phones and people who cannot read |
 | SMS copy of every approved alert (Amazon SNS, transactional) | Planned: the account starts in the SNS SMS sandbox, so only verified numbers until production access |
 | River gauges over AWS IoT Core (MQTT, X.509 per device, topic rule into the same ingestion) | Planned: the HTTP ingestion with per-device signatures is the first step |
-| Safe places and evacuation routes on the map; spoken approval; grounded voice Q&A; AgentCore; CAP export | Planned (stretch) |
+| CAP 1.2 feed (`/cap/alerts.atom`, `/cap/alerts/{id}.xml`) | Built; schema-validated in tests against the official OASIS XSD |
+| Safe places and evacuation routes on the map; spoken approval; grounded voice Q&A; AgentCore | Planned (stretch) |
 
 ## What the back-test shows (and what it does not)
 

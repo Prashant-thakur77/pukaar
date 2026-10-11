@@ -248,6 +248,10 @@ Resources:
         PublicOverview: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /public/overview, Method: GET, Auth: { Authorizer: NONE } } }
         Track: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/track/{code}", Method: GET, Auth: { Authorizer: NONE } } }
         ReplayStatus: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /replay/status, Method: GET, Auth: { Authorizer: NONE } } }
+        # CAP 1.2 feed for SACHET and other aggregators (services/cap.py): published alerts only.
+        # HTTP API path variables span a whole segment, so {file} is "<alert id>.xml"; FastAPI matches the suffix.
+        CapFeed: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /cap/alerts.atom, Method: GET, Auth: { Authorizer: NONE } } }
+        CapAlert: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/cap/alerts/{file}", Method: GET, Auth: { Authorizer: NONE } } }
         # River gauges have no Cognito account; each body carries a per-device HMAC signature (services/gauge.py).
         SensorReading: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/sensors/{id}/readings", Method: POST, Auth: { Authorizer: NONE } } }
 

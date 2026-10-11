@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from Pukaar.api import views
 from Pukaar.api.auth import DEV_USERS, dev_token
 from Pukaar.core.config import get_settings
 from Pukaar.delivery import dispatch, telegram
+from Pukaar.services import cap
 from Pukaar.services import replay as replay_svc
 from Pukaar.services import storage
 from Pukaar.services.reports import track_steps
@@ -113,6 +114,43 @@ def alert_audio(alert_id: str) -> dict:
     if a is None:
         raise HTTPException(404, "Alert not found")
     return {"url": storage.url_for(a.audio_key), "text_hi": a.text_hi}
+
+
+def _api_base(request: Request) -> str:
+    """Absolute base of this API, for links inside the feed (behind API Gateway: forwarded proto + host)."""
+    s = get_settings()
+    if s.api_url and not s.is_local:
+        return s.api_url
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme).split(",")[0].strip()
+    host = request.headers.get("host") or request.url.netloc
+    return f"{proto}://{host}"
+
+
+_CAP_CACHE = {"Cache-Control": "public, max-age=60"}
+
+
+@router.get("/cap/alerts.atom")
+def cap_feed(request: Request) -> Response:
+    """ATOM index of the latest published alerts, each linking to its CAP 1.2 XML."""
+    s = get_settings()
+    alerts = [a for a in get_repo().list_alerts(limit=200) if cap.is_published(a)]
+    body = cap.atom(alerts, api_base=_api_base(request), web_url=s.web_url)
+    return Response(content=body, media_type=cap.ATOM_CONTENT_TYPE, headers=_CAP_CACHE)
+
+
+@router.get("/cap/alerts/{alert_id}.xml")
+def cap_alert(alert_id: str) -> Response:
+    """One published alert as a CAP 1.2 <alert>. Unpublished alerts (pending, declined, expired) are 404."""
+    s = get_settings()
+    repo = get_repo()
+    a = repo.get_alert(alert_id)
+    if a is None or not cap.is_published(a):
+        raise HTTPException(404, "No published alert with this id")
+    previous = None
+    if a.previous_level != "normal":
+        previous = cap.previous_published(a, repo.list_alerts(village_id=a.village_id, limit=100))
+    body = cap.render(a, repo.get_village(a.village_id), sender=s.cap_sender, web_url=s.web_url, previous=previous)
+    return Response(content=body, media_type=cap.CAP_CONTENT_TYPE, headers=_CAP_CACHE)
 
 
 @router.get("/media/{key:path}")

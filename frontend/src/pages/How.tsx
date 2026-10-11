@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, BatteryCharging, Cpu, ShieldCheck, Smartphone, Siren, Scale, Waves } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { API_BASE } from '../api';
 import { PageBand } from '../components/PageBand';
+import { capFeedUrl } from '../lib/cap';
 import { Reveal } from '../components/Reveal';
 import { useT } from '../i18n';
 
@@ -298,6 +300,14 @@ export default function How() {
               </Reveal>
             ))}
           </ul>
+          <p className="how-feed">
+            {en
+              ? 'Interoperable: every alert that goes out is also published as a CAP 1.2 message, the standard India’s SACHET system is built on. '
+              : 'हर भेजी गई चेतावनी CAP 1.2 संदेश के रूप में भी छपती है, उसी मानक में जिस पर भारत का सचेत (SACHET) सिस्टम बना है। '}
+            <Ext href={capFeedUrl(API_BASE)} className="how-cite">
+              {en ? 'Machine-readable CAP 1.2 feed (SACHET-ready)' : 'मशीन से पढ़ने योग्य CAP 1.2 फ़ीड (SACHET के लिए तैयार)'}
+            </Ext>
+          </p>
         </div>
       </section>
 

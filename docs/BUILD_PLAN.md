@@ -91,6 +91,41 @@ Each feature lists: why it matters, the design, AWS pieces and cost, the tests t
 ### 12. Learning gauge thresholds — wave 3
 - **Design**: after N days of readings, propose watch/warning/critical stage thresholds from the gauge's own record (percentiles, like the river discharge), flag sensor faults (flat lines, impossible jumps, low battery) and show both to the officer for approval. A transparent statistical model, not a black box.
 
+## Added after the world review (11 Oct 2026)
+
+Sources and verdicts: the research summary in [REFERENCE_REVIEW.md](REFERENCE_REVIEW.md) and the owner's feature list. WMO's Early Warnings for All has four pillars (risk knowledge, monitoring, dissemination, preparedness); Pukaar was strongest on monitoring and dissemination, weakest on **risk knowledge** and **preparedness**. These close that gap and make Pukaar visibly agent-centred and sensor-centred.
+
+### 13. Agents, shown the way EcoLafaek shows its agent — wave 2
+- **Why**: judges and officers should see what each agent does, which tools it may call, what it may never do, and a real trace. EcoLafaek names the AWS primitive on a tile, shows a round-by-round trace, a tool table and starter prompts.
+- **Design**: a public `/agents` page: one card per agent (Drafting agent, Ask Pukaar analyst, Report-structuring agent, Guardrail screen, Watch agent for sensors) with the AWS primitives named (Bedrock Nova via Strands, Bedrock Guardrails, AgentCore-ready), the tools it can call (read-only, Cedar-guarded), what it may never do (set a level, choose recipients, send), its live status (model live, or labelled fallback while access is pending), and a round-by-round trace rendered from a real decision trace. Ask Pukaar gets starter-prompt chips and a public, rate-limited read-only mode. A stack grid groups the AWS services as Agents / Sensors / Delivery / Safety.
+- **Honesty**: while Bedrock invocation is blocked, traces show the keyword router and the fixed template, never invented model output; Guardrails are shown live.
+
+### 14. Sensors, shown end to end — wave 2
+- **Design**: a `/sensors` page (and a band on the landing): the device path "Gauge → AWS IoT Core (MQTT, X.509) → topic rule → ingest → rules → alert", each gauge's latest reading, freshness, battery and a live "readings in the last 24 h" counter; the hardware bill of materials and firmware links; virtual staff gauges (below).
+
+### 15. Antecedent soil moisture — wave 2
+- **Why**: the same rain on saturated soil does far more damage; antecedent-rainfall and soil-moisture thresholds are standard in the Himalayan landslide literature.
+- **Design**: the sweep reads Open-Meteo hourly soil moisture (0-1, 3-9 and 27-81 cm); a deterministic modifier lowers the rain bands when the root zone is near saturation, with the factor and the reading in the decision trace; back-tested on July 2023 and June 2025 before it is switched on, and the result published either way.
+
+### 16. Two-stage readiness and early-action checklists — wave 2
+- **Why**: anticipatory action (Start Network, WFP Nepal, IFRC forecast-based financing) uses a soft "get ready" trigger days out and a hard "act" trigger close in; Practical Action's Nepal system relies on named people and drills.
+- **Design**: a 7-day outlook ("get ready") from the river forecast's longer range, separate from the 24-hour "act" levels; per-village early-action checklists (who checks the khad, who opens the school, who calls the elders) owned by the pradhan, ticked in the console; drill mode reuses `make drill`.
+
+### 17. "Surakshit Hoon" safety roll-call — wave 2
+- **Why**: after a flood, calls from relatives jam the towers; a one-tap "I am safe" (like Safety Check) frees the lines and tells officers who has not checked in.
+- **Design**: after an alert closes, Telegram recipients get "✅ मैं सुरक्षित हूँ / I am safe" and "🆘 मदद चाहिए / Need help" buttons; a per-village roll-call board for officers (counts, who needs help, who has not answered); an optional family link that shows only "safe at 02:18" with no other data.
+
+### 18. Virtual staff gauges from photos — wave 3
+- **Why**: CrowdWater (University of Zurich) turns a marked rock or pier into a gauge anyone can read from a photo.
+- **Design**: the pradhan photographs a reference point once and draws a scale; later report photos at the same spot are compared on the scale (by the officer now, by a vision model once Bedrock access lands).
+
+### Not building (and why)
+- Phone barometer swarm: no browser exposes the pressure sensor.
+- Bluetooth mesh relay in a web app: Web Bluetooth cannot advertise or run in the background, and is absent on iOS.
+- River-roar detection from phone microphones: the research uses seismic and infrasound sensors, not phones.
+- Upstream surge routing between the five villages: only after checking the real drainage on a DEM (HydroSHEDS); Pandoh to Sujanpur Tira would need BBMB release data.
+- Needs partners: sending into SACHET (only authorised agencies originate alerts; Pukaar publishes CAP for them to forward), voice calls inside India, sirens on LoRaWAN, Mandyali voices, drones, bridge engineering scores.
+
 ## How it is built
 
 - Each feature is built on its own branch (a git worktree), with tests first, then merged to `main` only when backend tests, the template safety tests, frontend type-check, lint and tests all pass.
@@ -114,3 +149,9 @@ Each feature lists: why it matters, the design, AWS pieces and cost, the tests t
 | 10 | Voice call | 3 | planned (owner action may be needed) |
 | 11 | Web Push to officers | 3 | planned |
 | 12 | Learning gauge thresholds | 3 | planned |
+| 13 | Agents page (EcoLafaek-style) | 2 | building |
+| 14 | Sensors page and device path | 2 | building |
+| 15 | Antecedent soil moisture | 2 | building |
+| 16 | Two-stage readiness and checklists | 2 | building |
+| 17 | "Surakshit Hoon" roll-call | 2 | building |
+| 18 | Virtual staff gauges | 3 | planned |

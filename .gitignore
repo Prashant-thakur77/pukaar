@@ -138,3 +138,7 @@ venv/
 
 # --- Video renders and caches (regenerable) ---
 video/.out/
+
+# Claude Code agent worktrees (local only)
+.claude/
+docs/media/pukaar-demo-silent.mp4

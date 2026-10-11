@@ -756,6 +756,9 @@
 .how-card p { margin: 0; color: var(--ink-2); line-height: 1.55; }
 .how-card-link { margin-top: auto; display: inline-flex; align-items: center; min-height: 44px; font-weight: 800; color: var(--accent-text); text-decoration: none; }
 .how-card-link:hover { text-decoration: underline; }
+.how-feed { margin: var(--s-5) 0 0; max-width: 72ch; color: var(--ink-2); line-height: 1.55; }
+.how-feed .how-cite { color: var(--accent-text); font-weight: 700; }
+.how-feed .how-cite:hover { color: var(--ink); }
 
 /* 5. call to action: black band */
 .how-cta { background: var(--night-0); color: var(--cream); }

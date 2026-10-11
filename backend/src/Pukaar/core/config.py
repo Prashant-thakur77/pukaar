@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 def _bool(name: str, default: bool) -> bool:
@@ -48,6 +49,7 @@ class Settings:
     cors_origins: tuple[str, ...]
     cognito_user_pool_id: str
     cognito_client_id: str
+    cap_sender: str  # CAP <sender>: no spaces, commas, '<' or '&'
 
     @property
     def is_local(self) -> bool:
@@ -86,4 +88,6 @@ def get_settings() -> Settings:
         cors_origins=tuple(o.strip() for o in cors.split(",") if o.strip()),
         cognito_user_pool_id=os.environ.get("PUKAAR_COGNITO_USER_POOL_ID", ""),
         cognito_client_id=os.environ.get("PUKAAR_COGNITO_CLIENT_ID", ""),
+        cap_sender=os.environ.get("PUKAAR_CAP_SENDER", "").strip()
+        or f"pukaar-{os.environ.get('PUKAAR_STAGE', 'dev')}@{urlsplit(web_url).hostname or 'localhost'}",
     )

@@ -384,6 +384,10 @@ export const dict = {
   'console.ask.tools': { hi: 'टूल ट्रेस ({n})', en: 'Tool trace ({n})' },
   'console.ask.model': { hi: 'मॉडल: {m}', en: 'Model: {m}' },
   'console.audit': { hi: 'ऑडिट ट्रेल', en: 'Audit trail' },
+  'console.cap.title': {
+    hi: 'यह चेतावनी CAP 1.2 रूप में (सचेत जैसे सिस्टम के लिए मशीन से पढ़ने योग्य)',
+    en: 'This alert as CAP 1.2 (machine-readable, for SACHET and other aggregators)',
+  },
   'console.alerts.recent': { hi: 'हाल की चेतावनियाँ', en: 'Recent alerts' },
   'console.tab.queue': { hi: 'गाँव', en: 'Villages' },
   'console.tab.approvals': { hi: 'मंज़ूरी', en: 'Approvals' },

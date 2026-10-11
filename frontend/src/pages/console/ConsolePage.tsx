@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { TimeToEar } from '../../components/TimeToEar';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { Bell, ChevronDown, Cloud, FileText, History, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
-import { api } from '../../api';
+import { api, API_BASE } from '../../api';
 import { AlertStatusChip, DeliveryChips } from '../../components/Chips';
 import { LevelBadge } from '../../components/Level';
 import { Call112 } from '../../components/Shell';
 import { usePoll } from '../../hooks/usePoll';
 import { useT } from '../../i18n';
 import { auditLinkForAlert } from '../../lib/audit';
+import { capXmlUrl } from '../../lib/cap';
 import { fmtAgo, fmtTime } from '../../lib/format';
 import { Skeleton } from '../../components/States';
 import { Headline, StatStrip } from '../../components/PageBand';
@@ -217,6 +218,7 @@ function RecentAlert({ alert: a, showAudit }: { alert: Alert; showAudit: boolean
   const { t, lang } = useT();
   const [open, setOpen] = useState(false);
   const sent = ['delivering', 'delivered', 'closed', 'auto_sent_unapproved', 'failsafe'].includes(a.status) || a.delivered_count > 0;
+  const cap = capXmlUrl(a, API_BASE);
   return (
     <li className={`ra-row lv-${a.level}`}>
       <div className="ac-top">
@@ -235,6 +237,14 @@ function RecentAlert({ alert: a, showAudit }: { alert: Alert; showAudit: boolean
             <Link className="link" to={auditLinkForAlert(a.id)}>
               {t('console.audit')}
             </Link>
+          </>
+        )}
+        {cap && (
+          <>
+            {' · '}
+            <a className="link" href={cap} target="_blank" rel="noreferrer" title={t('console.cap.title')}>
+              CAP XML ↗
+            </a>
           </>
         )}
       </p>
