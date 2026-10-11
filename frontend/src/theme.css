@@ -68,46 +68,51 @@
   --tap-xl: 64px;
 
   /* night valley: used for the poster hero in both themes */
-  --night-0: #0c0c0b;
-  --night-1: #10120e;
-  --night-2: #141a15;
-  --night-3: #1b241d;
-  --night-4: #29362c;
-  --night-5: #4a5a4c;
-  --night-ink: #f4ece4;
-  --night-ink-2: #c8b488;
+  /* Water theme: the river at night, mist and glass by day. Names kept from the earlier palette so every page follows. */
+  --night-0: #06111f;
+  --night-1: #081828;
+  --night-2: #0c2136;
+  --night-3: #123049;
+  --night-4: #1d4466;
+  --night-5: #3b6b93;
+  --night-ink: #eaf4fb;
+  --night-ink-2: #9cc0dc;
 
-  /* EcoLafaek palette: sand gold accent, forest, crimson, cream */
-  --marigold: #d8ad55;
-  --marigold-2: #e8c77c;
-  --marigold-ink: #1a1408;
-  --gold: #d8ad55;
-  --gold-2: #e8c77c;
-  --forest: #0d4a33;
-  --forest-2: #0f5a3e;
-  --forest-ink: #e9f3ec;
-  --crimson: #a3141a;
-  --crimson-2: #c21f24;
-  --khaki: #c9b48a;
-  --cream: #f4efe4;
+  /* river blue is the one accent; deep teal replaces forest; crimson stays for danger only */
+  --marigold: #4fb3ff;
+  --marigold-2: #8ad0ff;
+  --marigold-ink: #04182b;
+  --gold: #4fb3ff;
+  --gold-2: #8ad0ff;
+  --river-grad: linear-gradient(100deg, #8ad0ff 0%, #4fb3ff 45%, #2f7df6 100%);
+  --forest: #0b4660;
+  --forest-2: #0f5a7a;
+  --forest-ink: #e6f4fb;
+  --crimson: #b3122a;
+  --crimson-2: #d6334a;
+  --khaki: #9cc0dc;
+  --cream: #eef6fb;
+  --mist: #e4f1f9;
+  --glass-light: rgb(255 255 255 / 0.72);
+  --glass-line: rgb(120 170 205 / 0.35);
 
-  /* ---- light theme (default) ---- */
-  --bg: #f8f5ee;
-  --bg-2: #ece2d5;
-  --surface: #fcfaf6;
-  --surface-2: #f7f1e8;
-  --surface-3: #efe6d9;
-  --ink: #0c0c08;
-  --ink-2: #2f2c24;
-  --ink-3: #5e5848;
-  --line: #e2d8c8;
-  --line-2: #cdbfa8;
-  --focus: #0c4830;
+  /* ---- light theme (default): mist and water ---- */
+  --bg: #f2f8fc;
+  --bg-2: #e3f0f8;
+  --surface: #ffffff;
+  --surface-2: #f4f9fd;
+  --surface-3: #e8f2f9;
+  --ink: #0b1f33;
+  --ink-2: #284560;
+  --ink-3: #557089;
+  --line: #d6e6f1;
+  --line-2: #b9d3e5;
+  --focus: #1d7fc4;
 
-  --accent: #d8ad55;
-  --accent-ink: #1a1408;
-  --accent-text: #7a5a14;
-  --accent-soft: #f5ead0;
+  --accent: #1f8fd6;
+  --accent-ink: #ffffff;
+  --accent-text: #11679e;
+  --accent-soft: #e2f1fb;
 
   --sos: #b4122f;
   --sos-soft: #ffe3e8;
@@ -128,31 +133,31 @@
   --lv-critical-ink: #9c0d2f;
   --lv-critical-bg: #ffdfe6;
 
-  --sh-1: 0 1px 2px rgb(12 12 8 / 0.06), 0 1px 1px rgb(12 12 8 / 0.04);
-  --sh-2: 0 6px 18px -6px rgb(12 12 8 / 0.16), 0 2px 4px rgb(12 12 8 / 0.05);
-  --sh-3: 0 22px 48px -18px rgb(12 12 8 / 0.3), 0 4px 10px rgb(12 12 8 / 0.06);
-  --sh-accent: 0 10px 26px -10px rgb(212 172 88 / 0.7);
-  --glass: rgb(252 250 246 / 0.82);
+  --sh-1: 0 1px 2px rgb(11 31 51 / 0.06), 0 1px 1px rgb(11 31 51 / 0.04);
+  --sh-2: 0 6px 18px -6px rgb(11 31 51 / 0.12), 0 2px 4px rgb(11 31 51 / 0.05);
+  --sh-3: 0 22px 48px -18px rgb(11 31 51 / 0.22), 0 4px 10px rgb(11 31 51 / 0.06);
+  --sh-accent: 0 10px 26px -10px rgb(47 125 246 / 0.6);
+  --glass: rgb(255 255 255 / 0.78);
 }
 
 /* Dark tokens: same block twice (explicit toggle, and system preference). */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0c0c08;
-  --bg-2: #10120e;
-  --surface: #151712;
-  --surface-2: #1b1e18;
-  --surface-3: #23271f;
-  --ink: #f4ece4;
-  --ink-2: #d9cfbf;
-  --ink-3: #a99f8b;
-  --line: #2b2e25;
-  --line-2: #3c4034;
-  --focus: #e8c77c;
-  --accent: #d8ad55;
-  --accent-ink: #1a1408;
-  --accent-text: #e8c77c;
-  --accent-soft: rgb(212 172 88 / 0.14);
+  --bg: #06111f;
+  --bg-2: #081828;
+  --surface: #0c2136;
+  --surface-2: #102a42;
+  --surface-3: #15334f;
+  --ink: #eaf4fb;
+  --ink-2: #c3dbee;
+  --ink-3: #8fb0cb;
+  --line: #1a3854;
+  --line-2: #24496b;
+  --focus: #8ad0ff;
+  --accent: #4fb3ff;
+  --accent-ink: #04182b;
+  --accent-text: #8ad0ff;
+  --accent-soft: rgb(79 179 255 / 0.14);
   --sos: #ff6b81;
   --sos-soft: rgb(255 107 129 / 0.12);
   --ok: #5fd6a4;
@@ -172,27 +177,27 @@
   --sh-1: 0 1px 2px rgb(0 0 0 / 0.4);
   --sh-2: 0 8px 22px -8px rgb(0 0 0 / 0.6);
   --sh-3: 0 26px 56px -20px rgb(0 0 0 / 0.75);
-  --glass: rgb(21 23 18 / 0.82);
+  --glass: rgb(12 33 54 / 0.82);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #0c0c08;
-    --bg-2: #10120e;
-    --surface: #151712;
-    --surface-2: #1b1e18;
-    --surface-3: #23271f;
-    --ink: #f4ece4;
-    --ink-2: #d9cfbf;
-    --ink-3: #a99f8b;
-    --line: #2b2e25;
-    --line-2: #3c4034;
-    --focus: #e8c77c;
-    --accent: #d8ad55;
-    --accent-ink: #1a1408;
-    --accent-text: #e8c77c;
-    --accent-soft: rgb(212 172 88 / 0.14);
+    --bg: #06111f;
+    --bg-2: #081828;
+    --surface: #0c2136;
+    --surface-2: #102a42;
+    --surface-3: #15334f;
+    --ink: #eaf4fb;
+    --ink-2: #c3dbee;
+    --ink-3: #8fb0cb;
+    --line: #1a3854;
+    --line-2: #24496b;
+    --focus: #8ad0ff;
+    --accent: #4fb3ff;
+    --accent-ink: #04182b;
+    --accent-text: #8ad0ff;
+    --accent-soft: rgb(79 179 255 / 0.14);
     --sos: #ff6b81;
     --sos-soft: rgb(255 107 129 / 0.12);
     --ok: #5fd6a4;
@@ -212,7 +217,7 @@
     --sh-1: 0 1px 2px rgb(0 0 0 / 0.4);
     --sh-2: 0 8px 22px -8px rgb(0 0 0 / 0.6);
     --sh-3: 0 26px 56px -20px rgb(0 0 0 / 0.75);
-    --glass: rgb(21 23 18 / 0.82);
+    --glass: rgb(12 33 54 / 0.82);
   }
 }
 

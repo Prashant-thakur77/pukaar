@@ -206,6 +206,11 @@ export default function Landing() {
             <Call112 />
           </div>
           </div>
+          <div className="hero-waves" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
           <div className="hero-float" aria-hidden="true">
             <div className="hf-card hf-gold">
               <span className="hf-num">72<small>h</small></span>
