@@ -145,3 +145,18 @@ def test_ingest_accepts_rate_limits_and_shows_on_village_page(client):
     assert g["fresh"] is True and g["level"] == "warning"
     assert g["latest"]["water_level_cm"] == 310.0 and g["latest"]["simulated"] is True
     assert [p["cm"] for p in g["series"]] == [50.5, 310.0]
+
+
+# -- simulator ------------------------------------------------------------
+def test_simulator_rises_past_watch_and_warning_and_signs_like_the_server():
+    from Pukaar.scripts import gauge_sim
+
+    cfg = G.model_dump()
+    stages = gauge_sim.profile(cfg, 5, "warning")
+    assert stages[0] < G.watch_cm and stages[-1] > G.warning_cm and stages == sorted(stages)
+    # --fast spacing fits the server's one-per-minute and five-minute rules
+    assert gauge_sim.FAST_STEP_S >= 60 and gauge_sim.FAST_OLDEST_S < gauge_svc.MAX_AGE_SECONDS
+    body = b'{"device_id":"gauge-thunag-sim"}'
+    sig = gauge_svc.sign(gauge_svc.device_key(SECRET, "gauge-thunag-sim"), body)
+    assert gauge_svc.signature_ok(SECRET, "gauge-thunag-sim", body, sig)
+    assert not gauge_svc.signature_ok(SECRET, "gauge-gohar-sim", body, sig)

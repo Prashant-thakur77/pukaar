@@ -22,9 +22,12 @@ A loop from forecast to a confirmed warning, for five villages in Mandi district
 3. **A Hindi alert is drafted** into a fixed template; a checker rejects any number or place not in the decision trace. If the model is unavailable, the fixed template goes out and is labelled `rule-fallback`.
 4. **A district officer approves in one tap** (console or a signed single-use link). No answer moves to the next officer; a critical alert with nobody answering goes out with the template and is flagged unapproved.
 5. **Polly speaks it** in Hindi, and every registered phone gets the voice and a "मिल गया" (got it) button on Telegram. Anyone who has not confirmed is sent it again. The app times each alert from the level rising to the first confirmation.
-6. **Villagers report back** by voice, photo or text from any phone, even offline (the report page is ready in 4.6 s on slow 3G). A verified report can raise a level on its own.
+6. **A river gauge can speak too.** A low-cost water-level gauge at a bridge (ESP32 with a waterproof ultrasonic sensor; design and firmware sketch in `docs/hardware/`) posts signed readings; the rules treat it as a third evidence source beside the two forecasts. On the live stack the gauges are simulated and labelled so (`make gauge-sim`).
+7. **Villagers report back** by voice, photo or text from any phone, even offline (the report page is ready in 4.6 s on slow 3G). A verified report can raise a level on its own.
 
-Back-test on archived data: for 7-11 July 2023, Gohar, Pandoh and Sujanpur reach Critical; Gohar's first Watch came 72 hours before the river's peak day. For 30 June-1 July 2025, the global forecasts missed the Mandi cloudburst; thresholds were not tuned to fake a hit, which is why villager reports can raise a level.
+Why this design: countries with limited early-warning coverage have nearly six times the disaster mortality ratio (WMO, 2024); 24 hours of warning can cut damage by 30% (Global Commission on Adaptation, 2019); and communities "strongly preferred voice" messages "because of easier accessibility and understanding" (Cumiskey et al., 2015). In Himachal's 2023 monsoon more than 500 people died (HP Government PDNA). Sources and a comparison with SACHET, IMD, CWC and Google Flood Hub are in the README.
+
+Back-test on archived data: for 7-11 July 2023, Gohar, Pandoh and Sujanpur reach Critical; Gohar's first Watch came 72 hours before the river's peak day. For 30 June-1 July 2025, the global forecasts missed the Mandi cloudburst; thresholds were not tuned to fake a hit, which is why villager reports and river gauges can raise a level. Scored against a small sourced ground truth with a source ablation (docs/SCORING.md): the river record gave at least 48 h of lead where rain alone gave about 19 h.
 
 ## Where AWS fits
 

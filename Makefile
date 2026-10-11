@@ -10,7 +10,7 @@ SAM      ?= sam
 STACK_ENV = eval "$$(scripts/stack_env.sh)"
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo drill it secrets local validate
+        seed reset-demo drill gauge-sim it secrets local validate
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -56,6 +56,9 @@ reset-demo: ## Clear demo state (alerts, reports, replay) on the deployed stack
 
 drill: ## Send a labelled drill alert to registered phones (VILLAGE=gohar LEVEL=watch)
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.drill $(or $(VILLAGE),gohar) $(or $(LEVEL),watch)
+
+gauge-sim: ## Send a SIMULATED rising river gauge to the deployed stack (VILLAGE=gohar, FAST=1 for five readings at once)
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.gauge_sim $(or $(VILLAGE),gohar) $(if $(FAST),--fast,)
 
 it: ## Run real approval executions against the deployed stack
 	$(PYTHON) scripts/it_workflow.py

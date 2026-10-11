@@ -96,6 +96,7 @@ Pukaar is built to sit beside these, not replace them: their forecasts are its i
 | Voice | The Hindi text becomes speech | Polly (Kajal, hi-IN), MP3 in S3 |
 | Approval | The officer gets a signed one-tap link (30 min, single use) and a console entry; no answer moves to the next officer; a critical alert with no answer goes out unapproved and is flagged | Step Functions timeouts, Cognito, Cedar |
 | Delivery | Spoken alert plus text and a "मिल गया" button; one automatic re-send to anyone who has not acknowledged | Lambda, Telegram Bot API |
+| A river gauge reports | A water-level gauge at a bridge posts a signed reading (HMAC per device, 5-minute replay window, one per minute); a fresh reading is a third evidence source, and a rise re-runs the village's rules at once. Live gauges are simulated and labelled (`make gauge-sim`); hardware design in [docs/hardware](docs/hardware/README.md) | API Gateway, Lambda, DynamoDB (TTL) |
 | A villager reports | Voice, photo or text, from any phone; queued offline; a tracking code back | API Gateway, S3, Transcribe (hi-IN), Bedrock |
 | Verification | Code verifies a report when GPS is inside the village and a second report agrees nearby, or the photo matches | Lambda |
 | An officer asks | "Which villages need attention?" gets an answer, a chart and a map built from tool data | Bedrock agent with read-only tools |
