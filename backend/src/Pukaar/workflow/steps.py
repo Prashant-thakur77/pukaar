@@ -63,6 +63,9 @@ class Steps:
         recipients = self.repo.list_recipients(alert.village_id)
         for _ in range(3):  # the sweep may escalate the level while we draft
             result = draft_alert(village, alert.level, alert.decision_trace, self.repo, self.llm)
+            if alert.decision_trace.get("drill"):  # a hand-started test (scripts/drill.py): say so in the message
+                result.text_hi = f"अभ्यास (DRILL), असली चेतावनी नहीं। {result.text_hi}"
+                result.text_en = f"DRILL, not a real warning. {result.text_en}"
             trace = dict(alert.decision_trace)
             if result.tools:
                 trace["drafting_tools"] = result.tools

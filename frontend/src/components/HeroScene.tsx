@@ -34,13 +34,13 @@ const LIGHTS: [number, number][] = [
 ];
 
 const WORLD = 100; // scene units across the 50 km tile
-const NIGHT = new Color('#0b1026');
-const LOW = new Color('#16204a');
-const MID = new Color('#3a4892');
-const HIGH = new Color('#97a4e4');
-const SNOW = new Color('#e3e9ff');
-const CALM = new Color('#3b82f6');
-const ALARM = new Color('#f5a524');
+const NIGHT = new Color('#10120e');
+const LOW = new Color('#0f2419');
+const MID = new Color('#2c5a3e');
+const HIGH = new Color('#b7a676');
+const SNOW = new Color('#f4ece4');
+const CALM = new Color('#2f8f6a');
+const ALARM = new Color('#d4ac58');
 
 function colourFor(t: number, out: Color): Color {
   if (t < 0.35) return out.copy(LOW).lerp(MID, t / 0.35);
@@ -132,16 +132,16 @@ export default function HeroScene({ onReady }: { onReady: () => void }) {
       }
       const lightGeo = new BufferGeometry();
       lightGeo.setAttribute('position', new BufferAttribute(new Float32Array(lightPos), 3));
-      const lights = new Points(lightGeo, new PointsMaterial({ color: '#ffc35c', size: 1.4, sizeAttenuation: true, fog: false }));
+      const lights = new Points(lightGeo, new PointsMaterial({ color: '#e8c77c', size: 1.4, sizeAttenuation: true, fog: false }));
       scene.add(lights);
 
-      scene.add(new HemisphereLight('#4a5cab', '#070b1d', 1.3));
-      scene.add(new AmbientLight('#1b2350', 0.5));
+      scene.add(new HemisphereLight('#7f9a78', '#0c0c08', 1.3));
+      scene.add(new AmbientLight('#1d3324', 0.5));
       // Moon behind the ridges for a rim light, plus a soft front fill.
-      const moon = new DirectionalLight('#d6deff', 3.4);
+      const moon = new DirectionalLight('#f6e7c6', 3.4);
       moon.position.set(-25, 35, -70);
       scene.add(moon);
-      const fill = new DirectionalLight('#8796d8', 0.8);
+      const fill = new DirectionalLight('#c8b488', 0.8);
       fill.position.set(30, 25, 60);
       scene.add(fill);
 
@@ -156,7 +156,7 @@ export default function HeroScene({ onReady }: { onReady: () => void }) {
       }
       const starGeo = new BufferGeometry();
       starGeo.setAttribute('position', new BufferAttribute(new Float32Array(starPos), 3));
-      scene.add(new Points(starGeo, new PointsMaterial({ color: '#dfe5ff', size: 1.1, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.75 })));
+      scene.add(new Points(starGeo, new PointsMaterial({ color: '#f4ece4', size: 1.1, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.75 })));
       cleanup.push(() => starGeo.dispose());
 
       const camera = new PerspectiveCamera(38, host.clientWidth / host.clientHeight, 0.5, 400);

@@ -18,13 +18,23 @@ const NAV = [
 
 const THEMES: ThemePref[] = ['system', 'light', 'dark'];
 
+/** The mark: a gold disc, two Himalayan peaks, the river under them and the call rising from the village. */
+export function PukaarMark({ size = 30 }: { size?: number }) {
+  return (
+    <svg className="pk-mark" width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      <circle cx="16" cy="16" r="16" fill="var(--gold)" />
+      <path d="M4.5 22.5 11 12.5l3.6 5.2L19 10l8.5 12.5z" fill="var(--night-0)" />
+      <path d="M17.3 13.2 19 10.6l1.7 2.6c-.6.3-1.1.4-1.7.4s-1.1-.1-1.7-.4z" fill="var(--cream)" />
+      <path d="M4 25.6c2 0 2-1.2 4-1.2s2 1.2 4 1.2 2-1.2 4-1.2 2 1.2 4 1.2 2-1.2 4-1.2 2 1.2 4 1.2" fill="none" stroke="var(--night-0)" strokeWidth="1.6" strokeLinecap="round" />
+      <path className="pk-call" d="M8.2 9.6a4 4 0 0 1 0-4.6M5.6 11.4a7.2 7.2 0 0 1 0-8.2" fill="none" stroke="var(--night-0)" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function Wordmark({ small }: { small?: boolean }) {
   return (
     <span className={`wordmark${small ? ' is-small' : ''}`}>
-      <span className="wm-rings" aria-hidden="true">
-        <i />
-        <i />
-      </span>
+      <PukaarMark size={small ? 26 : 30} />
       <span lang="hi" className="wm-hi">
         पुकार
       </span>
@@ -188,22 +198,33 @@ function ReplayBannerInner() {
 }
 
 function Footer() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const user = useAuth((s) => s.user);
   const signOut = useAuth((s) => s.signOut);
+  const en = lang === 'en';
   return (
     <footer className="site-footer">
       <div className="ftr-inner">
         <div className="ftr-brand">
-          <Wordmark />
-          <p>{t('shell.footer')}</p>
+          <p className="ftr-script" lang="hi">
+            नदी से पहले, गाँव तक।
+          </p>
+          <p className="ftr-lead">{t('shell.footer')}</p>
+          <Call112 />
         </div>
-        <nav className="ftr-links" aria-label="Footer">
-          {NAV.map((n) => (
-            <Link key={n.to} to={n.to}>
-              {t(n.key)}
-            </Link>
-          ))}
+        <nav className="ftr-col" aria-label={en ? 'Explore' : 'देखें'}>
+          <span className="ftr-h">{en ? 'Explore' : 'देखें'}</span>
+          <Link to="/live">{t('nav.live')}</Link>
+          <Link to="/#story">{en ? 'The night the river rose' : 'जिस रात नदी चढ़ी'}</Link>
+          <Link to="/impact">{t('nav.impact')}</Link>
+        </nav>
+        <nav className="ftr-col" aria-label={en ? 'Use it' : 'इस्तेमाल करें'}>
+          <span className="ftr-h">{en ? 'Use it' : 'इस्तेमाल करें'}</span>
+          <Link to="/report">{t('nav.report')}</Link>
+          <a href="https://t.me/PukaarRescuebot" target="_blank" rel="noreferrer">
+            {en ? 'Alerts on Telegram' : 'Telegram पर चेतावनी'} ↗
+          </a>
+          <Link to="/console">{t('nav.console')}</Link>
           {user ? (
             <button type="button" className="ftr-signout" onClick={signOut}>
               <LogOut aria-hidden="true" /> {t('shell.signout')}
@@ -212,13 +233,24 @@ function Footer() {
             <Link to="/login">{t('login.submit')}</Link>
           )}
         </nav>
-        <div className="ftr-112">
-          <Call112 />
-          <p className="small">{t('shell.footer.data')}</p>
-        </div>
+        <nav className="ftr-col" aria-label={en ? 'Build' : 'बनावट'}>
+          <span className="ftr-h">{en ? 'How it is built' : 'कैसे बना'}</span>
+          <a href="https://github.com/Prashant-thakur77/pukaar" target="_blank" rel="noreferrer">
+            {en ? 'Code on GitHub' : 'GitHub पर कोड'} ↗
+          </a>
+          <a href="https://github.com/Prashant-thakur77/pukaar#aws-in-depth" target="_blank" rel="noreferrer">
+            {en ? 'AWS in depth' : 'AWS का पूरा ब्योरा'} ↗
+          </a>
+          <span className="ftr-note">{t('shell.footer.data')}</span>
+        </nav>
       </div>
-      <div className="ftr-giant" aria-hidden="true" lang="hi">
-        पुकार
+      <div className="ftr-giant" aria-hidden="true">
+        <span>PUKAAR</span>
+      </div>
+      <div className="ftr-base">
+        <span>{en ? 'Built in Mandi, Himachal' : 'मंडी, हिमाचल में बना'}</span>
+        <span lang="hi">पुकार · {en ? 'the call that reaches the village before the river does' : 'नदी से पहले, गाँव तक पहुँचने वाली पुकार'}</span>
+        <span>© 2026 Pukaar · {en ? 'Built on AWS' : 'AWS पर बना'}</span>
       </div>
     </footer>
   );

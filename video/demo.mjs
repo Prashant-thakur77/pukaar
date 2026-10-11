@@ -271,11 +271,11 @@ export function scenes(f, live) {
       id: "approve",
       chapter: "The officer approves",
       tag: "Officer console",
-      screen: "The officer console signed in as a demo officer (Cognito): the pending Gohar critical alert with its Hindi draft, the rule-fallback label, then Approve and the confirmation.",
+      screen: "The officer console signed in as a demo officer (Cognito): the pending Gohar critical alert with its Hindi draft and its recipients, then Approve and the confirmation.",
       lines: [
         L("The officer on duty sees the Hindi draft. | Step Functions has paused, | waiting for one tap."),
         L("The model only fills a fixed template, | and a checker rejects any number | not in the decision trace."),
-        L("Bedrock access is still pending on this account, | so it says rule-fallback, | and the alert still goes out."),
+        L("Code has already set the level | and who receives it; | the officer only decides to send."),
         L("Approve."),
       ],
       async prepare(page) {
@@ -459,17 +459,18 @@ export function scenes(f, live) {
         title: "What it [doesn't do] yet",
         rows: [
           { gap: "Global models missed the 2025 Mandi cloudburst", icon: "report", big: "A verified villager report", small: "raises a level on its own" },
-          { gap: "Bedrock access still pending", icon: "rule", big: "The fixed Hindi template", small: "goes out, labelled rule-fallback" },
+          { gap: "Replay lead times come from archived forecasts", icon: "wake", big: "Read them as an upper bound", small: "real forecasts are less certain" },
         ],
       },
       lines: [
         L("In our 2025 back-test, | the global forecasts missed the Mandi cloudburst."),
         L("So a verified villager report | can raise a level on its own."),
+        L("And replay lead times are an upper bound: | real forecasts are less certain."),
       ],
       async run(h) {
         await h.chunk(0, 1, -0.2);
         await h.page.evaluate(() => window.__gaps.show(0));
-        await h.cue(1, 0.3);
+        await h.cue(2, -0.2);
         await h.page.evaluate(() => window.__gaps.show(1));
       },
     },

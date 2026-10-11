@@ -10,7 +10,7 @@ SAM      ?= sam
 STACK_ENV = eval "$$(scripts/stack_env.sh)"
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo it secrets local validate
+        seed reset-demo drill it secrets local validate
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -53,6 +53,9 @@ seed: ## Seed villages into the deployed table and create Cognito demo users
 
 reset-demo: ## Clear demo state (alerts, reports, replay) on the deployed stack
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.reset_demo
+
+drill: ## Send a labelled drill alert to registered phones (VILLAGE=gohar LEVEL=watch)
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.drill $(or $(VILLAGE),gohar) $(or $(LEVEL),watch)
 
 it: ## Run real approval executions against the deployed stack
 	$(PYTHON) scripts/it_workflow.py

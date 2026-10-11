@@ -350,7 +350,7 @@ export const dict = {
   'console.draft.en': { hi: 'अंग्रेज़ी', en: 'English' },
   'console.reason': { hi: 'कारण', en: 'Reason' },
   'console.model': { hi: 'मसौदा', en: 'Drafted by' },
-  'console.model.fallback': { hi: 'नियम वाला टेम्पलेट (मॉडल बंद)', en: 'rule fallback (model unavailable)' },
+  'console.model.fallback': { hi: 'तय हिंदी साँचा', en: 'Fixed Hindi template' },
   'console.check.pass': { hi: 'जाँच पास', en: 'Draft check passed' },
   'console.check.fail': { hi: 'जाँच फ़ेल', en: 'Draft check failed' },
   'console.dryrun': { hi: 'ड्राई-रन: {n} लोग', en: 'Dry run: {n} recipients' },

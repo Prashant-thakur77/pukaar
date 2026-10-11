@@ -44,7 +44,7 @@ export function Valley() {
         <radialGradient id="vg-sky" cx="50%" cy="38%" r="75%">
           <stop offset="0" stopColor="#1f2a5c" />
           <stop offset="0.55" stopColor="#0f1636" />
-          <stop offset="1" stopColor="#070b1d" />
+          <stop offset="1" stopColor="#0c0c08" />
         </radialGradient>
         <linearGradient id="vg-r1" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stopColor="#3a4785" />
@@ -60,12 +60,12 @@ export function Valley() {
         </linearGradient>
         <linearGradient id="vg-r4" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stopColor="#10173a" />
-          <stop offset="1" stopColor="#070b1d" />
+          <stop offset="1" stopColor="#0c0c08" />
         </linearGradient>
         <linearGradient id="vg-river" x1="0" x2="1">
-          <stop offset="0" stopColor="#f5a524" stopOpacity="0" />
-          <stop offset="0.45" stopColor="#ffc35c" stopOpacity="0.9" />
-          <stop offset="1" stopColor="#f5a524" stopOpacity="0" />
+          <stop offset="0" stopColor="#d4ac58" stopOpacity="0" />
+          <stop offset="0.45" stopColor="#e8c77c" stopOpacity="0.9" />
+          <stop offset="1" stopColor="#d4ac58" stopOpacity="0" />
         </linearGradient>
         <filter id="vg-glow" x="-20%" y="-50%" width="140%" height="200%">
           <feGaussianBlur stdDeviation="6" />
@@ -89,12 +89,12 @@ export function Valley() {
         <path fill="url(#vg-r3)" d="M0 680 L80 640 L190 690 L300 610 L420 676 L520 640 L610 700 L840 700 L930 640 L1040 690 L1150 618 L1260 676 L1360 640 L1440 668 V900 H0Z" />
         {/* village lights */}
         <g className="v-lights">
-          <circle cx="300" cy="640" r="2.4" fill="#ffc35c" />
-          <circle cx="312" cy="646" r="1.8" fill="#ffc35c" />
-          <circle cx="1150" cy="648" r="2.4" fill="#ffc35c" />
-          <circle cx="1162" cy="655" r="1.6" fill="#ffc35c" />
-          <circle cx="930" cy="668" r="2" fill="#ffc35c" />
-          <circle cx="520" cy="668" r="2" fill="#ffc35c" />
+          <circle cx="300" cy="640" r="2.4" fill="#e8c77c" />
+          <circle cx="312" cy="646" r="1.8" fill="#e8c77c" />
+          <circle cx="1150" cy="648" r="2.4" fill="#e8c77c" />
+          <circle cx="1162" cy="655" r="1.6" fill="#e8c77c" />
+          <circle cx="930" cy="668" r="2" fill="#e8c77c" />
+          <circle cx="520" cy="668" r="2" fill="#e8c77c" />
         </g>
       </g>
       {/* river along the valley floor */}
@@ -106,7 +106,7 @@ export function Valley() {
         <path fill="url(#vg-r4)" d="M0 760 L140 720 L260 770 L380 730 L470 790 L560 900 L0 900Z M1440 740 L1320 720 L1200 770 L1090 740 L980 800 L900 900 L1440 900Z" />
       </g>
       {/* echo: an arc travels to the left ridge, a weaker one returns to the right */}
-      <g className="v-echo" fill="none" stroke="#ffc35c" strokeLinecap="round">
+      <g className="v-echo" fill="none" stroke="#e8c77c" strokeLinecap="round">
         <path className="echo-l" d="M700 330 A 60 60 0 0 0 700 450" strokeWidth="3" />
         <path className="echo-r" d="M740 330 A 60 60 0 0 1 740 450" strokeWidth="2.5" />
       </g>

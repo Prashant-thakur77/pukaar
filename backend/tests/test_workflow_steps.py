@@ -177,3 +177,12 @@ def test_acknowledgement_is_recorded_once(repo, frozen, workflow):
 def test_unknown_step_is_an_error(repo):
     with pytest.raises(StepError):
         steps(repo).handle({"step": "launch_rockets"})
+
+
+def test_drill_alert_says_it_is_a_drill(repo, frozen):
+    s = steps(repo)
+    a = make_alert(repo, "watch", village="gohar")
+    repo.update_alert(a.id, decision_trace={"rules_fired": ["drill"], "drill": True})
+    s.handle({"step": "draft", "alert_id": a.id})
+    alert = repo.get_alert(a.id)
+    assert alert.text_hi.startswith("अभ्यास (DRILL)") and alert.text_en.startswith("DRILL, not a real warning.")

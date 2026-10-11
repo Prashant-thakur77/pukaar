@@ -14,7 +14,9 @@
   /* type */
   --font-body: 'Inter Variable', 'Noto Sans Devanagari Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-hi: 'Noto Sans Devanagari Variable', 'Noto Sans Devanagari', 'Mangal', 'Inter Variable', sans-serif;
-  --font-display: 'Bebas Neue', 'Noto Sans Devanagari Variable', Impact, 'Arial Narrow', sans-serif;
+  --font-display: 'Anton', 'Bebas Neue', 'Noto Sans Devanagari Variable', Impact, 'Arial Narrow', sans-serif;
+  --font-script: 'Kalam', 'Noto Sans Devanagari Variable', cursive;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --fs-xs: 0.75rem;
   --fs-sm: 0.875rem;
@@ -66,36 +68,46 @@
   --tap-xl: 64px;
 
   /* night valley: used for the poster hero in both themes */
-  --night-0: #070b1d;
-  --night-1: #0b1026;
-  --night-2: #131a3a;
-  --night-3: #1e2852;
-  --night-4: #2f3c74;
-  --night-5: #4a5aa0;
-  --night-ink: #eef1fb;
-  --night-ink-2: #b8c0de;
+  --night-0: #0c0c08;
+  --night-1: #10120e;
+  --night-2: #141a15;
+  --night-3: #1b241d;
+  --night-4: #29362c;
+  --night-5: #4a5a4c;
+  --night-ink: #f4ece4;
+  --night-ink-2: #c8b488;
 
-  --marigold: #f5a524;
-  --marigold-2: #ffc35c;
-  --marigold-ink: #1d1203;
+  /* EcoLafaek palette: sand gold accent, forest, crimson, cream */
+  --marigold: #d4ac58;
+  --marigold-2: #e8c77c;
+  --marigold-ink: #1a1408;
+  --gold: #d4ac58;
+  --gold-2: #e8c77c;
+  --forest: #0c4830;
+  --forest-2: #12603f;
+  --forest-ink: #e9f3ec;
+  --crimson: #a01418;
+  --crimson-2: #c21f24;
+  --khaki: #c8b488;
+  --cream: #f4ece4;
 
   /* ---- light theme (default) ---- */
-  --bg: #f3f5fb;
-  --bg-2: #e9edf7;
-  --surface: #ffffff;
-  --surface-2: #f6f7fc;
-  --surface-3: #eceff8;
-  --ink: #111833;
-  --ink-2: #39415f;
-  --ink-3: #565f80;
-  --line: #d8ddeb;
-  --line-2: #c3cadf;
-  --focus: #3b5bdb;
+  --bg: #f4ece4;
+  --bg-2: #ece2d5;
+  --surface: #fcfaf6;
+  --surface-2: #f7f1e8;
+  --surface-3: #efe6d9;
+  --ink: #0c0c08;
+  --ink-2: #2f2c24;
+  --ink-3: #5e5848;
+  --line: #e2d8c8;
+  --line-2: #cdbfa8;
+  --focus: #0c4830;
 
-  --accent: #f5a524;
-  --accent-ink: #1d1203;
-  --accent-text: #8a4b00;
-  --accent-soft: #fff1d6;
+  --accent: #d4ac58;
+  --accent-ink: #1a1408;
+  --accent-text: #7a5a14;
+  --accent-soft: #f5ead0;
 
   --sos: #b4122f;
   --sos-soft: #ffe3e8;
@@ -116,31 +128,31 @@
   --lv-critical-ink: #9c0d2f;
   --lv-critical-bg: #ffdfe6;
 
-  --sh-1: 0 1px 2px rgb(17 24 51 / 0.06), 0 1px 1px rgb(17 24 51 / 0.04);
-  --sh-2: 0 6px 18px -6px rgb(17 24 51 / 0.14), 0 2px 4px rgb(17 24 51 / 0.05);
-  --sh-3: 0 22px 48px -18px rgb(17 24 51 / 0.28), 0 4px 10px rgb(17 24 51 / 0.06);
-  --sh-accent: 0 10px 26px -10px rgb(245 165 36 / 0.7);
-  --glass: rgb(255 255 255 / 0.78);
+  --sh-1: 0 1px 2px rgb(12 12 8 / 0.06), 0 1px 1px rgb(12 12 8 / 0.04);
+  --sh-2: 0 6px 18px -6px rgb(12 12 8 / 0.16), 0 2px 4px rgb(12 12 8 / 0.05);
+  --sh-3: 0 22px 48px -18px rgb(12 12 8 / 0.3), 0 4px 10px rgb(12 12 8 / 0.06);
+  --sh-accent: 0 10px 26px -10px rgb(212 172 88 / 0.7);
+  --glass: rgb(252 250 246 / 0.82);
 }
 
 /* Dark tokens: same block twice (explicit toggle, and system preference). */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #090d20;
-  --bg-2: #0d1229;
-  --surface: #121936;
-  --surface-2: #171f42;
-  --surface-3: #1d264d;
-  --ink: #eef1fb;
-  --ink-2: #c3cae6;
-  --ink-3: #98a1c4;
-  --line: #262f5a;
-  --line-2: #34407a;
-  --focus: #8fa8ff;
-  --accent: #f5a524;
-  --accent-ink: #1d1203;
-  --accent-text: #ffc35c;
-  --accent-soft: rgb(245 165 36 / 0.14);
+  --bg: #0c0c08;
+  --bg-2: #10120e;
+  --surface: #151712;
+  --surface-2: #1b1e18;
+  --surface-3: #23271f;
+  --ink: #f4ece4;
+  --ink-2: #d9cfbf;
+  --ink-3: #a99f8b;
+  --line: #2b2e25;
+  --line-2: #3c4034;
+  --focus: #e8c77c;
+  --accent: #d4ac58;
+  --accent-ink: #1a1408;
+  --accent-text: #e8c77c;
+  --accent-soft: rgb(212 172 88 / 0.14);
   --sos: #ff6b81;
   --sos-soft: rgb(255 107 129 / 0.12);
   --ok: #5fd6a4;
@@ -160,27 +172,27 @@
   --sh-1: 0 1px 2px rgb(0 0 0 / 0.4);
   --sh-2: 0 8px 22px -8px rgb(0 0 0 / 0.6);
   --sh-3: 0 26px 56px -20px rgb(0 0 0 / 0.75);
-  --glass: rgb(18 25 54 / 0.8);
+  --glass: rgb(21 23 18 / 0.82);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #090d20;
-    --bg-2: #0d1229;
-    --surface: #121936;
-    --surface-2: #171f42;
-    --surface-3: #1d264d;
-    --ink: #eef1fb;
-    --ink-2: #c3cae6;
-    --ink-3: #98a1c4;
-    --line: #262f5a;
-    --line-2: #34407a;
-    --focus: #8fa8ff;
-    --accent: #f5a524;
-    --accent-ink: #1d1203;
-    --accent-text: #ffc35c;
-    --accent-soft: rgb(245 165 36 / 0.14);
+    --bg: #0c0c08;
+    --bg-2: #10120e;
+    --surface: #151712;
+    --surface-2: #1b1e18;
+    --surface-3: #23271f;
+    --ink: #f4ece4;
+    --ink-2: #d9cfbf;
+    --ink-3: #a99f8b;
+    --line: #2b2e25;
+    --line-2: #3c4034;
+    --focus: #e8c77c;
+    --accent: #d4ac58;
+    --accent-ink: #1a1408;
+    --accent-text: #e8c77c;
+    --accent-soft: rgb(212 172 88 / 0.14);
     --sos: #ff6b81;
     --sos-soft: rgb(255 107 129 / 0.12);
     --ok: #5fd6a4;
@@ -200,7 +212,7 @@
     --sh-1: 0 1px 2px rgb(0 0 0 / 0.4);
     --sh-2: 0 8px 22px -8px rgb(0 0 0 / 0.6);
     --sh-3: 0 26px 56px -20px rgb(0 0 0 / 0.75);
-    --glass: rgb(18 25 54 / 0.8);
+    --glass: rgb(21 23 18 / 0.82);
   }
 }
 

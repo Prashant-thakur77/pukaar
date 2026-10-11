@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Mic, Radar, UserCheck, Volume2 } from 'lucide-react';
 import { api } from '../api';
-import { Call112 } from '../components/Shell';
+import { Call112, PukaarMark } from '../components/Shell';
 import { CountUp } from '../components/CountUp';
 import { LevelBadge } from '../components/Level';
 import { QRCode } from '../components/QRCode';
@@ -47,11 +47,27 @@ const FACT = {
   url: 'https://www.downtoearth.org.in/natural-disasters/cloudbursts-devastate-himachals-mandi-at-least-10-dead-34-missing-after-1900-excess-rain-on-july-1',
 };
 
+/** The five villages along the drawn river, as fractions of the 600x220 stage. */
+const INTRO_VILLAGES: [number, number][] = [
+  [92, 132],
+  [196, 96],
+  [300, 128],
+  [404, 92],
+  [508, 120],
+];
+
+/*
+ * Entry sequence (after EcoLafaek's: a gold line draws the land, life moves along it, the mark lands, then the page):
+ *   0-1100 ms   a gold line draws the Beas through the valley (stroke-dashoffset)
+ *   1000-1700   the five villages light up along it, each sending out a call ring
+ *   1650-2300   the mark pops, then पुकार / PUKAAR and the tagline rise in, loader dashes run
+ *   2600-3000   the stage dissolves into the hero
+ * Skippable at any moment (button, click, any key); shown once per session; never under reduced motion.
+ */
 function Intro({ onDone }: { onDone: () => void }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   useEffect(() => {
-    // At most 1.1 s; any key, click or tap skips it at once.
-    const tm = setTimeout(onDone, 1100);
+    const tm = setTimeout(onDone, 3000);
     const key = () => onDone();
     window.addEventListener('keydown', key);
     return () => {
@@ -62,15 +78,31 @@ function Intro({ onDone }: { onDone: () => void }) {
   return createPortal(
     <div className="intro" role="presentation" onClick={onDone}>
       <div className="intro-stage">
-        <span className="intro-rings" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
-        <span className="intro-word" lang="hi">
-          पुकार
-        </span>
-        <span className="intro-rule" aria-hidden="true" />
+        <svg className="intro-river" viewBox="0 0 600 220" aria-hidden="true">
+          <path className="ir-ridge" d="M0 70 L70 28 L118 58 L176 14 L236 52 L300 22 L358 60 L420 18 L486 56 L540 30 L600 62" />
+          <path className="ir-line" pathLength={1} d="M20 150 C 70 150, 80 118, 140 116 S 230 92, 262 112 S 340 140, 380 112 S 460 86, 500 108 S 560 132, 586 118" />
+          {INTRO_VILLAGES.map(([x, y], i) => (
+            <g key={i} className="ir-village" style={{ animationDelay: `${1000 + i * 130}ms` }}>
+              <circle className="ir-ring" cx={x} cy={y} r={7} style={{ animationDelay: `${1080 + i * 130}ms` }} />
+              <circle cx={x} cy={y} r={5} />
+            </g>
+          ))}
+        </svg>
+        <div className="intro-brand">
+          <span className="intro-mark">
+            <PukaarMark size={76} />
+          </span>
+          <span className="intro-word" lang="hi">
+            पुकार
+          </span>
+          <span className="intro-en">Pukaar</span>
+          <span className="intro-tag">{lang === 'hi' ? 'नदी से पहले, गाँव तक पहुँचने वाली पुकार' : 'The call that reaches the village before the river does'}</span>
+          <span className="intro-dashes" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+        </div>
       </div>
       <button type="button" className="intro-skip" onClick={onDone}>
         {t('landing.skip')} <ArrowRight aria-hidden="true" />
@@ -116,28 +148,21 @@ export default function Landing() {
           </Suspense>
         )}
         <div className="hero-inner">
-          <p className="eyebrow eyebrow-night hero-eyebrow">{t('landing.eyebrow')}</p>
-          <h1 id="hero-title" className="hero-mark">
-            <span className="hero-rings" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-              <i className="idle" />
-            </span>
-            <span lang="hi" className="hero-word">
-              पुकार
-            </span>
-            <span className="sr-only">Pukaar</span>
-          </h1>
-          <p className="hero-latin" aria-hidden="true">
-            PUKAAR · THE CALL
-          </p>
-          <p className="hero-promise" lang="hi">
-            नदी से पहले, गाँव तक पहुँचने वाली पुकार।
-          </p>
-          <p className="hero-promise-en" lang="en">
-            The call that reaches the village before the river does.
-          </p>
+          <div className="hero-copy">
+            <p className="eyebrow eyebrow-night hero-eyebrow">{t('landing.eyebrow')}</p>
+            <h1 id="hero-title" className="hero-h1">
+              <span className="hh-line">{lang === 'hi' ? 'नदी से पहले,' : 'The call that'}</span>
+              <span className="hh-line">{lang === 'hi' ? 'गाँव तक पहुँचने' : 'reaches the village'}</span>
+              <span className="hh-line hh-gold">{lang === 'hi' ? 'वाली पुकार।' : 'before the river.'}</span>
+            </h1>
+            <p className="hero-sub" lang={lang === 'hi' ? 'en' : 'hi'}>
+              {lang === 'hi' ? 'The call that reaches the village before the river does.' : 'नदी से पहले, गाँव तक पहुँचने वाली पुकार।'}
+            </p>
+            <p className="hero-lead">
+              {lang === 'hi'
+                ? 'हर 15 मिनट पूर्वानुमान पढ़ता है, कोड ख़तरे का स्तर तय करता है, अधिकारी एक टैप में मंज़ूर करता है, और हर फ़ोन पर हिंदी में बोली गई चेतावनी पहुँचती है।'
+                : 'Every 15 minutes it reads the forecasts, code sets each village’s risk level, an officer approves with one tap, and every phone hears a spoken Hindi alert.'}
+            </p>
           <div className="hero-ctas">
             <Link to="/report" className="btn btn-xl btn-accent btn-press">
               <Mic aria-hidden="true" />
@@ -176,6 +201,29 @@ export default function Landing() {
               </Link>
             ) : null}
             <Call112 />
+          </div>
+          </div>
+          <div className="hero-float" aria-hidden="true">
+            <div className="hf-card hf-gold">
+              <span className="hf-num">72<small>h</small></span>
+              <span className="hf-cap">{lang === 'hi' ? 'नदी के सबसे ऊँचे दिन से पहले · गोहर 2023' : "ahead of the river's peak day · Gohar 2023"}</span>
+            </div>
+            <div className="hf-card hf-ticket">
+              <span className="hf-eyebrow">
+                <i className="live-dot" /> {lang === 'hi' ? 'टेलीग्राम पर आवाज़ के साथ' : 'On Telegram, with voice'}
+              </span>
+              <span className="hf-hi" lang="hi">
+                पुकार: गोहर के लिए गंभीर ख़तरा। तुरंत नदी-नालों और ढलानों से दूर ऊँची, सुरक्षित जगह पर जाएँ।
+              </span>
+              <span className="hf-row">
+                <span className="hf-play">▶ 0:13</span>
+                <span className="hf-ack">✓ मिल गया</span>
+              </span>
+            </div>
+            <div className="hf-card hf-cream">
+              <span className="hf-num">{data ? data.villages.length : 5}</span>
+              <span className="hf-cap">{lang === 'hi' ? 'गाँव · हर 15 मिनट जाँच' : 'villages · checked every 15 min'}</span>
+            </div>
           </div>
         </div>
         {scene3d && (
