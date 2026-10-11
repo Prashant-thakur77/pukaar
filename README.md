@@ -1,30 +1,59 @@
-# Pukaar (पुकार)
+<div align="center">
 
-**The call that reaches the village before the river does.**
+<img src="docs/media/pukaar-pitch-poster.jpg" alt="पुकार Pukaar: the call that reaches the village before the river does" width="100%">
 
-Pukaar is a flood-warning loop for Himalayan villages, built on AWS. A
-15-minute sweep watches rain and river forecasts. Plain code sets a risk
-level. A Bedrock agent drafts a Hindi alert (on the live stack, until Bedrock
-model access is granted, the fixed Hindi template labelled `rule-fallback`),
-and a district officer approves it with one tap. Villagers then hear the alert as a spoken message on their
-phones, tap "मिल गया" (got it), and can report back by voice.
+# पुकार · Pukaar
 
-Built for Environmental Hacks (WeMakeDevs x AWS), Heat and Water track.
+### The call that reaches the village before the river does.
+**नदी से पहले, गाँव तक पहुँचने वाली पुकार।**
 
-**Live:** https://main.d15r7ktz99l46x.amplifyapp.com · deployed on AWS (`us-east-1`, stack `pukaar-dev`) · public pages need no sign-in.
+A flood early-warning loop for Himalayan villages, live on AWS. Forecasts and river gauges come in; a spoken Hindi alert goes out; and every person confirms they heard it.
 
-**Try it as a judge:** public pages need no account. For the officer console, sign in at [/login](https://main.d15r7ktz99l46x.amplifyapp.com/login) as `judge` (district officer) or `judge_pradhan` (village head of Thunag, to see Cedar refuse an approval), password `Judge-E5FCkUl3uY-2026`. Start a replay of the July 2023 floods from the console and approve the alert it raises. Details in [DEMO.md](DEMO.md).
+**[Live site](https://main.d15r7ktz99l46x.amplifyapp.com)** · **[Pitch video](docs/media/pukaar-pitch.mp4)** · **[Demo video](docs/media/pukaar-demo.mp4)** · **[Judge login](#try-it-in-60-seconds)** · **[Architecture](#architecture)** · **[Writeup](docs/submission/writeup.md)**
 
-**Pitch video (4:20):** [![Pukaar pitch video](docs/media/pukaar-pitch-poster.jpg)](docs/media/pukaar-pitch.mp4)
-[Watch the pitch](docs/media/pukaar-pitch.mp4) · [captions](docs/media/pukaar-pitch.srt) · [sources and credits](docs/media/pukaar-pitch-credits.md). The problem in India, Nepal and the world with sourced numbers and real headlines, why warnings fail, the live loop on AWS (a real approval during a labelled replay, the real Polly voice), and what comes next. Footage and images are openly licensed and credited; the Telegram screens are labelled reproductions of the bot's real message.
+![Live on AWS](https://img.shields.io/badge/Live%20on%20AWS-1f8fd6?style=flat-square&logo=amazonwebservices&logoColor=white) ![Environmental Hacks](https://img.shields.io/badge/Environmental%20Hacks-0b4660?style=flat-square) ![Heat and Water track](https://img.shields.io/badge/Heat%20and%20Water%20track-11679e?style=flat-square) ![tests 425 + 136 passing](https://img.shields.io/badge/tests%20425%20+%20136%20passing-2ea44f?style=flat-square) ![live smoke 77 of 77](https://img.shields.io/badge/live%20smoke%2077%20of%2077-2ea44f?style=flat-square) ![accessibility 0 axe violations](https://img.shields.io/badge/accessibility%200%20axe%20violations-2ea44f?style=flat-square)
 
-**Demo video (2:44):** [![Pukaar demo video: the 3D architecture scene](docs/media/pukaar-demo-poster.png)](docs/media/pukaar-demo.mp4)
-[Watch the demo](docs/media/pukaar-demo.mp4) · [35-second trailer](docs/media/pukaar-trailer.mp4) · [script, chapters and captions](docs/submission/demo-script.md) · [submission writeup](docs/submission/writeup.md). The live scenes are recorded from the deployed site during a labelled replay on AWS, and the Hindi voice is the real Polly output. The video pipeline is in [video/](video/).
+**AWS** · ![AWS Lambda](https://img.shields.io/badge/AWS%20Lambda-FF9900?style=flat-square&logo=awslambda&logoColor=white) ![Step Functions](https://img.shields.io/badge/Step%20Functions-E7157B?style=flat-square) ![DynamoDB](https://img.shields.io/badge/DynamoDB-4053D6?style=flat-square&logo=amazondynamodb&logoColor=white) ![EventBridge Scheduler](https://img.shields.io/badge/EventBridge%20Scheduler-E7157B?style=flat-square) ![AWS IoT Core](https://img.shields.io/badge/AWS%20IoT%20Core-3F8624?style=flat-square) ![AppSync Events](https://img.shields.io/badge/AppSync%20Events-C925D1?style=flat-square) ![API Gateway](https://img.shields.io/badge/API%20Gateway-FF4F8B?style=flat-square&logo=amazonapigateway&logoColor=white) ![Cognito](https://img.shields.io/badge/Cognito-DD344C?style=flat-square&logo=amazoncognito&logoColor=white) ![Amazon Polly](https://img.shields.io/badge/Amazon%20Polly-01A88D?style=flat-square) ![Amazon Transcribe](https://img.shields.io/badge/Amazon%20Transcribe-01A88D?style=flat-square) ![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-01A88D?style=flat-square) ![Bedrock Guardrails](https://img.shields.io/badge/Bedrock%20Guardrails-01A88D?style=flat-square) ![Amazon S3](https://img.shields.io/badge/Amazon%20S3-569A31?style=flat-square&logo=amazons3&logoColor=white) ![Amazon SES](https://img.shields.io/badge/Amazon%20SES-DD344C?style=flat-square) ![SQS](https://img.shields.io/badge/SQS-FF4F8B?style=flat-square&logo=amazonsqs&logoColor=white) ![SNS](https://img.shields.io/badge/SNS-FF4F8B?style=flat-square) ![CloudWatch](https://img.shields.io/badge/CloudWatch-FF4F8B?style=flat-square&logo=amazoncloudwatch&logoColor=white) ![X-Ray](https://img.shields.io/badge/X--Ray-8C4FFF?style=flat-square) ![Parameter Store](https://img.shields.io/badge/Parameter%20Store-E7157B?style=flat-square) ![Amplify Hosting](https://img.shields.io/badge/Amplify%20Hosting-FF9900?style=flat-square&logo=awsamplify&logoColor=white) ![AWS SAM](https://img.shields.io/badge/AWS%20SAM-232F3E?style=flat-square) ![AWS Open Data](https://img.shields.io/badge/AWS%20Open%20Data-232F3E?style=flat-square)
 
-| Landing | Officer console | Villager report (phone) |
+**Stack** · ![Python 3.10+](https://img.shields.io/badge/Python%203.10+-3776AB?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![Strands Agents](https://img.shields.io/badge/Strands%20Agents-232F3E?style=flat-square) ![Cedar](https://img.shields.io/badge/Cedar-5A45FF?style=flat-square) ![React 19](https://img.shields.io/badge/React%2019-20232A?style=flat-square&logo=react&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white) ![MapLibre GL](https://img.shields.io/badge/MapLibre%20GL-396CB2?style=flat-square&logo=maplibre&logoColor=white) ![three.js](https://img.shields.io/badge/three.js-000000?style=flat-square&logo=threedotjs&logoColor=white) ![PWA, offline](https://img.shields.io/badge/PWA,%20offline-5A0FC8?style=flat-square&logo=pwa&logoColor=white) ![Telegram Bot API](https://img.shields.io/badge/Telegram%20Bot%20API-26A5E4?style=flat-square&logo=telegram&logoColor=white) ![CAP 1.2](https://img.shields.io/badge/CAP%201.2-0B4660?style=flat-square) ![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) ![Open-Meteo](https://img.shields.io/badge/Open--Meteo-0B4660?style=flat-square) ![Sentinel-2](https://img.shields.io/badge/Sentinel--2-0B4660?style=flat-square) ![pytest](https://img.shields.io/badge/pytest-0A9EDC?style=flat-square&logo=pytest&logoColor=white) ![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=flat-square&logo=vitest&logoColor=white) ![Playwright + axe](https://img.shields.io/badge/Playwright%20+%20axe-2EAD33?style=flat-square&logo=playwright&logoColor=white)
+
+</div>
+
+---
+
+## Try it in 60 seconds
+
+| | |
+|---|---|
+| **Public pages, no account** | [Landing](https://main.d15r7ktz99l46x.amplifyapp.com) · [Live map](https://main.d15r7ktz99l46x.amplifyapp.com/live) · [How it works](https://main.d15r7ktz99l46x.amplifyapp.com/how) · [Agents](https://main.d15r7ktz99l46x.amplifyapp.com/agents) · [Sensors](https://main.d15r7ktz99l46x.amplifyapp.com/sensors) · [Impact (satellite before and after)](https://main.d15r7ktz99l46x.amplifyapp.com/impact) · [Villager report](https://main.d15r7ktz99l46x.amplifyapp.com/report) · [CAP feed](https://362iqe4oae.execute-api.us-east-1.amazonaws.com/cap/alerts.atom) |
+| **Officer console** | Sign in at [/login](https://main.d15r7ktz99l46x.amplifyapp.com/login) as **`judge`** (district officer), password **`Judge-E5FCkUl3uY-2026`**. Start the July 2023 replay and approve the alert it raises: Step Functions moves it on, and Polly speaks it in Hindi. |
+| **See access control refuse** | Sign in as **`judge_pradhan`** (village head of Thunag only, same password) and try to approve: the Cedar policy says no, and the audit trail records why. |
+| **Telegram** | Message [@PukaarRescuebot](https://t.me/PukaarRescuebot) `/start gohar` to receive live alerts for Gohar with the "मिल गया" button. Replay alerts never reach real phones. |
+
+More detail: [DEMO.md](DEMO.md). Emergency number in India: **112**.
+
+## Videos
+
+| Pitch, 4:20 | Demo, 2:44 |
+|---|---|
+| [![Pukaar pitch video](docs/media/pukaar-pitch-poster.jpg)](docs/media/pukaar-pitch.mp4) | [![Pukaar demo video: the 3D architecture scene](docs/media/pukaar-demo-poster.png)](docs/media/pukaar-demo.mp4) |
+| The problem in India, Nepal and the world, with sourced numbers and real headlines; why warnings fail; the live loop on AWS; what comes next. [Captions](docs/media/pukaar-pitch.srt) · [sources and credits](docs/media/pukaar-pitch-credits.md) | The loop on the deployed stack during a labelled replay, with the real Polly voice. [Script and captions](docs/submission/demo-script.md) · [35-second trailer](docs/media/pukaar-trailer.mp4) |
+
+Footage and images are openly licensed and credited. The Telegram screens in the pitch are labelled reproductions of the bot's real message.
+
+## Screens
+
+| Landing | Officer console during a replay | Villager report (phone) |
 |---|---|---|
 | ![Landing page](docs/screens/landing-1440-dark.png) | ![Officer console during a replay](docs/screens/console-1440-light.png) | ![Hindi-first report page](docs/screens/report-390-light.png) |
+
+| Agents | Sensors | Impact |
+|---|---|---|
 | ![Agents page: five agents, what each may never do, and a real decision trace](docs/screens/agents-1440-light.png) | ![Sensors page: river gauges over AWS IoT Core, device to alert](docs/screens/sensors-1440-dark.png) | ![Impact page: Sentinel-2 before and after of the July 2023 Beas flood](docs/screens/impact-1440-light.png) |
+
+## Contents
+
+[At a glance](#at-a-glance) · [The problem](#the-problem) · [Research and evidence](#research-and-evidence) · [Moment by moment](#what-happens-moment-by-moment) · [Architecture](#architecture) · [AWS in depth](#aws-in-depth) · [Cheap phones](#built-for-cheap-phones-measured) · [Built versus planned](#built-versus-planned) · [Back-test](#what-the-back-test-shows-and-what-it-does-not) · [Safe places](#where-to-go-safe-places-routes-and-the-shelter-ledger) · [Run it locally](#run-it-locally-no-aws-account-needed) · [Team](#team)
 
 ## At a glance
 
@@ -157,7 +186,27 @@ Three rules hold everywhere:
 
 ## Architecture
 
-![Pukaar architecture on AWS](docs/architecture.svg)
+```mermaid
+flowchart LR
+  EB["EventBridge Scheduler<br/>every 15 min"] --> SW["Lambda: sweep<br/>level set by rules"]
+  OM["Open-Meteo<br/>rain and river forecasts"] --> SW
+  GA["River gauge<br/>ESP32, MQTT, X.509"] --> IOT["AWS IoT Core<br/>topic rule"] --> GI["Lambda: gauge ingest"]
+  SW --> DB[("DynamoDB<br/>one table")]
+  GI --> DB
+  SW -- "level rises" --> SF["Step Functions<br/>approval workflow"]
+  SF --> BR["Bedrock + Guardrails<br/>draft, checker, fallback"]
+  SF -- "waitForTaskToken" --> OF["Officer<br/>console or Web Push"]
+  OF -- "one tap" --> API["API Gateway + Cognito<br/>Lambda: FastAPI, Cedar"]
+  API -- "SendTaskSuccess" --> SF
+  SF --> PO["Polly, hi-IN"] --> S3[("S3")]
+  SF --> TG["Telegram<br/>voice + मिल गया"] --> VI["Villagers"]
+  VI -- "got it, reports" --> API
+  API --> TR["Transcribe, hi-IN"]
+  API -.-> AS["AppSync Events<br/>live push"] -.-> WEB["Web app<br/>Amplify Hosting"]
+  API --> CAP["CAP 1.2 feed"]
+  SF --> SES["SES<br/>after-action report"]
+  CW["CloudWatch + X-Ray<br/>10 alarms"] -.- SF
+```
 
 <details><summary>Text version</summary>
 
@@ -431,8 +480,20 @@ Deploy to AWS: [docs/DEPLOY.md](docs/DEPLOY.md).
 - [docs/hardware/README.md](docs/hardware/README.md): the river gauge design.
 - [docs/submission/writeup.md](docs/submission/writeup.md): the submission writeup.
 
+## Team
+
+| | |
+|---|---|
+| **Prashant Thakur** | [@Prashant-thakur77](https://github.com/Prashant-thakur77) |
+| **Puneet Yadav** | [@puneetnith28](https://github.com/puneetnith28) |
+| **Prashant Bahuguna** | [@devprashant19](https://github.com/devprashant19) |
+
 ## AI tools used
 
 Used Claude to help write code.
 
-Emergency number in India: **112**.
+<div align="center">
+
+Emergency number in India: **112** · पुकार · built on AWS for the villages of the Beas valley
+
+</div>
