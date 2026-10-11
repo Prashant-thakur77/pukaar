@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { type ComponentType, lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Mic, Radar, UserCheck, Volume2 } from 'lucide-react';
@@ -18,7 +18,10 @@ import { levelRank } from '../lib/levels';
 import { readSession, writeSession } from '../lib/session';
 import type { Counters } from '../types';
 
-const HeroScene = lazy(() => import('../components/HeroScene'));
+// The 3D valley is optional: if its chunk cannot load (e.g. an old build in the cache), the flat valley stays.
+const HeroScene = lazy<ComponentType<{ onReady: () => void }>>(() =>
+  import('../components/HeroScene').catch(() => ({ default: () => null })),
+);
 
 /** 3D only where it will run smoothly; everyone else keeps the SVG valley. */
 function canRun3d(): boolean {

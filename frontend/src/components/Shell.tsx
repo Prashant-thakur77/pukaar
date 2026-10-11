@@ -11,6 +11,7 @@ import { REPLAY_EVENT } from '../lib/events';
 
 const NAV = [
   { to: '/live', key: 'nav.live' },
+  { to: '/how', key: 'nav.how' },
   { to: '/report', key: 'nav.report' },
   { to: '/console', key: 'nav.console' },
   { to: '/impact', key: 'nav.impact' },
@@ -216,6 +217,7 @@ function Footer() {
           <span className="ftr-h">{en ? 'Explore' : 'देखें'}</span>
           <Link to="/live">{t('nav.live')}</Link>
           <Link to="/#story">{en ? 'The night the river rose' : 'जिस रात नदी चढ़ी'}</Link>
+          <Link to="/how">{t('nav.how')}</Link>
           <Link to="/impact">{t('nav.impact')}</Link>
         </nav>
         <nav className="ftr-col" aria-label={en ? 'Use it' : 'इस्तेमाल करें'}>

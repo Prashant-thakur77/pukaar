@@ -477,6 +477,7 @@ export const dict = {
     hi: 'सीमाएँ उदाहरण हैं; गेज लगने के बाद उसके अपने रिकॉर्ड से तय होंगी।',
     en: 'Illustrative thresholds, to be set from the gauge\'s own record after installation.',
   },
+  'nav.how': { hi: 'कैसे काम करता है', en: 'How it works' },
 } satisfies Record<string, Entry>;
 
 export type Key = keyof typeof dict;

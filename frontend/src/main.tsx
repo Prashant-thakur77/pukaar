@@ -14,6 +14,17 @@ import { applyTheme, usePrefs } from './store';
 
 applyTheme(usePrefs.getState().theme);
 
+// Vite fires this when a preloaded chunk of an older build is gone: reload once into the new build.
+window.addEventListener('vite:preloadError', () => {
+  try {
+    if (sessionStorage.getItem('pukaar.chunk-reload')) return;
+    sessionStorage.setItem('pukaar.chunk-reload', '1');
+  } catch {
+    return;
+  }
+  window.location.reload();
+});
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
