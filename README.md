@@ -260,8 +260,12 @@ flowchart LR
                     any error -> failsafe
                                          │
  Officer phone / console (Amplify) <── API Gateway HTTP API + Cognito ──> Lambda api (FastAPI)
+ Officer phone, console closed: Web Push "Approve / Decline" on the lock screen
  Villager phone: Telegram voice alert, "मिल गया"  <── Telegram Bot API
- Villager report: web form -> S3 -> Lambda worker (Transcribe, Bedrock) -> verify -> sweep
+ Villager report: web form -> Bedrock Guardrails -> S3 -> Lambda worker (Transcribe) -> verify -> sweep
+ River gauge (ESP32) ──MQTT, X.509──> AWS IoT Core ──topic rule──> Lambda gauge ingest ──> DynamoDB
+ Every change ──> AppSync Events ──> open pages update in about a second
+ Alert closes ──> after-action report in S3, e-mailed by SES · every alert ──> CAP 1.2 feed
 ```
 
 </details>
