@@ -252,6 +252,7 @@ export default function Report() {
   return (
     <div className="report wrap-narrow">
       <header className="report-head">
+        <p className="pg-eyebrow report-eyebrow">{lang === 'hi' ? 'गाँव से सूचना · बिना साइन इन' : 'Report from the village · no sign-in'}</p>
         <h1 className="report-title">{t('report.title')}</h1>
         <p className="report-lead">{t('report.lead')}</p>
       </header>

@@ -30,7 +30,7 @@ import { DeniedNote, EmptyState, ErrorState, SkeletonCards } from '../../compone
 import type { PollState } from '../../hooks/usePoll';
 import { useT } from '../../i18n';
 import { evidenceLines, type EvidenceLine } from '../../lib/evidence';
-import { fmtAgo } from '../../lib/format';
+import { fmtAgo, fmtTime } from '../../lib/format';
 import { levelRank } from '../../lib/levels';
 import type { Alert } from '../../types';
 
@@ -222,18 +222,16 @@ function PendingCard({
   }
 
   return (
-    <article className={`pending-card lv-${alert.level}`}>
+    <article className={`pending-card ticket lv-${alert.level}`}>
       <header className="pc-head">
-        <div className="pc-level">
-          <LevelBadge level={alert.previous_level} size="sm" />
-          <ArrowRight aria-hidden="true" className="pc-arrow" />
-          <LevelBadge level={alert.level} size="md" />
-        </div>
-        <span className="small muted">{fmtAgo(alert.created_at, lang)}</span>
+        <span className="tk-eyebrow">
+          {lang === 'hi' ? 'चेतावनी' : 'Alert'} · <span className="tk-id">{alert.id}</span>
+        </span>
+        <span className="tk-ago">{fmtAgo(alert.created_at, lang)}</span>
       </header>
       <h3 className="pc-village">
         <Link to={`/village/${alert.village_id}`}>
-          <span lang="hi">{alert.village_name_hi}</span> · {alert.village_name}
+          <span lang="hi">{alert.village_name_hi}</span> <span className="tk-en">{alert.village_name}</span>
         </Link>
         {alert.replay && <ReplayChip />}
       </h3>
@@ -241,17 +239,37 @@ function PendingCard({
         {alert.text_hi}
       </blockquote>
       <p className="draft-en small">{alert.text_en}</p>
-      <div className="chip-row">
-        {!fallback && (
-          <span className="chip">
-            <Bot aria-hidden="true" /> {t('console.model')}: {alert.reasoning_model}
-          </span>
-        )}
-        <DraftChip alert={alert} />
-        <span className="chip">
-          <Users aria-hidden="true" /> {t('console.dryrun', { n: alert.recipients_count })}
-        </span>
-      </div>
+      <dl className="tk-rows">
+        <div className="tk-row">
+          <dt>{lang === 'hi' ? 'स्तर' : 'Level'}</dt>
+          <dd className="pc-level">
+            <LevelBadge level={alert.previous_level} size="sm" />
+            <ArrowRight aria-hidden="true" className="pc-arrow" />
+            <LevelBadge level={alert.level} size="sm" />
+          </dd>
+        </div>
+        <div className="tk-row">
+          <dt>{lang === 'hi' ? 'पाने वाले' : 'Recipients'}</dt>
+          <dd className="tk-mono">
+            <Users aria-hidden="true" /> {t('console.dryrun', { n: alert.recipients_count })}
+          </dd>
+        </div>
+        <div className="tk-row">
+          <dt>{lang === 'hi' ? 'मसौदा जाँच' : 'Draft check'}</dt>
+          <dd className="chip-row">
+            {!fallback && (
+              <span className="chip">
+                <Bot aria-hidden="true" /> {t('console.model')}: {alert.reasoning_model}
+              </span>
+            )}
+            <DraftChip alert={alert} />
+          </dd>
+        </div>
+        <div className="tk-row">
+          <dt>{lang === 'hi' ? 'बनी' : 'Created'}</dt>
+          <dd className="tk-mono">{fmtTime(alert.created_at, lang)}</dd>
+        </div>
+      </dl>
       {draftKind(alert) === 'rejected' && alert.draft_check.reason && <p className="small bad-text">{alert.draft_check.reason}</p>}
       <WhyLevel alert={alert} />
       {err &&
@@ -275,7 +293,7 @@ function PendingCard({
             <DevLinkButton alertId={alert.id} />
           </span>
         )}
-        <span className="spacer" />
+        <div className="tk-decide">
         {canDecide ? (
           <>
             <button type="button" className="btn btn-decline btn-press" onClick={() => setConfirm('decline')} disabled={busy}>
@@ -296,6 +314,7 @@ function PendingCard({
             </button>
           </span>
         )}
+        </div>
       </div>
       <ConfirmDialog
         open={confirm !== null}
@@ -354,7 +373,7 @@ export function Approvals({
   return (
     <>
       {list.length === 0 ? (
-        <EmptyState title={t('console.pending.empty')} icon={<CircleCheck />} />
+        <EmptyState word={lang === 'hi' ? 'शांत' : 'All quiet'} title={t('console.pending.empty')} body={lang === 'hi' ? 'कोई गाँव किसी रेखा को पार करे, तो मसौदा यहाँ तुरंत आएगा।' : 'A draft lands here the moment a village crosses a line.'} icon={<CircleCheck />} />
       ) : (
         <div className="pending-list">
           {shown.map((a) => (

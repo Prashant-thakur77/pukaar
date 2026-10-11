@@ -1,0 +1,47 @@
+{
+ "checked": "2026-10-11",
+ "stats": [
+  {
+   "big": "~6×",
+   "label": "nearly six times the disaster mortality ratio where early-warning coverage is limited",
+   "source": "WMO, Global Status of Multi-Hazard Early Warning Systems 2024",
+   "url": "https://wmo.int/publication-series/global-status-of-multi-hazard-early-warning-systems-2024",
+   "short": "WMO · Global Status of MHEWS 2024"
+  },
+  {
+   "big": "30%",
+   "label": "less damage from just 24 hours of warning of a storm or heatwave",
+   "source": "Global Commission on Adaptation, Adapt Now (2019), p.13",
+   "url": "https://gca.org/wp-content/uploads/2019/09/GlobalCommission_Report_FINAL.pdf",
+   "short": "Global Commission on Adaptation · 2019"
+  },
+  {
+   "big": "10×",
+   "label": "early warning systems save lives and assets worth at least ten times their cost",
+   "source": "Global Commission on Adaptation, Adapt Now (2019), p.13",
+   "url": "https://gca.org/wp-content/uploads/2019/09/GlobalCommission_Report_FINAL.pdf",
+   "short": "Global Commission on Adaptation · 2019"
+  },
+  {
+   "big": "500+",
+   "label": "people lost their lives in Himachal Pradesh's 2023 monsoon (45 cloudbursts, 83 flash floods)",
+   "source": "Govt of Himachal Pradesh / HPSDMA, Post Disaster Needs Assessment, Monsoon 2023",
+   "url": "https://recovery.preventionweb.net/publication/report-post-disaster-needs-assessment-himachal-pradesh-monsoon-2023-floods-cloudbursts",
+   "short": "HP Govt / HPSDMA · PDNA Monsoon 2023"
+  },
+  {
+   "big": "₹8,668 cr",
+   "label": "recovery needs for sectoral damage in Himachal after the 2023 monsoon",
+   "source": "Govt of Himachal Pradesh / HPSDMA, PDNA Monsoon 2023 (₹8,667.66 crore)",
+   "url": "https://recovery.preventionweb.net/publication/report-post-disaster-needs-assessment-himachal-pradesh-monsoon-2023-floods-cloudbursts",
+   "short": "HP Govt / HPSDMA · PDNA Monsoon 2023"
+  },
+  {
+   "big": "85.9%",
+   "label": "of Himachal Pradesh's people are Hindi speakers (Census 2011 language group)",
+   "source": "Census of India 2011, C-16 Language (5,895,529 of 6,864,602)",
+   "url": "https://censusindia.gov.in/nada/index.php/catalog/42458",
+   "short": "Census of India 2011 · C-16 Language"
+  }
+ ]
+}

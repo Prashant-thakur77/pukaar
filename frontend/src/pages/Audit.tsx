@@ -3,6 +3,7 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import { Filter, ShieldCheck, ShieldX } from 'lucide-react';
 import { filterAudit, isRoutineRead, normaliseResource } from '../lib/audit';
 import { api } from '../api';
+import { PageBand } from '../components/PageBand';
 import { EmptyState, ErrorState, Skeleton } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
 import { useT } from '../i18n';
@@ -32,10 +33,9 @@ function AuditInner() {
   };
 
   return (
-    <div className="wrap audit">
-      <p className="eyebrow">{t('console.title')}</p>
-      <h1 className="display-3">{t('audit.title')}</h1>
-      <p className="muted">{t('audit.lead')}</p>
+    <div className="audit-page">
+      <PageBand eyebrow={`${t('console.title')} · ${lang === 'hi' ? 'हर फ़ैसला' : 'every decision'}`} title={t('audit.title')} lead={t('audit.lead')} />
+      <div className="wrap audit">
       <form className="input-row audit-filter" onSubmit={submit}>
         <label className="sr-only" htmlFor="aud-r">
           {t('audit.filter')}
@@ -111,6 +111,7 @@ function AuditInner() {
           </table>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -275,7 +275,7 @@ export function scenes(f, live) {
       lines: [
         L("The officer on duty sees the Hindi draft. | Step Functions has paused, | waiting for one tap."),
         L("The model only fills a fixed template, | and a checker rejects any number | not in the decision trace."),
-        L("Code has already set the level | and who receives it; | the officer only decides to send."),
+        L("Code has already chosen the level and the recipients; | the officer only decides to send."),
         L("Approve."),
       ],
       async prepare(page) {

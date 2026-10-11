@@ -27,12 +27,18 @@ export function SkeletonCards({ n = 3 }: { n?: number }) {
   );
 }
 
-export function EmptyState({ title, body, icon, action }: { title: string; body?: string; icon?: ReactNode; action?: ReactNode }) {
+export function EmptyState({ title, body, icon, action, word }: { title: string; body?: string; icon?: ReactNode; action?: ReactNode; word?: string }) {
   return (
-    <div className="state state-empty">
-      <div className="state-icon" aria-hidden="true">
-        {icon ?? <Sparkles />}
-      </div>
+    <div className={`state state-empty${word ? ' has-word' : ''}`}>
+      {word ? (
+        <p className="state-word" aria-hidden="true">
+          {word}
+        </p>
+      ) : (
+        <div className="state-icon" aria-hidden="true">
+          {icon ?? <Sparkles />}
+        </div>
+      )}
       <p className="state-title">{title}</p>
       {body && <p className="state-body">{body}</p>}
       {action}

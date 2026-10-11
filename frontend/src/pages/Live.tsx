@@ -6,6 +6,7 @@ import { AllClear } from '../components/AllClear';
 import { AlertStatusChip, DeliveryChips, ReplayChip } from '../components/Chips';
 import { CountUp } from '../components/CountUp';
 import { LevelBadge, LevelIcon, LevelLegend } from '../components/Level';
+import { PageBand } from '../components/PageBand';
 import { Reveal } from '../components/Reveal';
 import { EmptyState, ErrorState, Skeleton, SkeletonCards } from '../components/States';
 import { VillageMap } from '../components/VillageMap';
@@ -54,22 +55,30 @@ export default function Live() {
   const allClear = Boolean(data && !data.replay.active && data.villages.length > 0 && data.villages.every((v) => v.level === 'normal'));
 
   return (
-    <div className="live wrap-wide">
-      <header className="page-head">
-        <div>
-          <p className="eyebrow">
-            <span className="live-dot" aria-hidden="true" /> {t('live.eyebrow')}
-          </p>
-          <h1 className="display-3">{t('live.title')}</h1>
-          <p className="muted">{t('live.lead')}</p>
-        </div>
-        {updatedAt && (
-          <p className="small muted updated" aria-live="off">
-            {t('common.updated', { t: fmtAgo(new Date(updatedAt).toISOString(), lang) })}
-          </p>
-        )}
-      </header>
-
+    <div className="live">
+      <PageBand
+        live
+        eyebrow={lang === 'hi' ? 'लाइव · सभी गाँव' : 'Live · all villages'}
+        title={t('live.title')}
+        lead={t('live.lead')}
+        aside={
+          updatedAt ? (
+            <p className="pg-updated" aria-live="off">
+              {t('common.updated', { t: fmtAgo(new Date(updatedAt).toISOString(), lang) })}
+            </p>
+          ) : null
+        }
+      >
+        <ul className="mini-counters stat-strip">
+          {COUNTERS.map((k) => (
+            <li key={k} className="mini-counter stat">
+              {loading && !data ? <Skeleton height={34} /> : <CountUp value={data ? data.counters[k] : null} lang={lang} className="mc-num stat-num" />}
+              <span className="mc-label stat-label">{t(`counter.${k}`)}</span>
+            </li>
+          ))}
+        </ul>
+      </PageBand>
+      <div className="wrap-wide live-body">
       {error && !data ? (
         <ErrorState error={error} onRetry={refresh} />
       ) : (
@@ -82,20 +91,15 @@ export default function Live() {
                 <div className="map-skel skel" aria-hidden="true" />
               </div>
             )}
+            <p className="map-hud" aria-hidden="true">
+              <span className="live-dot" /> {lang === 'hi' ? 'लाइव · हर 15 मिनट जाँच' : 'Live · sweep every 15 min'}
+            </p>
             <div className="map-legend-float">
               <LevelLegend />
             </div>
           </div>
 
           <aside className="live-side">
-            <ul className="mini-counters">
-              {COUNTERS.map((k) => (
-                <li key={k} className="mini-counter">
-                  {loading && !data ? <Skeleton height={34} /> : <CountUp value={data ? data.counters[k] : null} lang={lang} className="mc-num" />}
-                  <span className="mc-label">{t(`counter.${k}`)}</span>
-                </li>
-              ))}
-            </ul>
 
             <section aria-labelledby="alerts-h" className="side-sec">
               <h2 id="alerts-h" className="h-sec">
@@ -104,7 +108,7 @@ export default function Live() {
               {loading && !data ? (
                 <SkeletonCards n={2} />
               ) : data && data.recent_alerts.length === 0 ? (
-                <EmptyState title={t('live.alerts.empty')} />
+                <EmptyState word={lang === 'hi' ? 'शांत' : 'Calm'} title={t('live.alerts.empty')} body={lang === 'hi' ? 'हर 15 मिनट नदी और बारिश की जाँच होती है।' : 'River and rain are checked every 15 minutes.'} />
               ) : (
                 <ul className="alert-list">
                   {data?.recent_alerts.map((a, i) => (
@@ -176,6 +180,7 @@ export default function Live() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

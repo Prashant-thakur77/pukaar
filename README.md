@@ -44,6 +44,39 @@ is built around the gaps between a forecast and a family moving to high ground:
 
 Try it in two minutes: open the [live page](https://main.d15r7ktz99l46x.amplifyapp.com), scroll the landing page through "the night the river rose" (Gohar, July 2023, replayed through the real rules), then open **Live** for the 3D village map.
 
+## Research and evidence
+
+![Six sourced numbers on early warning, Himachal and Hindi](docs/charts/evidence.svg)
+
+**Early warning works, when it reaches people.**
+- Countries with less comprehensive multi-hazard early warning systems have a disaster-related mortality ratio "nearly six times higher" than countries with substantial to comprehensive coverage, and "nearly four times more disaster-affected people" ([WMO, *Global Status of MHEWS 2024*](https://wmo.int/publication-series/global-status-of-multi-hazard-early-warning-systems-2024)).
+- "Just 24 hours warning of a coming storm or heat wave can cut the ensuing damage by 30 percent", and early warning systems "save lives and assets worth at least ten times their cost" ([Global Commission on Adaptation, *Adapt Now*, 2019, p.13](https://gca.org/wp-content/uploads/2019/09/GlobalCommission_Report_FINAL.pdf)).
+- The UN's [Early Warnings for All](https://www.un.org/en/climatechange/early-warnings-for-all) initiative aims to protect everyone on Earth with early warning systems by the end of 2027.
+
+**The last mile is where warnings fail.** The research Pukaar is built on:
+- "A warning cannot be considered effective until it is received, understood and responded to by those at risk." In the same study, communities "strongly preferred voice short messaging service (SMS) and interactive voice response (IVR) because of easier accessibility and understanding of the message" (Cumiskey et al., 2015, *Int. J. Disaster Resilience in the Built Environment* 6(1), [doi:10.1108/IJDRBE-08-2014-0062](https://doi.org/10.1108/IJDRBE-08-2014-0062)). This is why Pukaar speaks the alert and asks for "मिल गया".
+- "Early warnings do not always translate into an emergency response from all individuals at risk" (Perera et al., 2020, *IJDRR* 50, [doi:10.1016/j.ijdrr.2020.101794](https://doi.org/10.1016/j.ijdrr.2020.101794)).
+- People-centred systems need local knowledge, a move "from the traditional expert-driven approach to one … driven by the vulnerable communities" (Baudoin et al., 2016, *Int. J. Disaster Risk Science*, [doi:10.1007/s13753-016-0085-6](https://doi.org/10.1007/s13753-016-0085-6); Hermans et al., 2022, *Natural Hazards*, [doi:10.1007/s11069-022-05468-8](https://doi.org/10.1007/s11069-022-05468-8)). This is why a verified villager report can raise a level on its own.
+- Integrating crowdsourced observations improves flood forecasts in model studies (Mazzoleni et al., 2018, *HESS* 22, [doi:10.5194/hess-22-391-2018](https://doi.org/10.5194/hess-22-391-2018); their citizen observations were synthetic).
+
+**Himachal is where it matters.**
+- In the 2023 monsoon, "more than 500 people lost their lives" in Himachal Pradesh, with "45 Cloudburst and 83 flash floods" and recovery needs for sectoral damage of ₹8,667.66 crore ([Govt of Himachal Pradesh / HPSDMA, *Post Disaster Needs Assessment*, 2024](https://recovery.preventionweb.net/publication/report-post-disaster-needs-assessment-himachal-pradesh-monsoon-2023-floods-cloudbursts)).
+- On 30 June to 1 July 2025, Mandi received 140.7 mm of rain, against an average of 6.9 mm ([Down To Earth](https://www.downtoearth.org.in/natural-disasters/cloudbursts-devastate-himachals-mandi-at-least-10-dead-34-missing-after-1900-excess-rain-on-july-1)).
+- Cloudbursts in the Himalaya "have been increasing in both their frequency and intensity" (Kumar et al., 2018, *Polar Science*, [doi:10.1016/j.polar.2018.08.004](https://doi.org/10.1016/j.polar.2018.08.004)), and predicting them accurately "is a difficult task", with model resolution "one of the most important factors" (Chaudhuri et al., 2015, *Annales Geophysicae* 33, [doi:10.5194/angeo-33-671-2015](https://doi.org/10.5194/angeo-33-671-2015)).
+- 85.9% of Himachal Pradesh's people are Hindi speakers in the Census 2011 language group (5,895,529 of 6,864,602; [Census of India 2011, C-16](https://censusindia.gov.in/nada/index.php/catalog/42458)), and Himachal has 9.45 million mobile subscribers ([TRAI, Aug 2026 data](https://trai.gov.in/sites/default/files/2026-09/PR_No125of2026_0.pdf)).
+
+**What already exists, and where Pukaar fits.** Each cell below is only what the system's own public source states; "not stated" means the source is silent, not that the feature is missing.
+
+| | Per-village thresholds | Spoken alert | Per-person acknowledgement | Human approval per alert | Villager reports back |
+|---|---|---|---|---|---|
+| [SACHET / CAP](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2257102) (NDMA): SMS and cell broadcast to geo-targeted areas, 19+ languages | not stated | not stated | not stated | not stated | not stated |
+| [IMD warnings](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2247523): district impact-based colour warnings, Gram Panchayat-level forecasts | not stated | not stated | not stated | not stated | not stated |
+| [CWC](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2247523): flood forecasts at identified locations when a threshold is reached; C-FLOOD inundation to village level | at identified river stations | not stated | not stated | not stated | not stated |
+| [Google Flood Hub](https://sites.research.google/floodforecasting/): river forecasts up to 7 days, flash floods on a 20 km grid | not stated | not stated | not stated | not stated | not stated |
+| **Pukaar** | yes (each village's own 1984-2024 river record) | yes (Polly, Hindi) | yes ("मिल गया") | yes (Step Functions) | yes (voice, photo, text) |
+
+Pukaar is built to sit beside these, not replace them: their forecasts are its inputs, and it carries the last mile to a phone and back.
+
 ## Who it is for
 
 - **District and block disaster officers**: they approve every alert on their

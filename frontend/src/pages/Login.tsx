@@ -1,3 +1,4 @@
+import { Headline } from '../components/PageBand';
 import { useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LoaderCircle, LogIn, ShieldCheck, UserRound } from 'lucide-react';
@@ -80,7 +81,9 @@ export default function Login() {
           <span className="login-badge" aria-hidden="true">
             <ShieldCheck />
           </span>
-          <h1 className="display-3">{t('login.title')}</h1>
+          <h1 className="display-3 pg-title">
+            <Headline text={t('login.title')} />
+          </h1>
           <p className="muted">{t('login.lead')}</p>
 
           {cognitoEnabled ? (

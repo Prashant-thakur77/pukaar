@@ -141,11 +141,42 @@ def years_chart(bt: dict) -> str:
     return svg(W, H, body, "Peak forecast rain per village, July 2023 against 30 June 2025")
 
 
+def evidence_chart(ev: dict) -> str:
+    stats = ev["stats"]
+    W, H = 960, 470
+    cols, gap = 3, 18
+    cw = (W - 72 - gap * (cols - 1)) / cols
+    ch = 150
+    body = header("Why early warning, why Himachal, why Hindi", "The case in six sourced numbers", W)
+    for k, st in enumerate(stats):
+        cx = 36 + (k % cols) * (cw + gap)
+        cy = 112 + (k // cols) * (ch + gap)
+        dark = k % 2 == 0
+        bg, fg, sub = (INK, CREAM, KHAKI) if dark else (GOLD, INK, "#3a2f16")
+        body += f'<rect x="{cx:.1f}" y="{cy}" width="{cw:.1f}" height="{ch}" rx="16" fill="{bg}"/>'
+        body += text(cx + 20, cy + 62, st["big"], 50, fg, 400, family=DISPLAY)
+        words, line, lines = st["label"].split(), "", []
+        for w in words:
+            if len(line) + len(w) > 38:
+                lines.append(line)
+                line = w
+            else:
+                line = f"{line} {w}".strip()
+        lines.append(line)
+        for i, ln in enumerate(lines[:3]):
+            body += text(cx + 20, cy + 90 + i * 16, ln, 12.5, fg, 600)
+        body += text(cx + 20, cy + ch - 12, st["short"].upper(), 9.5, sub, 800, extra='letter-spacing="1"')
+    body += text(36, H - 14, f"Sources linked in the README and in data/evidence.json (checked {ev['checked']}).", 11, INK3, 600)
+    return svg(W, H, body, "Six sourced numbers on early warning, Himachal and Hindi")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     story = json.loads((ROOT / "frontend/src/data/story-gohar-2023.json").read_text(encoding="utf-8"))
     bt = json.loads((ROOT / "data/backtest.json").read_text(encoding="utf-8"))
-    for name, body in (("gohar-2023.svg", gohar_chart(story)), ("backtest-lead.svg", lead_chart(bt)), ("two-monsoons.svg", years_chart(bt))):
+    ev = json.loads((ROOT / "data/evidence.json").read_text(encoding="utf-8"))
+    for name, body in (("gohar-2023.svg", gohar_chart(story)), ("backtest-lead.svg", lead_chart(bt)), ("two-monsoons.svg", years_chart(bt)),
+                       ("evidence.svg", evidence_chart(ev))):
         (OUT / name).write_text(body, encoding="utf-8")
         print(OUT / name)
 

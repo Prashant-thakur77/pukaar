@@ -3,6 +3,7 @@ import { CircleCheck, CircleDashed, CloudRain, FlaskConical } from 'lucide-react
 import { loadBacktest } from '../api';
 import { LevelBadge } from '../components/Level';
 import { Reveal } from '../components/Reveal';
+import { Headline } from '../components/PageBand';
 import { EmptyState, Skeleton } from '../components/States';
 import { useT, type Key } from '../i18n';
 import { fmtDate, fmtNumber, fmtTime } from '../lib/format';
@@ -112,7 +113,9 @@ export default function Impact() {
         <div className="wrap">
           <Reveal variant="slide">
             <p className="eyebrow eyebrow-night">{t('impact.eyebrow')}</p>
-            <h1 className="display-2 on-night">{t('impact.title')}</h1>
+            <h1 className="display-2 on-night pg-title">
+              <Headline text={t('impact.title')} />
+            </h1>
             <p className="lead on-night-2">{t('impact.lead')}</p>
           </Reveal>
         </div>

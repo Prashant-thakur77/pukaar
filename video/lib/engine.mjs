@@ -452,9 +452,9 @@ function captionHtml(tag, lines) {
   return `<!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Noto+Sans+Devanagari:wght@600;700&display=block" rel="stylesheet">
 <style>html,body{margin:0;width:${W}px;height:${H}px;background:transparent;overflow:hidden}
-#bar{position:absolute;left:0;right:0;bottom:0;height:${BAR}px;background:rgba(20,26,51,.96);border-top:4px solid #f5a524;
+#bar{position:absolute;left:0;right:0;bottom:0;height:${BAR}px;background:rgba(12,12,11,.96);border-top:4px solid #d8ad55;
 display:flex;align-items:center;gap:30px;padding:0 90px;box-sizing:border-box}
-.tag{flex:none;width:190px;font:700 16px/1.2 "Inter Tight",sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#f5a524}
+.tag{flex:none;width:190px;font:700 16px/1.2 "Inter Tight",sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#d8ad55}
 .txt{font:600 42px/1.2 "Inter Tight","Noto Sans Devanagari",sans-serif;letter-spacing:-.005em;color:#f4efe6}</style></head>
 <body>${lines === null ? "" : `<div id="bar"><div class="tag">${esc(tag ?? "")}</div><div class="txt">${lines.map(esc).join("<br>")}</div></div>`}</body></html>`;
 }

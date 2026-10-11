@@ -4,28 +4,28 @@
     <meta charset="utf-8" />
     <title>Pukaar video cards</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+Devanagari:wght@500;700;900&display=block"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+Devanagari:wght@500;700;900&display=block"
       rel="stylesheet"
     />
     <style>
       /* Pukaar's own tokens (frontend/src/theme.css), in the style of the reference trailer: paper, ink, a marker
          highlight on the words that carry the meaning, hard-shadow cards, one ease and three durations. */
       :root {
-        --night-0: #070b1d;
-        --night-2: #131a3a;
-        --night-ink: #eef1fb;
-        --night-ink-2: #b8c0de;
-        --paper: #f4efe6;
-        --ink: #141a33;
-        --ink-3: #5b6185;
-        --marigold: #f5a524;
-        --marigold-2: #ffc35c;
+        --night-0: #0c0c0b;
+        --night-2: #141a15;
+        --night-ink: #f4efe4;
+        --night-ink-2: #c9b48a;
+        --paper: #f4efe4;
+        --ink: #0c0c0b;
+        --ink-3: #5e5848;
+        --marigold: #d8ad55;
+        --marigold-2: #e8c77c;
         --crit: #e5484d;
         --warn: #f76b15;
-        --watch: #f5a524;
+        --watch: #d8ad55;
         --ok: #2f9e6e;
         --ease: cubic-bezier(0.16, 1, 0.3, 1);
-        --display: "Bebas Neue", Impact, sans-serif;
+        --display: "Anton", "Bebas Neue", Impact, sans-serif;
         --sans: "Inter", "Noto Sans Devanagari", system-ui, sans-serif;
         --hi: "Noto Sans Devanagari", "Inter", sans-serif;
         --mono: "JetBrains Mono", ui-monospace, monospace;
@@ -59,22 +59,22 @@
       /* ------------------------------------------------------------ hook: kinetic type, one beat per caption chunk */
       #hook { padding: 0 150px; display: none; }
       #hook.on { display: flex; flex-direction: column; justify-content: center; gap: 26px; }
-      #hook .beat { font: 800 92px/1.08 var(--sans); letter-spacing: -0.025em; transition: opacity 450ms var(--ease), transform 450ms var(--ease); }
+      #hook .beat { font: 400 104px/1.02 var(--display); text-transform: uppercase; letter-spacing: 0.005em; transition: opacity 450ms var(--ease), transform 450ms var(--ease); }
       #hook .beat.old { opacity: 0.32; transform: scale(0.94) translateX(-4%); }
       #hook .beat.gone { display: none; }
       #hook .w { display: inline-block; opacity: 0; transform: translateY(40px) scale(1.06); transition: opacity 300ms var(--ease), transform 300ms var(--ease); margin-right: 0.24em; }
       #hook .w.shown { opacity: 1; transform: none; }
       #hook .brand { display: flex; align-items: baseline; gap: 40px; }
-      #hook .brand .that { font: 800 92px/1 var(--sans); }
+      #hook .brand .that { font: 400 104px/1 var(--display); text-transform: uppercase; }
       #hook .brand .hi { font: 900 230px/1.1 var(--hi); color: var(--marigold); }
-      #hook .brand .en { font: 400 92px/1 var(--display); letter-spacing: 0.16em; }
+      #hook .brand .en { font: 400 92px/1 var(--display); letter-spacing: 0.16em; text-transform: uppercase; }
 
       /* ------------------------------------------------------------ turn: the wordmark, the one-liner, who it is for */
       #turn .wrap { position: absolute; inset: 110px 150px 200px; display: grid; grid-template-columns: 1.05fr 1fr; gap: 90px; align-items: center; }
       #turn .wm { display: flex; flex-direction: column; gap: 6px; }
       #turn .wm .hi { font: 900 250px/1.05 var(--hi); color: var(--ink); }
-      #turn .wm .en { font: 400 70px/1 var(--display); letter-spacing: 0.3em; color: var(--ink-3); }
-      #turn .one { font: 800 64px/1.12 var(--sans); letter-spacing: -0.02em; margin: 0 0 40px; }
+      #turn .wm .en { font: 400 70px/1 var(--display); text-transform: uppercase; letter-spacing: 0.3em; color: var(--ink-3); }
+      #turn .one { font: 400 74px/1.02 var(--display); text-transform: uppercase; letter-spacing: 0.005em; margin: 0 0 40px; }
       #turn .who { display: grid; gap: 20px; }
       .tick { display: flex; align-items: center; gap: 22px; background: #fff; border: 3px solid var(--ink); box-shadow: 9px 9px 0 var(--ink); border-radius: 12px; padding: 20px 26px; font: 700 34px/1.2 var(--sans); }
       .tick small { display: block; font: 500 24px/1.3 var(--sans); color: var(--ink-3); }
@@ -84,16 +84,16 @@
       /* ------------------------------------------------------------ terminal: real AWS CLI and curl output */
       #term .stage { position: absolute; inset: 70px 110px 190px; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
       #term .head { display: flex; align-items: baseline; justify-content: space-between; }
-      #term .head h2 { margin: 0; font: 800 54px/1 var(--sans); letter-spacing: -0.02em; }
+      #term .head h2 { margin: 0; font: 400 64px/1 var(--display); text-transform: uppercase; }
       #term .head .eyebrow { color: var(--ink-3); }
-      #term .win { flex: none; max-height: 640px; background: #0d1124; border: 3px solid var(--ink); box-shadow: 12px 12px 0 var(--ink); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
-      #term .bar { height: 46px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 18px; background: #161b36; border-bottom: 1px solid #252c52; }
-      #term .bar i { width: 13px; height: 13px; border-radius: 50%; background: #39406a; }
-      #term .bar b { flex: 1; text-align: center; font: 500 18px/1 var(--mono); color: #8d95c0; margin-right: 70px; }
-      #term .screen { flex: 1; padding: 26px 34px 30px; font: 400 29px/1.5 var(--mono); color: #d6dbf5; white-space: pre-wrap; overflow: hidden; }
+      #term .win { flex: none; max-height: 640px; background: #10120e; border: 3px solid var(--ink); box-shadow: 12px 12px 0 var(--ink); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+      #term .bar { height: 46px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 18px; background: #151712; border-bottom: 1px solid #2b2e25; }
+      #term .bar i { width: 13px; height: 13px; border-radius: 50%; background: #3c4034; }
+      #term .bar b { flex: 1; text-align: center; font: 500 18px/1 var(--mono); color: #a99f8b; margin-right: 70px; }
+      #term .screen { flex: 1; padding: 26px 34px 30px; font: 400 29px/1.5 var(--mono); color: #f4efe4; white-space: pre-wrap; overflow: hidden; }
       #term .l { min-height: 1.5em; border-radius: 5px; padding: 0 8px; margin: 0 -8px; transition: background 300ms var(--ease), opacity 300ms var(--ease); }
       #term .l.cmd { color: var(--marigold-2); }
-      #term .l.cmd::before { content: "$ "; color: #6f78a8; }
+      #term .l.cmd::before { content: "$ "; color: #a99f8b; }
       #term .l.dim { opacity: 0.45; }
       #term .l.hot { background: rgb(245 165 36 / 22%); box-shadow: inset 4px 0 0 var(--marigold); }
       #term .l .ok { color: #6fdc9a; font-weight: 700; }
@@ -101,16 +101,16 @@
 
       /* ------------------------------------------------------------ close: the end card */
       #close .wrap { position: absolute; inset: 0 0 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; text-align: center; }
-      #close .call { font: 800 76px/1.15 var(--sans); letter-spacing: -0.02em; max-width: 1500px; }
+      #close .call { font: 400 88px/1.06 var(--display); text-transform: uppercase; letter-spacing: 0.005em; max-width: 1500px; }
       #close .wm { display: flex; align-items: baseline; gap: 34px; margin-top: 20px; }
       #close .wm .hi { font: 900 190px/1.1 var(--hi); color: var(--marigold); }
-      #close .wm .en { font: 400 86px/1 var(--display); letter-spacing: 0.2em; }
+      #close .wm .en { font: 400 86px/1 var(--display); letter-spacing: 0.2em; text-transform: uppercase; }
       #close .url { font: 700 46px/1 var(--mono); }
       #close .meta { font: 600 26px/1.5 var(--mono); letter-spacing: 0.06em; color: var(--night-ink-2); }
 
       /* ------------------------------------------------------------ gaps: the gap, then what Pukaar does about it */
       #gaps .stage { position: absolute; inset: 60px 130px 190px; display: flex; flex-direction: column; justify-content: center; gap: 44px; }
-      #gaps h2 { margin: 0 0 10px; font: 800 76px/1.05 var(--sans); letter-spacing: -0.02em; }
+      #gaps h2 { margin: 0 0 10px; font: 400 92px/1 var(--display); text-transform: uppercase; }
       #gaps .tick { font-size: 42px; padding: 26px 32px; } #gaps .tick small { font-size: 30px; } #gaps .tick .ic { width: 70px; height: 70px; } #gaps .tick .ic svg { width: 42px; height: 42px; }
       #gaps .row { display: grid; grid-template-columns: 1fr 70px 1.25fr; align-items: center; gap: 20px; }
       #gaps .gap { font: 600 40px/1.25 var(--sans); color: var(--ink-3); text-decoration: line-through; text-decoration-color: rgb(229 72 77 / 55%); text-decoration-thickness: 3px; }
@@ -119,7 +119,7 @@
 
       /* ------------------------------------------------------------ phone: a live page in a phone frame */
       #phone .stage { position: absolute; inset: 40px 0 170px; display: flex; align-items: center; justify-content: center; gap: 110px; }
-      #phone .dev { width: 430px; height: 860px; border-radius: 54px; background: #0d1124; padding: 20px; box-shadow: 14px 14px 0 var(--ink); border: 3px solid var(--ink); }
+      #phone .dev { width: 430px; height: 860px; border-radius: 54px; background: #10120e; padding: 20px; box-shadow: 14px 14px 0 var(--ink); border: 3px solid var(--ink); }
       #phone iframe { width: 390px; height: 820px; border: 0; border-radius: 36px; background: #fff; display: block; }
       #phone .side { width: 640px; display: flex; flex-direction: column; gap: 28px; }
       #phone .big { font: 400 210px/0.9 var(--display); letter-spacing: 0.01em; }

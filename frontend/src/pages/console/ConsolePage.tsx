@@ -11,6 +11,7 @@ import { useT } from '../../i18n';
 import { auditLinkForAlert } from '../../lib/audit';
 import { fmtAgo, fmtTime } from '../../lib/format';
 import { Skeleton } from '../../components/States';
+import { Headline, StatStrip } from '../../components/PageBand';
 import type { Alert } from '../../types';
 import { useAuth } from '../../store';
 import { Approvals } from './Approvals';
@@ -30,7 +31,7 @@ export default function ConsolePage() {
 }
 
 function Console() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const user = useAuth((s) => s.user);
   // The role comes from /me (the stored login copy is only a first guess).
   const me = usePoll(() => api.me(), [], 0);
@@ -46,6 +47,7 @@ function Console() {
   const vs = villages.data ?? [];
   const pendingN = pending.data?.filter((a) => a.status === 'pending').length ?? 0;
   const mode = health.data?.mode;
+  const raised = vs.filter((v) => v.level !== 'normal').length;
 
   const refreshAlerts = () => {
     void pending.refresh();
@@ -73,12 +75,21 @@ function Console() {
 
   return (
     <div className={`console${officer ? '' : ' is-pradhan'}`}>
-      <header className="console-head">
-        <div className="wrap-wide ch-inner">
-          <div>
-            <p className="eyebrow">{officer ? t('console.title') : t('console.title.pradhan')}</p>
-            <h1 className="display-3">
-              {user ? t('console.signed.as', { u: me.data?.username ?? user.username, r: role }) : t('console.title')}
+      <header className="console-head pg-band pg-night">
+        <div className="wrap-wide ch-inner pg-inner">
+          <div className="pg-text">
+            <p className="pg-eyebrow">
+              <span className="live-dot" aria-hidden="true" />
+              {officer ? t('console.title') : t('console.title.pradhan')}
+              {user && (
+                <span className="ch-who">
+                  {' · '}
+                  {t('console.signed.as', { u: me.data?.username ?? user.username, r: role })}
+                </span>
+              )}
+            </p>
+            <h1 className="pg-title">
+              <Headline text={officer ? t('console.title') : t('console.title.pradhan')} />
             </h1>
             {!officer && <p className="small muted pradhan-note">{t('console.pradhan.note')}</p>}
           </div>
@@ -96,6 +107,16 @@ function Console() {
             )}
             <Call112 />
           </div>
+        </div>
+        <div className="wrap-wide pg-extra">
+          <StatStrip
+            stats={[
+              { key: 'p', value: pendingN, label: t('console.pending'), tone: pendingN > 0 ? 'alert' : undefined },
+              { key: 'v', value: vs.length || '—', label: t('counter.villages_watched') },
+              { key: 'a', value: raised, label: lang === 'hi' ? 'सामान्य से ऊपर' : 'Above normal', tone: raised > 0 ? 'alert' : undefined },
+              { key: 'r', value: reports.data?.length ?? '—', label: t('counter.reports_received') },
+            ]}
+          />
         </div>
         <nav className="console-tabs wrap-wide" aria-label="Console sections">
           {tabs.map((tb) => (

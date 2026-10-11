@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useCallback, useState } from 'react';
 import { CircleCheck, Copy, Flag, Hammer, MapPin, ShieldCheck } from 'lucide-react';
 import { api, ApiError } from '../../api';
@@ -65,7 +66,7 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
     <>
       {err && (err.isDenied ? <DeniedNote error={err} /> : <ErrorState error={err} compact />)}
       {list.length === 0 ? (
-        <EmptyState title={t('console.reports.empty')} />
+        <EmptyState word={lang === 'hi' ? 'कोई सूचना नहीं' : 'No word yet'} title={t('console.reports.empty')} body={lang === 'hi' ? 'गाँव से आई आवाज़, फ़ोटो और संदेश यहाँ दिखेंगे।' : 'Voice notes, photos and texts from villages show up here.'} action={<Link to="/report" className="btn btn-ghost btn-sm">{lang === 'hi' ? 'सूचना भेजें' : 'Send a report'} →</Link>} />
       ) : (
         <ul className="report-feed">
           {[...list]
