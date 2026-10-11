@@ -52,8 +52,11 @@ def status(repo: Repo) -> dict:
 def reset(repo: Repo) -> ReplayState:
     repo.put_replay(ReplayState(active=False))
     removed = repo.delete_where(lambda item: bool(item.get("replay")) and item.get("kind") != "village")
+    from Pukaar.services import events
+
     for v in repo.list_villages():
         repo.update_village(v.id, level="normal", calm_sweeps=0, level_since=None, open_alert_id=None, replay=False)
+        events.level_changed(v.id, "normal", v.level, replay=True)
     log(_LOG, "replay reset", removed=removed)
     return repo.get_replay()
 

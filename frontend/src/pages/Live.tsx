@@ -12,6 +12,8 @@ import { Reveal } from '../components/Reveal';
 import { EmptyState, ErrorState, Skeleton, SkeletonCards } from '../components/States';
 import { VillageMap } from '../components/VillageMap';
 import { usePoll } from '../hooks/usePoll';
+import { LivePill } from '../components/LivePill';
+import { PUBLIC_CHANNELS } from '../lib/live';
 import { useT } from '../i18n';
 import { fmtAgo } from '../lib/format';
 import { levelRank } from '../lib/levels';
@@ -70,7 +72,8 @@ const NO_VIEWS: SafePlacesView[] = [];
 export default function Live() {
   const { t, lang } = useT();
   const nav = useNavigate();
-  const { data, error, loading, refresh, updatedAt } = usePoll(() => api.overview(), []);
+  // Live push refetches on any level, alert, count or roll-call change; polling every 15 s is the fallback.
+  const { data, error, loading, refresh, updatedAt, live } = usePoll(() => api.overview(), [], 15000, { live: PUBLIC_CHANNELS });
   const safeLayer = useSafeLayer(data ? data.villages.map((v) => v.id) : []);
   const villages = data ? [...data.villages].sort((a, b) => levelRank(b.level) - levelRank(a.level) || a.name.localeCompare(b.name)) : [];
   const allClear = Boolean(data && !data.replay.active && data.villages.length > 0 && data.villages.every((v) => v.level === 'normal'));
@@ -83,11 +86,14 @@ export default function Live() {
         title={t('live.title')}
         lead={t('live.lead')}
         aside={
-          updatedAt ? (
-            <p className="pg-updated" aria-live="off">
-              {t('common.updated', { t: fmtAgo(new Date(updatedAt).toISOString(), lang) })}
-            </p>
-          ) : null
+          <div className="pg-updated-wrap">
+            <LivePill live={live} />
+            {updatedAt ? (
+              <p className="pg-updated" aria-live="off">
+                {t('common.updated', { t: fmtAgo(new Date(updatedAt).toISOString(), lang) })}
+              </p>
+            ) : null}
+          </div>
         }
       >
         <ul className="mini-counters stat-strip">

@@ -9,6 +9,8 @@ eval "$("$ROOT/scripts/stack_env.sh")"
 BRANCH="${STACK_AmplifyBranch:-main}"
 
 echo "Building frontend for $STACK_ApiUrl"
+# Live push: the AppSync Events key is public by design (subscribe-only, /public/* only).
+[[ -n "${STACK_EventsRealtimeDomain:-}" ]] || echo "No AppSync Events outputs: the web app will poll only." >&2
 (
   cd "$ROOT/frontend"
   [[ -d node_modules ]] || npm ci
@@ -16,6 +18,9 @@ echo "Building frontend for $STACK_ApiUrl"
   VITE_COGNITO_REGION="$AWS_REGION" \
   VITE_COGNITO_USER_POOL_ID="$STACK_UserPoolId" \
   VITE_COGNITO_CLIENT_ID="$STACK_UserPoolClientId" \
+  VITE_EVENTS_HTTP_DOMAIN="${STACK_EventsHttpDomain:-}" \
+  VITE_EVENTS_REALTIME_DOMAIN="${STACK_EventsRealtimeDomain:-}" \
+  VITE_EVENTS_API_KEY="${STACK_EventsApiKey:-}" \
     npm run build
 )
 

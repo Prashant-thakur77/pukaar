@@ -1,4 +1,5 @@
 // Typed client for every route in docs/CONTRACT.md.
+import { afterActionPath } from './lib/afterAction';
 import { useAuth, useNet } from './store';
 import type {
   AgentRegistry,
@@ -141,6 +142,31 @@ export async function request<T>(path: string, opts: RequestOpts = {}): Promise<
   return parsed as T;
 }
 
+/** A signed-in GET that returns the body as a Blob (HTML reports): the token rides in a header, never a URL. */
+export async function requestBlob(path: string): Promise<Blob> {
+  const headers: Record<string, string> = { Accept: 'text/html' };
+  const token = useAuth.getState().token;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { headers });
+  } catch {
+    throw new ApiError(0, null);
+  }
+  if (!res.ok) {
+    let detail: unknown = null;
+    try {
+      const parsed = JSON.parse(await res.text()) as { detail?: unknown };
+      detail = parsed && typeof parsed === 'object' && 'detail' in parsed ? parsed.detail : parsed;
+    } catch {
+      /* not JSON */
+    }
+    if (res.status === 401 && token) useAuth.getState().signOut();
+    throw new ApiError(res.status, detail);
+  }
+  return res.blob();
+}
+
 function qs(params: Record<string, string | undefined | null>): string {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v) p.set(k, v);
@@ -204,6 +230,7 @@ export const api = {
   approve: (id: string) => request<Alert>(`/alerts/${enc(id)}/approve`, { method: 'POST', body: {} }),
   decline: (id: string, reason?: string) =>
     request<Alert>(`/alerts/${enc(id)}/decline`, { method: 'POST', body: reason ? { reason } : {} }),
+  afterAction: (id: string) => requestBlob(afterActionPath(id)),
   alertAudio: (id: string) => request<AlertAudio>(`/alerts/${enc(id)}/audio`, { auth: false }),
   ack: (id: string, token: string) =>
     request<{ ok: boolean; acknowledged_at: string }>(`/alerts/${enc(id)}/ack`, { method: 'POST', body: { token }, auth: false }),

@@ -99,8 +99,10 @@ def acknowledge(repo: Repo, alert_id: str, recipient_id: str) -> Delivery | None
         return None
     alert = repo.get_alert(alert_id)
     if alert is not None:
+        from Pukaar.services import events
+
         acked = sum(1 for x in repo.list_deliveries(alert_id) if x.acknowledged_at)
-        repo.update_alert(alert_id, acknowledged_count=acked)
+        events.counts_changed(repo.update_alert(alert_id, acknowledged_count=acked))
     return d
 
 

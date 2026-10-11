@@ -161,6 +161,8 @@ def decide(repo: Repo, workflow: Any, alert_id: str, decision: str, by: str, *,
             if any(m in f"{type(exc).__name__} {exc}" for m in _LATE_MARKERS):
                 break
             time.sleep(0.3 * (attempt + 1))
+    from Pukaar.services import events
+
     if error is not None:
         late = any(m in f"{type(error).__name__} {error}" for m in _LATE_MARKERS)
         log(_LOG, "workflow did not take the decision", 30, alert_id=alert_id, late=late, error=str(error)[:200])
@@ -177,11 +179,13 @@ def decide(repo: Repo, workflow: Any, alert_id: str, decision: str, by: str, *,
             pass  # the workflow already wrote a newer state
         repo.add_timeline(alert_id, "decision_not_taken", "late: the workflow had moved on" if late
                           else "temporary error; the alert is pending again")
+        events.alert_changed(repo.get_alert(alert_id))
         if late:
             raise ConflictError("the approval window closed before the decision arrived") from error
         raise RetryLater("could not reach the workflow; the alert is pending again, please try again") from error
     repo.add_timeline(alert_id, decision, f"by {by}" + (f": {reason}" if reason else ""))
     metric("ApprovalDecision", 1, Decision=decision)
+    events.alert_changed(updated)  # another officer's console drops the card within a second
     return updated
 
 

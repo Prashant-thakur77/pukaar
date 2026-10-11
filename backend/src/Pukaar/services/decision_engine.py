@@ -14,7 +14,7 @@ from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.core.ids import new_id
 from Pukaar.core.log import get_logger, log
-from Pukaar.services import readiness, risk_rules
+from Pukaar.services import events, readiness, risk_rules
 from Pukaar.services.nowcast import nowcast
 from Pukaar.store.models import OPEN_ALERT_STATUSES, VERIFIED_STATES, Alert, Reading, Village, level_rank
 from Pukaar.store.repo import Repo
@@ -114,6 +114,7 @@ def _escalate(repo: Repo, alert: Alert, village: Village, new_level: str, trace:
     if audio_key:
         repo.update_alert(alert.id, audio_key=audio_key)
     repo.add_timeline(alert.id, "escalated", f"{alert.level} -> {new_level} while awaiting approval")
+    events.alert_changed(repo.get_alert(alert.id), kind="escalated")
 
 
 def recompute_village(
@@ -164,6 +165,7 @@ def recompute_village(
     if new_level != previous:
         fields["level_since"] = clock.iso(now)
     village = repo.update_village(village.id, **fields)
+    events.level_changed(village.id, new_level, previous, replay=replay)
     result = SweepResult(village.id, level=new_level, raw_level=assessment.level, rose=rose)
     log(_LOG, "village evaluated", village_id=village.id, previous=previous, raw=assessment.level,
         level=new_level, rose=rose, rules=assessment.rules_fired, replay=replay)
@@ -197,6 +199,7 @@ def recompute_village(
     repo.put_alert(alert)
     repo.update_village(village.id, open_alert_id=alert.id)
     repo.add_timeline(alert.id, "created", f"level {previous} -> {new_level}; rules: {', '.join(assessment.rules_fired)}")
+    events.alert_changed(alert)
     result.alert_id = alert.id
     if workflow is not None:
         start_workflow(repo, workflow, alert)

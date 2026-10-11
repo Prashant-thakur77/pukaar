@@ -48,6 +48,8 @@
 .pg-lead { margin: var(--s-4) 0 0; max-width: 56ch; font-size: var(--fs-lg); color: rgb(238 246 251 / 0.72); }
 .pg-cream .pg-lead { color: var(--ink-2); }
 .pg-aside { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.pg-updated-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.pg-band .livepill { color: rgb(238 246 251 / 0.72); padding-left: 0; }
 .pg-updated { margin: 0; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgb(238 246 251 / 0.6); }
 .pg-extra { margin-top: clamp(28px, 4vw, 44px); }
 .pg-band .live-dot { background: var(--gold); }
@@ -323,6 +325,10 @@
 .ra-name { font-weight: 800; text-decoration: none; }
 .dl-list li { border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-size: 0.86rem; }
 .trace-toggle { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; }
+/* after-action report: open in a new tab or download */
+.aar-links { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin: 0; }
+.aar-links .link-btn { color: var(--accent-text); }
+.aar-links .link-btn:hover:not(:disabled) { color: var(--gold); }
 
 /* ask */
 .console .ask-form textarea, .console textarea, .console input:not([type='checkbox']):not([type='radio']) { border-radius: 14px; }

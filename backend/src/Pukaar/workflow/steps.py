@@ -16,7 +16,7 @@ from Pukaar.core.log import get_logger, log, metric
 from Pukaar.delivery import dispatch
 from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.policy.guard import SYSTEM, authorize
-from Pukaar.services import rollcall
+from Pukaar.services import after_action, events, rollcall
 from Pukaar.services.drafting import draft_alert
 from Pukaar.store.models import Alert
 from Pukaar.store.repo import ConflictError, Repo
@@ -86,6 +86,7 @@ class Steps:
         audio_key = self.synthesize(alert.id, alert.text_hi)
         if audio_key:
             self.repo.update_alert(alert.id, audio_key=audio_key)
+        events.alert_changed(alert)  # pending: the console shows the approval card at once
         self.repo.add_timeline(alert.id, "drafted",
                                f"model={result.reasoning_model}; check={'pass' if result.check.passed else 'fail'}: "
                                f"{result.check.reason}; recipients={len(recipients)}; audio={'yes' if audio_key else 'no'}")
@@ -126,14 +127,15 @@ class Steps:
             raise StepError(f"auto-send denied: {decision.reason}")
         text_hi, text_en = hi.fallback_alert(alert.level, alert.village_name_hi, alert.village_name,
                                              alert.decision_trace.get("safe_place"))
-        self.repo.update_alert(alert.id, status="auto_sent_unapproved", text_hi=text_hi, text_en=text_en,
-                               decided_by="system:auto-send", decided_at=clock.iso(clock.now()))
+        events.alert_changed(self.repo.update_alert(alert.id, status="auto_sent_unapproved", text_hi=text_hi,
+                                                    text_en=text_en, decided_by="system:auto-send",
+                                                    decided_at=clock.iso(clock.now())))
         self.repo.add_timeline(alert.id, "auto_send", "every officer timed out at critical; fixed template, flagged unapproved")
         return {"alert_id": alert.id, "mode": "auto"}
 
     def step_expire(self, e: dict) -> dict:
         alert = self._alert(e["alert_id"])
-        self.repo.update_alert(alert.id, status="expired", task_token=None)
+        events.alert_changed(self.repo.update_alert(alert.id, status="expired", task_token=None))
         self.repo.add_timeline(alert.id, "expired", "no officer answered; not critical, so nothing was sent")
         return {"alert_id": alert.id, "outcome": "expired"}
 
@@ -144,11 +146,15 @@ class Steps:
             raise StepError(f"deliver called with status {alert.status}")
         if action == "deliver":
             alert = self.repo.update_alert(alert.id, status="delivering")
+            events.alert_changed(alert)
         sent, failed = dispatch.deliver(self.repo, alert, action=action)
         fields: dict[str, Any] = {"delivered_count": sent}
         if action == "deliver":
             fields["status"] = "delivered"
-        self.repo.update_alert(alert.id, **fields)
+        alert = self.repo.update_alert(alert.id, **fields)
+        if action == "deliver":
+            events.alert_changed(alert)
+        events.counts_changed(alert)
         self.repo.add_timeline(alert.id, "delivered", f"sent={sent} failed={failed}")
         return {"alert_id": alert.id, "sent": sent, "failed": failed}
 
@@ -177,7 +183,10 @@ class Steps:
             sent = 0
             if broadcast:
                 sent, _ = dispatch.deliver(self.repo, alert, action="failsafe")
-                self.repo.update_alert(alert.id, delivered_count=sent)
+                alert = self.repo.update_alert(alert.id, delivered_count=sent)
+            events.alert_changed(alert)
+            if broadcast:
+                events.counts_changed(alert)
             for officer in self._officers(alert):
                 dispatch.notify_officer(self.repo, alert, officer,
                                         f"{get_settings().web_url}/console?alert={alert.id}")
@@ -197,7 +206,7 @@ class Steps:
             if alert is None:
                 return {"alert_id": alert_id, "status": "missing"}
             status = outcome if outcome in {"delivered", "declined", "expired", "auto_sent_unapproved", "failsafe"} else "closed"
-            self.repo.update_alert(alert.id, status=status, task_token=None)
+            events.alert_changed(self.repo.update_alert(alert.id, status=status, task_token=None), kind="closed")
             village = self.repo.get_village(alert.village_id)
             if village and village.open_alert_id == alert.id:
                 self.repo.update_village(village.id, open_alert_id=None)
@@ -209,6 +218,13 @@ class Steps:
                     out["rollcall_id"] = rc.id
             except Exception as exc:  # a roll-call problem never breaks closing the alert
                 log(_LOG, "roll-call open error", 40, alert_id=alert.id, error=str(exc)[:300])
+            try:  # after-action report: stored in S3, e-mailed with SES when configured; never breaks closing
+                report = after_action.on_close(self.repo, alert.id)
+                if report.get("stored"):
+                    out["after_action_key"] = report["stored"]
+            except Exception as exc:
+                log(_LOG, "after-action error", 40, alert_id=alert.id, error=str(exc)[:300])
+                metric("AfterActionFailed")
             return out
         except Exception as exc:
             log(_LOG, "close error", 40, alert_id=alert_id, error=str(exc)[:300])

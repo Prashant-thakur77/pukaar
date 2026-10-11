@@ -71,11 +71,18 @@ ALWAYS_ON = {
 }
 
 
+def _unwrap_if(pol: Any) -> list:
+    """A conditional policy (!If [cond, policy, !Ref AWS::NoValue]) is checked as if its condition were true."""
+    if isinstance(pol, dict) and "Fn::If" in pol:
+        return [p for branch in pol["Fn::If"][1:] for p in _unwrap_if(branch)]
+    return [pol]
+
+
 def _statements() -> list[tuple[str, dict]]:
     out: list[tuple[str, dict]] = []
     for name, res in RES.items():
         props = res.get("Properties", {})
-        for pol in props.get("Policies") or []:
+        for pol in [p for raw in props.get("Policies") or [] for p in _unwrap_if(raw)]:
             if isinstance(pol, dict) and "Statement" in pol:
                 out += [(name, s) for s in pol["Statement"]]
         for pol in props.get("Policies", []) if res["Type"] == "AWS::IAM::Role" else []:
@@ -256,3 +263,50 @@ def test_report_guardrail_blocks_prompt_attacks_and_masks_phones():
     env = T["Globals"]["Function"]["Environment"]["Variables"]
     assert env["PUKAAR_GUARDRAIL_ID"] == {"Fn::GetAtt": "ReportGuardrail.GuardrailId"}
     assert env["PUKAAR_GUARDRAIL_VERSION"] == {"Fn::GetAtt": "ReportGuardrailVersion.Version"}
+
+
+# -- live push (AppSync Events) ----------------------------------------------
+IAM_ONLY = [{"AuthType": "AWS_IAM"}]
+PUBLISH_FUNCTIONS = {"ApiFunction", "SweepFunction", "WorkflowFunction", "WorkerFunction", "GaugeIngestFunction"}
+NAMESPACE_ARNS = [{"Fn::GetAtt": "PublicEvents.ChannelNamespaceArn"}, {"Fn::GetAtt": "OfficerEvents.ChannelNamespaceArn"}]
+
+
+def test_live_push_publish_is_iam_only_everywhere():
+    """Neither the public API key nor an officer's Cognito token can publish an event."""
+    api = RES["PukaarEvents"]
+    assert api["Type"] == "AWS::AppSync::Api"
+    cfg = api["Properties"]["EventConfig"]
+    assert cfg["DefaultPublishAuthModes"] == IAM_ONLY
+    assert {p["AuthType"] for p in cfg["AuthProviders"]} == {"API_KEY", "AWS_IAM", "AMAZON_COGNITO_USER_POOLS"}
+    cognito = next(p for p in cfg["AuthProviders"] if p["AuthType"] == "AMAZON_COGNITO_USER_POOLS")["CognitoConfig"]
+    assert cognito["UserPoolId"] == {"Fn::Ref": "UserPool"}
+    assert "AWS_IAM" not in {m["AuthType"] for m in cfg["ConnectionAuthModes"]}  # browsers only connect
+
+    spaces = {r["Properties"]["Name"]: r["Properties"] for r in RES.values()
+              if r["Type"] == "AWS::AppSync::ChannelNamespace"}
+    assert set(spaces) == {"public", "officer"}
+    for name, ns in spaces.items():
+        assert ns["ApiId"] == {"Fn::GetAtt": "PukaarEvents.ApiId"}
+        assert ns["PublishAuthModes"] == IAM_ONLY, name
+        assert "CodeHandlers" not in ns and "HandlerConfigs" not in ns  # nothing rewrites events in flight
+    assert {m["AuthType"] for m in spaces["public"]["SubscribeAuthModes"]} == {"API_KEY", "AMAZON_COGNITO_USER_POOLS"}
+    assert spaces["officer"]["SubscribeAuthModes"] == [{"AuthType": "AMAZON_COGNITO_USER_POOLS"}]
+
+    key = [r["Properties"] for r in RES.values() if r["Type"] == "AWS::AppSync::ApiKey"]
+    assert len(key) == 1 and key[0]["ApiId"] == {"Fn::GetAtt": "PukaarEvents.ApiId"}
+    assert key[0]["Expires"] == {"Fn::Ref": "EventsApiKeyExpires"}
+
+
+def test_live_push_grant_is_publish_only_and_scoped_to_the_two_namespaces():
+    grants = [(n, s) for n, s in _statements()
+              if any(str(a).startswith("appsync:") for a in _as_list(s["Action"]))]
+    assert {n for n, _ in grants} == PUBLISH_FUNCTIONS
+    for name, s in grants:
+        assert _as_list(s["Action"]) == ["appsync:EventPublish"], name  # no subscribe, connect or admin
+        assert s["Resource"] == NAMESPACE_ARNS, name
+    env = T["Globals"]["Function"]["Environment"]["Variables"]
+    assert env["PUKAAR_EVENTS_HTTP_DOMAIN"] == {"Fn::GetAtt": "PukaarEvents.Dns.Http"}
+    outs = T["Outputs"]
+    assert outs["EventsHttpDomain"]["Value"] == {"Fn::GetAtt": "PukaarEvents.Dns.Http"}
+    assert outs["EventsRealtimeDomain"]["Value"] == {"Fn::GetAtt": "PukaarEvents.Dns.Realtime"}
+    assert outs["EventsApiKey"]["Value"] == {"Fn::GetAtt": "PublicEventsKey.ApiKey"}

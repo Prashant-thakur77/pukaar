@@ -4,6 +4,7 @@ import { api, ApiError } from '../../api';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { DeniedNote, EmptyState, ErrorState, Skeleton } from '../../components/States';
 import { usePoll } from '../../hooks/usePoll';
+import { CHANNELS } from '../../lib/live';
 import { useT } from '../../i18n';
 import { fmtAgo, fmtTime } from '../../lib/format';
 import type { RollCall, RollCallBoard, Village } from '../../types';
@@ -14,7 +15,7 @@ import type { RollCall, RollCallBoard, Village } from '../../types';
  */
 export function RollCallPanel({ villages, villageIds }: { villages: Village[]; villageIds: string[] | null }) {
   const { t } = useT();
-  const list = usePoll(() => api.rollcalls(), [], 20000);
+  const list = usePoll(() => api.rollcalls(), [], 20000, { live: [CHANNELS.rollcall, CHANNELS.officer] });
   const [picked, setPicked] = useState<string | null>(null);
   const all = list.data ?? [];
   const selected = picked ?? all.find((r) => r.open)?.id ?? all[0]?.id ?? null;
@@ -68,7 +69,10 @@ function RollCallPicker({ items, selected, onPick }: { items: RollCall[]; select
 
 function Board({ id, onChanged }: { id: string; onChanged: () => void }) {
   const { t, lang } = useT();
-  const { data, error, loading, refresh } = usePoll<RollCallBoard>(() => api.rollcall(id), [id], 15000);
+  const { data, error, loading, refresh } = usePoll<RollCallBoard>(() => api.rollcall(id), [id], 15000, {
+    live: [CHANNELS.rollcall, CHANNELS.officer],
+    match: (e) => e.data.rollcall_id === id,
+  });
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
 

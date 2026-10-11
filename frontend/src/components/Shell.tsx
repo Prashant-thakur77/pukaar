@@ -25,6 +25,7 @@ import { usePoll } from '../hooks/usePoll';
 import { fmtTime } from '../lib/format';
 import { REPLAY_EVENT } from '../lib/events';
 import { TourHost } from './Tour';
+import { LivePill } from './LivePill';
 
 const NAV = [
   { to: '/live', key: 'nav.live' },
@@ -185,6 +186,7 @@ function Header() {
         </nav>
         <div className="hdr-tools">
           <OnlineDot />
+          <LivePill header />
           <button
             type="button"
             className="icon-btn lang-btn"

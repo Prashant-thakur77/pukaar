@@ -112,6 +112,10 @@ POST /villages/{id}/shelters/{place_id}  officer (any village) or pradhan (own v
                              404 for a place that is not baked for that village; audited ("shelter_changed")
 GET  /alerts?status=&village_id=   [Alert]
 GET  /alerts/{id}            {alert, deliveries[], timeline[Event], audit[Audit]}
+GET  /alerts/{id}/after-action?fresh=&format=   officer, or pradhan of the alert's village (Cedar
+                             view_after_action; 403 otherwise): text/html after-action report (the copy stored
+                             at close, else built now; fresh=true rebuilds); format=json -> the small summary.
+                             No phone numbers or chat ids; first names only
 POST /alerts/{id}/approve    officer: {} -> Alert; 409 {detail{code,message_en,message_hi}} when late;
                              503 {detail{code:"retry",reason}} when the workflow was briefly unreachable
 POST /alerts/{id}/decline    officer: {reason?} -> Alert; 409 as above

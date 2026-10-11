@@ -45,10 +45,23 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional address subscribed to the alarm topic.
+  AfterActionFrom:
+    Type: String
+    Default: ""
+    Description: >
+      Verified SES sender for after-action reports (make ses-verify EMAIL=...). Empty = no e-mail and no SES
+      permission. Recipients come from SSM /pukaar/after_action_to (comma list); in the SES sandbox each must be verified.
+  EventsApiKeyExpires:
+    Type: Number
+    # AppSync allows 1 to 365 days from now. `make deploy` passes now + 360 days on every deploy,
+    # which extends the same key (no new key, no web rebuild needed); this default is for a bare `sam deploy`.
+    Default: 1822262400
+    Description: Expiry (epoch seconds) of the public, subscribe-only live-push API key.
 
 Conditions:
   HasWebOrigin: !Not [!Equals [!Ref WebOrigin, ""]]
   HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
+  HasAfterActionFrom: !Not [!Equals [!Ref AfterActionFrom, ""]]
 
 Globals:
   Function:
@@ -76,6 +89,8 @@ Globals:
         # Read by /health on every function; only the worker may call ApplyGuardrail.
         PUKAAR_GUARDRAIL_ID: !GetAtt ReportGuardrail.GuardrailId
         PUKAAR_GUARDRAIL_VERSION: !GetAtt ReportGuardrailVersion.Version
+        # Live push (services/events.py): every function that changes a level, an alert or a count publishes.
+        PUKAAR_EVENTS_HTTP_DOMAIN: !GetAtt PukaarEvents.Dns.Http
 
 Resources:
   # ---------------------------------------------------------------- storage
@@ -269,6 +284,10 @@ Resources:
               Action: lambda:InvokeFunction
               # Built from the name: !GetAtt here would cycle through HttpApi.
               Resource: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:pukaar-worker-${Stage}
+            - Sid: LivePush
+              Effect: Allow
+              Action: appsync:EventPublish
+              Resource: [!GetAtt PublicEvents.ChannelNamespaceArn, !GetAtt OfficerEvents.ChannelNamespaceArn]
             - Sid: Secrets
               Effect: Allow
               Action: [ssm:GetParameter, ssm:GetParameters]
@@ -349,6 +368,10 @@ Resources:
               Effect: Allow
               Action: states:StartExecution
               Resource: !Sub arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:pukaar-approval-${Stage}
+            - Sid: LivePush
+              Effect: Allow
+              Action: appsync:EventPublish
+              Resource: [!GetAtt PublicEvents.ChannelNamespaceArn, !GetAtt OfficerEvents.ChannelNamespaceArn]
 
   WorkflowFunction:
     Type: AWS::Serverless::Function
@@ -369,9 +392,27 @@ Resources:
       Environment:
         Variables:
           PUKAAR_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+          # After-action report e-mail from the close step (services/after_action.py); unset = no e-mail.
+          PUKAAR_SES_FROM: !If [HasAfterActionFrom, !Ref AfterActionFrom, !Ref AWS::NoValue]
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref Table }
         - S3CrudPolicy: { BucketName: !Ref Bucket }
+        # Only when AfterActionFrom is set. SES checks ses:SendEmail against the sender identity and, while the
+        # account is in the sandbox, against each recipient's verified identity too; so the grant covers this
+        # account's identities in this region and the condition pins the From address to the one configured.
+        - !If
+          - HasAfterActionFrom
+          - Statement:
+              - Sid: AfterActionEmail
+                Effect: Allow
+                Action: ses:SendEmail
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${AfterActionFrom}
+                  # Sandbox only: the recipients' verified identities. Remove after SES production access.
+                  - !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/*
+                Condition:
+                  StringEquals: { ses:FromAddress: !Ref AfterActionFrom }
+          - !Ref AWS::NoValue
         - Statement:
             - Sid: Bedrock
               Effect: Allow
@@ -387,6 +428,10 @@ Resources:
               Action: polly:SynthesizeSpeech
               # SynthesizeSpeech only scopes to lexicons; Pukaar uses none.
               Resource: "*"
+            - Sid: LivePush
+              Effect: Allow
+              Action: appsync:EventPublish
+              Resource: [!GetAtt PublicEvents.ChannelNamespaceArn, !GetAtt OfficerEvents.ChannelNamespaceArn]
             - Sid: Secrets
               Effect: Allow
               Action: [ssm:GetParameter, ssm:GetParameters]
@@ -455,6 +500,10 @@ Resources:
               Effect: Allow
               Action: states:StartExecution
               Resource: !Sub arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:pukaar-approval-${Stage}
+            - Sid: LivePush
+              Effect: Allow
+              Action: appsync:EventPublish
+              Resource: [!GetAtt PublicEvents.ChannelNamespaceArn, !GetAtt OfficerEvents.ChannelNamespaceArn]
             - Sid: Secrets
               Effect: Allow
               Action: [ssm:GetParameter, ssm:GetParameters]
@@ -510,6 +559,10 @@ Resources:
               Effect: Allow
               Action: states:StartExecution
               Resource: !Sub arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:pukaar-approval-${Stage}
+            - Sid: LivePush
+              Effect: Allow
+              Action: appsync:EventPublish
+              Resource: [!GetAtt PublicEvents.ChannelNamespaceArn, !GetAtt OfficerEvents.ChannelNamespaceArn]
 
   PukaarGaugeRule:
     Type: AWS::IoT::TopicRule
@@ -685,6 +738,54 @@ Resources:
       AccessTokenValidity: 60
       RefreshTokenValidity: 7
       TokenValidityUnits: { IdToken: minutes, AccessToken: minutes, RefreshToken: days }
+
+  # ---------------------------------------------------------------- live push (AppSync Events)
+  # The web app subscribes over a WebSocket; Lambdas publish with a SigV4-signed POST (services/events.py).
+  # Billed per million operations and connection-minutes; nothing runs by the hour.
+  # Only AWS_IAM may publish, on both namespaces, so neither the public key nor an officer's token can.
+  PukaarEvents:
+    Type: AWS::AppSync::Api
+    Properties:
+      Name: !Sub pukaar-events-${Stage}
+      EventConfig:
+        AuthProviders:
+          - AuthType: API_KEY
+          - AuthType: AWS_IAM
+          - AuthType: AMAZON_COGNITO_USER_POOLS
+            CognitoConfig:
+              AwsRegion: !Ref AWS::Region
+              UserPoolId: !Ref UserPool
+              AppIdClientRegex: !Ref UserPoolClient
+        ConnectionAuthModes: [{ AuthType: API_KEY }, { AuthType: AMAZON_COGNITO_USER_POOLS }]
+        DefaultPublishAuthModes: [{ AuthType: AWS_IAM }]
+        DefaultSubscribeAuthModes: [{ AuthType: AMAZON_COGNITO_USER_POOLS }]
+
+  # Levels, alert statuses, delivered/acknowledged counts and roll-call counts: no names, no text.
+  PublicEvents:
+    Type: AWS::AppSync::ChannelNamespace
+    Properties:
+      ApiId: !GetAtt PukaarEvents.ApiId
+      Name: public
+      PublishAuthModes: [{ AuthType: AWS_IAM }]
+      SubscribeAuthModes: [{ AuthType: API_KEY }, { AuthType: AMAZON_COGNITO_USER_POOLS }]
+
+  # Approvals and roll-call "need help": signed-in users only (still ids and counts, no names).
+  OfficerEvents:
+    Type: AWS::AppSync::ChannelNamespace
+    Properties:
+      ApiId: !GetAtt PukaarEvents.ApiId
+      Name: officer
+      PublishAuthModes: [{ AuthType: AWS_IAM }]
+      SubscribeAuthModes: [{ AuthType: AMAZON_COGNITO_USER_POOLS }]
+
+  # A public credential, built into the web app: with it a browser can open a connection and subscribe
+  # to /public/* only. It cannot publish anywhere (publish is AWS_IAM only) or subscribe to /officer/*.
+  PublicEventsKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId: !GetAtt PukaarEvents.ApiId
+      Description: Public live-push key (subscribe to the public namespace only)
+      Expires: !Ref EventsApiKeyExpires
 
   # ---------------------------------------------------------------- HTTP API
   HttpApi:
@@ -973,3 +1074,13 @@ Outputs:
     Value: !GetAtt ReportGuardrail.GuardrailId
   ReportGuardrailVersion:
     Value: !GetAtt ReportGuardrailVersion.Version
+  EventsHttpDomain:
+    Description: AppSync Events HTTP domain (publish, and the "host" in WebSocket auth)
+    Value: !GetAtt PukaarEvents.Dns.Http
+  EventsRealtimeDomain:
+    Description: AppSync Events WebSocket domain (wss://<this>/event/realtime)
+    Value: !GetAtt PukaarEvents.Dns.Realtime
+  EventsApiKey:
+    # Public by design: shipped in the web app; it can only subscribe to the public namespace.
+    Description: Public, subscribe-only key for /public/* live push
+    Value: !GetAtt PublicEventsKey.ApiKey

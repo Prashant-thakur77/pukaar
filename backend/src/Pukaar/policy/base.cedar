@@ -142,3 +142,20 @@ forbid (
   resource
 )
 when { context.replay == true };
+
+@id("officer-after-action")
+@desc("Officers read the after-action report of any alert.")
+permit (
+  principal is Pukaar::Officer,
+  action == Pukaar::Action::"view_after_action",
+  resource is Pukaar::Alert
+);
+
+@id("pradhan-after-action-own-village")
+@desc("A pradhan reads the after-action report only for alerts in their own villages.")
+permit (
+  principal is Pukaar::Pradhan,
+  action == Pukaar::Action::"view_after_action",
+  resource is Pukaar::Alert
+)
+when { context.village_id != "" && principal.village_ids.contains(context.village_id) };

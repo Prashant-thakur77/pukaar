@@ -259,6 +259,16 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 .site-header.is-over-hero .net.is-on { color: #6fe0b1; }
 .net-q { font-weight: 600; }
 
+/* Live push (AppSync Events): green dot when connected, grey when the page is polling. */
+.livepill { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); font-weight: 700; padding: 6px 10px; border-radius: var(--r-pill); color: var(--ink-3); }
+.livepill-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .55; flex: none; position: relative; }
+.livepill.is-on { color: var(--ok); }
+.livepill.is-on .livepill-dot { opacity: 1; }
+.livepill.is-on .livepill-dot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: inherit; animation: dot-ping 1.8s ease-out infinite; }
+.livepill.is-connecting .livepill-dot { opacity: .8; }
+.site-header.is-over-hero .livepill.is-on { color: #6fe0b1; }
+.pg-band .livepill.is-on { color: #6fe0b1; }
+
 .call112 {
   display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); padding: 0 14px 0 12px; border-radius: var(--r-pill);
   border: 2px solid var(--sos); color: var(--sos); background: transparent; text-decoration: none; font-weight: 800; white-space: nowrap;
@@ -988,7 +998,7 @@ select { appearance: none; padding-right: 44px; }
   .hdr-nav.is-open { transform: none; opacity: 1; visibility: visible; }
   .hdr-link { min-height: 52px; font-size: 1.1rem; }
   .hdr-menu { display: inline-grid; }
-  .net-word, .net-q { display: none; }
+  .net-word, .net-q, .livepill.in-header .livepill-word { display: none; }
   .console-grid { grid-template-columns: 1fr; grid-template-areas: 'ap' 'q' 'ask' 'rp' 'act'; }
   .evidence-grid, .trend-grid, .measure-grid { grid-template-columns: 1fr; }
   .ev-gauge-body { grid-template-columns: 1fr; }
@@ -1030,7 +1040,7 @@ select { appearance: none; padding-right: 44px; }
   }
   .reveal { opacity: 1; transform: none; }
   .hero-word, .intro-word { clip-path: none; }
-  .mk-pulse, .hero-rings, .v-echo, .wm-rings i:nth-child(2), .big-speak .bb-icon::after, .call112-fab.is-breathing::after, .live-dot::after, .login-rings { display: none; }
+  .mk-pulse, .hero-rings, .v-echo, .wm-rings i:nth-child(2), .big-speak .bb-icon::after, .call112-fab.is-breathing::after, .live-dot::after, .livepill-dot::after, .login-rings { display: none; }
   .tl-step { opacity: 1; }
   .spark-line { stroke-dashoffset: 0; }
 }

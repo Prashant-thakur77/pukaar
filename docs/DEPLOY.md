@@ -91,6 +91,7 @@ Parameters (override with
 | `Architecture` | `x86_64` | `arm64` when building on ARM |
 | `ReplayEnabled` | `true` | |
 | `AlarmEmail` | empty | Confirm the SNS e-mail after deploy |
+| `AfterActionFrom` | empty | Verified SES sender for after-action reports (section 5a). Empty = no e-mail, no SES permission |
 
 Stack outputs: `ApiUrl`, `WebUrl`, `AmplifyAppId`, `UserPoolId`,
 `UserPoolClientId`, `TableName`, `BucketName`, `StateMachineArn`. Print them
@@ -112,6 +113,49 @@ without a password-change screen. Share the password out of band; it is never
 written to the repository.
 
 `make reset-demo` clears demo state on the deployed stack.
+
+## 5a. After-action report by e-mail (Amazon SES)
+
+Every alert that closes gets an after-action report (`services/after_action.py`):
+key times in IST with durations (level rose, approved, first voice, first
+acknowledgement), the decision trace, the approval chain, deliveries by channel
+(first names only, never a phone number or chat id), re-sends, roll-call
+counts, Cedar allow/deny counts with every deny listed, and the Hindi and
+English text. The close step stores it privately at
+`s3://<bucket>/reports/after-action/<alert id>.html` (plus a `.json`
+summary); officers open or download it from the console
+(`GET /alerts/{id}/after-action`). It is always stored; e-mail is optional.
+
+The account's SES in `us-east-1` is in the **sandbox**: it sends only from and
+to verified addresses, at most 200 messages a day. To e-mail the report:
+
+```
+make ses-verify EMAIL=pukaar-sender@example.org   # the sender
+make ses-verify EMAIL=duty-officer@example.org    # every recipient, while in the sandbox
+```
+
+Each address's owner must click the link in the verification e-mail from
+Amazon (valid 24 hours). Check with
+`aws sesv2 get-email-identity --email-identity <address>` (`VerifiedForSendingStatus: true`).
+Then set the recipients (comma list) and the sender, and redeploy:
+
+```
+aws ssm put-parameter --region us-east-1 --name /pukaar/after_action_to --type String \
+  --value "duty-officer@example.org,sdm@example.org" --overwrite
+sam deploy --parameter-overrides AfterActionFrom=pukaar-sender@example.org   # plus your usual overrides
+```
+
+An officer's address can also be added as `"email"` on their entry in
+`data/villages.json` (`officers`), but do not commit real addresses.
+`AfterActionFrom` gives only the workflow Lambda `ses:SendEmail`, limited to
+this account's SES identities with `ses:FromAddress` pinned to that sender (in
+the sandbox SES also checks each recipient's identity; after production access
+the `identity/*` line can be removed). One message goes to each recipient, so
+an unverified address fails alone. Live alerts and drills are e-mailed;
+replays are stored but never e-mailed. Failures are logged and counted as the
+`AfterActionFailed` metric and never stop the alert from closing. Local mode
+never sends e-mail. To leave the sandbox, request production access in the SES
+console (Account dashboard).
 
 ## 6. Front end settings
 

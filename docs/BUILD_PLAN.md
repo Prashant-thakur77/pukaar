@@ -142,8 +142,8 @@ Sources and verdicts: the research summary in [REFERENCE_REVIEW.md](REFERENCE_RE
 | 3 | Guardrails on villager text | 1 | live (verified: a prompt-attack report was held by Bedrock Guardrails) |
 | 4 | Visitor tour | 1 | built |
 | 5 | Safe places and routes | 2 | built (OSM coverage thin for Thunag and Gohar; road-blocking not yet built) |
-| 6 | After-action email | 2 | building |
-| 7 | Live push (AppSync Events) | 2 | building |
+| 6 | After-action email | 2 | built; e-mail needs verified SES addresses (sandbox) |
+| 7 | Live push (AppSync Events) | 2 | built, deploy pending |
 | 8 | Satellite before/after | 2 | building |
 | 9 | SMS channel | 3 | blocked: owner must activate AWS End User Messaging; India needs DLT registration |
 | 10 | Voice call | 3 | needs an Indian telecom partner: Amazon Connect does not place calls to Indian numbers |

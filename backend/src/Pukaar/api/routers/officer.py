@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from Pukaar.api import views
@@ -13,7 +14,7 @@ from Pukaar.core.ids import new_id
 from Pukaar.handlers import worker
 from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.policy.guard import Principal, authorize
-from Pukaar.services import analyst, checklist, safe_places
+from Pukaar.services import after_action, analyst, checklist, safe_places
 from Pukaar.services import replay as replay_svc
 from Pukaar.store.models import SHELTER_STATES, AuditRow, Directive, ShelterStatus
 from Pukaar.store.repo import ConflictError, get_repo
@@ -87,6 +88,34 @@ def get_alert(alert_id: str, principal: Principal = Depends(Allowed("view_consol
     return {"alert": views.alert(a), "deliveries": [d.model_dump() for d in repo.list_deliveries(a.id)],
             "timeline": [t.model_dump() for t in repo.list_timeline(a.id)],
             "audit": [r.model_dump() for r in sorted(audit, key=lambda r: r.at)]}
+
+
+# The report is static HTML from the alert's own records; it runs no script and loads nothing.
+_REPORT_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'none'"
+
+
+@router.get("/alerts/{alert_id}/after-action")
+def get_after_action(alert_id: str, fresh: bool = False, format: str = "html",
+                     principal: Principal = Depends(require_user)) -> Response:
+    """The after-action report (services/after_action.py): the copy stored when the alert closed,
+    or one built now if none was stored (or fresh=true). format=json returns the small summary."""
+    repo = get_repo()
+    a = repo.get_alert(alert_id)
+    if a is None:
+        raise HTTPException(404, "Alert not found")
+    decision = authorize(principal, "view_after_action", "alert", a.id,
+                         {"village_id": a.village_id, "replay": a.replay, "level": a.level}, repo=repo)
+    if not decision.allowed:
+        raise HTTPException(403, {"code": "denied", "reason": decision.reason, "action": "view_after_action",
+                                  "role": principal.role})
+    if format == "json":
+        return JSONResponse(after_action.build(repo, a).summary)
+    body = None if fresh else after_action.load_stored(a.id)
+    if body is None:
+        body = after_action.build(repo, a).html
+    return Response(body, media_type="text/html; charset=utf-8", headers={
+        "Content-Disposition": f'inline; filename="pukaar-after-action-{a.id}.html"',
+        "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": _REPORT_CSP})
 
 
 class DeclineBody(BaseModel):

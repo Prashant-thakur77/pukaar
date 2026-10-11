@@ -33,6 +33,7 @@ from Pukaar.core.ids import new_id
 from Pukaar.core.log import get_logger, log, metric
 from Pukaar.delivery import telegram
 from Pukaar.policy.guard import SYSTEM, Principal, authorize
+from Pukaar.services import events
 from Pukaar.store.models import Alert, AuditRow, Recipient, RollCall, RollCallAsked, RollCallResponse, Village
 from Pukaar.store.repo import ConflictError, Repo
 from Pukaar.templates import hi
@@ -136,6 +137,7 @@ def open_rollcall(repo: Repo, village: Village, *, principal: Principal = SYSTEM
     recipients = repo.list_recipients(village.id)
     sent = _ask(repo, rc, recipients)
     rc = repo.update_rollcall(rc.id, asked=len(recipients))
+    events.rollcall_changed(rc)
     if alert is not None:
         repo.add_timeline(alert.id, "rollcall_opened",
                           f"{'exercise ' if exercise else ''}roll-call {rc.id}: asked {len(recipients)}, "
@@ -249,6 +251,7 @@ def answer(repo: Repo, rollcall_id: str, recipient_id: str, status: str, *, simu
             reason=f"{asked.name} pressed 'मदद चाहिए' (need help) in {rc.village_name}; officers told on the "
                    "roll-call board" + (" (exercise)" if rc.exercise else "")))
         _tell_officers(repo, rc, response)
+    events.rollcall_changed(rc, need_help=status == "need_help")
     log(_LOG, "roll-call answer", rollcall_id=rc.id, status=status, simulated=simulated)
     return AnswerResult("recorded", rc, response, link)
 
