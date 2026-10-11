@@ -368,6 +368,11 @@ function useNetworkWatch() {
   }, [setOnline]);
 }
 
+/** The visitor asked their system for less motion: jump instead of gliding. */
+function reducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+}
+
 export default function Shell() {
   const { pathname, hash } = useLocation();
   const { lang } = useT();
@@ -375,18 +380,23 @@ export default function Shell() {
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
+  const lastPath = useRef(pathname);
   useEffect(() => {
-    // Links like /#story land on that section; everything else starts at the top.
+    // Links like /#story land on that section; everything else starts at the top. A jump within
+    // the same page glides there; a new page starts at once (and nothing glides with reduced motion).
+    const samePage = lastPath.current === pathname;
+    lastPath.current = pathname;
+    const behavior: ScrollBehavior = samePage && !reducedMotion() ? 'smooth' : 'instant';
     const target = hash ? document.getElementById(hash.slice(1)) : null;
     if (!target) {
-      window.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0, behavior: 'instant' });
       return;
     }
-    target.scrollIntoView();
+    target.scrollIntoView({ behavior, block: 'start' });
     // Data arriving above the section can push it down; settle once more unless the reader scrolled.
     const landed = window.scrollY;
     const tm = setTimeout(() => {
-      if (window.scrollY === landed) target.scrollIntoView();
+      if (window.scrollY === landed) target.scrollIntoView({ behavior, block: 'start' });
     }, 900);
     return () => clearTimeout(tm);
   }, [pathname, hash]);

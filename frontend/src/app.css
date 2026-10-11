@@ -10,6 +10,10 @@ html {
   -webkit-text-size-adjust: 100%;
   scroll-padding-top: 88px;
 }
+/* anchor links and in-page buttons glide to their section; the reduced-motion block below turns it off */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
 
 body {
   margin: 0;
