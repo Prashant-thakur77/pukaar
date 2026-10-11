@@ -655,3 +655,5 @@
 .nf .state-word { font-size: clamp(8rem, 24vw, 16rem); -webkit-text-stroke-width: 2px; -webkit-text-stroke-color: var(--gold); }
 .nf .state.has-word .state-title { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1; }
 .nf .state-title:lang(hi) { font-family: var(--font-hi); font-weight: 800; }
+.tk-row .chip { border-radius: 12px; white-space: normal; text-align: left; line-height: 1.3; }
+.report-card { border-radius: 18px; border-left-width: 1px; border-left-color: var(--line); box-shadow: inset 4px 0 0 var(--lv, var(--line-2)); }

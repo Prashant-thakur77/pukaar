@@ -8,7 +8,7 @@ Here's Gohar, in Mandi, July 2023, replayed through Pukaar's real rules. The riv
 
 Now the same night, running live on AWS. Every 15 minutes, EventBridge wakes a Lambda that sets each village's level by rule, never by a model.
 
-The officer on duty sees the Hindi draft. Step Functions has paused, waiting for one tap. The model only fills a fixed template, and a checker rejects any number not in the decision trace. Bedrock access is still pending on this account, so it says rule-fallback, and the alert still goes out. Approve.
+The officer on duty sees the Hindi draft. Step Functions has paused, waiting for one tap. The model only fills a fixed template, and a checker rejects any number not in the decision trace. Code has already chosen the level and the recipients; the officer only decides to send. Approve.
 
 Amazon Polly speaks it in Hindi: Every phone gets the voice and one button: मिल गया, got it. Pukaar times each alert, from the river rising to the first person who heard it. In a replay, it goes to test phones only.
 
@@ -18,8 +18,8 @@ Villagers report back by voice, photo or text, from any phone, even offline. On 
 
 The whole loop is serverless on AWS. EventBridge Scheduler runs the sweep Lambda, with no retries and a dead-letter queue. One DynamoDB table, with conditional writes, so an alert is never sent twice. Step Functions waits for the officer; no answer moves to the next one. Bedrock drafts through Strands, Polly speaks, and the audio lands in S3. Telegram delivers it, and the tap comes back through API Gateway. Cognito signs officers in, Cedar checks every action, and 9 CloudWatch alarms watch it all.
 
-This is live: 40 approval workflows so far, 36 succeeded. Polly's Hindi audio in S3, and the health check, right now. Nothing runs between requests: no servers, no database instance.
+This is live: 53 approval workflows so far, 45 succeeded. Polly's Hindi audio in S3, and the health check, right now. Nothing runs between requests: no servers, no database instance.
 
-In our 2025 back-test, the global forecasts missed the Mandi cloudburst. So a verified villager report can raise a level on its own.
+In our 2025 back-test, the global forecasts missed the Mandi cloudburst. So a verified villager report can raise a level on its own. And replay lead times are an upper bound: real forecasts are less certain.
 
 The river will still rise. Now the village hears first.

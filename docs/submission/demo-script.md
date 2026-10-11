@@ -1,8 +1,8 @@
-# Demo video script (2:41)
+# Demo video script (2:44)
 
-The narration of [docs/media/pukaar-demo.mp4](../media/pukaar-demo.mp4) (161.2 s, 1920×1080), rendered by `node video/record.mjs demo` from [video/demo.mjs](../../video/demo.mjs); this file is written by the same run, so the times and words below are the video's own. Timed captions: [pukaar-demo.srt](../media/pukaar-demo.srt).
+The narration of [docs/media/pukaar-demo.mp4](../media/pukaar-demo.mp4) (164.4 s, 1920×1080), rendered by `node video/record.mjs demo` from [video/demo.mjs](../../video/demo.mjs); this file is written by the same run, so the times and words below are the video's own. Timed captions: [pukaar-demo.srt](../media/pukaar-demo.srt).
 
-Every number is read at render time: the Mandi 2025 figures and the 3G load time from README.md, the Gohar story from frontend/src/data/story-gohar-2023.json (built by the real rules), the alarm and execution counts from the AWS account, and the proof scene's output straight from the AWS CLI. The live scenes are the deployed site during a labelled replay on AWS; replay alerts go to test phones only. The voice is Chatterbox TTS (open source) with its own built-in synthetic voice; the Hindi alert is the real Amazon Polly (Kajal, hi-IN) MP3. 439 words in 161 s (163 words a minute).
+Every number is read at render time: the Mandi 2025 figures and the 3G load time from README.md, the Gohar story from frontend/src/data/story-gohar-2023.json (built by the real rules), the alarm and execution counts from the AWS account, and the proof scene's output straight from the AWS CLI. The live scenes are the deployed site during a labelled replay on AWS; replay alerts go to test phones only. The voice is Chatterbox TTS (open source) with its own built-in synthetic voice; the Hindi alert is the real Amazon Polly (Kajal, hi-IN) MP3. 449 words in 164 s (164 words a minute).
 
 ## Chapters
 
@@ -11,10 +11,10 @@ Every number is read at render time: the Mandi 2025 figures and the 3G load time
 0:18 What Pukaar does
 0:27 The night the river rose
 0:45 Live on AWS
-0:52 The officer approves
+0:53 The officer approves
 1:10 The village hears
-1:47 Architecture
-2:26 Limits and close
+1:45 Architecture
+2:25 Limits and close
 ```
 
 ## Video description
@@ -29,10 +29,10 @@ Code: https://github.com/Prashant-thakur77/pukaar
 0:18 What Pukaar does
 0:27 The night the river rose
 0:45 Live on AWS
-0:52 The officer approves
+0:53 The officer approves
 1:10 The village hears
-1:47 Architecture
-2:26 Limits and close
+1:45 Architecture
+2:25 Limits and close
 
 Voice: Chatterbox TTS (open source) with its built-in synthetic voice. Hindi alert: Amazon Polly (Kajal).
 Music: synthesised for this video by video/narration/music.py (CC0). Stock footage: Pexels (Pexels License), credits in docs/media/CREDITS.md.
@@ -86,19 +86,19 @@ Screen: /live on the deployed site during a labelled replay on AWS: the 3D terra
 >
 > Every 15 minutes, EventBridge wakes a Lambda that sets each village's level by rule, never by a model.
 
-## 0:53 to 1:11 · Officer console
+## 0:53 to 1:10 · Officer console
 
-Screen: The officer console signed in as a demo officer (Cognito): the pending Gohar critical alert with its Hindi draft, the rule-fallback label, then Approve and the confirmation.
+Screen: The officer console signed in as a demo officer (Cognito): the pending Gohar critical alert with its Hindi draft and its recipients, then Approve and the confirmation.
 
 > The officer on duty sees the Hindi draft. Step Functions has paused, waiting for one tap.
 >
 > The model only fills a fixed template, and a checker rejects any number not in the decision trace.
 >
-> Bedrock access is still pending on this account, so it says rule-fallback, and the alert still goes out.
+> Code has already chosen the level and the recipients; the officer only decides to send.
 >
 > Approve.
 
-## 1:11 to 1:29 · The village hears
+## 1:10 to 1:28 · The village hears
 
 Screen: The Gohar village page after approval: the alert delivered, the Listen button playing the real Polly (Kajal, hi-IN) MP3, the time-to-ear stopwatch and the deliveries.
 
@@ -110,7 +110,7 @@ Screen: The Gohar village page after approval: the alert delivered, the Listen b
 >
 > In a replay, it goes to test phones only.
 
-## 1:29 to 1:38 · Audit log
+## 1:28 to 1:36 · Audit log
 
 Screen: The audit page (officer view): the officer's approval allowed by a Cedar policy, and a village pradhan's attempt to approve refused, each with the policy and reason; recorded from the live stack.
 
@@ -118,7 +118,7 @@ Screen: The audit page (officer view): the officer's approval allowed by a Cedar
 >
 > and refused a village pradhan who tried, with the policy and the reason.
 
-## 1:38 to 1:47 · Villager report
+## 1:36 to 1:45 · Villager report
 
 Screen: The live villager report page in a phone frame (390 px): Hindi first, one big record button, works offline.
 
@@ -126,7 +126,7 @@ Screen: The live villager report page in a phone frame (390 px): Hindi first, on
 >
 > On slow 3G, the page is ready in 4.6 seconds.
 
-## 1:47 to 2:14 · Architecture
+## 1:45 to 2:13 · Architecture
 
 Screen: A three.js model of the stack: each AWS service lifts and glows as it is named, pulses running along the real request path, everything else dimmed.
 
@@ -144,25 +144,27 @@ Screen: A three.js model of the stack: each AWS service lifts and glows as it is
 >
 > Cognito signs officers in, Cedar checks every action, and 9 CloudWatch alarms watch it all.
 
-## 2:14 to 2:26 · Live proof
+## 2:13 to 2:25 · Live proof
 
 Screen: Real output captured from the AWS account at render time: the approval state machine's latest executions, the Polly MP3s in S3, and the live /health check.
 
-> This is live: 40 approval workflows so far, 36 succeeded.
+> This is live: 53 approval workflows so far, 45 succeeded.
 >
 > Polly's Hindi audio in S3, and the health check, right now.
 >
 > Nothing runs between requests: no servers, no database instance.
 
-## 2:26 to 2:34 · Not done yet
+## 2:25 to 2:37 · Not done yet
 
 Screen: Two honest limits, each with what Pukaar does about it.
 
 > In our 2025 back-test, the global forecasts missed the Mandi cloudburst.
 >
 > So a verified villager report can raise a level on its own.
+>
+> And replay lead times are an upper bound: real forecasts are less certain.
 
-## 2:34 to 2:41 · Pukaar
+## 2:37 to 2:44 · Pukaar
 
 Screen: End card: the callback line, the wordmark, the live URL, the repository and what it runs on.
 

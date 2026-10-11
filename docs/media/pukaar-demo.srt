@@ -154,200 +154,204 @@ and a checker rejects any number
 not in the decision trace.
 
 39
-00:01:03,769 --> 00:01:05,831
-Bedrock access is still
-pending on this account,
+00:01:03,769 --> 00:01:06,082
+Code has already chosen the
+level and the recipients;
 
 40
-00:01:05,881 --> 00:01:07,357
-so it says rule-fallback,
+00:01:06,132 --> 00:01:08,211
+the officer only decides to send.
 
 41
-00:01:07,407 --> 00:01:09,347
-and the alert still goes out.
-
-42
-00:01:09,397 --> 00:01:10,487
+00:01:08,261 --> 00:01:09,351
 Approve.
 
-43
-00:01:11,487 --> 00:01:13,482
+42
+00:01:10,351 --> 00:01:12,346
 Amazon Polly speaks it in Hindi:
 
-44
-00:01:19,582 --> 00:01:20,840
+43
+00:01:18,446 --> 00:01:19,704
 Every phone gets the voice
 
-45
-00:01:20,890 --> 00:01:22,114
+44
+00:01:19,754 --> 00:01:20,978
 and one button:
 
-46
-00:01:22,164 --> 00:01:22,987
+45
+00:01:21,028 --> 00:01:21,851
 मिल गया, got it.
 
-47
-00:01:23,037 --> 00:01:27,599
+46
+00:01:21,901 --> 00:01:26,463
 Pukaar times each alert, from the river
 rising to the first person who heard it.
 
-48
-00:01:27,649 --> 00:01:28,244
+47
+00:01:26,513 --> 00:01:27,108
 In a replay,
 
-49
-00:01:28,294 --> 00:01:29,988
+48
+00:01:27,158 --> 00:01:28,852
 it goes to test phones only.
 
-50
-00:01:30,038 --> 00:01:31,812
+49
+00:01:28,902 --> 00:01:30,676
 Every decision lands in an audit log:
 
-51
-00:01:31,862 --> 00:01:33,698
+50
+00:01:30,726 --> 00:01:32,562
 Cedar allowed the officer's approval,
 
-52
-00:01:33,748 --> 00:01:35,671
+51
+00:01:32,612 --> 00:01:34,535
 and refused a village pradhan who tried,
 
-53
-00:01:35,721 --> 00:01:38,150
+52
+00:01:34,585 --> 00:01:37,014
 with the policy and the reason.
 
-54
-00:01:38,200 --> 00:01:40,506
+53
+00:01:37,064 --> 00:01:39,370
 Villagers report back
 by voice, photo or text,
 
-55
-00:01:40,556 --> 00:01:42,510
+54
+00:01:39,420 --> 00:01:41,374
 from any phone, even offline.
 
-56
-00:01:42,560 --> 00:01:43,534
+55
+00:01:41,424 --> 00:01:42,398
 On slow 3G,
 
-57
-00:01:43,584 --> 00:01:46,135
+56
+00:01:42,448 --> 00:01:44,999
 the page is ready in 4.6 seconds.
 
-58
-00:01:47,135 --> 00:01:49,483
+57
+00:01:45,999 --> 00:01:48,347
 The whole loop is serverless on AWS.
 
-59
-00:01:49,533 --> 00:01:51,899
+58
+00:01:48,397 --> 00:01:50,763
 EventBridge Scheduler
 runs the sweep Lambda,
 
-60
-00:01:51,949 --> 00:01:54,437
+59
+00:01:50,813 --> 00:01:53,301
 with no retries and a dead-letter queue.
 
-61
-00:01:54,487 --> 00:01:55,680
+60
+00:01:53,351 --> 00:01:54,544
 One DynamoDB table,
 
-62
-00:01:55,730 --> 00:01:56,741
+61
+00:01:54,594 --> 00:01:55,605
 with conditional writes,
 
-63
-00:01:56,791 --> 00:01:58,787
+62
+00:01:55,655 --> 00:01:57,651
 so an alert is never sent twice.
 
-64
-00:01:58,837 --> 00:02:00,562
+63
+00:01:57,701 --> 00:01:59,426
 Step Functions waits for the officer;
 
-65
-00:02:00,612 --> 00:02:02,604
+64
+00:01:59,476 --> 00:02:01,468
 no answer moves to the next one.
 
-66
-00:02:02,654 --> 00:02:04,103
+65
+00:02:01,518 --> 00:02:02,967
 Bedrock drafts through Strands,
 
-67
-00:02:04,153 --> 00:02:04,892
+66
+00:02:03,017 --> 00:02:03,756
 Polly speaks,
 
-68
-00:02:04,942 --> 00:02:06,733
+67
+00:02:03,806 --> 00:02:05,597
 and the audio lands in S3.
 
-69
-00:02:06,783 --> 00:02:07,758
+68
+00:02:05,647 --> 00:02:06,622
 Telegram delivers it,
 
-70
-00:02:07,808 --> 00:02:10,308
+69
+00:02:06,672 --> 00:02:09,172
 and the tap comes back
 through API Gateway.
 
-71
-00:02:10,358 --> 00:02:12,771
+70
+00:02:09,222 --> 00:02:11,635
 Cognito signs officers in,
 Cedar checks every action,
 
-72
-00:02:12,821 --> 00:02:14,991
+71
+00:02:11,685 --> 00:02:13,855
 and 9 CloudWatch alarms watch it all.
 
-73
-00:02:15,041 --> 00:02:15,738
+72
+00:02:13,905 --> 00:02:14,655
 This is live:
 
+73
+00:02:14,705 --> 00:02:16,452
+53 approval workflows so far,
+
 74
-00:02:15,788 --> 00:02:17,322
-40 approval workflows so far,
+00:02:16,502 --> 00:02:17,963
+45 succeeded.
 
 75
-00:02:17,372 --> 00:02:18,888
-36 succeeded.
-
-76
-00:02:18,938 --> 00:02:20,622
+00:02:18,013 --> 00:02:19,697
 Polly's Hindi audio in S3,
 
-77
-00:02:20,672 --> 00:02:21,581
+76
+00:02:19,747 --> 00:02:20,656
 and the health check,
 
-78
-00:02:21,631 --> 00:02:22,685
+77
+00:02:20,706 --> 00:02:21,760
 right now.
 
-79
-00:02:22,735 --> 00:02:24,301
+78
+00:02:21,810 --> 00:02:23,376
 Nothing runs between requests:
 
-80
-00:02:24,351 --> 00:02:26,423
+79
+00:02:23,426 --> 00:02:25,498
 no servers, no database instance.
 
-81
-00:02:26,473 --> 00:02:27,927
+80
+00:02:25,548 --> 00:02:27,002
 In our 2025 back-test,
 
-82
-00:02:27,977 --> 00:02:31,005
+81
+00:02:27,052 --> 00:02:30,080
 the global forecasts missed
 the Mandi cloudburst.
 
-83
-00:02:31,055 --> 00:02:32,365
+82
+00:02:30,130 --> 00:02:31,440
 So a verified villager report
 
-84
-00:02:32,415 --> 00:02:34,068
+83
+00:02:31,490 --> 00:02:33,293
 can raise a level on its own.
 
+84
+00:02:33,343 --> 00:02:35,171
+And replay lead times are an upper bound:
+
 85
-00:02:34,118 --> 00:02:35,391
-The river will still rise.
+00:02:35,221 --> 00:02:37,272
+real forecasts are less certain.
 
 86
-00:02:35,441 --> 00:02:37,241
+00:02:37,322 --> 00:02:38,595
+The river will still rise.
+
+87
+00:02:38,645 --> 00:02:40,445
 Now the village hears first.

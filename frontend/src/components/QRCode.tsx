@@ -15,7 +15,7 @@ export function QRCode({ value, label, size = 176 }: { value: string; label: str
   return (
     <svg className="qr" width={size} height={size} viewBox={`0 0 ${n} ${n}`} role="img" aria-label={label} shapeRendering="crispEdges">
       <rect width={n} height={n} fill="#fff" />
-      <path d={path} fill="#0b1026" />
+      <path d={path} fill="#10120e" />
     </svg>
   );
 }

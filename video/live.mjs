@@ -25,12 +25,24 @@ const pw = readFileSync(join(ROOT, ".env.demo.local"), "utf8").match(/^PUKAAR_DE
 const clientId = outs.UserPoolClientId ?? outs.ClientId ?? outs.CognitoClientId;
 const token = aws("cognito-idp", "initiate-auth", "--client-id", clientId, "--auth-flow", "USER_PASSWORD_AUTH",
   "--auth-parameters", `USERNAME=officer1,PASSWORD=${pw}`).AuthenticationResult.IdToken;
-const api = async (path, opts = {}) => {
-  const r = await fetch(outs.ApiUrl + path, {
+const api = async (path, opts = {}, tries = 4) => {
+  let r;
+  try {
+    r = await fetch(outs.ApiUrl + path, {
     method: opts.method ?? "GET",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
+    signal: AbortSignal.timeout(30_000),
   });
+  } catch (e) {
+    // a flaky connection: retry reads; a write is retried only if it never reached the server
+    if (tries > 1) {
+      log(`  network error on ${path} (${e.cause?.code ?? e.name}); retrying`);
+      await sleep(3000);
+      return api(path, opts, tries - 1);
+    }
+    throw e;
+  }
   if (!r.ok) throw new Error(`${opts.method ?? "GET"} ${path}: ${r.status} ${await r.text()}`);
   return r.json();
 };
