@@ -116,7 +116,7 @@
 
 /* ---------- 5. header and wordmark ---------- */
 .site-header { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: saturate(1.5) blur(16px); -webkit-backdrop-filter: saturate(1.5) blur(16px); border-bottom-color: var(--hair); }
-.site-header.is-over-hero { background: rgb(6 17 31 / 0.72); border-bottom-color: rgb(234 244 251 / 0.08); }
+.site-header.is-over-hero { background: rgb(6 17 31 / 0.94); border-bottom-color: rgb(234 244 251 / 0.08); }
 .hdr-link, .hdr-link:lang(hi), :root[lang='hi'] .hdr-link { text-transform: none; letter-spacing: 0; font-size: 0.93rem; font-weight: 600; padding: 0 12px; }
 .hdr-link.is-active { box-shadow: none; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 8px; text-decoration-color: var(--accent); }
 .wm-hi { font-size: 1.75rem; line-height: 1; letter-spacing: 0; }
