@@ -36,7 +36,7 @@ export function TimeToEar({ alert, deliveries }: { alert: Alert; deliveries: Del
   ];
   const total = gap(alert.created_at, firstAck);
   return (
-    <section className="tte" aria-label={t('tte.title')}>
+    <section className="tte" aria-label={t('tte.title')} data-tour="tte">
       <p className="tte-head">
         <Timer aria-hidden="true" /> {t('tte.title')}
         <strong className={`tte-total${total == null ? ' is-pending' : ''}`}>{total == null ? t('tte.notyet') : fmtGap(total, lang)}</strong>

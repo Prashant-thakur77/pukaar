@@ -298,6 +298,8 @@ Resources:
         TelegramWebhook: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /telegram/webhook, Method: POST, Auth: { Authorizer: NONE } } }
         PublicOverview: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /public/overview, Method: GET, Auth: { Authorizer: NONE } } }
         Track: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/track/{code}", Method: GET, Auth: { Authorizer: NONE } } }
+        # Roll-call family link: a signed 7-day token; the answer is a first name, a time and a village, nothing else.
+        SafeShare: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/safe/{token}", Method: GET, Auth: { Authorizer: NONE } } }
         ReplayStatus: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /replay/status, Method: GET, Auth: { Authorizer: NONE } } }
         # CAP 1.2 feed for SACHET and other aggregators (services/cap.py): published alerts only.
         # HTTP API path variables span a whole segment, so {file} is "<alert id>.xml"; FastAPI matches the suffix.
@@ -879,6 +881,22 @@ Resources:
       TreatMissingData: notBreaching
       AlarmActions: [!Ref AlarmTopic]
 
+  RollCallNeedHelpAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-rollcall-need-help
+      AlarmDescription: Someone pressed "मदद चाहिए" (need help) in a safety roll-call; see the console roll-call board.
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(RollCallNeedHelp) FROM Pukaar"
+          Period: 300
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
   Dashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
@@ -899,7 +917,8 @@ Resources:
             {"type": "metric", "x": 0, "y": 6, "width": 12, "height": 6, "properties": {
               "title": "Delivery", "region": "${AWS::Region}", "period": 300,
               "metrics": [[{"expression": "SELECT SUM(DeliverySent) FROM Pukaar", "id": "d1", "label": "DeliverySent"}],
-                          [{"expression": "SELECT SUM(DeliveryFailed) FROM Pukaar", "id": "d2", "label": "DeliveryFailed"}]]}},
+                          [{"expression": "SELECT SUM(DeliveryFailed) FROM Pukaar", "id": "d2", "label": "DeliveryFailed"}],
+                          [{"expression": "SELECT SUM(RollCallNeedHelp) FROM Pukaar", "id": "d3", "label": "RollCallNeedHelp"}]]}},
             {"type": "metric", "x": 12, "y": 6, "width": 12, "height": 6, "properties": {
               "title": "Approval workflow", "region": "${AWS::Region}", "stat": "Sum", "period": 300,
               "metrics": [["AWS/States", "ExecutionsStarted", "StateMachineArn", "${ApprovalStateMachine}"],

@@ -101,13 +101,13 @@ function Scenario({ sc, i }: { sc: BacktestScenario; i: number }) {
   );
 }
 
-const CONFIG_KEY: Record<string, Key> = { rain: 'impact.sc.rain', river: 'impact.sc.river', both: 'impact.sc.both' };
+const CONFIG_KEY: Record<string, Key> = { rain: 'impact.sc.rain', river: 'impact.sc.river', both: 'impact.sc.both', both_soil: 'impact.sc.both_soil' };
 
 function Scores() {
   const { t, lang } = useT();
   return (
     <section className="band band-paper scores-band" aria-labelledby="sc-h">
-      <div className="wrap">
+      <div className="wrap" data-tour="scores">
         <h2 id="sc-h" className="h-sec">
           <Target aria-hidden="true" /> {t('impact.sc.title')}
         </h2>

@@ -8,6 +8,11 @@ import { isLevel } from './levels';
  */
 export function describeRule(rule: string, lang: Lang): string {
   const hi = lang === 'hi';
+  const soil = rule.match(/^soil_saturated:S=([\d.]+):bands x([\d.]+)$/);
+  if (soil)
+    return hi
+      ? `मिट्टी भरी हुई (S = ${soil[1]}) → बारिश की सीमाएँ × ${soil[2]}`
+      : `Saturated soil (S = ${soil[1]}) → rain bands × ${soil[2]}`;
   const [cond, outcome] = splitLast(rule);
   const lv = outcome && isLevel(outcome) ? levelWord(outcome, lang) : outcome;
   let m = cond.match(/^rain_24h>=([\d.]+)mm$/);

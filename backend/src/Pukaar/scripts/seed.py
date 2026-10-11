@@ -12,7 +12,8 @@ from __future__ import annotations
 import json
 
 from Pukaar.core.config import get_settings
-from Pukaar.store.models import GaugeConfig, PastEvent, Recipient, Thresholds, Village
+from Pukaar.services import checklist
+from Pukaar.store.models import GaugeConfig, PastEvent, Recipient, SoilRange, Thresholds, Village
 from Pukaar.store.repo import Repo, get_repo
 
 STUB_RECIPIENTS_PER_VILLAGE = 2
@@ -36,6 +37,7 @@ def seed(repo: Repo) -> list[str]:
             if th else None,
             # Illustrative thresholds, to be set from the gauge's own record after installation.
             gauge=GaugeConfig.model_validate(raw["gauge"]) if raw.get("gauge") else None,
+            soil=SoilRange.model_validate(th["soil"]) if th and th.get("soil") else None,
         )
         if existing is not None:
             village.level, village.level_since, village.calm_sweeps = existing.level, existing.level_since, existing.calm_sweeps
@@ -53,6 +55,7 @@ def seed(repo: Repo) -> list[str]:
                 note_hi=f"{ev['date']} को नदी का बहाव {ev['discharge']} m³/s तक पहुँचा था।",
                 source="Open-Meteo flood API (GloFAS reanalysis), daily river discharge",
             ))
+        checklist.seed(repo, raw["id"])
         seeded.append(raw["id"])
     return seeded
 

@@ -46,6 +46,7 @@ class Settings:
     hydromet_enabled: bool
     hydromet_timeout_seconds: float
     alerts_per_village_per_day: int
+    soil_modifier_enabled: bool
     cors_origins: tuple[str, ...]
     cognito_user_pool_id: str
     cognito_client_id: str
@@ -92,6 +93,9 @@ def get_settings() -> Settings:
         hydromet_enabled=_bool("PUKAAR_HYDROMET_ENABLED", True),
         hydromet_timeout_seconds=float(os.environ.get("PUKAAR_HYDROMET_TIMEOUT_SECONDS", "12")),
         alerts_per_village_per_day=int(os.environ.get("PUKAAR_ALERTS_PER_VILLAGE_PER_DAY", "6")),
+        # Soil-moisture modifier on the rain bands (services/soil.py). Default from the back-test in
+        # docs/SCORING.md ("Soil moisture modifier").
+        soil_modifier_enabled=_bool("PUKAAR_SOIL_MODIFIER", False),
         cors_origins=tuple(o.strip() for o in cors.split(",") if o.strip()),
         cognito_user_pool_id=os.environ.get("PUKAAR_COGNITO_USER_POOL_ID", ""),
         cognito_client_id=os.environ.get("PUKAAR_COGNITO_CLIENT_ID", ""),

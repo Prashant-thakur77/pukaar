@@ -12,7 +12,8 @@ from Pukaar.services import replay
 from Pukaar.store.repo import get_repo
 
 _KEEP_PREFIXES = ("AUDIT#", "OFFICER#")
-_KEEP_SK_PREFIXES = ("META", "RECIPIENT#", "EVENT#")
+# Checklist ticks are the village's own preparedness record, not demo output: kept.
+_KEEP_SK_PREFIXES = ("META", "RECIPIENT#", "EVENT#", "CHECKLIST#")
 
 
 def _removable(item: dict) -> bool:

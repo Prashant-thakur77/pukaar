@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BatteryMedium, ChevronDown, CloudRain, FileText, Gauge as GaugeIcon, History, Hourglass, ListChecks, MapPin, Megaphone, RadioTower, Scale, TrendingUp, Users, Waves } from 'lucide-react';
+import { ArrowLeft, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, Hourglass, ListChecks, MapPin, Megaphone, RadioTower, Scale, TrendingUp, Users, Waves } from 'lucide-react';
 import { api } from '../api';
 import { AlertStatusChip, DeliveryChips, ReplayChip, ReportStateChip } from '../components/Chips';
 import { Gauge } from '../components/Gauge';
 import { LevelBadge } from '../components/Level';
 import { ListenButton } from '../components/ListenButton';
+import { ReadinessCard, SoilCard } from '../components/Readiness';
 import { Reveal } from '../components/Reveal';
 import { Sparkline } from '../components/Sparkline';
 import { TimeToEar } from '../components/TimeToEar';
@@ -19,7 +20,7 @@ import { auditLinkForAlert } from '../lib/audit';
 import { holdLine } from '../lib/evidence';
 import { humanizeSummary } from '../lib/humanize';
 import { useAuth } from '../store';
-import type { Alert, DecisionTrace, GaugeView, Level, TraceEvidence, Village } from '../types';
+import type { Alert, DecisionTrace, GaugeView, Level, PublicRollCall, SoilView, TraceEvidence, Village } from '../types';
 
 function AlertDetails({ alert }: { alert: Alert }) {
   const { t, lang } = useT();
@@ -109,8 +110,34 @@ function AlertCard({ alert, signedIn }: { alert: Alert; signedIn: boolean }) {
   );
 }
 
+/** An open "Surakshit Hoon" roll-call: counts only, never names. */
+function RollCallCount({ rc }: { rc: PublicRollCall }) {
+  const { t } = useT();
+  return (
+    <section aria-labelledby="rcv-h" className={`rc-public${rc.need_help > 0 ? ' has-help' : ''}`}>
+      <h2 id="rcv-h" className="h-sec">
+        <HeartHandshake aria-hidden="true" /> {t('rollcall.title')}
+        {rc.exercise && <span className="chip chip-warn">{t('rollcall.exercise')}</span>}
+      </h2>
+      <p className="rc-public-line" role="status">
+        {t(rc.need_help === 1 ? 'rollcall.public.one' : 'rollcall.public.many', { s: rc.safe, h: rc.need_help })}
+      </p>
+      <p className="small muted">
+        {t('rollcall.public.waiting', { n: rc.not_answered })} · {t('rollcall.public.lead')}
+      </p>
+    </section>
+  );
+}
+
 /** IMD 24 h rain bands (mm) used by services/risk_rules.py. */
 const IMD_BANDS = { watch: 64.5, warning: 115.6, critical: 204.5 };
+
+/** IMD bands times the soil factor, rounded up to 0.1 mm like risk_rules.scaled_bands. */
+function scaleBands(f: number) {
+  const k = Math.max(0.7, Math.min(1, f));
+  const up = (mm: number) => Math.ceil(Math.round(mm * k * 10 * 1e6) / 1e6) / 10;
+  return { watch: up(IMD_BANDS.watch), warning: up(IMD_BANDS.warning), critical: up(IMD_BANDS.critical) };
+}
 
 /** River gauge: the measured stage, a third source beside the rain and river forecasts. */
 function GaugeCard({ gauge }: { gauge: GaugeView | null | undefined }) {
@@ -172,7 +199,7 @@ function GaugeCard({ gauge }: { gauge: GaugeView | null | undefined }) {
   );
 }
 
-function Evidence({ village, trace, traceReplay, gauge }: { village: Village; trace: DecisionTrace | null; traceReplay: boolean; gauge?: GaugeView | null }) {
+function Evidence({ village, trace, traceReplay, gauge, soil }: { village: Village; trace: DecisionTrace | null; traceReplay: boolean; gauge?: GaugeView | null; soil?: SoilView | null }) {
   const { t, lang, pick } = useT();
   const traceReading = trace?.evidence?.find((e) => e.kind === 'reading') ?? null;
   const reports = (trace?.evidence ?? []).filter((e): e is TraceEvidence => e.kind === 'report');
@@ -181,7 +208,8 @@ function Evidence({ village, trace, traceReplay, gauge }: { village: Village; tr
   const useLatest = Boolean(lr && (!traceReading?.at || lr.at >= String(traceReading.at)));
   const rain = useLatest ? lr!.rain_24h_mm : (traceReading?.rain_24h_mm ?? null);
   const rainLevel = (useLatest ? lr!.rain_level : traceReading?.rain_level) as Level | undefined;
-  const bandsRaw = traceReading?.rain_bands_mm;
+  // The newest sweep's bands: lowered only when the soil modifier is on and applied.
+  const bandsRaw = useLatest && soil?.applied ? scaleBands(soil.factor) : useLatest ? IMD_BANDS : traceReading?.rain_bands_mm;
   const rainBands =
     bandsRaw && bandsRaw.watch != null && bandsRaw.warning != null && bandsRaw.critical != null ? (bandsRaw as { watch: number; warning: number; critical: number }) : IMD_BANDS;
   const peak = useLatest ? lr!.discharge_peak : (traceReading?.discharge_peak ?? null);
@@ -240,6 +268,7 @@ function Evidence({ village, trace, traceReplay, gauge }: { village: Village; tr
         {sweepLabel && <p className="ev-sweep small">{sweepLabel}</p>}
       </Reveal>
       <GaugeCard gauge={gauge} />
+      <SoilCard soil={soil} />
       {showRules && trace?.rules_fired && trace.rules_fired.length > 0 && (
         <Reveal className="ev-card ev-wide" delay={140}>
           <header className="ev-head">
@@ -373,6 +402,7 @@ export default function VillagePage() {
       </section>
 
       <div className="wrap v-body">
+        {data.rollcall?.open && <RollCallCount rc={data.rollcall} />}
         {(data.directives ?? []).filter((d) => d.active).length > 0 && (
           <section aria-labelledby="dir-h">
             <h2 id="dir-h" className="h-sec">
@@ -395,12 +425,20 @@ export default function VillagePage() {
             </ul>
           </section>
         )}
-        <section aria-labelledby="why-h">
+        <section aria-labelledby="why-h" data-tour="why">
           <h2 id="why-h" className="h-sec">
             <GaugeIcon aria-hidden="true" /> {t('village.why')}
           </h2>
           <p className="muted">{t('village.why.lead')}</p>
-          <Evidence village={v} trace={trace} traceReplay={Boolean(latestAlert?.replay)} gauge={data.gauge} />
+          <Evidence village={v} trace={trace} traceReplay={Boolean(latestAlert?.replay)} gauge={data.gauge} soil={data.soil} />
+        </section>
+
+        <section aria-labelledby="ready-h">
+          <h2 id="ready-h" className="h-sec">
+            <ClipboardCheck aria-hidden="true" /> {t('ready.title')}
+          </h2>
+          <p className="muted">{t('ready.lead')}</p>
+          <ReadinessCard villageId={v.id} readiness={v.readiness} checklist={data.checklist} />
         </section>
 
         {readings.length > 1 && (
@@ -460,7 +498,7 @@ export default function VillagePage() {
           )}
         </section>
 
-        <section aria-labelledby="al-h">
+        <section aria-labelledby="al-h" data-tour="village-alerts">
           <h2 id="al-h" className="h-sec">
             {t('village.alerts')}
           </h2>

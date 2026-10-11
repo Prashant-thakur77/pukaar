@@ -151,7 +151,7 @@ Sources and verdicts: the research summary in [REFERENCE_REVIEW.md](REFERENCE_RE
 | 12 | Learning gauge thresholds | 3 | planned |
 | 13 | Agents page (EcoLafaek-style) | 2 | building |
 | 14 | Sensors page and device path | 2 | building |
-| 15 | Antecedent soil moisture | 2 | building |
-| 16 | Two-stage readiness and checklists | 2 | building |
-| 17 | "Surakshit Hoon" roll-call | 2 | building |
+| 15 | Antecedent soil moisture | 2 | built, flag off by default (back-test in [SCORING.md](SCORING.md#soil-moisture-modifier)) |
+| 16 | Two-stage readiness and checklists | 2 | built |
+| 17 | "Surakshit Hoon" roll-call | 2 | built |
 | 18 | Virtual staff gauges | 3 | planned |

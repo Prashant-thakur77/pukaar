@@ -82,6 +82,31 @@ describe('api client', () => {
     expect(useAuth.getState().token).toBeNull();
   });
 
+  it('roll-call: board and remind carry the token, the family link does not', async () => {
+    useAuth.setState({ token: 'tok123' });
+    fetchMock
+      .mockResolvedValueOnce(json(200, []))
+      .mockResolvedValueOnce(json(200, { first_name: null, village_name: 'Gohar', village_name_hi: 'गोहर', at: '2026-10-11T20:48:00Z', status: 'safe', exercise: false, simulated: false }));
+    await api.rollcalls('gohar');
+    const view = await api.safe('a.b');
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/rollcalls\?village_id=gohar$/);
+    expect((fetchMock.mock.calls[0][1]?.headers as Record<string, string>).Authorization).toBe('Bearer tok123');
+    expect(String(fetchMock.mock.calls[1][0])).toMatch(/\/safe\/a\.b$/);
+    expect((fetchMock.mock.calls[1][1]?.headers as Record<string, string>).Authorization).toBeUndefined();
+    expect(Object.keys(view).sort()).toEqual(['at', 'exercise', 'first_name', 'simulated', 'status', 'village_name', 'village_name_hi']);
+  });
+
+  it('roll-call: a reminder too soon is a 429 with both languages', async () => {
+    fetchMock.mockResolvedValueOnce(
+      json(429, { detail: { code: 'rate_limited', retry_after_seconds: 900, message_en: 'Try again in 15 min.', message_hi: '15 मिनट बाद फिर कोशिश करें।' } }),
+    );
+    const err = (await api.remindRollcall('rc_1').catch((e) => e)) as ApiError;
+    expect(err.status).toBe(429);
+    expect(err.code).toBe('rate_limited');
+    expect(err.messageHi).toBe('15 मिनट बाद फिर कोशिश करें।');
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('POST');
+  });
+
   it('flags sample data from the dev mock', async () => {
     fetchMock.mockResolvedValueOnce(json(200, [{ id: 'x', _sample: true }]));
     await api.villages();

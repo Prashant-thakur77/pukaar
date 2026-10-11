@@ -83,3 +83,31 @@ def test_first_times_uses_production_hysteresis():
     series = [(HOURS[0], "normal"), (HOURS[1], "warning"), (HOURS[2], "normal"), (HOURS[3], "normal")]
     first = score.first_times(series)
     assert first == {"watch": HOURS[1], "warning": HOURS[1], "critical": None}
+
+
+def test_soil_configuration_is_scored_and_unchanged_without_soil(monkeypatch, tmp_path):
+    _patch(monkeypatch, tmp_path)
+    villages = [_village(v) for v in TRUTH]
+    sc = score.run(tmp_path, villages)["scenarios"][0]
+    cfg = {c["key"]: c for c in sc["configs"]}
+    assert cfg["both_soil"]["label"] == "both + soil"
+    same = lambda c: {k: v for k, v in c.items() if k not in {"key", "label"}}
+    assert same(cfg["both_soil"]) == same(cfg["both"])
+    assert len(sc["soil_effect"]) == len(villages)
+    assert all(e["changed"] is False and e["hours_with_soil"] == 0 for e in sc["soil_effect"])
+
+
+def test_soil_configuration_lowers_bands_on_saturated_ground(monkeypatch, tmp_path):
+    _patch(monkeypatch, tmp_path)
+    from Pukaar.store.models import SoilRange
+
+    # 55 mm is below the IMD Watch band (64.5) but above it at full saturation (x0.7 = 45.2).
+    monkeypatch.setattr(score.external_data, "replay_reading", lambda name, v, at: Reading(
+        village_id=v.id, at=at.isoformat(), rain_24h_mm=55.0 if v.id == "rainy" else 5.0, discharge_peak=1.0,
+        soil_moisture_root=0.45))
+    villages = [_village(v).model_copy(update={"soil": SoilRange(dry=0.2, wet=0.4)}) for v in TRUTH]
+    sc = score.run(tmp_path, villages)["scenarios"][0]
+    cfg = {c["key"]: c for c in sc["configs"]}
+    assert (cfg["both"]["hits"], cfg["both_soil"]["hits"]) == (0, 1)
+    rainy = next(e for e in sc["soil_effect"] if e["village_id"] == "rainy")
+    assert rainy["changed"] and rainy["max_saturation"] == 1.0 and rainy["both"]["first_watch"] is None

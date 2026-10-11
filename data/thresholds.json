@@ -22,7 +22,13 @@
       "lat": 31.575005,
       "lon": 77.17502
     },
-    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5",
+    "soil": {
+      "dry": 0.236,
+      "wet": 0.406,
+      "hours": 17544,
+      "source": "open-meteo historical-forecast hourly soil_moisture_9_to_27cm+soil_moisture_27_to_81cm mean, 2024-01-01..2025-12-31, percentiles 5/95"
+    }
   },
   "janjehli": {
     "watch": 1.03,
@@ -47,7 +53,13 @@
       "lat": 31.525002,
       "lon": 77.225006
     },
-    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5",
+    "soil": {
+      "dry": 0.245,
+      "wet": 0.407,
+      "hours": 17544,
+      "source": "open-meteo historical-forecast hourly soil_moisture_9_to_27cm+soil_moisture_27_to_81cm mean, 2024-01-01..2025-12-31, percentiles 5/95"
+    }
   },
   "gohar": {
     "watch": 0.94,
@@ -72,7 +84,13 @@
       "lat": 31.575005,
       "lon": 77.025024
     },
-    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5",
+    "soil": {
+      "dry": 0.169,
+      "wet": 0.339,
+      "hours": 17544,
+      "source": "open-meteo historical-forecast hourly soil_moisture_9_to_27cm+soil_moisture_27_to_81cm mean, 2024-01-01..2025-12-31, percentiles 5/95"
+    }
   },
   "pandoh": {
     "watch": 282.14,
@@ -97,7 +115,13 @@
       "lat": 31.675003,
       "lon": 77.07501
     },
-    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5",
+    "soil": {
+      "dry": 0.169,
+      "wet": 0.339,
+      "hours": 17544,
+      "source": "open-meteo historical-forecast hourly soil_moisture_9_to_27cm+soil_moisture_27_to_81cm mean, 2024-01-01..2025-12-31, percentiles 5/95"
+    }
   },
   "sujanpur": {
     "watch": 1.7,
@@ -122,6 +146,12 @@
       "lat": 31.825005,
       "lon": 76.525024
     },
-    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5",
+    "soil": {
+      "dry": 0.142,
+      "wet": 0.336,
+      "hours": 17544,
+      "source": "open-meteo historical-forecast hourly soil_moisture_9_to_27cm+soil_moisture_27_to_81cm mean, 2024-01-01..2025-12-31, percentiles 5/95"
+    }
   }
 }

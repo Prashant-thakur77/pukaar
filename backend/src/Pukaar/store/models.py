@@ -54,6 +54,17 @@ class Thresholds(BaseModel):
     source: str = "open-meteo flood API daily history 1984-2024"
 
 
+class SoilRange(BaseModel):
+    """The village's own root-zone soil moisture range (m³/m³): dry = 5th, wet = 95th percentile.
+
+    Saturation S = (sm - dry) / (wet - dry), clipped to 0..1 (services/soil.py).
+    """
+
+    dry: float
+    wet: float
+    source: str = "default"
+
+
 class GaugeConfig(BaseModel):
     """A river-stage gauge at the village (e.g. ESP32 + JSN-SR04T under a bridge deck).
 
@@ -85,6 +96,7 @@ class Village(BaseModel):
     calm_sweeps: int = 0
     thresholds: Thresholds | None = None
     gauge: GaugeConfig | None = None
+    soil: SoilRange | None = None
     open_alert_id: str | None = None
     replay: bool = False
 
@@ -97,6 +109,10 @@ class Reading(BaseModel):
     discharge: float | None = None
     discharge_forecast: list[dict[str, Any]] = Field(default_factory=list)
     discharge_peak: float | None = None
+    # Daily river discharge from today up to 7 days ahead: the "get ready" outlook (readiness.py).
+    discharge_outlook: list[dict[str, Any]] = Field(default_factory=list)
+    # Root-zone soil moisture now (m³/m³): mean of the 9-27 cm and 27-81 cm layers (soil.py).
+    soil_moisture_root: float | None = None
     rain_level: Level = "normal"
     river_level: Level = "normal"
     source: str = "open-meteo"
@@ -221,6 +237,19 @@ class Delivery(BaseModel):
     error: str | None = None
 
 
+class ChecklistItem(BaseModel):
+    """One early-action task for a village (services/checklist.py)."""
+
+    village_id: str
+    item: str
+    label_en: str
+    label_hi: str
+    order: int = 0
+    done: bool = False
+    done_by: str | None = None
+    done_at: str | None = None
+
+
 class Directive(BaseModel):
     id: str
     village_id: str
@@ -267,3 +296,54 @@ class ReplayState(BaseModel):
     started_at: str | None = None
     updated_at: str | None = None
     source: str | None = None
+
+
+RollCallAnswer = Literal["safe", "need_help"]
+
+
+class RollCall(BaseModel):
+    """A "Surakshit Hoon" (मैं सुरक्षित हूँ) safety roll-call for one village after an alert.
+
+    exercise=True for drills (labelled as such everywhere). Replays never open one.
+    Counts are kept on the record so the public page reads one item and no names.
+    """
+
+    id: str
+    village_id: str
+    village_name: str
+    village_name_hi: str
+    alert_id: str | None = None
+    level: Level | None = None
+    opened_at: str
+    closes_at: str
+    opened_by: Literal["system", "officer"] = "system"
+    opened_by_user: str | None = None
+    exercise: bool = False
+    asked: int = 0
+    safe: int = 0
+    need_help: int = 0
+    last_reminded_at: str | None = None
+    reminders: int = 0
+
+
+class RollCallAsked(BaseModel):
+    """Who the question went to. channel "stub" is a demo recipient with no phone: nothing was sent."""
+
+    rollcall_id: str
+    recipient_id: str
+    name: str
+    channel: Literal["telegram", "stub"]
+    asked_at: str
+    reminded_at: str | None = None
+    error: str | None = None
+
+
+class RollCallResponse(BaseModel):
+    rollcall_id: str
+    recipient_id: str
+    name: str
+    status: RollCallAnswer
+    at: str
+    note: str | None = None  # optional free text (140 chars at most) sent after "need help"
+    share_id: str | None = None  # opaque id behind the family link, so no chat id is in the link
+    simulated: bool = False  # set only by tests and demo tooling for stub recipients, never by a real tap

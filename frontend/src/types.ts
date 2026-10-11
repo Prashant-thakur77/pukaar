@@ -60,10 +60,71 @@ export interface Reading {
   discharge: number | null;
   discharge_forecast: { date: string; value: number }[];
   discharge_peak: number | null;
+  /** Daily discharge from today up to 7 days ahead (the "get ready" outlook). */
+  discharge_outlook?: { date: string; value: number }[];
+  /** Root-zone soil moisture now (m³/m³), mean of the 9-27 and 27-81 cm layers. */
+  soil_moisture_root?: number | null;
   rain_level: Level;
   river_level: Level;
   source: 'open-meteo' | 'replay';
   replay: boolean;
+}
+
+export interface SoilRange {
+  dry: number;
+  wet: number;
+  source?: string;
+}
+
+/** Soft "get ready" trigger from the river outlook, days 2-7. Never changes the level. */
+export interface Readiness {
+  state: 'none' | 'get_ready';
+  available?: boolean;
+  horizon_days: number | null;
+  peak_day: string | null;
+  peak_vs_watch_ratio: number | null;
+  peak_discharge?: number | null;
+  watch?: number | null;
+  source: string;
+  window_days?: [number, number];
+  days?: { date: string; days_ahead: number; value: number }[];
+  from_reading?: string | null;
+  replay?: boolean;
+}
+
+/** Soil-moisture state for the evidence card (services/soil.py). */
+export interface SoilView {
+  moisture_root: number | null;
+  saturation: number | null;
+  dry: number;
+  wet: number;
+  range_source: string;
+  calibrated: boolean;
+  factor: number;
+  factor_if_on: number;
+  enabled: boolean;
+  applied: boolean;
+  state: 'no_reading' | 'off' | 'applied' | 'below_threshold';
+  saturated_at: number;
+  at: string | null;
+  replay?: boolean;
+}
+
+export interface ChecklistItem {
+  village_id: string;
+  item: string;
+  label_en: string;
+  label_hi: string;
+  order: number;
+  done: boolean;
+  done_by: string | null;
+  done_at: string | null;
+}
+
+export interface Checklist {
+  items: ChecklistItem[];
+  done: number;
+  total: number;
 }
 
 export interface Village extends SampleFlag {
@@ -81,6 +142,8 @@ export interface Village extends SampleFlag {
   thresholds: Thresholds | null;
   latest_reading: Reading | null;
   open_alert_id: string | null;
+  soil?: SoilRange | null;
+  readiness?: Readiness | null;
   /** True while a replay owns this village's level. */
   replay?: boolean;
 }
@@ -324,6 +387,71 @@ export interface VillageDetail extends SampleFlag {
   nowcast: Nowcast | null;
   directives?: Directive[];
   gauge?: GaugeView | null;
+  soil?: SoilView | null;
+  checklist?: Checklist | null;
+  /** An open safety roll-call: counts only, never names. */
+  rollcall?: PublicRollCall | null;
+}
+
+/** "Surakshit Hoon" safety roll-call, public shape: counts only. */
+export interface PublicRollCall {
+  open: boolean;
+  exercise: boolean;
+  asked: number;
+  safe: number;
+  need_help: number;
+  not_answered: number;
+  opened_at: string;
+  closes_at: string;
+}
+
+export interface RollCall extends SampleFlag {
+  id: string;
+  village_id: string;
+  village_name: string;
+  village_name_hi: string;
+  alert_id: string | null;
+  level: Level | null;
+  opened_at: string;
+  closes_at: string;
+  opened_by: 'system' | 'officer';
+  opened_by_user: string | null;
+  exercise: boolean;
+  asked: number;
+  safe: number;
+  need_help: number;
+  not_answered: number;
+  open: boolean;
+  last_reminded_at: string | null;
+  reminders: number;
+}
+
+/** Officer board: names and times only (no phone numbers or chat ids). */
+export interface RollCallBoard extends SampleFlag {
+  rollcall: RollCall;
+  need_help: { name: string; at: string; note: string | null; simulated: boolean }[];
+  safe: { name: string; at: string; simulated: boolean }[];
+  not_answered: { name: string; demo: boolean; asked_at: string; reminded_at: string | null; failed: boolean }[];
+  remind_every_seconds: number;
+}
+
+export interface RollCallRemind {
+  reminded: number;
+  waiting: number;
+  demo_without_phone: number;
+  last_reminded_at: string | null;
+  board: RollCallBoard;
+}
+
+/** GET /safe/{token}: what a family link shows. */
+export interface SafeView extends SampleFlag {
+  first_name: string | null;
+  village_name: string;
+  village_name_hi: string;
+  at: string;
+  status: 'safe';
+  exercise: boolean;
+  simulated: boolean;
 }
 
 export interface AlertDetail extends SampleFlag {
@@ -426,6 +554,7 @@ export interface PublicVillage {
   lon: number;
   level: Level;
   coords_verified: boolean;
+  rollcall?: PublicRollCall | null;
 }
 
 export interface PublicAlert {

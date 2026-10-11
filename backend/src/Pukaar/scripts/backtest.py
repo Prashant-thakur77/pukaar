@@ -13,7 +13,7 @@ import json
 
 from Pukaar.core.config import get_settings
 from Pukaar.services import external_data, replay
-from Pukaar.store.models import Thresholds, Village
+from Pukaar.store.models import SoilRange, Thresholds, Village
 
 
 def villages_from_files() -> list[Village]:
@@ -25,7 +25,8 @@ def villages_from_files() -> list[Village]:
         t = th.get(v["id"])
         out.append(Village(id=v["id"], name=v["name"], name_hi=v["name_hi"], district=v["district"], lat=v["lat"],
                            lon=v["lon"], thresholds=Thresholds(watch=t["watch"], warning=t["warning"],
-                                                               critical=t["critical"], source=t["source"]) if t else None))
+                                                               critical=t["critical"], source=t["source"]) if t else None,
+                           soil=SoilRange.model_validate(t["soil"]) if t and t.get("soil") else None))
     return out
 
 

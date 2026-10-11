@@ -56,3 +56,15 @@ def send_text(chat_id: str, text: str) -> None:
 
 def answer_callback(callback_id: str, text: str) -> None:
     _call("answerCallbackQuery", {"callback_query_id": callback_id, "text": text})
+
+
+def rollcall_keyboard(rollcall_id: str) -> dict:
+    """Two buttons; callback data stays far under Telegram's 64-byte limit."""
+    return {"inline_keyboard": [[
+        {"text": f"✅ {hi.ROLLCALL_SAFE_BUTTON_HI}", "callback_data": f"safe:{rollcall_id}"},
+        {"text": f"🆘 {hi.ROLLCALL_HELP_BUTTON_HI}", "callback_data": f"help:{rollcall_id}"},
+    ]]}
+
+
+def send_rollcall(chat_id: str, rollcall_id: str, text: str) -> None:
+    _call("sendMessage", {"chat_id": chat_id, "text": text, "reply_markup": rollcall_keyboard(rollcall_id)})

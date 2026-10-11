@@ -54,6 +54,7 @@ const How = lazyPage(() => import('./pages/How'));
 const ConsolePage = lazyPage(() => import('./pages/console/ConsolePage'));
 const VillagePage = lazyPage(() => import('./pages/VillagePage'));
 const Track = lazyPage(() => import('./pages/Track'));
+const Safe = lazyPage(() => import('./pages/Safe'));
 const Approve = lazyPage(() => import('./pages/Approve'));
 const Impact = lazyPage(() => import('./pages/Impact'));
 const Login = lazyPage(() => import('./pages/Login'));
@@ -80,6 +81,7 @@ export default function App() {
             <Route path="how" element={<How />} />
             <Route path="report" element={<Report />} />
             <Route path="t/:code" element={<Track />} />
+            <Route path="safe/:token" element={<Safe />} />
             <Route path="a/:token" element={<Approve />} />
             <Route path="village/:id" element={<VillagePage />} />
             <Route path="console" element={<ConsolePage />} />

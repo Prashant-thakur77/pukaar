@@ -174,7 +174,9 @@ def evidence_chart(ev: dict) -> str:
 def scores_chart(sc: dict) -> str:
     """One panel per scenario; per configuration a row of unit squares: hits, misses, false alarms."""
     scen = sc["scenarios"]
-    W, H = 960, 160 + 196 * len(scen)
+    rows = max((len(s["configs"]) for s in scen), default=3)
+    per = 58 + 46 * rows
+    W, H = 960, 160 + per * len(scen)
     L, T = 210, 118
     kinds = (("hits", "hit", FOREST), ("misses", "miss", CRIMSON), ("false_alarms", "false alarm", GOLD))
     body = header("Scored against reported floods · source ablation", "How often were we right?", W)
@@ -203,7 +205,7 @@ def scores_chart(sc: dict) -> str:
                 body += text(colx[k] + max(n, 0) * 22 + (4 if n else 0), yy + 1, n, 15, INK, 800)
             lead = c["median_lead_hours"]
             body += text(W - 36, yy + 2, "-" if lead is None else f"{'≥ ' if c.get('lead_is_lower_bound') else ''}{lead:g} h", 14, INK, 800, "end")
-        y0 += 196
+        y0 += per
     body += text(36, H - 16, "Hit = Watch by the end of the reported event day. False alarm = Warning where nothing happened: n/a, no quiet village verified yet. ≥ = Watch held from the first archived hour.", 11, INK3, 600)
     return svg(W, H, body, "Hits, misses and false alarms per data-source configuration, per scenario")
 

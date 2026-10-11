@@ -12,8 +12,8 @@ from Pukaar.core.config import get_settings
 from Pukaar.core.ids import new_id
 from Pukaar.handlers import worker
 from Pukaar.llm.bedrock import BedrockLLM
-from Pukaar.policy.guard import Principal
-from Pukaar.services import analyst
+from Pukaar.policy.guard import Principal, authorize
+from Pukaar.services import analyst, checklist
 from Pukaar.services import replay as replay_svc
 from Pukaar.store.models import Directive
 from Pukaar.store.repo import ConflictError, get_repo
@@ -146,6 +146,28 @@ def create_directive(body: DirectiveBody, principal: Principal = Depends(Allowed
                   issued_by=principal.username, issued_at=clock.iso(clock.now()))
     repo.put_directive(d)
     return d.model_dump()
+
+
+class ChecklistBody(BaseModel):
+    done: bool = True
+
+
+@router.post("/villages/{village_id}/checklist/{item}")
+def tick_checklist(village_id: str, item: str, body: ChecklistBody | None = None,
+                   principal: Principal = Depends(require_user)) -> dict:
+    """Tick or untick one early-action task. Officers: any village; a pradhan: only their own."""
+    repo = get_repo()
+    decision = authorize(principal, "tick_checklist", "village", village_id, {"village_id": village_id}, repo=repo)
+    if not decision.allowed:
+        raise HTTPException(403, {"code": "denied", "reason": decision.reason, "action": "tick_checklist",
+                                  "role": principal.role})
+    if repo.get_village(village_id) is None:
+        raise HTTPException(404, "Village not found")
+    try:
+        checklist.set_done(repo, village_id, item, (body or ChecklistBody()).done, principal.username, principal.role)
+    except KeyError:
+        raise HTTPException(404, "Checklist item not found") from None
+    return checklist.view(repo, village_id)
 
 
 class ReplayBody(BaseModel):

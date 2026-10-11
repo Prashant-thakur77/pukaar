@@ -48,6 +48,34 @@ INVALID_LINK_EN = "This link is not valid. Open the full link from the message, 
 REFUSAL_HI = "मैं केवल बाढ़ से जुड़ी जानकारी दे सकता हूँ।"
 REFUSAL_EN = "I can only answer questions about flood operations."
 
+# "Surakshit Hoon" safety roll-call (sent only after a live alert reached the village, or by an officer).
+ROLLCALL_SAFE_BUTTON_HI = "मैं सुरक्षित हूँ"
+ROLLCALL_HELP_BUTTON_HI = "मदद चाहिए"
+ROLLCALL_DRILL_HI = "अभ्यास (DRILL), असली चेतावनी नहीं।"
+ROLLCALL_SAFE_THANKS_HI = "धन्यवाद, आप सुरक्षित दर्ज हो गए।"
+ROLLCALL_HELP_THANKS_HI = "मदद का अनुरोध दर्ज हो गया।"
+ROLLCALL_SAME_HI = "आपका जवाब पहले ही दर्ज है।"
+ROLLCALL_CLOSED_HI = "यह रोल-कॉल बंद हो चुका है। मदद चाहिए तो 112 पर कॉल करें।"
+ROLLCALL_NOT_ASKED_HI = "यह सवाल आपके लिए नहीं था। मदद चाहिए तो 112 पर कॉल करें।"
+ROLLCALL_HELP_REPLY = ("पुकार: अधिकारी को बता दिया गया है कि आपको मदद चाहिए। जान का ख़तरा हो तो अभी 112 पर कॉल करें।\n"
+                       "आप कहाँ हैं, एक छोटे संदेश में लिखें (जैसे: स्कूल के पास, छत पर, कितने लोग)।\n\n"
+                       "Pukaar: the officer has been told you need help. If life is at risk, call 112 now. "
+                       "Reply with one short message saying where you are.")
+ROLLCALL_NOTE_THANKS = "पुकार: आपका संदेश अधिकारी तक पहुँच गया। 112 पर कॉल करें अगर जान का ख़तरा है।\nPukaar: your note reached the officer."
+
+
+def rollcall_question(village_hi: str, village_en: str, exercise: bool) -> str:
+    drill = f"{ROLLCALL_DRILL_HI}\n" if exercise else ""
+    return (f"{drill}पुकार: क्या आप सुरक्षित हैं? / Are you safe?\n{village_hi} · {village_en}\n"
+            "एक बटन दबाएँ। इससे फ़ोन लाइनें खाली रहती हैं और अधिकारी जानते हैं कि किसे मदद चाहिए।\n"
+            "Tap one button. It keeps phone lines free and tells the officer who needs help.")
+
+
+def rollcall_safe_reply(link: str) -> str:
+    return ("पुकार: धन्यवाद। आप सुरक्षित दर्ज हो गए।\n"
+            f"अपने परिवार को यह लिंक भेजें, ताकि उन्हें फ़ोन न करना पड़े: {link}\n\n"
+            f"Pukaar: thank you, you are marked safe. Forward this link to your family so they need not call: {link}")
+
 
 def fallback_alert(level: str, village_hi: str, village_en: str) -> tuple[str, str]:
     """The fixed alert text used when no checked model draft exists."""

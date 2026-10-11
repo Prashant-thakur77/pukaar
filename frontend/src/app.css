@@ -1568,8 +1568,7 @@ button.map-key-item:hover { background: var(--surface-2); }
 @media (prefers-reduced-motion: reduce) { .hero::after, .site-footer::after, .thesis::after, .spine::after, .fact::after { animation: none; } .reveal { transform: none; } }
 @media (max-width: 640px) { .ftr-giant span { font-size: 30vw; } }
 
-/* =====================================================================================================
-   Water layer: the river at night, mist by day. One accent (river blue), deep ocean bands, waves that drift,
+/* ==============================================================================================   Water layer: the river at night, mist by day. One accent (river blue), deep ocean bands, waves that drift,
    a ripple on every press. Motion is slow and quiet; all of it stops under reduced motion.
    ===================================================================================================== */
 :root { --wave-svg: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='60' viewBox='0 0 1200 60' preserveAspectRatio='none'><path d='M0 30 C 150 0 300 60 450 30 S 750 0 900 30 S 1200 60 1200 30 V60 H0Z' fill='black'/></svg>"); }
@@ -1668,3 +1667,69 @@ body { background:
 .report .big-speak .bb-hint { color: var(--ink-3); }
 :root[data-theme='dark'] .report .big-speak .bb-word { color: var(--ink); }
 .report .big-btn:not(.big-speak) .bb-icon { background: rgb(143 208 255 / 0.28); color: #11679e; }
+=======
+/* ---------- visitor tour: one div whose spread shadow dims the page, a gold ring, a cream popover with a hard shadow ---------- */
+.tour-pill {
+  display: inline-flex; align-items: center; gap: 8px; min-height: var(--tap); padding: 8px 18px 8px 14px; border-radius: var(--r-pill);
+  border: 1.5px dashed rgb(216 173 85 / 0.7); background: rgb(216 173 85 / 0.08); color: var(--gold-2);
+  font: 700 0.92rem/1.2 var(--font-body); cursor: pointer; transition: background-color var(--dur-1), border-color var(--dur-1), transform var(--dur-1);
+}
+.tour-pill svg { width: 18px; height: 18px; flex: none; }
+.tour-pill:hover { background: rgb(216 173 85 / 0.16); border-style: solid; border-color: var(--gold); }
+.tour-pill:active { transform: scale(0.97); }
+.hero-tour { margin-top: var(--s-4); }
+
+.tour { position: fixed; inset: 0; z-index: 1000; }
+.tour-ring {
+  position: fixed; border-radius: 16px; pointer-events: none;
+  box-shadow: 0 0 0 2px transparent, 0 0 0 9999px rgb(12 12 8 / 0.62);
+  transition: box-shadow 200ms ease;
+}
+.tour-ring.is-lit { box-shadow: 0 0 0 2px var(--gold), 0 0 0 9999px rgb(12 12 8 / 0.62); }
+.tour.is-glide .tour-ring, .tour.is-glide .tour-pop { transition: top 250ms var(--ease-std), left 250ms var(--ease-std), width 250ms var(--ease-std), height 250ms var(--ease-std), box-shadow 200ms ease; }
+
+.tour-pop {
+  position: fixed; width: min(340px, calc(100vw - 32px)); padding: 18px 18px 14px; border-radius: 18px;
+  background: var(--cream); color: var(--night-0); border: 2px solid var(--night-0); box-shadow: 8px 8px 0 var(--gold);
+  color-scheme: light;
+}
+.tour-pop.is-end { width: min(400px, calc(100vw - 32px)); }
+.tour-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tour-count { font: 700 11px/1 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: #5e5848; }
+.tour-dots { display: flex; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.tour-dots li { width: 6px; height: 6px; border-radius: 99px; background: #cdbfa8; transition: width 250ms var(--ease-std), background-color 250ms; }
+.tour-dots li.is-done { background: #7a5a14; }
+.tour-dots li.is-on { width: 22px; background: var(--gold); box-shadow: inset 0 0 0 1px rgb(12 12 8 / 0.25); }
+.tour-title { margin: 12px 0 6px; font-family: 'Anton', var(--font-display); font-weight: 400; text-transform: uppercase; font-size: 1.55rem; line-height: 1.02; letter-spacing: 0.01em; color: var(--night-0); }
+.tour[lang='hi'] .tour-title { font-family: var(--font-hi); font-weight: 800; text-transform: none; font-size: 1.3rem; line-height: 1.3; }
+.tour-body { margin: 0; font-size: 0.95rem; line-height: 1.55; color: #2f2c24; }
+.tour[lang='hi'] .tour-body { line-height: 1.7; }
+.tour-wait { margin: 8px 0 0; font-size: 0.8rem; color: #5e5848; }
+.tour-wait::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--gold); animation: tour-blink 900ms ease-in-out infinite; }
+@keyframes tour-blink { 50% { opacity: 0.25; } }
+.tour-ctas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.tour-ctas .btn { flex: 1 1 auto; }
+.tour-pop .btn-ghost { --fg-b: var(--night-0); --bd-b: #cdbfa8; }
+.tour-pop .btn-ink { --bg-b: var(--night-0); --fg-b: var(--cream); --bd-b: var(--night-0); }
+.tour-code svg { width: 16px; height: 16px; }
+.tour-actions { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+.tour-skip {
+  margin-right: auto; min-height: 40px; padding: 0 4px; background: none; border: 0; cursor: pointer;
+  font: 700 11px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: #5e5848; text-decoration: underline; text-underline-offset: 3px;
+}
+.tour[lang='hi'] .tour-skip { font: 700 0.85rem/1 var(--font-hi); letter-spacing: 0; text-transform: none; }
+.tour-skip:hover { color: var(--night-0); }
+.tour-back svg, .tour-next svg { width: 16px; height: 16px; }
+.tour-pop .btn-accent { box-shadow: none; }
+.tour-pop :focus-visible { outline: 3px solid #0c4830; outline-offset: 2px; }
+
+/* Phones: the popover becomes a bottom sheet; the ring stays on the target above it. */
+.tour.is-sheet .tour-pop { left: 0; right: 0; bottom: 0; top: auto; width: auto; border-radius: 20px 20px 0 0; border-width: 2px 0 0; box-shadow: 0 -6px 0 var(--gold); padding: 14px 16px calc(12px + env(safe-area-inset-bottom)); }
+.tour.is-sheet .tour-title { font-size: 1.3rem; margin-top: 10px; }
+.tour.is-sheet .tour-body { font-size: 0.9rem; }
+.tour.is-sheet .tour-back-word { display: none; }
+.tour.is-sheet .tour-back { padding: 6px 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .tour-ring, .tour-pop, .tour-dots li { transition: none !important; }
+  .tour-wait::before { animation: none; }
+}

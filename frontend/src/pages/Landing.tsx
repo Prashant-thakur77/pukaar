@@ -9,6 +9,7 @@ import { LevelBadge } from '../components/Level';
 import { QRCode } from '../components/QRCode';
 import { Reveal } from '../components/Reveal';
 import { Spine } from '../components/Spine';
+import { TourButton } from '../components/Tour';
 import { StoryNight } from '../components/StoryNight';
 import { Valley } from '../components/Valley';
 import { usePoll } from '../hooks/usePoll';
@@ -16,6 +17,7 @@ import { prefersReducedMotion } from '../hooks/useMotion';
 import { useT, type Key } from '../i18n';
 import { levelRank } from '../lib/levels';
 import { readSession, writeSession } from '../lib/session';
+import { useTour } from '../lib/tour';
 import type { Counters } from '../types';
 
 // The 3D valley is optional: if its chunk cannot load (e.g. an old build in the cache), the flat valley stays.
@@ -120,7 +122,10 @@ export default function Landing() {
   const [use3d] = useState(canRun3d);
   const [scene3d, setScene3d] = useState(false);
   const sceneReady = useCallback(() => setScene3d(true), []);
-  const [intro, setIntro] = useState(() => !readSession('pukaar.intro') && !prefersReducedMotion());
+  const [introWanted, setIntro] = useState(() => !readSession('pukaar.intro') && !prefersReducedMotion());
+  // A tour opened with ?tour=1 starts on this hero: the intro would cover it.
+  const touring = useTour((s) => s.active);
+  const intro = introWanted && !touring;
   const { data, error } = usePoll(() => api.overview(), [], 30000);
   const reportUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/report`;
 
@@ -151,7 +156,7 @@ export default function Landing() {
           </Suspense>
         )}
         <div className="hero-inner">
-          <div className="hero-copy">
+          <div className="hero-copy" data-tour="hero">
             <p className="eyebrow eyebrow-night hero-eyebrow">{t('landing.eyebrow')}</p>
             <h1 id="hero-title" className="hero-h1">
               <span className="hh-line">{lang === 'hi' ? 'नदी से पहले,' : 'The call that'}</span>
@@ -182,6 +187,7 @@ export default function Landing() {
               <ArrowUpRight aria-hidden="true" />
             </Link>
           </div>
+          <TourButton className="hero-tour" />
           <div className="hero-live">
             {data && top ? (
               <Link to="/live" className="hero-live-chip">

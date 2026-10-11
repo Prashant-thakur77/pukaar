@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { API_BASE } from '../api';
 import { PageBand } from '../components/PageBand';
 import { capFeedUrl } from '../lib/cap';
+import { TourButton } from '../components/Tour';
 import { Reveal } from '../components/Reveal';
 import { useT } from '../i18n';
 
@@ -108,6 +109,18 @@ const LOOP: Step[] = [
     },
     src: [CUMISKEY],
   },
+  {
+    title: { en: '“मैं सुरक्षित हूँ” — the roll-call after', hi: '“मैं सुरक्षित हूँ” — बाद में हाज़िरी' },
+    what: {
+      en: 'After a live warning or critical alert, every phone gets “Are you safe?” with two buttons. The officer sees who needs help first, and who has not answered. A “safe” tap gives a link to forward to family.',
+      hi: '“चेतावनी” या “गंभीर” स्तर की असली चेतावनी के बाद हर फ़ोन पर सवाल आता है “क्या आप सुरक्षित हैं?”, दो बटन के साथ। अधिकारी पहले देखता है किसे मदद चाहिए, फिर किसका जवाब नहीं आया। “सुरक्षित” दबाने पर परिवार को भेजने का लिंक मिलता है।',
+    },
+    aws: 'Telegram · Lambda · DynamoDB (TTL) · Cedar · CloudWatch alarm',
+    why: {
+      en: 'After a flood, calls from relatives jam the towers still standing. One tap, as in Facebook’s Safety Check, frees the lines and tells officers who has not checked in. Replays never ask a real phone.',
+      hi: 'बाढ़ के बाद रिश्तेदारों के फ़ोन बचे हुए टावरों को भर देते हैं। एक टैप (Facebook के Safety Check जैसा) लाइनें खाली रखता है और अधिकारी को बताता है किसकी ख़बर नहीं आई। रीप्ले कभी असली फ़ोन से नहीं पूछता।',
+    },
+  },
 ];
 
 const STATS: { num: string; cap: Txt; src: Source }[] = [
@@ -200,9 +213,10 @@ export default function How() {
         title={en ? 'How we do it — and why it works' : 'हम कैसे करते हैं — और क्यों भरोसेमंद'}
         lead={
           en
-            ? 'Seven steps from a forecast to a confirmed “मिल गया” on a phone in the village. Each step, the AWS service behind it, and the evidence that it matters.'
-            : 'पूर्वानुमान से गाँव के फ़ोन पर “मिल गया” तक सात क़दम। हर क़दम, उसके पीछे की AWS सेवा, और यह क्यों ज़रूरी है इसका सबूत।'
+            ? 'Seven steps from a forecast to a confirmed “मिल गया” on a phone in the village, then a one-tap roll-call of who is safe. Each step, the AWS service behind it, and the evidence that it matters.'
+            : 'पूर्वानुमान से गाँव के फ़ोन पर “मिल गया” तक सात क़दम, फिर एक टैप की हाज़िरी कि कौन सुरक्षित है। हर क़दम, उसके पीछे की AWS सेवा, और यह क्यों ज़रूरी है इसका सबूत।'
         }
+        aside={<TourButton />}
       />
 
       <section className="how-band how-loop" aria-labelledby="how-loop-h">
@@ -211,7 +225,7 @@ export default function How() {
           <h2 id="how-loop-h" className="how-h">
             {en ? 'The loop' : 'पूरा चक्र'}
           </h2>
-          <ol className="how-steps">
+          <ol className="how-steps" data-tour="how-loop">
             {LOOP.map((s, i) => (
               <Reveal as="li" key={s.aws} className="how-step" delay={(i % 3) * 80}>
                 <span className="how-num" aria-hidden="true">

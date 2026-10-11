@@ -14,7 +14,7 @@ from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.core.ids import new_id
 from Pukaar.core.log import get_logger, log
-from Pukaar.services import risk_rules
+from Pukaar.services import readiness, risk_rules
 from Pukaar.services.nowcast import nowcast
 from Pukaar.store.models import OPEN_ALERT_STATUSES, VERIFIED_STATES, Alert, Reading, Village, level_rank
 from Pukaar.store.repo import Repo
@@ -82,6 +82,8 @@ def build_trace(village: Village, reading: Reading | None, assessment: risk_rule
             "discharge_forecast": reading.discharge_forecast if reading else [],
         },
         "nowcast": nowcast(reading, village.thresholds, new_level),
+        # Soft trigger only: shown beside the level, never used to set it.
+        "readiness": readiness.outlook(reading, village.thresholds),
         "replay": bool(reading.replay) if reading else False,
     }
 
@@ -145,7 +147,8 @@ def recompute_village(
     # Gauge readings are live data: never mixed into a replay.
     sensor = None if replay or village.gauge is None else repo.latest_sensor_reading(
         village.id, risk_rules.GAUGE_FRESH_MINUTES, now=now)
-    assessment = risk_rules.assess(reading, village.thresholds, reports, now, sensor=sensor, gauge=village.gauge)
+    assessment = risk_rules.assess(reading, village.thresholds, reports, now, sensor=sensor, gauge=village.gauge,
+                                   soil=village.soil)
     previous = village.level
     if only_if_rising and level_rank(assessment.level) <= level_rank(previous):
         return SweepResult(village.id, skipped=True, level=previous, raw_level=assessment.level, note="not rising")

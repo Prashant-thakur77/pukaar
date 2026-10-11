@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from Pukaar.services import soil as soil_mod
 from Pukaar.store.models import (
     LEVELS,
     VERIFIED_STATES,
@@ -13,6 +15,7 @@ from Pukaar.store.models import (
     Reading,
     Report,
     SensorReading,
+    SoilRange,
     Thresholds,
     level_rank,
 )
@@ -31,10 +34,19 @@ AUTO_VERIFIED_CAP = "warning"
 GAUGE_FRESH_MINUTES = 30
 
 
-def rain_level(rain_24h_mm: float | None) -> str:
+def scaled_bands(factor: float = 1.0) -> tuple[tuple[str, float], ...]:
+    """The IMD bands times a soil factor, never below soil.FLOOR (70%) of IMD.
+
+    Rounded up to 0.1 mm, so rounding can never take a band below the floor.
+    """
+    f = max(soil_mod.FLOOR, min(1.0, factor))
+    return tuple((lvl, math.ceil(round(mm * f * 10, 6)) / 10) for lvl, mm in RAIN_BANDS)
+
+
+def rain_level(rain_24h_mm: float | None, bands: tuple[tuple[str, float], ...] = RAIN_BANDS) -> str:
     if rain_24h_mm is None:
         return "normal"
-    for level, mm in RAIN_BANDS:
+    for level, mm in bands:
         if rain_24h_mm >= mm:
             return level
     return "normal"
@@ -110,16 +122,28 @@ def assess(
     *,
     sensor: SensorReading | None = None,
     gauge: GaugeConfig | None = None,
+    soil: SoilRange | None = None,
+    soil_modifier: bool | None = None,
 ) -> Assessment:
     """Raw level for one sweep, before hysteresis. reports = (report, created_at).
 
     sensor/gauge: the village gauge's latest reading and its stage thresholds. Only a
     reading at most GAUGE_FRESH_MINUTES old counts; a stale or missing one changes nothing.
+    soil/soil_modifier: the village's soil range and whether the soil modifier may lower the
+    rain bands (None reads the PUKAAR_SOIL_MODIFIER setting).
     """
     rules: list[str] = []
     evidence: list[dict[str, Any]] = []
 
-    rain = rain_level(reading.rain_24h_mm if reading else None)
+    if soil_modifier is None:
+        from Pukaar.core.config import get_settings
+
+        soil_modifier = get_settings().soil_modifier_enabled
+    soil_info = soil_mod.evaluate(reading, soil, soil_modifier)
+    bands = scaled_bands(soil_info["factor"])
+    if soil_info["applied"]:
+        rules.append(soil_mod.rule_tag(soil_info))
+    rain = rain_level(reading.rain_24h_mm if reading else None, bands)
     river = river_level(reading.discharge_peak if reading else None, thresholds)
     if reading is not None:
         evidence.append(
@@ -129,15 +153,18 @@ def assess(
                 "source": reading.source,
                 "rain_24h_mm": reading.rain_24h_mm,
                 "rain_level": rain,
-                "rain_bands_mm": {lvl: mm for lvl, mm in RAIN_BANDS},
+                "rain_bands_mm": {lvl: mm for lvl, mm in bands},
+                "rain_bands_imd_mm": {lvl: mm for lvl, mm in RAIN_BANDS},
                 "discharge_peak": reading.discharge_peak,
                 "river_level": river,
                 "thresholds": thresholds.model_dump() if thresholds else None,
                 "replay": reading.replay,
             }
         )
+        if soil_info["moisture_root"] is not None:
+            evidence.append({"kind": "soil", "at": reading.at, **soil_info})
         if rain != "normal":
-            rules.append(f"rain_24h>={dict(RAIN_BANDS)[rain]}mm:{rain}")
+            rules.append(f"rain_24h>={dict(bands)[rain]}mm:{rain}")
         if river != "normal" and thresholds is not None:
             rules.append(f"discharge>={getattr(thresholds, river)}:{river}")
     else:

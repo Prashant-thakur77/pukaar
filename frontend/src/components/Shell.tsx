@@ -8,6 +8,7 @@ import { useAuth, useNet, usePrefs, type ThemePref } from '../store';
 import { usePoll } from '../hooks/usePoll';
 import { fmtTime } from '../lib/format';
 import { REPLAY_EVENT } from '../lib/events';
+import { TourHost } from './Tour';
 
 const NAV = [
   { to: '/live', key: 'nav.live' },
@@ -314,6 +315,7 @@ export default function Shell() {
       </main>
       {villager ? null : <Footer />}
       {pathname.startsWith('/t/') && <Call112 variant="fab" />}
+      <TourHost />
     </>
   );
 }

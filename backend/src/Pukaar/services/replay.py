@@ -124,7 +124,7 @@ def run(repo: Repo, *, speed_seconds_per_hour: float = 2.0, workflow=None) -> Re
     return final
 
 
-def backtest(scenario: str, villages) -> list[dict]:
+def backtest(scenario: str, villages, soil_modifier: bool | None = None) -> list[dict]:
     """Pure rules over the archived data, no store: first time each level is
     reached, time of peak forecast discharge, and the lead time between them."""
     rows = []
@@ -139,7 +139,7 @@ def backtest(scenario: str, villages) -> list[dict]:
             if reading is None:
                 continue
             max_rain = max(max_rain, reading.rain_24h_mm or 0.0)
-            a = risk_rules.assess(reading, v.thresholds, [], at)
+            a = risk_rules.assess(reading, v.thresholds, [], at, soil=v.soil, soil_modifier=soil_modifier)
             level, calm, _ = risk_rules.apply_hysteresis(level, calm, a.level)
             for lvl in first:
                 if first[lvl] is None and level_rank(level) >= level_rank(lvl):

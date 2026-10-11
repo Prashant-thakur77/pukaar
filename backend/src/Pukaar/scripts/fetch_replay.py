@@ -2,20 +2,25 @@
 
 Rain: Open-Meteo historical-forecast API, hourly precipitation (what the
 forecast models said at the time). River: Open-Meteo flood API, archived daily
-river discharge (used as a stand-in for a perfect discharge forecast).
+river discharge (used as a stand-in for a perfect discharge forecast). Soil:
+the same historical-forecast API, hourly root-zone soil moisture (9-27 and
+27-81 cm, averaged), written to soil.json beside scenario.json.
 
-    python -m Pukaar.scripts.fetch_replay
+    python -m Pukaar.scripts.fetch_replay          # everything
+    python -m Pukaar.scripts.fetch_replay --soil   # soil.json only; scenario.json untouched
 """
 
 from __future__ import annotations
 
 import json
+import sys
 import time
 from datetime import date, timedelta
 
 import httpx
 
 from Pukaar.core.config import get_settings
+from Pukaar.services import soil
 from Pukaar.services.external_data import FLOOD_URL
 
 HIST_FORECAST_URL = "https://historical-forecast-api.open-meteo.com/v1/forecast"
@@ -71,15 +76,38 @@ def fetch(name: str, spec: dict, villages: list[dict], client: httpx.Client) -> 
     return out
 
 
+def fetch_soil(name: str, spec: dict, villages: list[dict], client: httpx.Client) -> dict:
+    """Hourly root-zone soil moisture over the replay window, one rounded value per hour (small file)."""
+    start = date.fromisoformat(spec["start"][:10])
+    end = date.fromisoformat(spec["end"][:10]) + timedelta(days=1)
+    out: dict = {"name": name, "start": f"{start.isoformat()}T00:00:00Z", "step_hours": 1, "unit": "m³/m³",
+                 "layers": list(soil.LAYERS), "value": "mean of the layers",
+                 "source": HIST_FORECAST_URL + " (hourly " + ", ".join(soil.LAYERS) + ", best_match)", "villages": {}}
+    for v in villages:
+        data = _get(client, HIST_FORECAST_URL, {"latitude": v["lat"], "longitude": v["lon"], "hourly": ",".join(soil.LAYERS),
+                                                "start_date": start.isoformat(), "end_date": end.isoformat(),
+                                                "timezone": "GMT"})
+        h = data["hourly"]
+        out["villages"][v["id"]] = [soil.root_zone(h, i) for i in range(len(h["time"]))]
+        print(name, v["id"], "soil hours", len(h["time"]))
+        time.sleep(1)
+    return out
+
+
 def main() -> None:
     s = get_settings()
     villages = json.loads((s.data_dir / "villages.json").read_text(encoding="utf-8"))["villages"]
+    soil_only = "--soil" in sys.argv[1:]
     with httpx.Client(timeout=60) as client:
         for name, spec in SCENARIOS.items():
             folder = s.data_dir / "replay" / name
             folder.mkdir(parents=True, exist_ok=True)
-            data = fetch(name, spec, villages, client)
-            (folder / "scenario.json").write_text(json.dumps(data) + "\n", encoding="utf-8")
+            if not soil_only:
+                data = fetch(name, spec, villages, client)
+                (folder / "scenario.json").write_text(json.dumps(data) + "\n", encoding="utf-8")
+            soil_data = fetch_soil(name, spec, villages, client)
+            (folder / "soil.json").write_text(json.dumps(soil_data, ensure_ascii=False, separators=(",", ":")) + "\n",
+                                              encoding="utf-8")
 
 
 if __name__ == "__main__":

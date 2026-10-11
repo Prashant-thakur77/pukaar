@@ -9,6 +9,7 @@ import type {
   AskResponse,
   Audit,
   Backtest,
+  Checklist,
   CreateReportResponse,
   DevApprovalLink,
   DevLoginResponse,
@@ -20,6 +21,10 @@ import type {
   ReplayStatus,
   Report,
   ReportState,
+  RollCall,
+  RollCallBoard,
+  RollCallRemind,
+  SafeView,
   Stats,
   TelegramLink,
   TrackView,
@@ -182,6 +187,8 @@ export const api = {
 
   villages: () => request<Village[]>('/villages'),
   village: (id: string) => request<VillageDetail>(`/villages/${enc(id)}`),
+  setChecklist: (villageId: string, item: string, done: boolean) =>
+    request<Checklist>(`/villages/${enc(villageId)}/checklist/${enc(item)}`, { method: 'POST', body: { done } }),
 
   alerts: (p: { status?: AlertStatus; village_id?: string } = {}) => request<Alert[]>(`/alerts${qs(p)}`),
   alert: (id: string) => request<AlertDetail>(`/alerts/${enc(id)}`),
@@ -217,6 +224,13 @@ export const api = {
 
   overview: () => request<PublicOverview>('/public/overview', { auth: false }),
   track: (code: string) => request<TrackView>(`/track/${enc(code)}`, { auth: false }),
+
+  rollcalls: (village_id?: string) => request<RollCall[]>(`/rollcalls${qs({ village_id })}`),
+  rollcall: (id: string) => request<RollCallBoard>(`/rollcalls/${enc(id)}`),
+  openRollcall: (village_id: string, exercise = false) =>
+    request<RollCallBoard>('/rollcalls', { method: 'POST', body: { village_id, exercise } }),
+  remindRollcall: (id: string) => request<RollCallRemind>(`/rollcalls/${enc(id)}/remind`, { method: 'POST', body: {} }),
+  safe: (token: string) => request<SafeView>(`/safe/${enc(token)}`, { auth: false }),
 };
 
 /** Static back-test results served by the web host, not the API. Null when absent. */

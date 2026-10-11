@@ -39,6 +39,17 @@
           "scored": 1,
           "median_lead_hours": 48.0,
           "lead_is_lower_bound": true
+        },
+        {
+          "key": "both_soil",
+          "label": "both + soil",
+          "hits": 1,
+          "misses": 0,
+          "false_alarms": 0,
+          "correct_quiet": 0,
+          "scored": 1,
+          "median_lead_hours": 48.0,
+          "lead_is_lower_bound": true
         }
       ],
       "villages": [
@@ -67,6 +78,13 @@
             "first_watch": "2023-07-08T04:00:00Z",
             "first_warning": null,
             "watch_at_window_start": false
+          },
+          "both_soil": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-08T04:00:00Z",
+            "first_warning": "2023-07-09T00:00:00Z",
+            "watch_at_window_start": false
           }
         },
         {
@@ -94,6 +112,13 @@
             "first_watch": "2023-07-11T00:00:00Z",
             "first_warning": null,
             "watch_at_window_start": false
+          },
+          "both_soil": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-08T09:00:00Z",
+            "first_warning": null,
+            "watch_at_window_start": false
           }
         },
         {
@@ -116,6 +141,13 @@
             "watch_at_window_start": false
           },
           "both": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-08T00:00:00Z",
+            "first_warning": "2023-07-08T05:00:00Z",
+            "watch_at_window_start": false
+          },
+          "both_soil": {
             "result": "uncertain",
             "lead_hours": null,
             "first_watch": "2023-07-08T00:00:00Z",
@@ -148,6 +180,13 @@
             "first_watch": "2023-07-07T00:00:00Z",
             "first_warning": "2023-07-08T05:00:00Z",
             "watch_at_window_start": true
+          },
+          "both_soil": {
+            "result": "hit",
+            "lead_hours": 48.0,
+            "first_watch": "2023-07-07T00:00:00Z",
+            "first_warning": "2023-07-08T05:00:00Z",
+            "watch_at_window_start": true
           }
         },
         {
@@ -175,7 +214,141 @@
             "first_watch": "2023-07-07T00:00:00Z",
             "first_warning": "2023-07-07T00:00:00Z",
             "watch_at_window_start": true
+          },
+          "both_soil": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2023-07-07T00:00:00Z",
+            "first_warning": "2023-07-07T00:00:00Z",
+            "watch_at_window_start": true
           }
+        }
+      ],
+      "soil_effect": [
+        {
+          "village_id": "thunag",
+          "village": "Thunag",
+          "truth": "uncertain",
+          "max_saturation": 1.0,
+          "hours_saturated": 63,
+          "hours_with_soil": 97,
+          "both": {
+            "first_watch": "2023-07-08T04:00:00Z",
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 60,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "both_soil": {
+            "first_watch": "2023-07-08T04:00:00Z",
+            "first_warning": "2023-07-09T00:00:00Z",
+            "first_critical": null,
+            "hours_watch_or_above": 64,
+            "hours_warning_or_above": 11,
+            "hours_critical_or_above": 0
+          },
+          "changed": true
+        },
+        {
+          "village_id": "janjehli",
+          "village": "Janjehli",
+          "truth": "uncertain",
+          "max_saturation": 1.0,
+          "hours_saturated": 97,
+          "hours_with_soil": 97,
+          "both": {
+            "first_watch": "2023-07-11T00:00:00Z",
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 1,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "both_soil": {
+            "first_watch": "2023-07-08T09:00:00Z",
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 28,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "changed": true
+        },
+        {
+          "village_id": "gohar",
+          "village": "Gohar",
+          "truth": "uncertain",
+          "max_saturation": 0.891,
+          "hours_saturated": 36,
+          "hours_with_soil": 97,
+          "both": {
+            "first_watch": "2023-07-08T00:00:00Z",
+            "first_warning": "2023-07-08T05:00:00Z",
+            "first_critical": "2023-07-09T02:00:00Z",
+            "hours_watch_or_above": 73,
+            "hours_warning_or_above": 39,
+            "hours_critical_or_above": 9
+          },
+          "both_soil": {
+            "first_watch": "2023-07-08T00:00:00Z",
+            "first_warning": "2023-07-08T05:00:00Z",
+            "first_critical": "2023-07-09T02:00:00Z",
+            "hours_watch_or_above": 73,
+            "hours_warning_or_above": 45,
+            "hours_critical_or_above": 9
+          },
+          "changed": true
+        },
+        {
+          "village_id": "pandoh",
+          "village": "Pandoh",
+          "truth": "event",
+          "max_saturation": 0.891,
+          "hours_saturated": 36,
+          "hours_with_soil": 97,
+          "both": {
+            "first_watch": "2023-07-07T00:00:00Z",
+            "first_warning": "2023-07-08T05:00:00Z",
+            "first_critical": "2023-07-09T02:00:00Z",
+            "hours_watch_or_above": 74,
+            "hours_warning_or_above": 39,
+            "hours_critical_or_above": 9
+          },
+          "both_soil": {
+            "first_watch": "2023-07-07T00:00:00Z",
+            "first_warning": "2023-07-08T05:00:00Z",
+            "first_critical": "2023-07-09T02:00:00Z",
+            "hours_watch_or_above": 77,
+            "hours_warning_or_above": 45,
+            "hours_critical_or_above": 9
+          },
+          "changed": true
+        },
+        {
+          "village_id": "sujanpur",
+          "village": "Sujanpur",
+          "truth": "uncertain",
+          "max_saturation": 0.887,
+          "hours_saturated": 23,
+          "hours_with_soil": 97,
+          "both": {
+            "first_watch": "2023-07-07T00:00:00Z",
+            "first_warning": "2023-07-07T00:00:00Z",
+            "first_critical": "2023-07-07T00:00:00Z",
+            "hours_watch_or_above": 97,
+            "hours_warning_or_above": 97,
+            "hours_critical_or_above": 74
+          },
+          "both_soil": {
+            "first_watch": "2023-07-07T00:00:00Z",
+            "first_warning": "2023-07-07T00:00:00Z",
+            "first_critical": "2023-07-07T00:00:00Z",
+            "hours_watch_or_above": 97,
+            "hours_warning_or_above": 97,
+            "hours_critical_or_above": 74
+          },
+          "changed": false
         }
       ]
     },
@@ -216,6 +389,17 @@
           "scored": 3,
           "median_lead_hours": null,
           "lead_is_lower_bound": false
+        },
+        {
+          "key": "both_soil",
+          "label": "both + soil",
+          "hits": 0,
+          "misses": 3,
+          "false_alarms": 0,
+          "correct_quiet": 0,
+          "scored": 3,
+          "median_lead_hours": null,
+          "lead_is_lower_bound": false
         }
       ],
       "villages": [
@@ -239,6 +423,13 @@
             "watch_at_window_start": false
           },
           "both": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "both_soil": {
             "result": "miss",
             "lead_hours": null,
             "first_watch": null,
@@ -271,6 +462,13 @@
             "first_watch": null,
             "first_warning": null,
             "watch_at_window_start": false
+          },
+          "both_soil": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
           }
         },
         {
@@ -293,6 +491,13 @@
             "watch_at_window_start": false
           },
           "both": {
+            "result": "miss",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
+          },
+          "both_soil": {
             "result": "miss",
             "lead_hours": null,
             "first_watch": null,
@@ -325,6 +530,13 @@
             "first_watch": null,
             "first_warning": null,
             "watch_at_window_start": false
+          },
+          "both_soil": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": null,
+            "first_warning": null,
+            "watch_at_window_start": false
           }
         },
         {
@@ -352,7 +564,141 @@
             "first_watch": "2025-06-30T06:00:00Z",
             "first_warning": null,
             "watch_at_window_start": false
+          },
+          "both_soil": {
+            "result": "uncertain",
+            "lead_hours": null,
+            "first_watch": "2025-06-30T06:00:00Z",
+            "first_warning": null,
+            "watch_at_window_start": false
           }
+        }
+      ],
+      "soil_effect": [
+        {
+          "village_id": "thunag",
+          "village": "Thunag",
+          "truth": "event",
+          "max_saturation": 0.674,
+          "hours_saturated": 0,
+          "hours_with_soil": 73,
+          "both": {
+            "first_watch": null,
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 0,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "both_soil": {
+            "first_watch": null,
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 0,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "changed": false
+        },
+        {
+          "village_id": "janjehli",
+          "village": "Janjehli",
+          "truth": "event",
+          "max_saturation": 0.651,
+          "hours_saturated": 0,
+          "hours_with_soil": 73,
+          "both": {
+            "first_watch": null,
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 0,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "both_soil": {
+            "first_watch": null,
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 0,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "changed": false
+        },
+        {
+          "village_id": "gohar",
+          "village": "Gohar",
+          "truth": "event",
+          "max_saturation": 0.368,
+          "hours_saturated": 0,
+          "hours_with_soil": 73,
+          "both": {
+            "first_watch": null,
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 0,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "both_soil": {
+            "first_watch": null,
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 0,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "changed": false
+        },
+        {
+          "village_id": "pandoh",
+          "village": "Pandoh",
+          "truth": "uncertain",
+          "max_saturation": 0.368,
+          "hours_saturated": 0,
+          "hours_with_soil": 73,
+          "both": {
+            "first_watch": null,
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 0,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "both_soil": {
+            "first_watch": null,
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 0,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "changed": false
+        },
+        {
+          "village_id": "sujanpur",
+          "village": "Sujanpur",
+          "truth": "uncertain",
+          "max_saturation": 0.503,
+          "hours_saturated": 0,
+          "hours_with_soil": 73,
+          "both": {
+            "first_watch": "2025-06-30T06:00:00Z",
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 10,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "both_soil": {
+            "first_watch": "2025-06-30T06:00:00Z",
+            "first_warning": null,
+            "first_critical": null,
+            "hours_watch_or_above": 10,
+            "hours_warning_or_above": 0,
+            "hours_critical_or_above": 0
+          },
+          "changed": false
         }
       ]
     }

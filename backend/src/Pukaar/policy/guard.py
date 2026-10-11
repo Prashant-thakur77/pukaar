@@ -25,7 +25,8 @@ READ_ONLY_TOOLS = {
     "query_readings", "query_alerts", "query_reports", "query_deliveries", "village_stats", "rank_villages",
 }
 ROLE_TYPES = {"officer": "Officer", "pradhan": "Pradhan", "system": "System", "agent": "Agent"}
-RESOURCE_TYPES = {"village": "Village", "alert": "Alert", "report": "Report", "tool": "Tool", "app": "App"}
+RESOURCE_TYPES = {"village": "Village", "alert": "Alert", "report": "Report", "rollcall": "RollCall", "tool": "Tool",
+                  "app": "App"}
 DENY_HINTS = {
     "approve": "Only a district officer can approve an alert.",
     "decline": "Only a district officer can decline an alert.",
@@ -39,6 +40,10 @@ DENY_HINTS = {
     "auto_send": "Auto-send is allowed only for a critical alert after every officer timed out.",
     "use_tool": "That tool is not on the agent's read-only allowlist.",
     "dev_link": "Only a district officer can open the demo approval link.",
+    "tick_checklist": "Only a district officer or this village's own pradhan can change its checklist.",
+    "open_rollcall": "Only a district officer, or the pradhan of this village, can open a safety roll-call here.",
+    "view_rollcall": "You can only see the roll-call of your own villages.",
+    "remind_rollcall": "Only a district officer, or the pradhan of this village, can send a roll-call reminder.",
 }
 
 

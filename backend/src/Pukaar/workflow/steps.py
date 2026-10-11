@@ -16,6 +16,7 @@ from Pukaar.core.log import get_logger, log, metric
 from Pukaar.delivery import dispatch
 from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.policy.guard import SYSTEM, authorize
+from Pukaar.services import rollcall
 from Pukaar.services.drafting import draft_alert
 from Pukaar.store.models import Alert
 from Pukaar.store.repo import ConflictError, Repo
@@ -197,7 +198,14 @@ class Steps:
             if village and village.open_alert_id == alert.id:
                 self.repo.update_village(village.id, open_alert_id=None)
             self.repo.add_timeline(alert.id, "closed", f"outcome={outcome}")
-            return {"alert_id": alert.id, "status": status}
+            out: dict[str, Any] = {"alert_id": alert.id, "status": status}
+            try:  # "Surakshit Hoon": live warning/critical alerts that reached phones open a safety roll-call
+                rc = rollcall.open_after_alert(self.repo, self.repo.get_alert(alert.id) or alert, status)
+                if rc is not None:
+                    out["rollcall_id"] = rc.id
+            except Exception as exc:  # a roll-call problem never breaks closing the alert
+                log(_LOG, "roll-call open error", 40, alert_id=alert.id, error=str(exc)[:300])
+            return out
         except Exception as exc:
             log(_LOG, "close error", 40, alert_id=alert_id, error=str(exc)[:300])
             return {"alert_id": alert_id, "status": "error"}

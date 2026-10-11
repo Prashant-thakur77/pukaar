@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TimeToEar } from '../../components/TimeToEar';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { Bell, ChevronDown, Cloud, FileText, History, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
+import { Bell, ChevronDown, Cloud, FileText, HeartHandshake, History, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
 import { api, API_BASE } from '../../api';
 import { AlertStatusChip, DeliveryChips } from '../../components/Chips';
 import { LevelBadge } from '../../components/Level';
@@ -20,6 +20,7 @@ import { Ask } from './Ask';
 import { Directives } from './Directives';
 import { Replay } from './Replay';
 import { ReportFeed } from './ReportFeed';
+import { RollCallPanel } from './RollCall';
 import { SystemCard } from './System';
 import { TelegramLink } from './TelegramLink';
 import { VillageQueue } from './VillageQueue';
@@ -65,6 +66,7 @@ function Console() {
   const tabs = [
     { href: '#approvals', label: t('console.tab.approvals'), icon: Bell, badge: pendingN },
     { href: '#queue', label: t('console.tab.queue'), icon: LayoutList },
+    { href: '#rollcall', label: t('console.tab.rollcall'), icon: HeartHandshake },
     { href: '#reports', label: t('console.tab.reports'), icon: FileText },
     ...(officer
       ? [
@@ -158,6 +160,13 @@ function Console() {
             <LayoutList aria-hidden="true" /> {t('console.queue')}
           </h2>
           <VillageQueue poll={villages} />
+        </section>
+
+        <section id="rollcall" className="panel panel-rollcall" aria-labelledby="rc-h">
+          <h2 id="rc-h" className="panel-title">
+            <HeartHandshake aria-hidden="true" /> {t('rollcall.title')}
+          </h2>
+          <RollCallPanel villages={vs} villageIds={officer ? null : (me.data?.village_ids ?? user?.village_ids ?? [])} />
         </section>
 
         {officer && (

@@ -32,6 +32,11 @@ export function VillageQueue({ poll }: { poll: PollState<Village[]> }) {
               <span className="q-badges">
                 <LevelBadge level={v.level} size="sm" />
                 {v.open_alert_id && <span className="q-open" role="img" title="Open alert" aria-label="Open alert" />}
+                {v.readiness?.state === 'get_ready' && (
+                  <span className="chip chip-ready" title={t('ready.soft')}>
+                    {t('ready.get')}
+                  </span>
+                )}
               </span>
               <span className="small muted">
                 {t('console.reading', {

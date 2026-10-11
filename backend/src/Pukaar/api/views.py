@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from Pukaar.services import gauge, storage
+from Pukaar.core.config import get_settings
+from Pukaar.services import checklist, gauge, readiness, rollcall, soil, storage
 from Pukaar.services.nowcast import nowcast
 from Pukaar.store.models import Alert, Report, Village
 from Pukaar.store.repo import Repo
@@ -16,7 +17,14 @@ def village(repo: Repo, v: Village) -> dict[str, Any]:
     latest = repo.list_readings(v.id, limit=1)
     out = v.model_dump()
     out["latest_reading"] = latest[0].model_dump() if latest else None
+    # The soft "get ready" outlook: never changes the level (services/readiness.py).
+    out["readiness"] = readiness.outlook(latest[0] if latest else None, v.thresholds)
     return out
+
+
+def soil_view(v: Village, latest) -> dict[str, Any]:
+    info = soil.evaluate(latest, v.soil, get_settings().soil_modifier_enabled)
+    return {**info, "at": latest.at if latest else None, "replay": bool(latest.replay) if latest else False}
 
 
 def alert(a: Alert) -> dict[str, Any]:
@@ -50,6 +58,10 @@ def village_detail(repo: Repo, v: Village) -> dict[str, Any]:
         "directives": [d.model_dump() for d in repo.list_directives(v.id)[:5]],
         "nowcast": nowcast(readings[0] if readings else None, v.thresholds, v.level),
         "gauge": gauge.view(repo, v),
+        "soil": soil_view(v, readings[0] if readings else None),
+        "checklist": checklist.view(repo, v.id),
+        # an open safety roll-call: counts only, never names (services/rollcall.py)
+        "rollcall": rollcall.public_for_village(repo, v.id),
     }
 
 

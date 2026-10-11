@@ -11,7 +11,7 @@ from Pukaar.core.config import get_settings
 from Pukaar.delivery import dispatch, telegram
 from Pukaar.services import cap
 from Pukaar.services import replay as replay_svc
-from Pukaar.services import storage
+from Pukaar.services import rollcall, storage
 from Pukaar.services.reports import track_steps
 from Pukaar.store.repo import ConflictError, get_repo
 from Pukaar.templates import hi
@@ -84,7 +84,8 @@ def overview() -> dict:
     return {
         "counters": views.counters(repo),
         "villages": [{"id": v.id, "name": v.name, "name_hi": v.name_hi, "lat": v.lat, "lon": v.lon, "level": v.level,
-                      "coords_verified": v.coords_verified, "replay": v.replay} for v in repo.list_villages()],
+                      "coords_verified": v.coords_verified, "replay": v.replay,
+                      "rollcall": rollcall.public_for_village(repo, v.id)} for v in repo.list_villages()],
         "recent_alerts": [{"id": a.id, "village_name": a.village_name, "village_name_hi": a.village_name_hi,
                            "level": a.level, "status": a.status, "created_at": a.created_at, "approved": a.approved,
                            "delivered_count": a.delivered_count, "acknowledged_count": a.acknowledged_count,
@@ -221,6 +222,23 @@ def approval_decide(token: str, body: LinkDecision) -> dict:
     except KeyError:
         raise HTTPException(404, "Alert not found") from None
     return views.alert(a)
+
+
+@router.get("/safe/{token}")
+def safe_share(token: str) -> dict:
+    """A family link from the roll-call: first name (or none), time, village. Nothing else."""
+    try:
+        return rollcall.safe_view(get_repo(), token)
+    except tokens.TokenError as exc:
+        if str(exc) == "expired":
+            raise HTTPException(410, {"code": "expired", "message_en": "This link has expired (links last 7 days).",
+                                      "message_hi": "यह लिंक पुराना हो गया है (लिंक 7 दिन चलता है)।"}) from exc
+        raise HTTPException(400, {"code": "invalid", "message_en": "This link is not valid. Open the full link from the message.",
+                                  "message_hi": "यह लिंक सही नहीं है। संदेश में आया पूरा लिंक खोलें।"}) from exc
+    except rollcall.NotCurrent as exc:
+        raise HTTPException(410, {"code": "not_current",
+                                  "message_en": "This update is no longer current. Please contact your family member directly.",
+                                  "message_hi": "यह जानकारी अब ताज़ा नहीं है। कृपया अपने परिजन से सीधे संपर्क करें।"}) from exc
 
 
 class Ack(BaseModel):

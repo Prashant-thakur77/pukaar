@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, MapPin } from 'lucide-react';
+import { ArrowUpRight, HeartHandshake, MapPin } from 'lucide-react';
 import { api } from '../api';
 import { AckFunnel } from '../components/AckFunnel';
 import { AllClear } from '../components/AllClear';
@@ -83,7 +83,7 @@ export default function Live() {
         <ErrorState error={error} onRetry={refresh} />
       ) : (
         <div className="live-grid">
-          <div className="live-map card card-flush">
+          <div className="live-map card card-flush" data-tour="live-map">
             {data ? (
               <VillageMap villages={data.villages} onSelect={(id) => nav(`/village/${id}`)} />
             ) : (
@@ -137,7 +137,7 @@ export default function Live() {
           )}
 
           {data && (
-            <div className="live-funnel">
+            <div className="live-funnel" data-tour="funnel">
               <AckFunnel alerts={data.recent_alerts} />
             </div>
           )}
@@ -166,6 +166,11 @@ export default function Live() {
                       {!v.coords_verified && (
                         <span className="vt-approx">
                           <MapPin aria-hidden="true" /> {t('common.approx')}
+                        </span>
+                      )}
+                      {v.rollcall?.open && (
+                        <span className={`vt-rc${v.rollcall.need_help > 0 ? ' has-help' : ''}`}>
+                          <HeartHandshake aria-hidden="true" /> {t('rollcall.public.short', { s: v.rollcall.safe, h: v.rollcall.need_help })}
                         </span>
                       )}
                     </Link>

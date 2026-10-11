@@ -2,8 +2,11 @@
 
 Keys:
   VILLAGE#id  META | READING#iso | SENSOR#iso#device | SENSORLAST#device | REPORT#iso#id | DEDUPE#window | RECIPIENT#id
-              | EVENT#date | DIRECTIVE#iso#id
+              | EVENT#date | DIRECTIVE#iso#id | CHECKLIST#item | ROLLCALL#iso#id (pointer, TTL 30 days)
   ALERT#id    META | DELIVERY#recipient | TIMELINE#iso#n
+  ROLLCALL#id META | ASKED#recipient | RESP#recipient   (safety roll-call; TTL 30 days)
+  SAFESHARE#id META                   (family link pointer; TTL 7 days)
+  HELPNOTE#chat META                  (waiting for a short note after "need help"; TTL 1 hour)
   ALERTLOG    iso#alert_id            (index of every alert, newest last)
   REPORTREF#id META                   (pointer to the report item)
   TRACK#code  META                    (pointer from a tracking code to its report)
@@ -29,6 +32,7 @@ from Pukaar.store.models import (
     OPEN_ALERT_STATUSES,
     Alert,
     AuditRow,
+    ChecklistItem,
     Delivery,
     Directive,
     PastEvent,
@@ -36,6 +40,9 @@ from Pukaar.store.models import (
     Recipient,
     ReplayState,
     Report,
+    RollCall,
+    RollCallAsked,
+    RollCallResponse,
     SensorReading,
     TimelineEvent,
     Village,
@@ -43,6 +50,7 @@ from Pukaar.store.models import (
 
 M = TypeVar("M", bound=BaseModel)
 _KEY_FIELDS = {"pk", "sk", "gsi1pk", "gsi1sk", "ttl", "kind"}
+ROLLCALL_TTL_DAYS = 30
 
 
 class ConflictError(Exception):
@@ -340,6 +348,13 @@ class Repo:
         items = self._query(f"VILLAGE#{village_id}", "DIRECTIVE#", newest_first=True)
         return [_model(Directive, i) for i in items]
 
+    # -- early-action checklist -------------------------------------------
+    def put_checklist_item(self, c: ChecklistItem) -> None:
+        self._put({"pk": f"VILLAGE#{c.village_id}", "sk": f"CHECKLIST#{c.item}", **c.model_dump()})
+
+    def list_checklist(self, village_id: str) -> list[ChecklistItem]:
+        return [_model(ChecklistItem, i) for i in self._query(f"VILLAGE#{village_id}", "CHECKLIST#")]
+
     # -- alerts ----------------------------------------------------------
     def put_alert(self, a: Alert) -> None:
         item: dict[str, Any] = {"pk": f"ALERT#{a.id}", "sk": "META", **a.model_dump()}
@@ -418,6 +433,86 @@ class Repo:
     def list_audit(self, day: str, resource: str | None = None) -> list[AuditRow]:
         rows = [_model(AuditRow, i) for i in self._query(f"AUDIT#{day}", newest_first=True)]
         return [r for r in rows if resource is None or r.resource == resource]
+
+    # -- safety roll-calls ("Surakshit Hoon") ------------------------------
+    def _rollcall_ttl(self) -> int:
+        return int(clock.now().timestamp()) + ROLLCALL_TTL_DAYS * 86400
+
+    def put_rollcall(self, rc: RollCall) -> None:
+        ttl = self._rollcall_ttl()
+        self._put({"pk": f"ROLLCALL#{rc.id}", "sk": "META", "ttl": ttl, **rc.model_dump()},
+                  condition=Attr("pk").not_exists())
+        self._put({"pk": f"VILLAGE#{rc.village_id}", "sk": f"ROLLCALL#{rc.opened_at}#{rc.id}", "rollcall_id": rc.id,
+                   "ttl": ttl})
+
+    def get_rollcall(self, rollcall_id: str) -> RollCall | None:
+        item = self._get(f"ROLLCALL#{rollcall_id}", "META")
+        return _model(RollCall, item) if item else None
+
+    def update_rollcall(self, rollcall_id: str, *, condition: Any = None, **fields: Any) -> RollCall:
+        cond = Attr("pk").exists() if condition is None else (Attr("pk").exists() & condition)
+        return _model(RollCall, self._update(f"ROLLCALL#{rollcall_id}", "META", fields, condition=cond))
+
+    def list_rollcalls(self, village_id: str, limit: int = 20) -> list[RollCall]:
+        refs = self._query(f"VILLAGE#{village_id}", "ROLLCALL#", newest_first=True, limit=limit)
+        return [rc for rc in (self.get_rollcall(str(r["rollcall_id"])) for r in refs) if rc is not None]
+
+    def put_rollcall_asked(self, a: RollCallAsked) -> None:
+        self._put({"pk": f"ROLLCALL#{a.rollcall_id}", "sk": f"ASKED#{a.recipient_id}", "ttl": self._rollcall_ttl(),
+                   **a.model_dump()})
+
+    def get_rollcall_asked(self, rollcall_id: str, recipient_id: str) -> RollCallAsked | None:
+        item = self._get(f"ROLLCALL#{rollcall_id}", f"ASKED#{recipient_id}")
+        return _model(RollCallAsked, item) if item else None
+
+    def list_rollcall_asked(self, rollcall_id: str) -> list[RollCallAsked]:
+        return [_model(RollCallAsked, i) for i in self._query(f"ROLLCALL#{rollcall_id}", "ASKED#")]
+
+    def put_rollcall_response(self, r: RollCallResponse) -> bool:
+        """Last answer wins; the same answer again changes nothing (False), so a repeated tap is a no-op."""
+        try:
+            self._put({"pk": f"ROLLCALL#{r.rollcall_id}", "sk": f"RESP#{r.recipient_id}", "ttl": self._rollcall_ttl(),
+                       **r.model_dump()},
+                      condition=Attr("pk").not_exists() | Attr("status").ne(r.status))
+            return True
+        except ConflictError:
+            return False
+
+    def get_rollcall_response(self, rollcall_id: str, recipient_id: str) -> RollCallResponse | None:
+        item = self._get(f"ROLLCALL#{rollcall_id}", f"RESP#{recipient_id}")
+        return _model(RollCallResponse, item) if item else None
+
+    def list_rollcall_responses(self, rollcall_id: str) -> list[RollCallResponse]:
+        return [_model(RollCallResponse, i) for i in self._query(f"ROLLCALL#{rollcall_id}", "RESP#")]
+
+    def update_rollcall_response(self, rollcall_id: str, recipient_id: str, **fields: Any) -> RollCallResponse:
+        return _model(RollCallResponse, self._update(f"ROLLCALL#{rollcall_id}", f"RESP#{recipient_id}", fields,
+                                                     condition=Attr("pk").exists()))
+
+    def put_safe_share(self, share_id: str, rollcall_id: str, recipient_id: str, ttl_seconds: int) -> None:
+        """Pointer behind a family link; it expires with the link."""
+        self._put({"pk": f"SAFESHARE#{share_id}", "sk": "META", "rollcall_id": rollcall_id,
+                   "recipient_id": recipient_id, "ttl": int(clock.now().timestamp()) + ttl_seconds})
+
+    def get_safe_share(self, share_id: str) -> tuple[str, str] | None:
+        item = self._get(f"SAFESHARE#{share_id}", "META")
+        return (str(item["rollcall_id"]), str(item["recipient_id"])) if item else None
+
+    def put_help_note_wait(self, chat_id: str, rollcall_id: str, ttl_seconds: int = 3600) -> None:
+        """After "need help", the next plain message from this chat (within an hour) is kept as the note."""
+        expires = int(clock.now().timestamp()) + ttl_seconds
+        self._put({"pk": f"HELPNOTE#{chat_id}", "sk": "META", "rollcall_id": rollcall_id, "expires": expires,
+                   "ttl": expires})
+
+    def consume_help_note_wait(self, chat_id: str) -> str | None:
+        try:
+            old = self.t.delete_item(Key={"pk": f"HELPNOTE#{chat_id}", "sk": "META"}, ReturnValues="ALL_OLD",
+                                     ConditionExpression=Attr("pk").exists()).get("Attributes")
+        except ClientError:
+            return None
+        if not old or int(old.get("expires", 0)) < clock.now().timestamp():
+            return None
+        return str(old["rollcall_id"])
 
     # -- replay ----------------------------------------------------------
     def get_replay(self) -> ReplayState:
