@@ -1,4 +1,3 @@
-import { CircleCheck, History, PhoneCall, Send, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { enumLabels, useT } from '../i18n';
 import type { AlertStatus, ReportState } from '../types';
 
@@ -17,35 +16,26 @@ export function ReportStateChip({ state }: { state: ReportState }) {
   return <span className={`chip chip-${tone}`}>{pick(enumLabels.reportState[state])}</span>;
 }
 
+/** Replay data is marked with a small tracked label, not a pill. */
 export function ReplayChip() {
   const { t } = useT();
   return (
-    <span className="chip chip-replay" title={t('shell.replay.chip')}>
-      <History aria-hidden="true" /> {t('common.replay')}
+    <span className="replay-tag" title={t('shell.replay.chip')}>
+      {t('common.replay')}
     </span>
   );
 }
 
-/** Approved / delivered / acknowledged trio used on public and console lists. */
+/** Approval, delivered and acknowledged counts as one plain line, not a row of chips. */
 export function DeliveryChips({ approved, delivered, acked, status }: { approved: boolean; delivered: number; acked: number; status?: AlertStatus }) {
   const { t } = useT();
+  // "Auto-sent, unapproved" already says it is unapproved, so the line does not repeat it.
+  const word = approved ? t('live.chip.approved') : status === 'failsafe' ? t('live.chip.unapproved') : null;
   return (
-    <span className="chip-row">
-      {approved ? (
-        <span className="chip chip-good">
-          <ShieldCheck aria-hidden="true" /> {t('live.chip.approved')}
-        </span>
-      ) : status === 'auto_sent_unapproved' || status === 'failsafe' ? (
-        <span className="chip chip-bad">
-          <ShieldAlert aria-hidden="true" /> {t('live.chip.unapproved')}
-        </span>
-      ) : null}
-      <span className="chip">
-        <Send aria-hidden="true" /> {t('live.chip.delivered', { n: delivered })}
-      </span>
-      <span className="chip">
-        {acked > 0 ? <CircleCheck aria-hidden="true" /> : <PhoneCall aria-hidden="true" />} {t('live.chip.acked', { n: acked })}
-      </span>
+    <span className="meta-line">
+      {word && <span className={approved ? 'ml-good' : 'ml-bad'}>{word}</span>}
+      <span>{t('live.chip.delivered', { n: delivered })}</span>
+      <span>{t('live.chip.acked', { n: acked })}</span>
     </span>
   );
 }
