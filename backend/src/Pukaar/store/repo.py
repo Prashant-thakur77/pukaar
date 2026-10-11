@@ -147,6 +147,21 @@ class Repo:
                 return items
             kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
 
+    def _count(self, pk: str, sk_from: str, sk_to: str, flt: Any = None) -> int:
+        """How many items of `pk` have sk between sk_from and sk_to (inclusive), after `flt`.
+        Select=COUNT: no item bodies come back, only the number."""
+        kwargs: dict[str, Any] = {"KeyConditionExpression": Key("pk").eq(pk) & Key("sk").between(sk_from, sk_to),
+                                  "Select": "COUNT"}
+        if flt is not None:
+            kwargs["FilterExpression"] = flt
+        total = 0
+        while True:
+            page = self.t.query(**kwargs)
+            total += int(page.get("Count", 0))
+            if "LastEvaluatedKey" not in page:
+                return total
+            kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
     def _gsi(self, gsi1pk: str) -> list[dict]:
         page = self.t.query(IndexName="gsi1", KeyConditionExpression=Key("gsi1pk").eq(gsi1pk))
         return page.get("Items", [])
@@ -211,6 +226,11 @@ class Repo:
         items = self._query(f"VILLAGE#{village_id}", "READING#", newest_first=True, limit=limit)
         return [_model(Reading, i) for i in items]
 
+    def count_live_readings(self, village_id: str, since: str, until: str) -> int:
+        """Stored forecast readings (one per village per sweep) with since <= at <= until; replay rows excluded."""
+        return self._count(f"VILLAGE#{village_id}", f"READING#{since}", f"READING#{until}",
+                           Attr("replay").not_exists() | Attr("replay").eq(False))
+
     # -- gauge (sensor) readings -----------------------------------------
     def put_sensor_reading(self, r: SensorReading, ttl_days: int = 14, min_interval_s: int = 60) -> bool:
         """Store one gauge reading. False (nothing stored) when the same device already sent a
@@ -245,6 +265,16 @@ class Repo:
                 break
             kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
         return [_model(SensorReading, i) for i in items[:limit]]
+
+    def count_sensor_readings(self, village_id: str, since: str, until: str, *, simulated: bool | None = None) -> int:
+        """Gauge readings with since <= at <= until; simulated=True/False keeps only that kind."""
+        flt = None
+        if simulated is True:
+            flt = Attr("simulated").eq(True)
+        elif simulated is False:
+            flt = Attr("simulated").not_exists() | Attr("simulated").eq(False)
+        # sk is SENSOR#<iso>#<device>: "~" sorts after the device id, so `until` itself is included.
+        return self._count(f"VILLAGE#{village_id}", f"SENSOR#{since}", f"SENSOR#{until}#~", flt)
 
     def latest_sensor_reading(self, village_id: str, max_age_minutes: float | None = 30, now: Any = None) -> SensorReading | None:
         """Newest reading, or None when there is none or it is older than max_age_minutes."""

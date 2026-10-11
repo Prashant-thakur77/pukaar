@@ -193,7 +193,17 @@ const deny = (res, action) =>
   });
 
 const overview = () => ({
-  counters: { villages_watched: VILLAGES.length, alerts_sent: alerts.filter((a) => a.delivered_count > 0).length, phones_acknowledged: alerts.reduce((s, a) => s + a.acknowledged_count, 0), reports_received: reports.length },
+  counters: {
+    villages_watched: VILLAGES.length,
+    alerts_sent: alerts.filter((a) => a.delivered_count > 0 && !a.replay).length,
+    phones_acknowledged: alerts.filter((a) => !a.replay).reduce((s, a) => s + a.acknowledged_count, 0),
+    reports_received: reports.length,
+    drills_delivered: 0,
+    replay_alerts_approved: alerts.filter((a) => a.replay && a.approved).length,
+    forecast_checks_24h: VILLAGES.length * 96,
+    gauge_readings_24h: 0,
+    gauge_readings_24h_simulated: 0,
+  },
   villages: VILLAGES.map((v) => ({ id: v.id, name: v.name, name_hi: v.name_hi, lat: v.lat, lon: v.lon, level: v.level, coords_verified: false })),
   recent_alerts: alerts.map((a) => ({ id: a.id, village_name: a.village_name, village_name_hi: a.village_name_hi, level: a.level, status: a.status, created_at: a.created_at, approved: a.approved, delivered_count: a.delivered_count, acknowledged_count: a.acknowledged_count, replay: a.replay })),
   replay: { active: replay.active },

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 
+from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.services import checklist, gauge, readiness, rollcall, soil, staff_gauge, storage
 from Pukaar.services.nowcast import nowcast
@@ -68,13 +70,58 @@ def village_detail(repo: Repo, v: Village) -> dict[str, Any]:
     }
 
 
-def counters(repo: Repo) -> dict[str, int]:
+# Alert statuses that mean the alert reached people. "failsafe" and "closed" only count when the
+# alert was actually broadcast: the failsafe sends only critical or already-approved alerts.
+_WENT_OUT = {"delivered", "auto_sent_unapproved"}
+_REAL_PHONE_DELIVERY = {"sent", "acknowledged"}
+COUNTER_WINDOW_HOURS = 24
+
+
+def went_out(a: Alert) -> bool:
+    if a.status in _WENT_OUT:
+        return True
+    if a.status == "failsafe":
+        return a.level == "critical" or a.approved
+    if a.status == "closed":
+        return a.approved
+    return False
+
+
+def is_replay(a: Alert) -> bool:
+    return bool(a.replay or a.decision_trace.get("replay"))
+
+
+def is_drill(a: Alert) -> bool:
+    """A hand-started test alert (scripts/drill.py): real phones, but never a flood warning."""
+    return bool(a.decision_trace.get("drill")) and not is_replay(a)
+
+
+def counters(repo: Repo, now: datetime | None = None) -> dict[str, int]:
+    """The public counters. Each one counts real records only (docs/CONTRACT.md):
+
+    alerts_sent / phones_acknowledged  live flood alerts that went out; never replays, never drills
+    drills_delivered                   drill alerts that reached at least one real phone (Telegram)
+    replay_alerts_approved             replay alerts an officer approved through the approval workflow
+    forecast_checks_24h                forecast readings the sweep stored (one per village per sweep), last 24 h
+    gauge_readings_24h[_simulated]     river-gauge readings received in the last 24 h (of which simulated)
+    """
+    now = now or clock.now()
+    since, until = clock.iso(now - timedelta(hours=COUNTER_WINDOW_HOURS)), clock.iso(now)
     villages = repo.list_villages()
     alerts = repo.list_alerts(limit=500)
-    sent = [a for a in alerts if a.status in {"delivered", "auto_sent_unapproved", "failsafe"} and not a.replay]
+    sent = [a for a in alerts if went_out(a) and not is_replay(a) and not is_drill(a)]
+    drills = [a for a in alerts if is_drill(a) and went_out(a)]
+    gauged = [v for v in villages if v.gauge is not None]
     return {
         "villages_watched": len(villages),
         "alerts_sent": len(sent),
         "phones_acknowledged": sum(a.acknowledged_count for a in sent),
         "reports_received": sum(1 for v in villages for r in repo.list_reports(v.id, limit=500) if not r.replay),
+        "drills_delivered": sum(1 for a in drills if any(d.channel == "telegram" and d.status in _REAL_PHONE_DELIVERY
+                                                         for d in repo.list_deliveries(a.id))),
+        "replay_alerts_approved": sum(1 for a in alerts if is_replay(a) and a.approved),
+        "forecast_checks_24h": sum(repo.count_live_readings(v.id, since, until) for v in villages),
+        "gauge_readings_24h": sum(repo.count_sensor_readings(v.id, since, until) for v in gauged),
+        "gauge_readings_24h_simulated": sum(repo.count_sensor_readings(v.id, since, until, simulated=True)
+                                            for v in gauged),
     }

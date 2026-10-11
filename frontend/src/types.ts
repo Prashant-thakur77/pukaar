@@ -662,11 +662,7 @@ export interface ReplayStatus extends SampleFlag {
   title_hi?: string | null;
 }
 
-export interface Stats extends SampleFlag {
-  villages_watched: number;
-  alerts_sent: number;
-  phones_acknowledged: number;
-  reports_received: number;
+export interface Stats extends SampleFlag, Counters {
   alerts_by_status: Record<string, number>;
   levels: Record<string, number>;
 }
@@ -699,11 +695,22 @@ export interface AskResponse extends SampleFlag {
   model: string;
 }
 
+/** Public counters, each counted from stored records (docs/CONTRACT.md "Counters"). */
 export interface Counters {
   villages_watched: number;
+  /** Live flood alerts that went out. Never replays, never drills. */
   alerts_sent: number;
+  /** "मिल गया" taps on those live alerts. */
   phones_acknowledged: number;
   reports_received: number;
+  /** Drill alerts (labelled tests) that reached at least one real phone. */
+  drills_delivered: number;
+  /** Replay alerts an officer approved through the approval workflow. */
+  replay_alerts_approved: number;
+  /** Forecast readings the sweep stored in the last 24 h: one per village per sweep. */
+  forecast_checks_24h: number;
+  gauge_readings_24h: number;
+  gauge_readings_24h_simulated: number;
 }
 
 export interface PublicVillage {

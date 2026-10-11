@@ -180,17 +180,29 @@ POST /replay/reset           officer: {} -> ReplayStatus
 GET  /replay/status          {active, stale, available[], scenario, title, title_hi, clock|null,
                               hours_total, hours_done, source, started_at, updated_at}
 GET  /audit?date=&resource=  officer: [Audit]
-GET  /stats                  {villages_watched, alerts_sent, phones_acknowledged, reports_received,
-                              alerts_by_status{}, levels{}}
+GET  /stats                  officer: {...Counters, alerts_by_status{}, levels{}}
 POST /ask/officer            officer: {question} -> {answer, chart|null, map|null, tools[], model}
                              chart = {type:"bar"|"line", title, x_label, y_label,
                                       series[{name, points[{x, y}]}]}
                              map   = {village_ids[], points[{lat, lon, label}]}
                              tools = [{name, input, output_summary, decision}]
-GET  /public/overview        {counters{villages_watched, alerts_sent, phones_acknowledged,
-                              reports_received}, villages[{id,name,name_hi,lat,lon,level,coords_verified}],
+GET  /public/overview        {counters: Counters, villages[{id,name,name_hi,lat,lon,level,coords_verified}],
                               recent_alerts[{id,village_name,village_name_hi,level,status,created_at,
                               approved,delivered_count,acknowledged_count,replay}], replay{active}}
+Counters  every one counted from stored records, nothing estimated (api/views.py counters()):
+          villages_watched              villages in the registry
+          alerts_sent                   live flood alerts that went out: delivered, auto_sent_unapproved,
+                                        failsafe when critical or approved, closed when approved.
+                                        Never replays, never drills (decision_trace.drill)
+          phones_acknowledged           "मिल गया" taps on those alerts
+          reports_received              villager reports, replay reports excluded
+          drills_delivered              drill alerts (scripts/drill.py) that reached at least one real phone
+                                        (a Telegram delivery sent or acknowledged); tests, not warnings
+          replay_alerts_approved        replay alerts an officer approved through the approval workflow
+          forecast_checks_24h           forecast readings the sweep stored in the last 24 h (one per village
+                                        per sweep), replay rows excluded
+          gauge_readings_24h            river-gauge readings received in the last 24 h (as GET /sensors)
+          gauge_readings_24h_simulated  how many of those came from the labelled simulator
 GET  /track/{code}           {code, village_name, village_name_hi, created_at, report_type, state,
                               steps[{key:"received"|"verified"|"acted_on", done, at|null}]}
 POST /telegram/webhook       Telegram update; header X-Telegram-Bot-Api-Secret-Token

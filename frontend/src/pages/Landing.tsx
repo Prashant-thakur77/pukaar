@@ -5,7 +5,7 @@ import { ArrowRight, ArrowUpRight, Bot, Mic, Radar, RadioTower, UserCheck, Volum
 import { api } from '../api';
 import { Kicker, ValleyLine, WordField } from '../components/Art';
 import { Call112, PukaarMark } from '../components/Shell';
-import { CountUp } from '../components/CountUp';
+import { CounterRow } from '../components/CounterRow';
 import { LevelBadge } from '../components/Level';
 import { QRCode } from '../components/QRCode';
 import { Reveal } from '../components/Reveal';
@@ -19,7 +19,6 @@ import { useT, type Key } from '../i18n';
 import { levelRank } from '../lib/levels';
 import { readSession, writeSession } from '../lib/session';
 import { useTour } from '../lib/tour';
-import type { Counters } from '../types';
 
 // The 3D valley is optional: if its chunk cannot load (e.g. an old build in the cache), the flat valley stays.
 const HeroScene = lazy<ComponentType<{ onReady: () => void }>>(() =>
@@ -38,8 +37,6 @@ function canRun3d(): boolean {
     return false;
   }
 }
-
-const COUNTERS: (keyof Counters)[] = ['villages_watched', 'alerts_sent', 'phones_acknowledged', 'reports_received'];
 
 /**
  * Sourced fact: the article's headline and text give "at least 10 dead, 34
@@ -138,6 +135,7 @@ export default function Landing() {
 
   const raised = data ? data.villages.filter((v) => levelRank(v.level) >= levelRank('warning')) : [];
   const top = data ? [...data.villages].sort((a, b) => levelRank(b.level) - levelRank(a.level))[0] : null;
+  const allNormal = !!data && !data.replay.active && data.villages.length > 0 && raised.length === 0 && top?.level === 'normal';
 
   const steps: { n: string; icon: typeof Radar; title: Key; body: Key }[] = [
     { n: '01', icon: Radar, title: 'landing.step1.title', body: 'landing.step1.body' },
@@ -254,18 +252,17 @@ export default function Landing() {
           <p id="ctr-title" className="eyebrow eyebrow-ink">
             {t('landing.counters.eyebrow')}
           </p>
-          <ul className="counters">
-            {COUNTERS.map((k, i) => (
-              <Reveal as="li" key={k} delay={i * 80} className="counter">
-                <CountUp value={data ? data.counters[k] : null} lang={lang} className="counter-num" />
-                <span className="counter-label">{t(`counter.${k}`)}</span>
-              </Reveal>
-            ))}
-          </ul>
+          <CounterRow
+            counters={data ? data.counters : null}
+            lang={lang}
+            t={t}
+            zeroNote={allNormal && data ? t('landing.clear', { n: data.villages.length }) : null}
+          />
           {error && !data && <p className="counter-error">{t('landing.counters.error')}</p>}
-          {data && !data.replay.active && data.villages.length > 0 && raised.length === 0 && top?.level === 'normal' && (
+          {allNormal && data && (
             <p className="counter-clear">
-              {t('landing.clear', { n: data.villages.length })}{' '}
+              {/* the "None yet" tile already says every village is Normal; do not say it twice */}
+              {data.counters.alerts_sent === 0 ? null : <>{t('landing.clear', { n: data.villages.length })} </>}
               <Link to="/live">
                 {t('landing.clear.link')} <ArrowRight aria-hidden="true" />
               </Link>

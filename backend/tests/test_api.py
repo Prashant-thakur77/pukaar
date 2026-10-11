@@ -29,7 +29,9 @@ def test_public_pages_work_signed_out(client):
     assert {v["id"] for v in villages} == {"thunag", "janjehli", "gohar", "pandoh", "sujanpur"}
     assert all(v["coords_verified"] is False and v["population"] is None for v in villages)
     overview = client.get("/public/overview").json()
-    assert set(overview["counters"]) == {"villages_watched", "alerts_sent", "phones_acknowledged", "reports_received"}
+    assert set(overview["counters"]) == {
+        "villages_watched", "alerts_sent", "phones_acknowledged", "reports_received", "drills_delivered",
+        "replay_alerts_approved", "forecast_checks_24h", "gauge_readings_24h", "gauge_readings_24h_simulated"}
     detail = client.get("/villages/pandoh").json()
     assert detail["past_events"] and detail["past_events"][0]["source"].startswith("Open-Meteo")
 

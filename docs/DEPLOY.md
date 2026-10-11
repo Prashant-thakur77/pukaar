@@ -7,7 +7,7 @@ machine `infra/approval.asl.json`; settings are in `samconfig.toml`.
 ## 0. Tools on the deploying machine
 
 - AWS CLI v2, AWS SAM CLI 1.120 or later
-- Docker (or Finch) running: the four Lambda functions are container images
+- Docker (or Finch) running: the five Lambda functions are container images
 - Python 3.12 with `uv`, Node 20 or later with `npm`, `zip`, `curl`, `openssl`
 - `make install` installs the backend and frontend dependencies.
 
@@ -216,6 +216,14 @@ aws lambda invoke --function-name pukaar-sweep-dev --payload '{}' \
 
 Then open `WebUrl`, sign in as `officer1`, and start the replay.
 
+For the whole public surface at once, run `make smoke` (`scripts/smoke.mjs`, read-only). It loads every
+public page at 390 px and 1440 px in Chromium and fails on a page error, sideways scroll or any axe
+WCAG 2.1 A/AA violation. It also checks that each landing counter copies as one value and that the
+service worker registers, that the public API routes return the expected shapes, and that protected
+routes (`/overview`, `/stats`, `/alerts`, `/health/deep`, `POST /villages/{id}/roadblocks`) answer 401
+without a token. Any page request to the API other than GET is aborted and counted as a failure.
+Point it elsewhere with `SMOKE_SITE=... SMOKE_API=... make smoke`.
+
 Workflow end to end (deploy with short timers first):
 
 ```
@@ -241,7 +249,7 @@ Things that cost money even when small:
 - Bedrock Nova tokens (per call; no model call at level `normal`).
 - Polly generative voice, Transcribe minutes after the 12-month free tier.
 - ECR storage for the images (two images, roughly 0.5 to 1 GB each).
-- CloudWatch: nine alarms and one dashboard; the free tier covers ten alarms
+- CloudWatch: ten alarms and one dashboard; the free tier covers ten alarms
   and three dashboards. X-Ray traces past the free tier.
 - DynamoDB point-in-time recovery is billed per GB stored (tiny here).
 - Amplify Hosting bandwidth and build minutes beyond the free tier.

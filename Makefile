@@ -17,7 +17,7 @@ EVENTS_KEY_EXP = $(shell date -u -d '+360 days' +%s 2>/dev/null || date -u -v+36
 DEPLOY_EXTRA   = $(if $(AFTER_ACTION_FROM),AfterActionFrom=$(AFTER_ACTION_FROM))
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo drill gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate
+        seed reset-demo drill gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -81,6 +81,9 @@ ses-verify: ## Ask SES to verify an address for after-action e-mail (EMAIL=you@e
 	aws sesv2 create-email-identity --region $(or $(AWS_REGION),us-east-1) --email-identity "$(EMAIL)"
 	@echo "SES sent a verification e-mail to $(EMAIL). Its owner must click the link in it (valid 24 hours)"
 	@echo "before SES will send from or, in the sandbox, to this address. Check: aws sesv2 get-email-identity --email-identity $(EMAIL)"
+
+smoke: ## Read-only check of the live site and API: pages, axe, sideways scroll, API shapes, 401s (SMOKE_SITE=, SMOKE_API=)
+	node scripts/smoke.mjs
 
 it: ## Run real approval executions against the deployed stack
 	$(PYTHON) scripts/it_workflow.py

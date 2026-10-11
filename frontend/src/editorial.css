@@ -250,6 +250,8 @@
 .band-marigold .counter-num { font-size: clamp(3.2rem, 6.4vw, 5.6rem); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: lining-nums tabular-nums; }
 .band-marigold li, .band-marigold .counters li { border-top: 1px solid var(--band-line) !important; padding-top: 18px; }
 .counter-label { font-size: 0.92rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--band-ink-2); }
+.band-marigold .counter-num.counter-none { font-size: clamp(1.9rem, 3.4vw, 3rem); line-height: 1.05; letter-spacing: -0.01em; }
+.counter-note { color: var(--band-ink); }
 .band-marigold a, .counter-clear a { color: var(--band-accent); }
 .counter-clear { color: var(--band-ink); }
 

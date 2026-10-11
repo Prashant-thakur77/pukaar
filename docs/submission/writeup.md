@@ -36,7 +36,7 @@ Deployed as one AWS SAM stack (`pukaar-dev`, us-east-1); nothing runs between re
 | Service | Role |
 |---|---|
 | EventBridge Scheduler | The 15-minute sweep; zero retries, dead-letter queue |
-| Lambda (4 container functions) | API (FastAPI behind the Lambda Web Adapter), sweep, workflow steps, worker |
+| Lambda (5 container functions) | API (FastAPI behind the Lambda Web Adapter), sweep, workflow steps, worker, gauge ingest (AWS IoT Core topic rule) |
 | Step Functions (Standard) | One approval execution per alert: `waitForTaskToken`, next officer on timeout, critical auto-send, failsafe |
 | DynamoDB | One table, sparse GSI, conditional writes (no double sends), TTL, point-in-time recovery |
 | Bedrock (Amazon Nova via Strands Agents) | Drafts the Hindi alert and answers officers' questions; Cedar hook on every tool call. Model access on our account is pending, so the live stack currently sends the fixed template, labelled |
@@ -44,7 +44,7 @@ Deployed as one AWS SAM stack (`pukaar-dev`, us-east-1); nothing runs between re
 | Transcribe (hi-IN) | Villager voice reports |
 | API Gateway HTTP API + Cognito | Every route; officer and pradhan sign-in; villagers need no account |
 | S3, SSM Parameter Store, SQS | Private audio and photos; secrets; encrypted dead-letter queues |
-| CloudWatch + X-Ray | Nine alarms, one dashboard, tracing on every function |
+| CloudWatch + X-Ray | Ten alarms, one dashboard, tracing on every function |
 | Amplify Hosting | The web app (PWA) |
 | AWS Open Data (Terrain Tiles) | Real Himalayan relief for the 3D map and the landing valley |
 
