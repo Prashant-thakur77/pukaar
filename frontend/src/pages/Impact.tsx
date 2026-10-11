@@ -4,6 +4,7 @@ import { loadBacktest } from '../api';
 import { LevelBadge } from '../components/Level';
 import { Reveal } from '../components/Reveal';
 import { Headline } from '../components/PageBand';
+import { SatelliteCompare } from '../components/SatelliteCompare';
 import { EmptyState, Skeleton } from '../components/States';
 import { useT, type Key } from '../i18n';
 import { fmtDate, fmtNumber, fmtTime } from '../lib/format';
@@ -189,6 +190,8 @@ export default function Impact() {
           )}
         </div>
       </section>
+
+      <SatelliteCompare />
 
       <Scores />
 

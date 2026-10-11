@@ -635,6 +635,67 @@
 .impact .score-counts .sc-fa dd { color: var(--accent-text); }
 @media (max-width: 720px) { .impact .score-grid { grid-template-columns: 1fr; } }
 
+/* /impact: satellite before/after split view */
+.sat-band { border-top: 1px solid var(--line); }
+.sat-lead { max-width: 62ch; margin: 0 0 var(--s-4); }
+.sat-figure { margin: 0; display: grid; gap: var(--s-3); }
+.sat-controls { display: flex; flex-wrap: wrap; gap: 10px 16px; }
+.sat-seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--line); }
+.sat-opt { min-height: 40px; padding: 6px 16px; border: 0; border-radius: 999px; background: transparent; color: var(--ink-2); font: inherit; font-weight: 700; font-size: var(--fs-sm); cursor: pointer; }
+.sat-opt.is-on { background: var(--river-grad); color: var(--marigold-ink); box-shadow: var(--sh-accent); }
+.sat-opt:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sat-frame {
+  --pos: 50%;
+  position: relative; width: 100%; overflow: hidden; border-radius: var(--pg-r); background: var(--night-1);
+  border: 1px solid var(--line-2); box-shadow: var(--sh-2); touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: ew-resize;
+}
+.sat-layer { position: absolute; inset: 0; }
+.sat-after { clip-path: inset(0 0 0 var(--pos)); }
+.sat-img, .sat-water { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.sat-frame.mode-water .sat-img { filter: grayscale(0.85) brightness(0.62) contrast(1.05); }
+.sat-tag {
+  position: absolute; top: 10px; padding: 4px 10px; border-radius: 999px; background: rgb(6 17 31 / 0.72); color: var(--night-ink);
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; pointer-events: none; backdrop-filter: blur(4px);
+}
+.sat-tag-l { left: 10px; }
+.sat-tag-r { right: 10px; }
+.sat-markers { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; pointer-events: none; }
+.sat-mk { position: absolute; display: flex; align-items: center; gap: 5px; transform: translate(-6px, -50%); white-space: nowrap; }
+.sat-mk i { width: 12px; height: 12px; flex: none; border-radius: 50%; background: #fff; border: 3px solid var(--night-0); box-shadow: 0 0 0 1.5px #fff; }
+.sat-mk.mk-dam i { border-radius: 2px; background: var(--marigold); }
+.sat-mk.mk-town i { background: var(--marigold-2); }
+.sat-mk span { padding: 2px 7px; border-radius: 6px; background: rgb(6 17 31 / 0.74); color: #fff; font-size: 0.72rem; font-weight: 700; }
+.sat-mk.mk-flip { flex-direction: row-reverse; transform: translate(calc(-100% + 6px), -50%); }
+.sat-handle {
+  position: absolute; top: 0; bottom: 0; left: var(--pos); width: 44px; margin-left: -22px; display: grid; place-items: center; cursor: ew-resize; outline: none;
+}
+.sat-handle::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; margin-left: -1.5px; background: #fff; box-shadow: 0 0 0 1px rgb(6 17 31 / 0.35), 0 0 12px rgb(79 179 255 / 0.6); }
+.sat-knob {
+  position: relative; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--river-grad); color: var(--marigold-ink);
+  font-weight: 900; font-size: 1.1rem; letter-spacing: 0.1em; border: 3px solid #fff; box-shadow: var(--sh-accent);
+}
+.sat-handle:focus-visible .sat-knob { outline: 3px solid var(--focus); outline-offset: 3px; }
+.sat-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin: 0; color: var(--ink-2); }
+.sat-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.sat-legend .sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line-2); }
+.sat-legend .sw-water { background: rgb(47 125 246); }
+.sat-legend .sw-cloud { background: rgb(226 232 240); }
+.sat-cap { display: grid; gap: var(--s-3); }
+.sat-scenes { margin: 0; display: grid; gap: var(--s-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.sat-scenes > div { border: 1px solid var(--line); border-radius: 14px; padding: var(--s-3) var(--s-4); background: var(--surface); }
+.sat-scenes dt { font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-text); }
+.sat-scenes dt:lang(hi) { font-family: var(--font-hi); letter-spacing: 0; text-transform: none; font-size: var(--fs-sm); }
+.sat-scenes dd { margin: 4px 0 0; }
+.sat-id code { font-size: 0.72rem; word-break: break-all; }
+.sat-attr { margin: 0; }
+.sat-skel { border-radius: var(--pg-r); }
+@media (max-width: 560px) {
+  .sat-mk span { font-size: 0.64rem; padding: 1px 5px; }
+  .sat-tag { top: 6px; font-size: 0.66rem; padding: 3px 8px; }
+  .sat-tag-l { left: 6px; }
+  .sat-tag-r { right: 6px; }
+}
+
 .audit-page { padding-bottom: var(--s-8); }
 .audit.wrap { padding-top: clamp(24px, 3vw, 40px); gap: var(--s-4); }
 .audit-filter { display: flex; flex-wrap: wrap; gap: 10px; max-width: 640px; margin: 0; }
