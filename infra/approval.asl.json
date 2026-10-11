@@ -1,5 +1,5 @@
 {
-  "Comment": "Pukaar approval workflow (PLAN.md section 9). One Lambda dispatches on `step`. Placeholders ${...} are filled by SAM DefinitionSubstitutions; numeric values arrive as strings and are converted with States.StringToJson in Init so this file stays valid JSON.",
+  "Comment": "Pukaar approval workflow. One Lambda dispatches on `step`. Placeholders ${...} are filled by SAM DefinitionSubstitutions; numeric values arrive as strings and are converted with States.StringToJson in Init so this file stays valid JSON.",
   "StartAt": "Init",
   "TimeoutSeconds": 7200,
   "States": {

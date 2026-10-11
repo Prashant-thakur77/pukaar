@@ -1,8 +1,7 @@
-# Pukaar build contract
+# Pukaar API and interface contract
 
 The shared interface between the backend (`backend/src/Pukaar/`), the
-front end (`frontend/`) and the infrastructure (`infra/`). Change it here
-first, then in code.
+front end (`frontend/`) and the infrastructure (`infra/`).
 
 ## Levels and statuses
 
@@ -33,6 +32,7 @@ Every record that came from replay data carries `replay: true`.
   to `https://cognito-idp.<region>.amazonaws.com/`; otherwise use dev login.
 
 Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`, `GET /villages/{id}/safe-places`,
+`GET /villages/{id}/staff-gauges`,
 `POST /reports`, `POST /alerts/{id}/ack`, `GET /approval/{token}`,
 `POST /approval/{token}`, `POST /telegram/webhook`, `GET /public/overview`,
 `GET /track/{code}`, `GET /replay/status`, `GET /alerts/{id}/audio`, `GET /safe/{token}`,
@@ -87,8 +87,15 @@ Error     401 {detail: "Sign in required."}
 
 ```
 GET  /health                 {status, mode: "aws"|"local", workflow, model,
-                              services{dynamodb,bedrock,polly,transcribe,telegram}, replay_active}
+                              services{dynamodb,bedrock,polly,transcribe,telegram,guardrail}, replay_active}
 GET  /dev/approval-link/{id} local mode only, officer: {url, token, officer} (demo of the one-tap link)
+GET  /media/{key}            local mode only: a stored file (AWS mode uses presigned S3 URLs; 404 here)
+GET  /agents                 public: agent registry, model and guardrail status (services/agents.py)
+GET  /agents/traces?limit=5  public: round-by-round traces of recent alert drafts (limit 1-10)
+GET  /sensors                public: gauge board, latest readings, 24 h series and sensor findings
+POST /sensors/{id}/readings  public, HMAC-signed body (docs/hardware/README.md) -> 202
+GET  /cap/alerts.atom        public: ATOM index of the latest 50 published alerts
+GET  /cap/alerts/{id}.xml    public: one CAP 1.2 <alert> (application/cap+xml); 404 if not published
 GET  /health/deep            officer: one 1-token Converse call now; {bedrock: "ok"|"pending model access"|"failed"|"disabled", model, detail}; refreshes the cached model-access flag
 GET  /me                     {username, role, village_ids}
 POST /me/telegram-link       officer: {} -> {code, command, expires_in_seconds}  (one-time; send the
@@ -235,21 +242,27 @@ GET  /villages/{id} and /public/overview villages[] also carry
 | S3 | bucket for `audio/`, `photos/`, `replay/`; private; presigned GETs |
 | Lambda `api` | image target `api`: uvicorn `Pukaar.main:app` on 8080 behind the Lambda Web Adapter, readiness `/health`; 2048 MB, 29 s |
 | Lambda `sweep` | image target `worker`, CMD `Pukaar.handlers.sweep.handler`; 1024 MB, 120 s; DLQ; 0 async retries |
-| Lambda `workflow` | CMD `Pukaar.handlers.workflow.handler`; 1024 MB, 30 s |
+| Lambda `workflow` | CMD `Pukaar.handlers.workflow.handler`; 1024 MB, 120 s |
 | Lambda `worker` | CMD `Pukaar.handlers.worker.handler`; 1024 MB, 900 s (transcription, replay, delivery retries); DLQ |
+| Lambda `gauge-ingest` | CMD `Pukaar.handlers.gauge_ingest.handler`; 512 MB, 60 s; invoked by the IoT topic rule; 0 async retries; the worker's DLQ |
+| Bedrock Guardrail | `pukaar-report-screen-<stage>` plus a published version; only the worker may call `ApplyGuardrail` on it |
+| AWS IoT Core | policy `pukaar-gauge-<stage>`, topic rule `pukaar_gauge_<stage>` on `pukaar/gauge/+/+/reading` |
+| AppSync Events | API `pukaar-events-<stage>`, namespaces `public` (API key, subscribe only) and `officer` (Cognito); publish `AWS_IAM` only |
 | Step Functions | Standard, `infra/approval.asl.json`, execution name = alert id |
 | Scheduler | `rate(15 minutes)` -> `sweep`, retries 0, DLQ |
 | Cognito | user pool, groups `officer`, `pradhan`, attribute `custom:village_ids`, app client without secret, `USER_PASSWORD_AUTH` |
 | HTTP API | JWT authorizer on `$default`, public routes above, CORS to the web origin, throttling |
-| SSM SecureString | `/pukaar/telegram_token`, `/pukaar/telegram_webhook_secret`, `/pukaar/link_secret` |
-| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision` |
+| SSM | SecureString `/pukaar/telegram_token`, `/pukaar/telegram_webhook_secret`, `/pukaar/link_secret`, `/pukaar/vapid_private_key`, `/pukaar/after_action_to`, `/pukaar/gauge/<device>/key` and `/cert`; String `/pukaar/vapid_public_key` |
+| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision`, `RollCallNeedHelp`, `GaugeReading`, `GaugeRejected`, `ReportScreened`, `GuardrailFallback`, `PushSent`, `PushFailed`, `EventPublishFailed`, `AfterActionSent`, `AfterActionFailed` |
 
 Environment variables of every function: `PUKAAR_MODE=aws`,
 `PUKAAR_TABLE_NAME`, `PUKAAR_BUCKET`, `PUKAAR_STATE_MACHINE_ARN`,
 `PUKAAR_AWS_REGION`, `PUKAAR_BEDROCK_MODEL_ID`, `PUKAAR_BEDROCK_FALLBACK_REGION`,
 `PUKAAR_APPROVAL_TIMEOUT_SECONDS`, `PUKAAR_ACK_WAIT_SECONDS`,
 `PUKAAR_WEB_URL`, `PUKAAR_API_URL`, `PUKAAR_WORKER_FUNCTION`,
-`PUKAAR_REPLAY_ENABLED`, `PUKAAR_SSM_PREFIX=/pukaar`.
+`PUKAAR_REPLAY_ENABLED`, `PUKAAR_SSM_PREFIX=/pukaar`, `PUKAAR_STAGE`,
+`PUKAAR_DATA_DIR`, `PUKAAR_GUARDRAIL_ID`, `PUKAAR_GUARDRAIL_VERSION`,
+`PUKAAR_EVENTS_HTTP_DOMAIN`.
 
 ## Workflow Lambda (`Pukaar.handlers.workflow.handler`)
 

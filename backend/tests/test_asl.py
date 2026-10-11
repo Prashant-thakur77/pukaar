@@ -1,7 +1,7 @@
 """Offline checks of infra/approval.asl.json (the approval state machine).
 
 Self-contained: a tiny interpreter walks the definition with a fake workflow
-Lambda, so the paths of PLAN.md section 9 are tested without AWS.
+Lambda, so every approval path is tested without AWS.
 """
 
 from __future__ import annotations

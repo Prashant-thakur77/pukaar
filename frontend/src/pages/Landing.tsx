@@ -60,7 +60,7 @@ const INTRO_VILLAGES: [number, number][] = [
 ];
 
 /*
- * Entry sequence (after EcoLafaek's: a gold line draws the land, life moves along it, the mark lands, then the page):
+ * Entry sequence (a gold line draws the land, life moves along it, the mark lands, then the page):
  *   0-1100 ms   a gold line draws the Beas through the valley (stroke-dashoffset)
  *   1000-1700   the five villages light up along it, each sending out a call ring
  *   1650-2300   the mark pops, then पुकार / PUKAAR and the tagline rise in, loader dashes run

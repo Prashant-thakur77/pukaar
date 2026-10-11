@@ -1,4 +1,4 @@
-"""Fixed safety text. Needs native-speaker review (see PROGRESS.md).
+"""Fixed safety text. Needs review by a native Hindi speaker before real use.
 
 These sentences go out unchanged when the model is unavailable or its draft
 fails the checker. The model never rewrites them; it may only fill the slots

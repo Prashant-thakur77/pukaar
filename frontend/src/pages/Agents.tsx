@@ -38,7 +38,7 @@ import { ValleyLine } from '../components/Art';
 type Txt = { hi: string; en: string };
 const GITHUB = 'https://github.com/Prashant-thakur77/pukaar';
 
-/** EcoLafaek-style example questions per tool (the tool list itself comes from the API). */
+/** Example questions per tool (the tool list itself comes from the API). */
 const TOOL_EXAMPLES: Record<string, Txt> = {
   get_village_risk: { en: 'What is Gohar’s level right now, and why?', hi: 'गोहर का स्तर अभी क्या है, और क्यों?' },
   get_recent_reports: { en: 'Any villager reports from Thunag in the last 6 hours?', hi: 'पिछले 6 घंटे में थुनाग से कोई सूचना?' },

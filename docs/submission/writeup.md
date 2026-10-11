@@ -4,7 +4,9 @@
 
 - Live app: https://main.d15r7ktz99l46x.amplifyapp.com (public pages need no sign-in)
 - Code: https://github.com/Prashant-thakur77/pukaar
-- Demo video (under 3 minutes): _YouTube link to be added at upload_
+- Demo video (2:44): [docs/media/pukaar-demo.mp4](../media/pukaar-demo.mp4), with [script, chapters and captions](demo-script.md)
+- Pitch video (4:20): [docs/media/pukaar-pitch.mp4](../media/pukaar-pitch.mp4), with [sources and credits](../media/pukaar-pitch-credits.md)
+- Both narrations are Chatterbox TTS (open source) with its built-in synthetic voice; the Hindi alert is real Amazon Polly output ([media credits](../media/CREDITS.md))
 - Track: Heat and Water (floods, monsoon)
 
 ## The problem
@@ -22,8 +24,11 @@ A loop from forecast to a confirmed warning, for five villages in Mandi district
 3. **A Hindi alert is drafted** into a fixed template; a checker rejects any number or place not in the decision trace. If the model is unavailable, the fixed template goes out and is labelled `rule-fallback`.
 4. **A district officer approves in one tap** (console or a signed single-use link). No answer moves to the next officer; a critical alert with nobody answering goes out with the template and is flagged unapproved.
 5. **Polly speaks it** in Hindi, and every registered phone gets the voice and a "मिल गया" (got it) button on Telegram. Anyone who has not confirmed is sent it again. The app times each alert from the level rising to the first confirmation.
-6. **A river gauge can speak too.** A low-cost water-level gauge at a bridge (ESP32 with a waterproof ultrasonic sensor; design and firmware sketch in `docs/hardware/`) posts signed readings; the rules treat it as a third evidence source beside the two forecasts. On the live stack the gauges are simulated and labelled so (`make gauge-sim`).
-7. **Villagers report back** by voice, photo or text from any phone, even offline (the report page is ready in 4.6 s on slow 3G). A verified report can raise a level on its own.
+6. **A river gauge can speak too.** A low-cost water-level gauge at a bridge (ESP32 with a waterproof ultrasonic sensor; design and firmware sketches in `docs/hardware/`) publishes readings over MQTT to AWS IoT Core with its own X.509 certificate, or posts signed readings over HTTPS; the rules treat it as a third evidence source beside the two forecasts. No gauge is installed yet: on the live stack the readings are simulated and labelled so (`make gauge-sim-mqtt`).
+7. **Villagers report back** by voice, photo or text from any phone, even offline (the report page is ready in 4.6 s on slow 3G). Bedrock Guardrails screen the text first, so a report that tries to give the system orders is held for an officer. A verified report can raise a level on its own.
+8. **Where to go.** Named safe places from OpenStreetMap, at least 15 m above the river, with slope-aware walking routes; the pradhan marks each one open, standby, full or closed, and the alert names the nearest open one. A pradhan or officer can mark a road or bridge on a route blocked, and the alert then names the next place with an open route.
+9. **After the alert.** When a live warning or critical alert closes, a "Surakshit Hoon" (I am safe) roll-call asks each Telegram recipient "Are you safe?" with two buttons and shows the officer who needs help first. Every closed alert gets an after-action report in Hindi and English, stored in S3 and e-mailed by SES to verified addresses.
+10. **Open and live.** Every alert that goes out is also published in a CAP 1.2 feed, the standard SACHET is built on (Pukaar does not send into SACHET yet). Open pages update within about a second through AppSync Events, and officers can approve from a Web Push notification with the console closed.
 
 Why this design: countries with limited early-warning coverage have nearly six times the disaster mortality ratio (WMO, 2024); 24 hours of warning can cut damage by 30% (Global Commission on Adaptation, 2019); and communities "strongly preferred voice" messages "because of easier accessibility and understanding" (Cumiskey et al., 2015). In Himachal's 2023 monsoon more than 500 people died (HP Government PDNA). Sources and a comparison with SACHET, IMD, CWC and Google Flood Hub are in the README.
 
@@ -31,7 +36,7 @@ Back-test on archived data: for 7-11 July 2023, Gohar, Pandoh and Sujanpur reach
 
 ## Where AWS fits
 
-Deployed as one AWS SAM stack (`pukaar-dev`, us-east-1); nothing runs between requests.
+Deployed as one AWS SAM stack (`pukaar-dev`, us-east-1); nothing runs between requests. The Terrain Tiles are a public AWS Open Data bucket, and SES addresses are verified on the account.
 
 | Service | Role |
 |---|---|
@@ -39,7 +44,8 @@ Deployed as one AWS SAM stack (`pukaar-dev`, us-east-1); nothing runs between re
 | Lambda (5 container functions) | API (FastAPI behind the Lambda Web Adapter), sweep, workflow steps, worker, gauge ingest (AWS IoT Core topic rule) |
 | Step Functions (Standard) | One approval execution per alert: `waitForTaskToken`, next officer on timeout, critical auto-send, failsafe |
 | DynamoDB | One table, sparse GSI, conditional writes (no double sends), TTL, point-in-time recovery |
-| Bedrock (Amazon Nova via Strands Agents) | Drafts the Hindi alert and answers officers' questions; Cedar hook on every tool call. Model access on our account is pending, so the live stack currently sends the fixed template, labelled |
+| Bedrock (Amazon Nova 2 Lite via Strands Agents) | Drafts the Hindi alert and answers officers' questions; Cedar policies (the open-source Cedar engine, `cedarpy`) checked on every tool call. Model access on our account is pending, so the live stack currently sends the fixed template, labelled `rule-fallback` |
+| Bedrock Guardrails | Screens every villager report before any rule or model reads it; live now, since `ApplyGuardrail` needs no model access |
 | Polly (Kajal, hi-IN) | Speaks every alert; MP3 in S3 |
 | Transcribe (hi-IN) | Villager voice reports |
 | API Gateway HTTP API + Cognito | Every route; officer and pradhan sign-in; villagers need no account |
@@ -47,9 +53,12 @@ Deployed as one AWS SAM stack (`pukaar-dev`, us-east-1); nothing runs between re
 | CloudWatch + X-Ray | Ten alarms, one dashboard, tracing on every function |
 | Amplify Hosting | The web app (PWA) |
 | AWS Open Data (Terrain Tiles) | Real Himalayan relief for the 3D map and the landing valley |
+| AWS IoT Core | River gauges over MQTT with one X.509 certificate per device; a policy pinned to the device's own topic; a topic rule into the gauge-ingest Lambda |
+| AppSync Events | Live push of level and alert changes to open pages: public channel on a subscribe-only API key, officer channel on Cognito, publishing by IAM only |
+| SES | E-mails the after-action report (the account is in the SES sandbox, so only to verified addresses) |
 
 Tests parse the real template and fail on any `*` IAM action, any hourly-billed resource, or a table, bucket or queue that loses its protections.
 
 ## AI tools used
 
-Claude Code (Anthropic) wrote most of the code under human direction; separate reviewer agents graded each piece. The demo video's narration is Chatterbox TTS (open source) with its built-in synthetic voice.
+Used Claude to help write code.

@@ -105,7 +105,7 @@ def now() -> str:
 
 
 def seed(stack: Stack, sc: Scenario) -> None:
-    """Write the test village and alert in the shapes of PLAN.md section 6."""
+    """Write the test village and alert in the item shapes of store/repo.py."""
     stack.table.put_item(
         Item={
             "pk": f"VILLAGE#{sc.village_id}",

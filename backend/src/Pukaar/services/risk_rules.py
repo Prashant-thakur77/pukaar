@@ -1,4 +1,4 @@
-"""Risk rules (PLAN.md section 7). Plain code: the model never sets a level."""
+"""Risk rules. Plain code: the model never sets a level."""
 
 from __future__ import annotations
 

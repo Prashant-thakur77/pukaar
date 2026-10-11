@@ -19,11 +19,11 @@ Docker does not emulate.
 
 1. In the IAM console create a user, for example `pukaar-deployer`, without
    console access.
-2. Attach a policy. For a dedicated hackathon account `AdministratorAccess` is
+2. Attach a policy. For a dedicated test account `AdministratorAccess` is
    simplest. Otherwise the user needs CloudFormation, IAM (create and pass
    roles), Lambda, ECR, S3, DynamoDB, Step Functions, EventBridge Scheduler,
-   SQS, SNS, CloudWatch and Logs, Cognito, API Gateway, Amplify, SSM and
-   Bedrock permissions.
+   SQS, SNS, CloudWatch and Logs, X-Ray, Cognito, API Gateway, Amplify, SSM,
+   Bedrock (including Guardrails), AWS IoT, AppSync and SES permissions.
 3. Create an access key (Security credentials, "Command Line Interface").
 4. `aws configure` with that key and region `us-east-1`. Check with
    `aws sts get-caller-identity`.
@@ -49,7 +49,7 @@ aws bedrock-runtime converse --region us-east-1 \
 ```
 
 If Nova 2 Lite is not available to the account, deploy with
-`BedrockModelId=us.amazon.nova-lite-v1:0` and note it in `DECISIONS.md`.
+`BedrockModelId=us.amazon.nova-lite-v1:0`.
 
 ## 3. Telegram bot
 
@@ -106,7 +106,7 @@ Parameters (override with
 | Parameter | Default | Notes |
 |---|---|---|
 | `Stage` | `dev` | Suffix of every resource name |
-| `ApprovalTimeoutSeconds` | `600` | Per officer. Use `60` for filming and `make it` |
+| `ApprovalTimeoutSeconds` | `600` | Per officer. Use `60` for a demo and for `make it` |
 | `AckWaitSeconds` | `300` | Before the one re-send. Use `30` for `make it` |
 | `WebOrigin` | empty | CORS origin; empty means the Amplify URL |
 | `BedrockModelId` | `us.amazon.nova-2-lite-v1:0` | |
@@ -115,10 +115,13 @@ Parameters (override with
 | `ReplayEnabled` | `true` | |
 | `AlarmEmail` | empty | Confirm the SNS e-mail after deploy |
 | `AfterActionFrom` | empty | Verified SES sender for after-action reports (section 5a). Empty = no e-mail, no SES permission |
+| `EventsApiKeyExpires` | a fixed date | Expiry (epoch seconds) of the public, subscribe-only live-push API key; `make deploy` passes now + 360 days |
 
-Stack outputs: `ApiUrl`, `WebUrl`, `AmplifyAppId`, `UserPoolId`,
-`UserPoolClientId`, `TableName`, `BucketName`, `StateMachineArn`. Print them
-with `scripts/stack_env.sh`.
+Stack outputs: `ApiUrl`, `WebUrl`, `AmplifyAppId`, `AmplifyBranch`,
+`UserPoolId`, `UserPoolClientId`, `TableName`, `BucketName`,
+`StateMachineArn`, `AlarmTopicArn`, `GaugePolicyName`, `GaugeTopicRuleName`,
+`ReportGuardrailId`, `ReportGuardrailVersion`, `EventsHttpDomain`,
+`EventsRealtimeDomain`, `EventsApiKey`. Print them with `scripts/stack_env.sh`.
 
 ## 5. Seed data and demo users
 
@@ -260,10 +263,11 @@ Set an AWS Budget with an e-mail alert (for example 10 USD) before the demo.
 
 ```
 eval "$(scripts/stack_env.sh)"
+make gauge-provision VILLAGE=gohar DELETE=1      # once per provisioned gauge
 aws s3 rm "s3://$STACK_BucketName" --recursive   # the bucket must be empty
 sam delete --stack-name pukaar-dev --region us-east-1
-for p in telegram_token telegram_webhook_secret link_secret; do
-  aws ssm delete-parameter --name "/pukaar/$p"
+for p in telegram_token telegram_webhook_secret link_secret vapid_private_key vapid_public_key after_action_to; do
+  aws ssm delete-parameter --name "/pukaar/$p"   # an error for one that was never set is harmless
 done
 ```
 

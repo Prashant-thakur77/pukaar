@@ -91,10 +91,10 @@ function trace(v) {
 
 let seq = 100;
 const alerts = [
-  mkAlert('a1', VILLAGES[0], 'pending', 'warning', 0.4, 'bedrock:anthropic.claude-haiku'),
+  mkAlert('a1', VILLAGES[0], 'pending', 'warning', 0.4, 'us.amazon.nova-2-lite-v1:0'),
   mkAlert('a2', VILLAGES[1], 'pending', 'watch', 0.9, 'rule-fallback', false),
-  mkAlert('a3', VILLAGES[1], 'delivered', 'normal', 6, 'bedrock:anthropic.claude-haiku', true, 38, 21),
-  mkAlert('a4', VILLAGES[2], 'auto_sent_unapproved', 'normal', 12, 'bedrock:anthropic.claude-haiku', true, 12, 4),
+  mkAlert('a3', VILLAGES[1], 'delivered', 'normal', 6, 'us.amazon.nova-2-lite-v1:0', true, 38, 21),
+  mkAlert('a4', VILLAGES[2], 'auto_sent_unapproved', 'normal', 12, 'us.amazon.nova-2-lite-v1:0', true, 12, 4),
 ];
 
 function mkAlert(id, v, status, prev, hoursAgo, model, check = true, delivered = 0, acked = 0) {
@@ -386,7 +386,7 @@ const server = http.createServer(async (req, res) => {
         { name: 'get_latest_readings', input: { village_ids: 'all' }, output_summary: `${VILLAGES.length} readings`, decision: 'allow' },
         { name: 'list_alerts', input: { status: 'pending' }, output_summary: '2 pending alerts', decision: 'allow' },
       ],
-      model: 'bedrock:anthropic.claude-haiku (sample)',
+      model: 'us.amazon.nova-2-lite-v1:0 (sample)',
     });
   }
   send(res, 404, { detail: `No mock for ${req.method} ${p}` });

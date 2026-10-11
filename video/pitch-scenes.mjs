@@ -176,7 +176,7 @@ export function layersFor(id, c) {
           { title: "Weather, climate and water disasters, 1970s → 2010s", value: "×5", note: "more disasters (part of it is better reporting)", color: "linear-gradient(90deg,#3b6b93,#8ad0ff)", w0: 90, w1: 450, at: 0.3 },
           { title: "Deaths", value: "50,000+ → under 20,000", note: "fewer deaths: *better early warning and disaster management*", color: "linear-gradient(90deg,#1f8fd6,#4fb3ff)", w0: 520, w1: 200, at: ch(1, 1) - at(1) },
         ], source: "WMO, Atlas of Mortality and Economic Losses, 1970–2019 (31 Aug 2021)" },
-        { type: "stat", value: 1.5, decimals: 1, suffix: " million", label: "people moved in a day before *Cyclone Fani*, Odisha 2019.\n64 died. In 1999, nearly 10,000 had.", source: "Fani Post-Disaster Needs Assessment, Govt of Odisha, 2019", from: at(2), to: dur, x: 150, y: 300, w: 1600, size: 200 },
+        { type: "stat", value: 1.5, decimals: 1, suffix: " million", label: "people moved in a day before *Cyclone Fani*, Odisha 2019.\n64 died. In 1999, nearly 10,000 had.", source: "Cyclone Fani Damage, Loss and Needs Assessment, Govt of Odisha, 2019", from: at(2), to: dur, x: 150, y: 300, w: 1600, size: 200 },
       ],
       sfx: [{ name: "swell", t: at(0) - 1.2, gain: -14 }],
     };
@@ -410,7 +410,7 @@ export const SOURCES = [
   ["1 in 3 people in India say they get no warning", "Yale Program on Climate Change Communication & CVoter, Climate Change in the Indian Mind 2023", "https://climatecommunication.yale.edu/publications/climate-change-in-the-indian-mind-2023/toc/4"],
   ["“A warning cannot be considered effective until…” (a Bangladesh field study)", "Cumiskey et al., Int. J. Disaster Resilience in the Built Environment 6(1), 2015, doi:10.1108/IJDRBE-08-2014-0062", "https://doi.org/10.1108/IJDRBE-08-2014-0062"],
   ["Disasters ×5, deaths from over 50,000 (1970s) to under 20,000 (2010s)", "WMO, Atlas of Mortality and Economic Losses from Weather, Climate and Water Extremes (1970–2019), 31 Aug 2021", "https://wmo.int/media/news/weather-related-disasters-increase-over-past-50-years-causing-more-damage-fewer-deaths"],
-  ["Odisha, Cyclone Fani 2019: 1.5 million moved in 24 hours; 64 dead; nearly 10,000 in 1999", "Govt of Odisha, Cyclone Fani Post-Disaster Needs Assessment, 2019", "https://www.preventionweb.net/publication/fani-cyclone-odisha-post-disaster-needs-assessment"],
+  ["Odisha, Cyclone Fani 2019: 1.5 million moved in 24 hours; 64 dead; nearly 10,000 in 1999", "Govt of Odisha, Cyclone Fani 2019: Damage, Loss and Needs Assessment (with the UN, World Bank and ADB)", "https://www.osdma.org/wp-content/uploads/2019/08/Cyclone-Fani-2019-Odisha-DLNA-Report.pdf"],
   ["Trishuli school, 26 Aug 2026: over 900 students; “Stop the class, ring the bell”", "Reuters, “Last-minute flood warning saved over 900 Nepal students, school head says”, 31 Aug 2026", "https://www.internazionale.it/ultime-notizie-reuters/2026/08/31/last-minute-flood-warning-saved-over-900-nepal-students-school-head-says"],
   ["SACHET is India's CAP-based Integrated Alert System", "PIB (MHA), “Glacial Lake Outburst Flood Mitigation”, 1 Apr 2025", "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2117268"],
 ];

@@ -1,4 +1,4 @@
-"""DynamoDB single-table repository (PLAN.md section 6).
+"""DynamoDB single-table repository.
 
 Keys:
   VILLAGE#id  META | READING#iso | SENSOR#iso#device | SENSORLAST#device | REPORT#iso#id | DEDUPE#window | RECIPIENT#id

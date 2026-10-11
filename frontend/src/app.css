@@ -316,7 +316,7 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 .rb-bar i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width 0.6s var(--ease-out); }
 @keyframes drop-in { from { transform: translateY(-100%); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* ---------- footer: EcoLafaek's black band and giant gold wordmark; the river flows through the letters ---------- */
+/* ---------- footer: a dark band and a giant gold wordmark; the river flows through the letters ---------- */
 .site-footer { background: var(--night-0); color: var(--night-ink-2); margin-top: var(--s-9); overflow: hidden; position: relative; }
 .landing + .site-footer, .impact + .site-footer { margin-top: 0; }
 .ftr-inner { max-width: var(--maxw); margin: 0 auto; padding: var(--s-9) var(--gutter) var(--s-7); display: grid; gap: var(--s-7); grid-template-columns: 1.6fr 1fr 1fr 1fr; }
@@ -332,8 +332,8 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 .site-footer .call112 { border-color: #ff8a9b; color: #ffb3bf; }
 .ftr-giant { position: relative; text-align: center; line-height: 0.8; margin: 0 auto -0.12em; padding: 0 var(--gutter); user-select: none; }
 .ftr-giant span {
-  display: block; font-family: 'Anton', var(--font-display); font-size: clamp(6rem, 33.5vw, 44rem); letter-spacing: -0.01em; line-height: 0.8;
-  /* gold, with a slow band of lighter water running through it (Sarvam fills its wordmark with moving footage) */
+  display: block; font-family: var(--font-display); font-size: clamp(6rem, 33.5vw, 44rem); letter-spacing: -0.01em; line-height: 0.8;
+  /* gold, with a slow band of lighter water running through it */
   background: linear-gradient(100deg, var(--gold) 0%, var(--gold) 38%, #c9ecff 46%, var(--gold-2) 50%, var(--gold) 58%, #2f7df6 100%);
   background-size: 260% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--gold);
   animation: ftr-flow 9s linear infinite;
@@ -368,7 +368,7 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 .intro-brand { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 6px; text-align: center; pointer-events: none; }
 .intro-mark { opacity: 0; transform: scale(0.4); animation: intro-pop 520ms var(--ease-pop) 1650ms forwards; }
 .intro-word { font-family: var(--font-hi); font-weight: 900; color: var(--cream); font-size: clamp(3.2rem, 11vw, 6.5rem); line-height: 1.15; opacity: 0; transform: translateY(14px); animation: intro-rise 480ms var(--ease-expo) 1850ms forwards; }
-.intro-en { font-family: 'Anton', var(--font-display); color: var(--gold); letter-spacing: 0.42em; font-size: 1.05rem; margin-right: -0.42em; opacity: 0; animation: intro-rise 480ms var(--ease-expo) 1960ms forwards; }
+.intro-en { font-family: var(--font-display); color: var(--gold); letter-spacing: 0.42em; font-size: 1.05rem; margin-right: -0.42em; opacity: 0; animation: intro-rise 480ms var(--ease-expo) 1960ms forwards; }
 .intro-tag { font: 700 10.5px/1.5 var(--font-body); letter-spacing: 0.24em; text-transform: uppercase; color: var(--khaki); max-width: 46ch; opacity: 0; animation: intro-rise 480ms var(--ease-expo) 2060ms forwards; }
 .intro-tag:lang(hi) { letter-spacing: 0.04em; font-size: 13px; }
 .intro-dashes { display: inline-flex; gap: 6px; margin-top: 10px; opacity: 0; animation: fade-in 200ms ease 2150ms forwards; }
@@ -1461,8 +1461,8 @@ button.map-key-item:hover { background: var(--surface-2); }
 
 
 /* =====================================================================================================
-   EcoLafaek layer: the shared language every page inherits (tokens in theme.css).
-   Anton display caps, tiny tracked uppercase labels, gold pills with press physics, a gold mark.
+   Shared layer: the language every page inherits (tokens in theme.css).
+   Display caps, tiny tracked uppercase labels, gold pills with press physics, a gold mark.
    ===================================================================================================== */
 .wordmark { padding-left: 0; gap: 10px; align-items: center; }
 .wordmark .wm-rings { display: none; }
@@ -1470,9 +1470,9 @@ button.map-key-item:hover { background: var(--surface-2); }
 .pk-mark .pk-call { animation: pk-call 3.2s var(--ease-out) infinite; transform-origin: 9px 8px; }
 @keyframes pk-call { 0%, 60%, 100% { opacity: 1; } 30% { opacity: 0.35; } }
 .wm-hi { font-size: 1.55rem; }
-.wm-en { font-family: 'Anton', var(--font-display); font-size: 0.95rem; letter-spacing: 0.2em; opacity: 0.75; }
+.wm-en { font-family: var(--font-display); font-size: 0.95rem; letter-spacing: 0.2em; opacity: 0.75; }
 
-.display-2, .display-3 { font-family: 'Anton', var(--font-display); text-transform: uppercase; letter-spacing: 0.005em; line-height: 0.92; }
+.display-2, .display-3 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.005em; line-height: 0.92; }
 .display-2 { font-size: clamp(2.8rem, 6.4vw, 6rem); }
 .display-3 { font-size: clamp(2.2rem, 4.4vw, 3.8rem); }
 .display-2 [lang='hi'], .display-3[lang='hi'], .display-3 [lang='hi'] { text-transform: none; line-height: 1.2; }
@@ -1501,7 +1501,7 @@ button.map-key-item:hover { background: var(--surface-2); }
 .hdr-link.is-active { background: none; box-shadow: inset 0 -2px 0 var(--gold); border-radius: 0; }
 .chip { letter-spacing: 0.04em; }
 
-/* ---------- hero, EcoLafaek layout: left-aligned Anton headline (last line gold) over the 3D valley, floating cards right ---------- */
+/* ---------- hero: left-aligned display headline (last line gold) over the 3D valley, floating cards right ---------- */
 .hero { background: var(--night-0); }
 .hero::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background: linear-gradient(90deg, rgb(6 17 31 / 0.92) 0%, rgb(6 17 31 / 0.7) 38%, rgb(6 17 31 / 0.15) 70%, transparent 100%),
@@ -1510,7 +1510,7 @@ button.map-key-item:hover { background: var(--surface-2); }
   display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); gap: var(--s-7); align-items: center; text-align: left; justify-items: stretch; }
 .hero-copy { display: grid; justify-items: start; }
 .hero-eyebrow { color: var(--gold); }
-.hero-h1 { margin: 0 0 var(--s-4); font-family: 'Anton', var(--font-display); font-weight: 400; text-transform: uppercase; color: var(--cream);
+.hero-h1 { margin: 0 0 var(--s-4); font-family: var(--font-display); font-weight: 400; text-transform: uppercase; color: var(--cream);
   font-size: clamp(3rem, 6.2vw, 5.9rem); line-height: 0.9; letter-spacing: 0.002em; display: grid; }
 .hero-h1:lang(hi), :root[lang='hi'] .hero-h1 { font-family: var(--font-hi); font-weight: 900; text-transform: none; line-height: 1.12; font-size: clamp(2.6rem, 6vw, 5.4rem); }
 .hh-line { display: block; opacity: 0; transform: translateY(0.35em); animation: hh-in 700ms var(--ease-expo) forwards; }
@@ -1532,7 +1532,7 @@ button.map-key-item:hover { background: var(--surface-2); }
 .hf-gold { left: 0; top: 18px; width: 230px; background: var(--gold); color: var(--night-0); animation-delay: 420ms, 1.2s; }
 .hf-ticket { right: 0; top: 140px; width: min(330px, 100%); background: rgb(20 26 21 / 0.92); border: 1px solid rgb(238 246 251 / 0.12); color: var(--cream); backdrop-filter: blur(10px); animation-delay: 560ms, 2.2s; }
 .hf-cream { left: 34px; bottom: 6px; width: 210px; background: var(--cream); color: var(--night-0); animation-delay: 700ms, 3.1s; }
-.hf-num { font-family: 'Anton', var(--font-display); font-size: 3.6rem; line-height: 0.9; }
+.hf-num { font-family: var(--font-display); font-size: 3.6rem; line-height: 0.9; }
 .hf-num small { font-size: 0.45em; margin-left: 4px; }
 .hf-cap { font: 800 10.5px/1.45 var(--font-body); letter-spacing: 0.16em; text-transform: uppercase; }
 .hf-cap:lang(hi), :root[lang='hi'] .hf-cap { letter-spacing: 0.02em; text-transform: none; font-size: 12.5px; }
@@ -1552,12 +1552,12 @@ button.map-key-item:hover { background: var(--surface-2); }
 @media (max-width: 520px) { .hero-float { display: none; } }
 @media (prefers-reduced-motion: reduce) { .hh-line, .hf-card { animation: none; opacity: 1; transform: none; } }
 
-/* ---------- landing bands, colour-blocked like EcoLafaek: gold stats, black step cards, forest chain, crimson fact ---------- */
-.band-marigold .ctr-num, .band-marigold [class*='num'] { font-family: 'Anton', var(--font-display); }
+/* ---------- landing bands, colour-blocked: gold stats, black step cards, forest chain, crimson fact ---------- */
+.band-marigold .ctr-num, .band-marigold [class*='num'] { font-family: var(--font-display); }
 .how .step { background: var(--night-0); color: var(--cream); border: 0; border-radius: 22px; padding: var(--s-6); overflow: hidden; }
-.how .step-num { color: var(--gold); -webkit-text-stroke: 0; font-family: 'Anton', var(--font-display); font-size: 5.2rem; left: var(--s-6); right: auto; top: auto; bottom: 10px; opacity: 0.95; }
+.how .step-num { color: var(--gold); -webkit-text-stroke: 0; font-family: var(--font-display); font-size: 5.2rem; left: var(--s-6); right: auto; top: auto; bottom: 10px; opacity: 0.95; }
 .how .step-icon { background: var(--gold); color: var(--night-0); border-radius: 50%; }
-.how .step-title { font-family: 'Anton', var(--font-display); text-transform: uppercase; color: var(--cream); font-size: 2.3rem; }
+.how .step-title { font-family: var(--font-display); text-transform: uppercase; color: var(--cream); font-size: 2.3rem; }
 .how .step p { color: var(--night-ink-2); margin-bottom: 5.6rem; }
 .how .step:hover { transform: translateY(-6px); box-shadow: 0 30px 50px -28px rgb(6 17 31 / 0.8); }
 .spine { background: var(--forest); color: var(--forest-ink); }
@@ -1569,7 +1569,7 @@ button.map-key-item:hover { background: var(--surface-2); }
 .spine .spine-aws { background: rgb(238 246 251 / 0.1); color: var(--gold-2); border-color: transparent; }
 .spine .spine-note { color: rgb(233 243 236 / 0.7); }
 .band-night.fact { background: var(--crimson); color: var(--cream); }
-.fact h2 [lang='hi'] { color: var(--cream); font-family: 'Anton', var(--font-hi); }
+.fact h2 [lang='hi'] { color: var(--cream); font-family: var(--font-hi); }
 .fact .eyebrow { color: #ffd2c7; }
 .fact-en { color: #ffd9d0; }
 .fact-text { color: #fff; }
@@ -1587,7 +1587,7 @@ button.map-key-item:hover { background: var(--surface-2); }
   --lv-warning-ink: #9a3a00; --lv-warning-bg: #ffe6d5; --lv-critical-ink: #9c0d2f; --lv-critical-bg: #ffdfe6;
 }
 
-/* ---------- EcoLafaek motion: 60px rise over 1s (power3-out), headings glide in from the side; film grain on dark bands ---------- */
+/* ---------- motion: 60px rise over 1s (power3-out), headings glide in from the side; film grain on dark bands ---------- */
 .reveal { transform: translateY(60px); transition: opacity 1s cubic-bezier(0.215, 0.61, 0.355, 1) var(--d, 0ms), transform 1s cubic-bezier(0.215, 0.61, 0.355, 1) var(--d, 0ms); }
 .reveal-slide { transform: translateX(-10vw); }
 .reveal.is-in { opacity: 1; transform: none; }
@@ -1734,7 +1734,7 @@ body { background:
 .tour-dots li { width: 6px; height: 6px; border-radius: 99px; background: #cdbfa8; transition: width 250ms var(--ease-std), background-color 250ms; }
 .tour-dots li.is-done { background: #7a5a14; }
 .tour-dots li.is-on { width: 22px; background: var(--gold); box-shadow: inset 0 0 0 1px rgb(12 12 8 / 0.25); }
-.tour-title { margin: 12px 0 6px; font-family: 'Anton', var(--font-display); font-weight: 400; text-transform: uppercase; font-size: 1.55rem; line-height: 1.02; letter-spacing: 0.01em; color: var(--night-0); }
+.tour-title { margin: 12px 0 6px; font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: 1.55rem; line-height: 1.02; letter-spacing: 0.01em; color: var(--night-0); }
 .tour[lang='hi'] .tour-title { font-family: var(--font-hi); font-weight: 800; text-transform: none; font-size: 1.3rem; line-height: 1.3; }
 .tour-body { margin: 0; font-size: 0.95rem; line-height: 1.55; color: #2f2c24; }
 .tour[lang='hi'] .tour-body { line-height: 1.7; }

@@ -13,15 +13,18 @@ Built for Environmental Hacks (WeMakeDevs x AWS), Heat and Water track.
 
 **Live:** https://main.d15r7ktz99l46x.amplifyapp.com · deployed on AWS (`us-east-1`, stack `pukaar-dev`) · public pages need no sign-in.
 
+**Try it as a judge:** public pages need no account. For the officer console, sign in at [/login](https://main.d15r7ktz99l46x.amplifyapp.com/login) as `judge` (district officer) or `judge_pradhan` (village head of Thunag, to see Cedar refuse an approval), password `Judge-E5FCkUl3uY-2026`. Start a replay of the July 2023 floods from the console and approve the alert it raises. Details in [DEMO.md](DEMO.md).
+
 **Pitch video (4:20):** [![Pukaar pitch video](docs/media/pukaar-pitch-poster.jpg)](docs/media/pukaar-pitch.mp4)
 [Watch the pitch](docs/media/pukaar-pitch.mp4) · [captions](docs/media/pukaar-pitch.srt) · [sources and credits](docs/media/pukaar-pitch-credits.md). The problem in India, Nepal and the world with sourced numbers and real headlines, why warnings fail, the live loop on AWS (a real approval during a labelled replay, the real Polly voice), and what comes next. Footage and images are openly licensed and credited; the Telegram screens are labelled reproductions of the bot's real message.
 
-**Demo video (2:41):** [![Pukaar demo video: the 3D architecture scene](docs/media/pukaar-demo-poster.png)](docs/media/pukaar-demo.mp4)
+**Demo video (2:44):** [![Pukaar demo video: the 3D architecture scene](docs/media/pukaar-demo-poster.png)](docs/media/pukaar-demo.mp4)
 [Watch the demo](docs/media/pukaar-demo.mp4) · [35-second trailer](docs/media/pukaar-trailer.mp4) · [script, chapters and captions](docs/submission/demo-script.md) · [submission writeup](docs/submission/writeup.md). The live scenes are recorded from the deployed site during a labelled replay on AWS, and the Hindi voice is the real Polly output. The video pipeline is in [video/](video/).
 
 | Landing | Officer console | Villager report (phone) |
 |---|---|---|
 | ![Landing page](docs/screens/landing-1440-dark.png) | ![Officer console during a replay](docs/screens/console-1440-light.png) | ![Hindi-first report page](docs/screens/report-390-light.png) |
+| ![Agents page: five agents, what each may never do, and a real decision trace](docs/screens/agents-1440-light.png) | ![Sensors page: river gauges over AWS IoT Core, device to alert](docs/screens/sensors-1440-dark.png) | ![Impact page: Sentinel-2 before and after of the July 2023 Beas flood](docs/screens/impact-1440-light.png) |
 
 ## At a glance
 
@@ -38,7 +41,7 @@ What is live on the deployed stack today, and how each piece was checked. Every 
 | **Interoperable** | A **CAP 1.2** feed (the format of NDMA's SACHET), schema-checked against the OASIS XSD: [/cap/alerts.atom](https://362iqe4oae.execute-api.us-east-1.amazonaws.com/cap/alerts.atom) | Live |
 | **Honest evidence** | Research with sources, a back-test scored against reported floods with a source ablation, a soil-moisture modifier kept off because the back-test cannot justify it | [Research and evidence](#research-and-evidence) |
 
-The full plan, with what is still being built and what needs a partner (voice calls and SMS inside India, sending into SACHET), is in [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md).
+Not built yet: an outbound voice call and an SMS copy of each alert (both need telecom registration or a partner inside India) and sending alerts into SACHET (that needs NDMA as a partner). Every piece and its state is in [Built versus planned](#built-versus-planned).
 
 ## The problem
 
@@ -106,7 +109,7 @@ Pukaar is built to sit beside these, not replace them: their forecasts are its i
 
 ### Interoperable: a CAP 1.2 feed
 
-SACHET, NDMA's national alert platform, is built on the Common Alerting Protocol ([PIB](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2257102)). Every Pukaar alert that actually goes out (approved by an officer, auto-sent at critical after every officer timed out, or sent by the failsafe) is also published as a CAP 1.2 message, so SACHET, Google Public Alerts or any CAP aggregator can read it without custom code. Pending, declined and expired alerts are never published.
+SACHET, NDMA's national alert platform, is built on the Common Alerting Protocol ([PIB](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2257102)). Every Pukaar alert that actually goes out (approved by an officer, auto-sent at critical after every officer timed out, or sent by the failsafe) is also published as a CAP 1.2 message, in the same standard SACHET uses, so any CAP 1.2 reader can parse it without custom code. Nothing reads the feed officially yet: Pukaar does not send into SACHET or any other aggregator. Pending, declined and expired alerts are never published.
 
 - `GET /cap/alerts.atom`: ATOM index of the latest 50 published alerts, newest first, each linking to its XML.
 - `GET /cap/alerts/{alert id}.xml`: one `<alert>` (`application/cap+xml`), 404 if the alert was not published.
@@ -138,7 +141,6 @@ Each message has a Hindi (`hi-IN`) and an English (`en-IN`) `<info>` block, even
 | Delivery | Spoken alert plus text and a "मिल गया" button; one automatic re-send to anyone who has not acknowledged | Lambda, Telegram Bot API |
 | A river gauge reports | A water-level gauge at a bridge publishes a reading over MQTT to AWS IoT Core with its own X.509 certificate (or posts it over HTTPS with a per-device HMAC signature); at most one per minute; a fresh reading is a third evidence source, and a rise re-runs the village's rules at once. Live gauges are simulated and labelled (`make gauge-sim-mqtt`, `make gauge-sim`); hardware design in [docs/hardware](docs/hardware/README.md) | AWS IoT Core, API Gateway, Lambda, DynamoDB (TTL) |
 | After the alert: "Surakshit Hoon" | When a live warning or critical alert closes after reaching phones, each Telegram recipient gets "पुकार: क्या आप सुरक्षित हैं? / Are you safe?" with two buttons, "✅ मैं सुरक्षित हूँ" and "🆘 मदद चाहिए". After a flood, calls from relatives jam the towers that still stand; one tap (the idea behind Facebook's Safety Check) frees those lines and tells the officer who needs help and who has not checked in. The officer's board lists need-help first (names and times, never phone numbers) and can re-ask the silent ones once every 30 minutes. "Safe" returns a 7-day family link that shows only a first name, a time and the village. Open 48 hours; replays never ask, drills ask as a labelled exercise | Telegram Bot API, Lambda, DynamoDB (TTL 30 days), Cedar (`open_rollcall`, `remind_rollcall`), CloudWatch alarm on `RollCallNeedHelp` |
-| A river gauge reports | A water-level gauge at a bridge posts a signed reading (HMAC per device, 5-minute replay window, one per minute); a fresh reading is a third evidence source, and a rise re-runs the village's rules at once. Live gauges are simulated and labelled (`make gauge-sim`); hardware design in [docs/hardware](docs/hardware/README.md) | API Gateway, Lambda, DynamoDB (TTL) |
 | A villager reports | Voice, photo or text, from any phone; queued offline; a tracking code back | API Gateway, S3, Transcribe (hi-IN), Bedrock |
 | A villager compares with the marked rock | Where a pradhan or officer has set up a virtual staff gauge (the [CrowdWater](https://crowdwater.ch/en/virtual-staff-gauge/) pattern: one reference photo of a fixed rock or pier by the khad, a scale drawn on it in the browser), the report page shows that photo with its scale beside the villager's own photo and asks, in Hindi first, which mark the water is closest to. The mark is saved on the report. An officer sees both photos side by side and confirms, adjusts or rejects it (audited old -> new). Only a confirmed reading at or above a configured mark counts: it raises the level like an officer-verified report and corroborates another verified report (two sources agree), but never counts twice with its own report; an unconfirmed mark is evidence only. A person reads every photo until Bedrock model access lands for a vision model | API Gateway, S3, DynamoDB, Cedar |
 | A gauge has a week of its own record | After 7 days or 2,000 readings, code proposes watch/warning/critical stages from the gauge's own record (p90/p97/p99.5, never below the low-flow baseline + 30 cm, at least 15 cm apart) and lists sensor faults across the record (flat lines, impossible jumps, clock offset and drift, battery trend, silences); faulty readings are left out of the percentiles. An officer reads the chart and accepts it, or not; nothing is applied on its own, and the audit row records old -> new | Lambda, DynamoDB, Cedar |
@@ -178,14 +180,15 @@ Three rules hold everywhere:
 
 ### AWS in depth
 
-Every row is deployed in stack `pukaar-dev` (`us-east-1`) and defined in
-[infra/template.yaml](infra/template.yaml).
+Every row is deployed with stack `pukaar-dev` (`us-east-1`). All but the last
+two are defined in [infra/template.yaml](infra/template.yaml); the Terrain
+Tiles are a public AWS Open Data bucket, and the budget is set on the account.
 
 | Service | What it does in Pukaar | How it is set up | Code |
 |---|---|---|---|
 | **EventBridge Scheduler** | Runs the sweep every 15 minutes | `rate(15 minutes)`, `MaximumRetryAttempts: 0` (a late sweep is useless; the next one comes), dead-letter queue `pukaar-sweep-dlq-dev` | `infra/template.yaml` (`SweepSchedule`) |
 | **Lambda** (5 functions, container images from one Dockerfile) | `pukaar-api-dev` (FastAPI behind the Lambda Web Adapter, 2048 MB, 29 s), `pukaar-sweep-dev`, `pukaar-workflow-dev` (one function, dispatch on `step`), `pukaar-worker-dev` (Transcribe, replay), `pukaar-gauge-ingest-dev` (gauge readings from the IoT topic rule) | X-Ray tracing on every function, one IAM role per function, 30-day log retention | `backend/Dockerfile`, `backend/src/Pukaar/handlers/` |
-| **API Gateway HTTP API** | Every route | Cognito JWT authorizer on the catch-all route; an explicit short list of public routes (health, overview, report, acknowledgement, signed approval link, Telegram webhook, CAP feed, Web Push public key); CORS limited to the web origin; stage throttling 20 req/s, burst 50 | `infra/template.yaml` (`HttpApi`) |
+| **API Gateway HTTP API** | Every route | Cognito JWT authorizer on the catch-all route; an explicit list of public routes, each read-only or self-authenticating (health; overview, villages, safe places and staff gauges; report submission and tracking; alert audio and acknowledgement; signed approval link; family safety link; Telegram webhook; replay status; CAP feed; agents and sensors pages; signed gauge readings; Web Push public key; full list in [docs/CONTRACT.md](docs/CONTRACT.md#auth)); CORS limited to the web origin; stage throttling 20 req/s, burst 50, tighter on report and gauge posts | `infra/template.yaml` (`HttpApi`) |
 | **Step Functions** (Standard) | One approval execution per alert: draft, ask officer, deliver, wait, re-send, close | `waitForTaskToken` callbacks with the timeout as a deploy parameter; `States.Timeout` moves to the next officer; `States.ALL` on every task goes to a failsafe; 2-hour execution limit; error-level logging; X-Ray | [infra/approval.asl.json](infra/approval.asl.json), `backend/src/Pukaar/workflow/steps.py` |
 | **DynamoDB** | All state in one table | On-demand, `pk`/`sk`, one sparse GSI used as the open-work queue, TTL, point-in-time recovery, conditional writes for sweep dedupe and single-use approval tokens; audit rows are append-only | `backend/src/Pukaar/store/repo.py` |
 | **Bedrock** (Amazon Nova 2 Lite, via Strands Agents) | Drafts the Hindi alert, structures reports, describes photos, answers officers ("Ask Pukaar") | Typed output, at most 4 turns, a fresh agent per call; whole-call retry in `us-west-2` on throttling, 5xx or timeouts; every tool call passes a Cedar hook; any failure returns `None` and the rule fallback runs. The live stack currently runs on that fallback (fixed Hindi template, labelled `rule-fallback`) until Bedrock model access is granted | `backend/src/Pukaar/llm/bedrock.py`, `backend/src/Pukaar/llm/tools.py` |
@@ -193,15 +196,15 @@ Every row is deployed in stack `pukaar-dev` (`us-east-1`) and defined in
 | **Polly** | Speaks every approved alert in Hindi | Voice Kajal, `hi-IN`, generative engine with a logged fallback to neural, MP3 stored in S3 under the alert id | `backend/src/Pukaar/voice/polly.py` |
 | **Transcribe** | Turns villager voice reports into text | `hi-IN` batch job; the audio stays in S3 next to the transcript, so a failed transcription never loses a report | `backend/src/Pukaar/voice/transcribe.py` |
 | **Cognito** | Officer and pradhan sign-in | User pool with groups `officer` and `pradhan` and a `village_ids` attribute; villagers need no account | `infra/template.yaml`, `scripts/seed_users.py` |
-| **S3** | Alert audio, report photos and audio | Private, all public access blocked, SSE-S3, TLS-only bucket policy, presigned URLs | `backend/src/Pukaar/services/storage.py` |
-| **SSM Parameter Store** | Telegram token, webhook secret, approval-link signing key, the Web Push (VAPID) key pair (`make vapid-keys`), each gauge's IoT private key and certificate | SecureString, read at start-up, never in an environment variable or the template | `scripts/put_secrets.sh` |
+| **S3** | Alert audio, report photos and audio, staff-gauge reference photos, after-action reports | Private, all public access blocked, SSE-S3, TLS-only bucket policy, presigned URLs | `backend/src/Pukaar/services/storage.py` |
+| **SSM Parameter Store** | Telegram token, webhook secret, approval-link signing key, the Web Push (VAPID) key pair (`make vapid-keys`), each gauge's IoT private key and certificate, the after-action e-mail recipients | SecureString, read at start-up, never in an environment variable or the template | `scripts/put_secrets.sh` |
 | **AWS IoT Core** | River gauges connect over MQTT with mutual TLS and publish their readings | One thing and one X.509 certificate per gauge (`make gauge-provision`, key and certificate PEM in SSM SecureString); policy `pukaar-gauge-dev` allows only `iot:Connect` as the device's own thing name and `iot:Publish` to its own `pukaar/gauge/<village>/<device>/reading` topic; topic rule `SELECT *, topic(3) AS village_id, topic(4) AS device_id` invokes `pukaar-gauge-ingest-dev`, error action to the worker DLQ; the Lambda checks the payload and that the device is the village's gauge, then uses the same ingestion as the HTTPS route | `infra/template.yaml` (`PukaarGaugeRule`, `PukaarGaugePolicy`), `backend/src/Pukaar/handlers/gauge_ingest.py`, `backend/src/Pukaar/scripts/iot_provision.py`, `backend/src/Pukaar/scripts/gauge_sim_mqtt.py`, [sketch](docs/hardware/esp32-gauge-mqtt/esp32-gauge-mqtt.ino) |
 | **AppSync Events** | Live push to the web app: approving in one browser updates every other open console, `/live` and village page within about a second, instead of at the next 15-second poll | Event API `pukaar-events-dev` with two channel namespaces. `public` (levels, alert statuses, delivered and acknowledged counts, roll-call counts) is read with a public, subscribe-only API key built into the web app; `officer` (approval pending, approved, declined; roll-call "need help") needs a Cognito ID token. Publishing is `AWS_IAM` only on both, from the five Lambdas, whose roles allow only `appsync:EventPublish` on the two namespace ARNs (a template test enforces it). Events carry ids, levels, statuses, times and counts, never alert text or names. The browser keeps one WebSocket (keep-alive watchdog, jittered backoff, closed while the tab is hidden), refetches from the API when an event lands, and keeps polling every 60 s as a fallback (15 s whenever push is down); a "Live push" pill says which is happening. A failed publish is logged and counted (`EventPublishFailed`), never raised. Billed per million operations and connection-minutes; nothing hourly | `backend/src/Pukaar/services/events.py`, `frontend/src/lib/live.ts`, `infra/template.yaml` (`PukaarEvents`, `PublicEvents`, `OfficerEvents`) |
 | **SQS** | Dead-letter queues for the sweep and the worker (the gauge-ingest Lambda and the IoT rule's error action share the worker's) | SSE-SQS, 14-day retention, each with an alarm | `infra/template.yaml` |
 | **CloudWatch** | Logs, metrics, ten alarms, one dashboard | Embedded metric format; alarms for model errors, model failover, API 5xx, failed approvals, both DLQs, a missing sweep heartbeat, failed deliveries, unacknowledged alerts and a "need help" answer in a safety roll-call; SNS topic for alarm e-mail | dashboard `pukaar-dev` |
 | **Amplify Hosting** | Serves the web app | Manual deploy of the Vite build with the stack's outputs baked in | `scripts/deploy_web.sh` |
 | **AWS Open Data (Terrain Tiles on S3)** | Real Himalayan relief for the 3D map and the landing-page valley | Terrarium tiles from `s3://elevation-tiles-prod`; the landing heightmap is baked once from them | `frontend/src/components/VillageMap.tsx`, `backend/src/Pukaar/scripts/story.py`, `scripts/build_hero_dem.py` |
-| **AWS Budgets** | Keeps the hackathon cheap | Monthly cost budget with e-mail alerts at 80% actual and 100% forecast | account level |
+| **AWS Budgets** | Keeps the account's spend in check | Monthly cost budget with e-mail alerts at 80% actual and 100% forecast | account level |
 
 ### Guarantees the tests enforce
 
@@ -276,29 +279,29 @@ curl -s -o /dev/null -w '%{http_code}\n' $API/me   # 401: officer routes need a 
 ```
 
 Officer routes (approve, decline, start a replay, Ask Pukaar) need a Cognito
-sign-in; the demo accounts are in [DEMO.md](DEMO.md).
+sign-in; the demo user names are in [DEMO.md](DEMO.md#sign-in).
 
 ## Built versus planned
 
 | Piece | State |
 |---|---|
-| Sweep, risk rules, hysteresis, dedupe | Built and tested offline |
-| Approval workflow (approve, decline, timeout, next officer, critical auto-send, failsafe) | Built; state machine path-tested offline |
-| Bedrock drafting with checker and rule fallback | Built; tested with a scripted model |
-| Polly voice, Telegram delivery, acknowledgement, re-send | Built; Telegram is live on the deployed stack (below) |
-| Voice and photo reports, Transcribe, auto-verification, tracking | Built |
-| Cedar roles, audit log, agent tool guard | Built and tested |
-| Bedrock Guardrails screening of villager text (prompt attacks and orders to the system held for an officer, phone numbers masked, local heuristic fallback) | Live: a prompt-attack report was held on the deployed stack (11 Oct 2026); also tested offline with a scripted guardrail. `ApplyGuardrail` was checked on this account on 11 Oct 2026 and blocks a prompt attack without model access, so it will be the first live Bedrock feature |
-| Ask Pukaar analyst agent | Built (falls back to a keyword router without a model) |
-| Replay and back-test on archived data | Built ([data/backtest.json](data/backtest.json)) |
+| Sweep, risk rules, hysteresis, dedupe | Live: the sweep runs every 15 minutes on the deployed stack (`/villages/{id}` shows when the latest Open-Meteo reading arrived); tested offline |
+| Approval workflow (approve, decline, timeout, next officer, critical auto-send, failsafe) | Live: real Step Functions approval executions on the deployed stack; every path tested offline against the state machine definition (`make it` runs the same paths on AWS) |
+| Bedrock drafting with checker and rule fallback | Built; tested with a scripted model. On the live stack the fixed template runs until model access is granted (see "Bedrock on the live stack") |
+| Polly voice, Telegram delivery, acknowledgement, re-send | Live: Polly writes the Hindi MP3 to S3 and Telegram delivers it on the deployed stack (below); acknowledgement and re-send also tested offline |
+| Voice and photo reports, Transcribe, auto-verification, tracking | Deployed; tested offline. Transcribe accuracy on Himachali Hindi is not measured yet |
+| Cedar roles, audit log, agent tool guard | Live: every allow and deny on the deployed stack goes to the audit log (a pradhan's refused approval is in the demo video); tested offline |
+| Bedrock Guardrails screening of villager text (prompt attacks and orders to the system held for an officer, phone numbers masked, local heuristic fallback) | Live: a prompt-attack report was held on the deployed stack (11 Oct 2026); also tested offline with a scripted guardrail. `ApplyGuardrail` was checked on this account on 11 Oct 2026 and blocks a prompt attack without model access, so it is the first Bedrock feature live on this account |
+| Ask Pukaar analyst agent | Deployed; until model access is granted it answers with its keyword router over the same read-only tools |
+| Replay and back-test on archived data | Live: labelled replays of archived floods run on AWS (July 2023 in the demo video); back-test in [data/backtest.json](data/backtest.json) |
 | Satellite before and after of the July 2023 Beas flood (Sentinel-2 L2A from AWS Open Data; true colour and MNDWI water index) | Live: a split slider on /impact. Before 3 June 2023 (0% cloud over the crop); after 23 July 2023 (16.7% cloud, 12 days after the peak) and 6 September 2023 (0%). Scenes picked by measured cloud over the crop, not by the tile figure; images baked once and committed, so the page makes no imagery requests. Not Sentinel-1 radar: optical was usable |
 | Antecedent soil moisture (root-zone saturation lowers the IMD rain bands by up to 30%) | Built and back-tested; **off by default**: it changed no scored outcome and its only new Warning is at a village we could not verify ([docs/SCORING.md](docs/SCORING.md#soil-moisture-modifier)) |
-| Two-stage readiness: a "get ready" outlook from the 7-day river forecast (never an alert, never a level) and a per-village early-action checklist ticked by the pradhan or an officer (Cedar-checked, audited) | Built |
-| Web app: landing, live map, officer console, village, report, track, approve, impact | Built (see `frontend/`) |
+| Two-stage readiness: a "get ready" outlook from the 7-day river forecast (never an alert, never a level) and a per-village early-action checklist ticked by the pradhan or an officer (Cedar-checked, audited) | Deployed; tested offline |
+| Web app: landing, live map, officer console, village, report, track, approve, impact, agents, sensors | Live on Amplify (see `frontend/`) |
 | Deployed stack on AWS | **Live** since 11 Oct 2026: stack `pukaar-dev`, web app on Amplify. Checked live: Cognito sign-in, a replay on AWS starting real Step Functions approval executions, an officer approval moving an alert to delivered, and Polly writing the Hindi MP3 to S3. Steps: [docs/DEPLOY.md](docs/DEPLOY.md) |
 | Bedrock on the live stack | **Pending.** Account model access has not been granted yet (AWS support case filed). Until it is, every live draft is the fixed Hindi template, labelled `rule-fallback` in the console and the audit trail, and Ask Pukaar uses its keyword router. Bedrock Guardrails do not wait on this: `ApplyGuardrail` works without model access. The sweep checks model access at most every 6 hours with one 1-token Converse call and caches the answer, so /agents says "Pending model access" with the reason, and turns "Live" by itself when access lands (the page never calls a model) |
 | Telegram on the live stack | **Live.** Bot [@PukaarRescuebot](https://t.me/PukaarRescuebot), webhook set; `/health` reports `telegram: configured`. Anyone who sends `/start <village id>` gets approved live alerts with the "मिल गया" button. Replay alerts never go to Telegram: they use the stub channel |
-| Drill alert to a real phone (`make drill`) | Built: a labelled test alert ("अभ्यास (DRILL), असली चेतावनी नहीं") through the real approval workflow to registered phones; the village's level is untouched |
+| Drill alert to a real phone (`make drill`) | Live (a Gohar drill on 11 Oct 2026 went from approval to delivery and is in the CAP feed as an Exercise): a labelled test alert ("अभ्यास (DRILL), असली चेतावनी नहीं") through the real approval workflow to registered phones; the village's level is untouched |
 | "Surakshit Hoon" safety roll-call | Live; tested offline (opens on live close only, idempotent buttons, counts, 30-minute reminder limit, Cedar per village, family-link expiry and tamper, public counts without names); console board, village and live counts, `/safe/<token>` family page. Demo recipients (stub channel) are never asked for real and show as "demo, no phone" |
 | After-action report for every closed alert (HTML and text, Hindi and English, stored in S3, console link and download, e-mail by SES) | Live; tested offline (times and durations, no phone numbers or chat ids anywhere, close never fails because of it, SES call shape, Cedar per village, IAM scoped in the template). E-mail is off until `AfterActionFrom` is set; SES on this account is in the **sandbox**, so the sender and every recipient must be verified first ([docs/DEPLOY.md](docs/DEPLOY.md#5a-after-action-report-by-e-mail-amazon-ses)) |
 | Outbound voice call with "press 1" to acknowledge (Amazon Connect, playing the Polly clip) | Planned: reaches basic phones and people who cannot read |
@@ -307,7 +310,7 @@ sign-in; the demo accounts are in [DEMO.md](DEMO.md).
 | Live push to the web app (AppSync Events: public namespace on an API key, officer namespace on Cognito, IAM-only publish) | Live (a level change reached the browser 75 ms after the API answered); tested offline (backend payloads and signing; the browser client's message handling with a fake WebSocket; `/live` and the console checked in a browser against a scripted socket). Polling stays as the fallback |
 | CAP 1.2 feed (`/cap/alerts.atom`, `/cap/alerts/{id}.xml`) | Live; schema-validated in tests against the official OASIS XSD |
 | Safe places, slope-aware walking routes and the shelter ledger | Live (road blocks checked live: a pradhan blocked and cleared a route in their own village and was refused in another): named places from OpenStreetMap with their height above the river, routes on the map in 2D and 3D, OPEN / STANDBY / FULL / CLOSED set by pradhans (own village) and officers, and the nearest open place named in the alert. See "Where to go: safe places, routes and the shelter ledger" below for the method and its limits. Officers (any village) and pradhans (own village) mark a road or bridge on a route blocked (7 days unless renewed, audited); routes through it are crossed out, the next baked route is promoted and the alert names the next place with an open route. Routes are baked, so a block never draws a new route |
-| Virtual staff gauges from photos (CrowdWater pattern: reference photo and scale per spot, the villager taps the mark, an officer confirms or adjusts) | Live; tested offline (scale validation, S3 and DynamoDB storage, Cedar: officers anywhere and pradhans in their own village set up, officers alone confirm; audit; a confirmed reading at a threshold mark raises the level and corroborates, an unconfirmed one never does). Automatic reading of the photo by a vision model waits for Bedrock model access, and the UI says so |
+| Virtual staff gauges from photos (CrowdWater pattern: reference photo and scale per spot, the villager taps the mark, an officer confirms or adjusts) | Deployed (no staff gauge is set up on the live stack yet); tested offline (scale validation, S3 and DynamoDB storage, Cedar: officers anywhere and pradhans in their own village set up, officers alone confirm; audit; a confirmed reading at a threshold mark raises the level and corroborates, an unconfirmed one never does). Automatic reading of the photo by a vision model waits for Bedrock model access, and the UI says so |
 | Web Push approval alerts to officers (Approve / Decline on the lock screen, console closed; VAPID keys in SSM; subscriptions per officer with a 180-day expiry; test notification once a minute) | Live; tested offline (RFC 8291 test vector, VAPID JWT, subscription CRUD and Cedar, push on ask_officer for live and drill alerts but never replay, 404/410 cleanup, the service worker's buttons). VAPID keys are in SSM; officers turn it on per phone in the console. iPhone and iPad need Pukaar added to the Home Screen; Safari shows no action buttons, so a tap opens the approval page |
 | Learned gauge thresholds (proposal from the gauge's own record, sensor faults across it) | Live; tested offline on a synthetic 14-day series (tests only): percentile maths, floors, fault detection, Cedar (officers and own pradhan read it, officers alone accept), audit old -> new, never auto-applied. With a week or two of record outside the monsoon the proposal marks unusual water, not proven danger; the panel says so |
 | Spoken approval; grounded voice Q&A; AgentCore | Planned (stretch) |
@@ -338,8 +341,8 @@ GloFAS series from the Open-Meteo flood API.
 - **7-11 July 2023:** Sujanpur, Gohar and Pandoh reach critical, and Thunag
   and Janjehli reach watch.
 - **30 June to 1 July 2025, Mandi:** the archived forecasts gave at most
-  14-34 mm in 24 hours at four of the villages, and discharge never crossed
-  even the 90th percentile at four of five villages. **The global models
+  14.5-33.4 mm in 24 hours at four of the five villages, and river discharge
+  stayed below its 90th percentile at all five. **The global models
   missed the cloudburst.** Thresholds were not tuned to fake a hit. This is
   why a verified villager report can raise a level on its own.
 
@@ -421,19 +424,15 @@ Deploy to AWS: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## More
 
-- [DEMO.md](DEMO.md): the demo click path, with a fallback for each risk.
+- [DEMO.md](DEMO.md): a click-by-click walk through the whole loop, with a fallback for each step.
 - [docs/RESILIENCE.md](docs/RESILIENCE.md): what happens when each part fails.
 - [docs/CONTRACT.md](docs/CONTRACT.md): API routes and shapes.
-- [PLAN.md](PLAN.md), [PROGRESS.md](PROGRESS.md), [DECISIONS.md](DECISIONS.md), [SCORECARD.md](SCORECARD.md), [CODEMAP.md](CODEMAP.md).
+- [docs/SCORING.md](docs/SCORING.md): the back-test scoring method and results.
+- [docs/hardware/README.md](docs/hardware/README.md): the river gauge design.
+- [docs/submission/writeup.md](docs/submission/writeup.md): the submission writeup.
 
 ## AI tools used
 
-Built with Claude Code (Anthropic). Claude wrote most of the code under
-human direction; reviewer agents with no memory of the build graded each
-piece (SCORECARD.md).
-
-## Acknowledgements
-
-<!-- To be written by the team before submission. -->
+Used Claude to help write code.
 
 Emergency number in India: **112**.

@@ -1,4 +1,4 @@
-"""Regression tests for the independent review's findings (PROGRESS.md, review 1)."""
+"""Regression tests for bugs found and fixed earlier."""
 
 from datetime import timedelta
 
