@@ -54,6 +54,21 @@ class Thresholds(BaseModel):
     source: str = "open-meteo flood API daily history 1984-2024"
 
 
+class GaugeConfig(BaseModel):
+    """A river-stage gauge at the village (e.g. ESP32 + JSN-SR04T under a bridge deck).
+
+    Stage is in cm above the gauge's own zero. Seeded values are illustrative
+    until the gauge's own record exists (docs/hardware/README.md).
+    """
+
+    device_id: str
+    watch_cm: float
+    warning_cm: float
+    critical_cm: float
+    installed: bool = False
+    note: str = ""
+
+
 class Village(BaseModel):
     id: str
     name: str
@@ -69,6 +84,7 @@ class Village(BaseModel):
     level_since: str | None = None
     calm_sweeps: int = 0
     thresholds: Thresholds | None = None
+    gauge: GaugeConfig | None = None
     open_alert_id: str | None = None
     replay: bool = False
 
@@ -85,6 +101,20 @@ class Reading(BaseModel):
     river_level: Level = "normal"
     source: str = "open-meteo"
     replay: bool = False
+
+
+class SensorReading(BaseModel):
+    """One reading from a village gauge. simulated=True for scripts/gauge_sim.py, never real hardware."""
+
+    village_id: str
+    device_id: str
+    at: str
+    water_level_cm: float
+    rain_mm_1h: float | None = None
+    battery_v: float | None = None
+    rssi: int | None = None
+    simulated: bool = False
+    received_at: str | None = None
 
 
 class Report(BaseModel):

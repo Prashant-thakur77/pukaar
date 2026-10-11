@@ -6,7 +6,16 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from Pukaar.store.models import LEVELS, VERIFIED_STATES, Reading, Report, Thresholds, level_rank
+from Pukaar.store.models import (
+    LEVELS,
+    VERIFIED_STATES,
+    GaugeConfig,
+    Reading,
+    Report,
+    SensorReading,
+    Thresholds,
+    level_rank,
+)
 
 # IMD 24-hour rainfall bands (heavy, very heavy, extremely heavy), in mm.
 RAIN_BANDS = (("critical", 204.5), ("warning", 115.6), ("watch", 64.5))
@@ -18,6 +27,8 @@ IMPACT_TYPES = {"road_cut", "bridge_unsafe", "homes_affected", "people_trapped",
 SEVERITY_TO_LEVEL = {"low": "normal", "medium": "watch", "high": "warning", "critical": "critical"}
 RULES_VERSION = "risk-rules-v1"
 AUTO_VERIFIED_CAP = "warning"
+# A gauge reading older than this changes nothing.
+GAUGE_FRESH_MINUTES = 30
 
 
 def rain_level(rain_24h_mm: float | None) -> str:
@@ -39,6 +50,26 @@ def river_level(peak_discharge: float | None, thresholds: Thresholds | None) -> 
     if peak_discharge >= thresholds.watch:
         return "watch"
     return "normal"
+
+
+def gauge_level(stage_cm: float | None, gauge: GaugeConfig | None) -> str:
+    if stage_cm is None or gauge is None:
+        return "normal"
+    if stage_cm >= gauge.critical_cm:
+        return "critical"
+    if stage_cm >= gauge.warning_cm:
+        return "warning"
+    if stage_cm >= gauge.watch_cm:
+        return "watch"
+    return "normal"
+
+
+def gauge_is_fresh(sensor: SensorReading | None, now: datetime) -> bool:
+    if sensor is None:
+        return False
+    age = (now - datetime.fromisoformat(sensor.at.replace("Z", "+00:00"))).total_seconds()
+    # A few minutes of device clock skew into the future is tolerated, not more.
+    return -300 <= age <= GAUGE_FRESH_MINUTES * 60
 
 
 def report_weight(created_at: datetime, now: datetime) -> float:
@@ -68,6 +99,7 @@ class Assessment:
     rules_fired: list[str] = field(default_factory=list)
     contradictions: list[str] = field(default_factory=list)
     evidence: list[dict[str, Any]] = field(default_factory=list)
+    gauge_level: str = "normal"
 
 
 def assess(
@@ -75,8 +107,15 @@ def assess(
     thresholds: Thresholds | None,
     reports: list[tuple[Report, datetime]],
     now: datetime,
+    *,
+    sensor: SensorReading | None = None,
+    gauge: GaugeConfig | None = None,
 ) -> Assessment:
-    """Raw level for one sweep, before hysteresis. reports = (report, created_at)."""
+    """Raw level for one sweep, before hysteresis. reports = (report, created_at).
+
+    sensor/gauge: the village gauge's latest reading and its stage thresholds. Only a
+    reading at most GAUGE_FRESH_MINUTES old counts; a stale or missing one changes nothing.
+    """
     rules: list[str] = []
     evidence: list[dict[str, Any]] = []
 
@@ -104,7 +143,28 @@ def assess(
     else:
         rules.append("no_reading")
 
-    level = _max(rain, river)
+    gauge_lvl = "normal"
+    if gauge is not None and gauge_is_fresh(sensor, now):
+        assert sensor is not None
+        gauge_lvl = gauge_level(sensor.water_level_cm, gauge)
+        evidence.append(
+            {
+                "kind": "gauge",
+                "at": sensor.at,
+                "device_id": sensor.device_id,
+                "water_level_cm": sensor.water_level_cm,
+                "gauge_level": gauge_lvl,
+                "thresholds_cm": {"watch": gauge.watch_cm, "warning": gauge.warning_cm, "critical": gauge.critical_cm},
+                "battery_v": sensor.battery_v,
+                "simulated": sensor.simulated,
+            }
+        )
+        if gauge_lvl != "normal":
+            rules.append(f"gauge>={getattr(gauge, gauge_lvl + '_cm'):g}cm:{gauge_lvl}")
+        if sensor.simulated:
+            rules.append("gauge_simulated")
+
+    level = _max(rain, river, gauge_lvl)
 
     report_level = "normal"
     impact_verified = False
@@ -143,7 +203,7 @@ def assess(
         rules.append(f"verified_reports:{report_level}")
         level = _max(level, report_level)
 
-    independent = [lvl for lvl in (rain, river, report_level) if level_rank(lvl) >= level_rank("watch")]
+    independent = [lvl for lvl in (rain, river, gauge_lvl, report_level) if level_rank(lvl) >= level_rank("watch")]
     if len(independent) >= 2:
         level = _up(level)
         rules.append("two_sources_agree:+1")
@@ -153,7 +213,7 @@ def assess(
         rules.append("verified_impact_report:floor_warning")
 
     contradictions: list[str] = []
-    data_level = _max(rain, river)
+    data_level = _max(rain, river, gauge_lvl)
     unverified_high = [
         r for r, at in reports if r.state not in VERIFIED_STATES and r.severity in {"high", "critical"} and report_weight(at, now) > 0
     ]
@@ -164,7 +224,7 @@ def assess(
     if contradictions:
         rules.append("data_disagrees")
 
-    return Assessment(level, rain, river, report_level, rules, contradictions, evidence)
+    return Assessment(level, rain, river, report_level, rules, contradictions, evidence, gauge_lvl)
 
 
 def apply_hysteresis(current: str, calm_sweeps: int, raw: str) -> tuple[str, int, bool]:

@@ -8,7 +8,15 @@
       "district": "Mandi",
       "lat": 31.55929,
       "lon": 77.16515,
-      "coords_source": "open-meteo geocoding: Thunāg, Mandi, Himachal Pradesh"
+      "coords_source": "open-meteo geocoding: Thunāg, Mandi, Himachal Pradesh",
+      "gauge": {
+        "device_id": "gauge-thunag-sim",
+        "watch_cm": 120,
+        "warning_cm": 200,
+        "critical_cm": 280,
+        "installed": false,
+        "note": "Illustrative thresholds, to be set from the gauge's own record after installation. No gauge is installed yet; device_id is the labelled simulator (scripts/gauge_sim.py)."
+      }
     },
     {
       "id": "janjehli",
@@ -17,7 +25,15 @@
       "district": "Mandi",
       "lat": 31.51852,
       "lon": 77.21928,
-      "coords_source": "open-meteo geocoding: Janjeli, Mandi, Himachal Pradesh"
+      "coords_source": "open-meteo geocoding: Janjeli, Mandi, Himachal Pradesh",
+      "gauge": {
+        "device_id": "gauge-janjehli-sim",
+        "watch_cm": 110,
+        "warning_cm": 180,
+        "critical_cm": 260,
+        "installed": false,
+        "note": "Illustrative thresholds, to be set from the gauge's own record after installation. No gauge is installed yet; device_id is the labelled simulator (scripts/gauge_sim.py)."
+      }
     },
     {
       "id": "gohar",
@@ -26,7 +42,15 @@
       "district": "Mandi",
       "lat": 31.57975,
       "lon": 77.04841,
-      "coords_source": "open-meteo geocoding: Gohar, Mandi, Himachal Pradesh"
+      "coords_source": "open-meteo geocoding: Gohar, Mandi, Himachal Pradesh",
+      "gauge": {
+        "device_id": "gauge-gohar-sim",
+        "watch_cm": 140,
+        "warning_cm": 230,
+        "critical_cm": 320,
+        "installed": false,
+        "note": "Illustrative thresholds, to be set from the gauge's own record after installation. No gauge is installed yet; device_id is the labelled simulator (scripts/gauge_sim.py)."
+      }
     },
     {
       "id": "pandoh",
@@ -35,7 +59,15 @@
       "district": "Mandi",
       "lat": 31.66902,
       "lon": 77.05359,
-      "coords_source": "open-meteo geocoding: Pāndoh, Mandi, Himachal Pradesh"
+      "coords_source": "open-meteo geocoding: Pāndoh, Mandi, Himachal Pradesh",
+      "gauge": {
+        "device_id": "gauge-pandoh-sim",
+        "watch_cm": 300,
+        "warning_cm": 450,
+        "critical_cm": 600,
+        "installed": false,
+        "note": "Illustrative thresholds, to be set from the gauge's own record after installation. No gauge is installed yet; device_id is the labelled simulator (scripts/gauge_sim.py)."
+      }
     },
     {
       "id": "sujanpur",
@@ -44,11 +76,26 @@
       "district": "Hamirpur",
       "lat": 31.83364,
       "lon": 76.50539,
-      "coords_source": "open-meteo geocoding: Tīra Sujānpur, Hamirpur, Himachal Pradesh"
+      "coords_source": "open-meteo geocoding: Tīra Sujānpur, Hamirpur, Himachal Pradesh",
+      "gauge": {
+        "device_id": "gauge-sujanpur-sim",
+        "watch_cm": 180,
+        "warning_cm": 300,
+        "critical_cm": 420,
+        "installed": false,
+        "note": "Illustrative thresholds, to be set from the gauge's own record after installation. No gauge is installed yet; device_id is the labelled simulator (scripts/gauge_sim.py)."
+      }
     }
   ],
   "officers": [
-    {"username": "officer1", "name": "District duty officer 1"},
-    {"username": "officer2", "name": "District duty officer 2"}
-  ]
+    {
+      "username": "officer1",
+      "name": "District duty officer 1"
+    },
+    {
+      "username": "officer2",
+      "name": "District duty officer 2"
+    }
+  ],
+  "_gauge_note": "gauge.*_cm are stage in cm above each gauge's zero. Illustrative thresholds, to be set from the gauge's own record after installation (docs/hardware/README.md)."
 }

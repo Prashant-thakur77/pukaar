@@ -36,6 +36,7 @@ Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`,
 `POST /reports`, `POST /alerts/{id}/ack`, `GET /approval/{token}`,
 `POST /approval/{token}`, `POST /telegram/webhook`, `GET /public/overview`,
 `GET /track/{code}`, `GET /replay/status`, `GET /alerts/{id}/audio`,
+`POST /sensors/{id}/readings` (river gauge, HMAC-signed body, see docs/hardware/README.md),
 `POST /auth/dev-login` (local only). Everything else needs an officer or
 pradhan token and passes `policy.guard.authorize()`.
 

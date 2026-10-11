@@ -1,7 +1,7 @@
 """DynamoDB single-table repository (PLAN.md section 6).
 
 Keys:
-  VILLAGE#id  META | READING#iso | REPORT#iso#id | DEDUPE#window | RECIPIENT#id
+  VILLAGE#id  META | READING#iso | SENSOR#iso#device | SENSORLAST#device | REPORT#iso#id | DEDUPE#window | RECIPIENT#id
               | EVENT#date | DIRECTIVE#iso#id
   ALERT#id    META | DELIVERY#recipient | TIMELINE#iso#n
   ALERTLOG    iso#alert_id            (index of every alert, newest last)
@@ -36,6 +36,7 @@ from Pukaar.store.models import (
     Recipient,
     ReplayState,
     Report,
+    SensorReading,
     TimelineEvent,
     Village,
 )
@@ -192,6 +193,53 @@ class Repo:
     def list_readings(self, village_id: str, limit: int = 96) -> list[Reading]:
         items = self._query(f"VILLAGE#{village_id}", "READING#", newest_first=True, limit=limit)
         return [_model(Reading, i) for i in items]
+
+    # -- gauge (sensor) readings -----------------------------------------
+    def put_sensor_reading(self, r: SensorReading, ttl_days: int = 14, min_interval_s: int = 60) -> bool:
+        """Store one gauge reading. False (nothing stored) when the same device already sent a
+        reading less than min_interval_s before this one, or a newer one: a conditional write on a
+        per-device pointer, so a replayed or too-frequent body never lands twice."""
+        at = clock.parse(r.at)
+        epoch = int(at.timestamp())
+        expires = int(clock.now().timestamp()) + ttl_days * 86400
+        pk = f"VILLAGE#{r.village_id}"
+        try:
+            self._put({"pk": pk, "sk": f"SENSORLAST#{r.device_id}", "at_epoch": epoch, "at": clock.iso(at),
+                       "ttl": expires},
+                      condition=Attr("pk").not_exists() | Attr("at_epoch").lte(epoch - min_interval_s))
+        except ConflictError:
+            return False
+        self._put({"pk": pk, "sk": f"SENSOR#{clock.iso(at)}#{r.device_id}", "ttl": expires,
+                   **r.model_dump(), "at": clock.iso(at)})
+        return True
+
+    def list_sensor_readings(self, village_id: str, since: str, limit: int = 2000) -> list[SensorReading]:
+        """Readings at or after `since` (ISO), oldest first."""
+        kwargs: dict[str, Any] = {
+            "KeyConditionExpression": Key("pk").eq(f"VILLAGE#{village_id}")
+            & Key("sk").between(f"SENSOR#{clock.iso(clock.parse(since))}", "SENSOR#~"),
+            "ScanIndexForward": True,
+        }
+        items: list[dict] = []
+        while len(items) < limit:
+            page = self.t.query(**kwargs)
+            items.extend(page.get("Items", []))
+            if "LastEvaluatedKey" not in page:
+                break
+            kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+        return [_model(SensorReading, i) for i in items[:limit]]
+
+    def latest_sensor_reading(self, village_id: str, max_age_minutes: float | None = 30, now: Any = None) -> SensorReading | None:
+        """Newest reading, or None when there is none or it is older than max_age_minutes."""
+        items = self._query(f"VILLAGE#{village_id}", "SENSOR#", newest_first=True, limit=1)
+        if not items:
+            return None
+        r = _model(SensorReading, items[0])
+        if max_age_minutes is not None:
+            now = now or clock.now()
+            if (now - clock.parse(r.at)).total_seconds() > max_age_minutes * 60:
+                return None
+        return r
 
     # -- sweep dedupe ----------------------------------------------------
     def claim_sweep(self, village_id: str, window: str, ttl_seconds: int = 2 * 86400) -> bool:

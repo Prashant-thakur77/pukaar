@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 
 from Pukaar.core.config import get_settings
-from Pukaar.store.models import PastEvent, Recipient, Thresholds, Village
+from Pukaar.store.models import GaugeConfig, PastEvent, Recipient, Thresholds, Village
 from Pukaar.store.repo import Repo, get_repo
 
 STUB_RECIPIENTS_PER_VILLAGE = 2
@@ -34,6 +34,8 @@ def seed(repo: Repo) -> list[str]:
             officers=officers,
             thresholds=Thresholds(watch=th["watch"], warning=th["warning"], critical=th["critical"], source=th["source"])
             if th else None,
+            # Illustrative thresholds, to be set from the gauge's own record after installation.
+            gauge=GaugeConfig.model_validate(raw["gauge"]) if raw.get("gauge") else None,
         )
         if existing is not None:
             village.level, village.level_since, village.calm_sweeps = existing.level, existing.level_since, existing.calm_sweeps

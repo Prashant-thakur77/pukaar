@@ -227,7 +227,11 @@ sign-in; the demo accounts are in [DEMO.md](DEMO.md).
 | Deployed stack on AWS | **Live** since 11 Oct 2026: stack `pukaar-dev`, web app on Amplify. Checked live: Cognito sign-in, a replay on AWS starting real Step Functions approval executions, an officer approval moving an alert to delivered, and Polly writing the Hindi MP3 to S3. Steps: [docs/DEPLOY.md](docs/DEPLOY.md) |
 | Bedrock on the live stack | **Pending.** Account model access has not been granted yet (AWS support case filed). Until it is, every live draft is the fixed Hindi template, labelled `rule-fallback` in the console and the audit trail, and Ask Pukaar uses its keyword router |
 | Telegram on the live stack | **Live.** Bot [@PukaarRescuebot](https://t.me/PukaarRescuebot), webhook set; `/health` reports `telegram: configured`. Anyone who sends `/start <village id>` gets approved live alerts with the "मिल गया" button. Replay alerts never go to Telegram: they use the stub channel |
-| Spoken approval, grounded voice Q&A, safe-places map, AgentCore, CAP export | Planned (stretch) |
+| Drill alert to a real phone (`make drill`) | Built: a labelled test alert ("अभ्यास (DRILL), असली चेतावनी नहीं") through the real approval workflow to registered phones; the village's level is untouched |
+| Outbound voice call with "press 1" to acknowledge (Amazon Connect, playing the Polly clip) | Planned: reaches basic phones and people who cannot read |
+| SMS copy of every approved alert (Amazon SNS, transactional) | Planned: the account starts in the SNS SMS sandbox, so only verified numbers until production access |
+| River gauges over AWS IoT Core (MQTT, X.509 per device, topic rule into the same ingestion) | Planned: the HTTP ingestion with per-device signatures is the first step |
+| Safe places and evacuation routes on the map; spoken approval; grounded voice Q&A; AgentCore; CAP export | Planned (stretch) |
 
 ## What the back-test shows (and what it does not)
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from Pukaar.services import storage
+from Pukaar.services import gauge, storage
 from Pukaar.services.nowcast import nowcast
 from Pukaar.store.models import Alert, Report, Village
 from Pukaar.store.repo import Repo
@@ -42,6 +42,7 @@ def village_detail(repo: Repo, v: Village) -> dict[str, Any]:
         "past_events": [e.model_dump() for e in repo.list_past_events(v.id)],
         "directives": [d.model_dump() for d in repo.list_directives(v.id)[:5]],
         "nowcast": nowcast(readings[0] if readings else None, v.thresholds, v.level),
+        "gauge": gauge.view(repo, v),
     }
 
 

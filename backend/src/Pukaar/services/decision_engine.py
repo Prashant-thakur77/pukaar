@@ -69,6 +69,7 @@ def build_trace(village: Village, reading: Reading | None, assessment: risk_rule
         "rain_level": assessment.rain_level,
         "river_level": assessment.river_level,
         "report_level": assessment.report_level,
+        "gauge_level": assessment.gauge_level,
         "rules_fired": assessment.rules_fired,
         "contradictions": assessment.contradictions,
         "data_disagrees": bool(assessment.contradictions),
@@ -116,12 +117,15 @@ def recompute_village(
     workflow: WorkflowStarter | None = None,
     window_prefix: str | None = None,
     replay: bool = False,
+    only_if_rising: bool = False,
 ) -> SweepResult:
     """One evaluation for one village.
 
     window_prefix set: a scheduled sweep, deduplicated per 15-minute window.
     fetch set: a new reading is fetched and stored; otherwise the latest stored
     reading is reused (a new report triggered this).
+    only_if_rising: change nothing unless the raw level is above the current one (a gauge
+    reading arrives every minute; it must not count as a calm sweep for hysteresis).
     """
     now = now or clock.now()
     if window_prefix is not None and not repo.claim_sweep(village.id, sweep_window(now, window_prefix)):
@@ -136,8 +140,13 @@ def recompute_village(
         reading = latest[0] if latest and (latest[0].replay == replay) else None
 
     reports = _recent_reports(repo, village.id, now, include_replay=replay)
-    assessment = risk_rules.assess(reading, village.thresholds, reports, now)
+    # Gauge readings are live data: never mixed into a replay.
+    sensor = None if replay or village.gauge is None else repo.latest_sensor_reading(
+        village.id, risk_rules.GAUGE_FRESH_MINUTES, now=now)
+    assessment = risk_rules.assess(reading, village.thresholds, reports, now, sensor=sensor, gauge=village.gauge)
     previous = village.level
+    if only_if_rising and level_rank(assessment.level) <= level_rank(previous):
+        return SweepResult(village.id, skipped=True, level=previous, raw_level=assessment.level, note="not rising")
     new_level, calm, rose = risk_rules.apply_hysteresis(previous, village.calm_sweeps, assessment.level)
     trace = build_trace(village, reading, assessment, previous, new_level, calm, now)
 
