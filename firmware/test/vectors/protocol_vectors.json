@@ -14,7 +14,8 @@
     "frame_version": 1,
     "broadcast": 65535,
     "recent_ids": 32,
-    "boot_ctr_bump": 16,
+    "receive_ctr_boot_bump": 0,
+    "send_ctr_boot_skip": 16,
     "unsynced_exp_window_s": 43200,
     "frame_skew_s": 900,
     "sms_max": 160,
@@ -700,7 +701,7 @@
       ]
     },
     {
-      "name": "boot_bump",
+      "name": "boot_restore",
       "device": "siren-thunag-01",
       "keys_by_kid": {
         "1": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62"
@@ -714,14 +715,14 @@
         "recent_ids": [],
         "last_known_time": 1761121805
       },
-      "boot_ctr_bump": 16,
+      "receive_ctr_boot_bump": 0,
       "steps": [
         {
-          "label": "after boot, a counter within the +16 bump",
+          "label": "after boot, the stored counter again",
           "via": "mqtt",
           "now": 1761121805,
           "cmd": {
-            "id": "cmd_boot_450",
+            "id": "cmd_boot_441",
             "action": "sound",
             "pattern": "W1",
             "clip": "thunag.warning.hi.v3",
@@ -735,20 +736,20 @@
             "volume": 100,
             "iat": 1761121800,
             "exp": 1761123600,
-            "ctr": 450,
+            "ctr": 441,
             "src": "approval",
             "kid": 1,
-            "sig": "6uNHjOJb6VLcmRfjLgGiog"
+            "sig": "2i5VrUIHnX-MuBET5-5mvw"
           },
           "accept": false,
           "reason": "replayed"
         },
         {
-          "label": "after boot, above the bump",
+          "label": "after boot, the next counter",
           "via": "mqtt",
           "now": 1761121805,
           "cmd": {
-            "id": "cmd_boot_458",
+            "id": "cmd_boot_442",
             "action": "sound",
             "pattern": "W1",
             "clip": "thunag.warning.hi.v3",
@@ -762,10 +763,10 @@
             "volume": 100,
             "iat": 1761121800,
             "exp": 1761123600,
-            "ctr": 458,
+            "ctr": 442,
             "src": "approval",
             "kid": 1,
-            "sig": "EqLK1QDR5FBlZLY01gLWrA"
+            "sig": "QWZu2-50j2BrSAfedr0mXQ"
           },
           "accept": true,
           "reason": "ok"
@@ -1093,7 +1094,33 @@
           "outer_accepted": true,
           "inner_valid": false
         }
-      ]
+      ],
+      "after_reboot": {
+        "stored_last_ctr": {
+          "0x0201": 5001,
+          "0x0301": 13
+        },
+        "cases": [
+          {
+            "name": "replay_of_the_last_frame",
+            "frame_hex": "010201020101891300000d96f8680903380129005f00570097b0f486fb8017c9",
+            "now": 1761121805,
+            "expect_reason": "replayed"
+          },
+          {
+            "name": "next_frame",
+            "frame_hex": "0102010201018a1300000d96f8680903380129005f0057009ae859a1d346dd6d",
+            "now": 1761121805,
+            "expect_reason": "ok"
+          },
+          {
+            "name": "next_frame_again",
+            "frame_hex": "0102010201018a1300000d96f8680903380129005f0057009ae859a1d346dd6d",
+            "now": 1761121805,
+            "expect_reason": "replayed"
+          }
+        ]
+      }
     }
   ],
   "sms": {

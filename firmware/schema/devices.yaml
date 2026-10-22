@@ -1,0 +1,273 @@
+# Pukaar device schema: the ONE source for the numbers firmware and cloud must agree on.
+# firmware/tools/gen_schema.py turns it into firmware/lib/pukaar_common/schema.h;
+# CI runs `gen_schema.py --check` and fails when the checked-in header is stale.
+#
+# Spec: hardware alarm layer, sections 4.1 (patterns), 5.1 (topics, shadows, events),
+# 5.3 (LoRa frame), 5.4 (SMS), 6.2-6.3 (state machine, outbox), 7 (gauge, box, relay).
+# The wire values and names follow the backend's canonical codec
+# (backend/src/Pukaar/services/devices/protocol.py and siren_model.py); the native test
+# test_vectors checks them against the "enums" block of test/vectors/protocol_vectors.json.
+# Ids are wire values: never renumber one, only append.
+
+version: 1
+protocol: PKR1
+
+levels:            # alert levels in frames (GAUGE_* level)
+  normal: 0
+  watch: 1
+  warning: 2
+  critical: 3
+
+cmd_levels:        # a command's `level` (shadow string, SIREN_CMD_WRAPPED code); 0 = "-"
+  warning: 2
+  critical: 3
+  all_clear: 4
+  test: 5
+  drill: 6
+
+actions:           # shadow cmd.action; SMS letter in brackets
+  sound: {id: 1, sms: S}
+  stop: {id: 2, sms: X}
+  test: {id: 3, sms: T}
+
+patterns:          # section 4.1; SMS letter is the `L` of "PKR1 <device> <A><L> ..."
+  none: {id: 0, sms: null}
+  W1: {id: 1, sms: W, level: warning}
+  C1: {id: 2, sms: C, level: critical}
+  A1: {id: 3, sms: A, level: all_clear}
+  T1: {id: 4, sms: T, level: test}
+  D1: {id: 5, sms: D, level: drill}
+  B1: {id: 6, sms: null, level: null}   # gauge bridge beacon only, never a siren command
+
+sources:           # event/command `src`
+  approval: 1
+  officer_manual: 2
+  pradhan_box: 3
+  key_switch: 4
+  autonomy: 5
+  schedule: 6
+  drill: 7
+  all_clear: 8
+  failsafe: 9
+  recall: 10
+  pradhan_manual: 11
+
+vias:              # how a command arrived
+  mqtt: 1
+  sms: 2
+  lora: 3
+  local: 4
+
+# Section 4.1 "Priority": higher wins; a lower one never interrupts a higher one.
+priorities:
+  critical: 7
+  autonomy: 6
+  manual_critical: 5
+  warning: 4
+  manual_warning: 3
+  all_clear: 2
+  drill: 1
+  test: 0
+
+states:            # reported.state and the HEARTBEAT frame's state
+  idle: 0
+  sounding: 1
+  testing: 2
+  manual: 3
+  autonomous: 4
+  fault: 5
+  low_power: 6
+  boot: 7
+  selfcheck: 8
+
+events:            # event envelope `type` (section 5.1)
+  cmd_received: 1
+  started: 2
+  verified: 3
+  not_verified: 4
+  finished: 5
+  stopped: 6
+  rejected: 7
+  test_result: 8
+  manual_trigger: 9
+  autonomous_trigger: 10
+  gauge_alarm_heard: 11
+  tamper: 12
+  fault: 13
+  power: 14
+  config_applied: 15
+  report: 16          # box button A (water rising): not yet in the backend's EVENT_CODES
+  ack: 17             # box button B (mil gaya): not yet in the backend's EVENT_CODES
+  heartbeat: 18       # telemetry queue only (published on the heartbeat topic)
+
+# Events that go to the outbox's `alarm` queue: never dropped, sent first (section 6.3).
+alarm_queue_events: [cmd_received, started, verified, not_verified, finished, stopped, rejected,
+                     manual_trigger, autonomous_trigger, gauge_alarm_heard, tamper, report, ack]
+
+reasons:           # event `reason`
+  bad_sig: 1
+  expired: 2
+  replayed: 3
+  lower_priority: 4
+  low_power: 5
+  exp_window: 6
+  wrong_kid: 7
+  bad_format: 8
+  drill_pattern: 9
+  outside_test_window: 10
+  rate_limited: 11
+  sender: 12          # SMS from a number not in sms_allow_sha256
+  no_keys: 13
+  unknown_src: 14     # frame from an address not in config.senders
+  clock_skew: 15      # |ts - now| >= 900 s with both clocks synced
+  malformed: 16       # a frame or SMS that does not parse
+  role: 17            # the sender is not configured for this frame type
+  bad_mac: 18
+
+buttons:           # LoRa BUTTON.button (a siren trigger is `siren` + key_pos)
+  water_rising: 1
+  ack: 2
+  siren: 3
+  stop: 4
+
+key_positions:
+  "off": 0          # quoted: YAML 1.1 reads a bare off as false
+  warning: 1
+  critical: 2
+
+power_tiers:       # section 3.1 (SoC %, lower bound)
+  normal: {id: 0, min_soc: 50}
+  no_audible_tests: {id: 1, min_soc: 30}
+  alarm_reserve: {id: 2, min_soc: 15}
+  alarm_only: {id: 3, min_soc: 0}
+
+gauge_err_bits:    # payload v2 `err`; keep in step with ERR_BITS in backend services/gauge.py
+  no_echo: 1
+  few_samples: 2
+  high_spread: 4
+  clock_unsynced: 8
+  low_voltage: 16
+  buffer_overflow: 32
+  watchdog_reset: 64
+  sensor_range: 128
+
+rain_err_bits:     # payload v3 `rain_err` (section 5.6)
+  bounce: 1
+  counter_reset: 2
+  ulp_fault: 4
+
+frame:             # section 5.3: binary, little-endian, <= 64 bytes
+  version: 1
+  header_len: 15   # ver(1) type(1) src(2) dst(2) ctr(4) ts(4) len(1)
+  mac_len: 8       # first 8 bytes of HMAC-SHA256(K_src, bytes[0 .. 15+len))
+  max_payload: 40
+  max_len: 64
+  broadcast: 0xFFFF
+  ts_window_s: 900
+  types:
+    GAUGE_STATUS: {id: 0x01, len: 9, role: gauge_status,
+                   layout: "level u8, stage_cm i16, rise_10min_cm i16, quality u8, cloud_ok u8, rain_15min_tenths_mm u16"}
+    GAUGE_ALARM: {id: 0x02, len: 9, role: gauge_alarm, layout: "same as GAUGE_STATUS"}
+    SIREN_CMD_WRAPPED: {id: 0x10, len: 36, role: relay_cmd,
+                        layout: "cmd_id48 6, action u8, pattern u8, cmd_level u8, cycles u8, cap_on_s u16, exp u32, ctr u32, sig16 16"}
+    SIREN_EVENT: {id: 0x11, len: 10, role: siren_event,
+                  layout: "type u8, cmd_id48 6, verified u8, amp_a_x10 u8, spl_rise_db u8"}
+    BUTTON: {id: 0x20, len: 4, role: button, layout: "button u8, key_pos u8, hold_ms u16"}
+    HEARTBEAT: {id: 0x30, len: 8, role: heartbeat,
+                layout: "state u8, soc u8, batt_dV u16, faults u16, outbox u16"}
+    RELAY_BEACON: {id: 0x31, len: 6, role: beacon, layout: "bus_dV u16, bus_mA u16, soc u8, noise_dbm i8"}
+    ACK: {id: 0x7F, len: 6, role: ack, layout: "acked_src u16, acked_ctr u32"}
+
+shadow:
+  # Named shadow `siren`, desired.cmd. The ORDER here is the canonical signing order (section 5.1):
+  # "PKR1|" + the fields joined by "|", an empty or null string field -> "-", integers in decimal.
+  # `device` is the thing name the command is for: the receiver always puts its own.
+  cmd_fields: [id, device, action, pattern, clip, clip_sha256_16, level, alert_id, cycles,
+               repeat_every_s, repeat_cycles, cap_on_s, volume, iat, exp, ctr, src, kid]
+  sig_bytes: 16    # base64url of the first 16 bytes of HMAC-SHA256(K_dev, canonical)
+  reported_fields: [cmd_id, state, since, last_ctr, kid, fw, clips, faults, soc]
+
+sms:               # section 5.4
+  max_len: 160
+  sig_bytes: 10    # Crockford base32 of the first 10 bytes -> 16 characters
+  sig_chars: 16
+  unsynced_exp_window_s: 43200
+
+topics:            # section 5.1; %s = village, device
+  siren_event: "pukaar/siren/%s/%s/event"
+  siren_heartbeat: "pukaar/siren/%s/%s/heartbeat"
+  siren_backfill: "pukaar/siren/%s/%s/backfill"
+  box_event: "pukaar/box/%s/%s/event"
+  box_heartbeat: "pukaar/box/%s/%s/heartbeat"
+  box_backfill: "pukaar/box/%s/%s/backfill"
+  mesh_relay: "pukaar/mesh/%s/%s/relay"
+  gauge_reading: "pukaar/gauge/%s/%s/reading"
+  gauge_backfill: "pukaar/gauge/%s/%s/backfill"
+  shadow_prefix: "$aws/things/%s/shadow/name/%s"      # thing, shadow name (siren | config | box)
+  jobs_prefix: "$aws/things/%s/jobs"
+
+limits:
+  cmd_window_s: 1800            # exp = min(alert expiry, iat + 30 min)
+  recent_cmd_ids: 32
+  cloud_silence_s: 600
+  autonomy_cap_s: 1800
+  autonomy_quiet_stop_s: 900    # no GAUGE_ALARM for 15 min -> stop, emit finished
+  manual_cap_s: 600
+  manual_rate_per_hour: 3
+  hold_ms: 3000
+  continuous_max_s: 600         # thermal and battery hard limit
+  rest_s: 120
+  voice_slot_offset_s: 25
+  test_window_start_min_ist: 540   # 09:00
+  test_window_end_min_ist: 1080    # 18:00
+  ist_offset_s: 19800
+  verify_window_start_ms: 3000
+  verify_window_end_ms: 8000
+  verify_amp_lo_pct: 60
+  verify_amp_hi_pct: 150
+  ctr_persist_every: 10
+  ctr_boot_skip: 16             # SEND counters only (siren_model.SEND_CTR_BOOT_SKIP); receive counters restore exactly
+  box_ack_wait_ms: 2000
+  box_ack_tries: 3
+  relay_dedupe_s: 600
+  relay_backoff_min_ms: 50
+  relay_backoff_max_ms: 500
+  relay_beacon_s: 900
+  heartbeat_s: 300
+  heartbeat_low_soc_s: 900
+  gauge_cloud_ok_s: 600
+
+outbox:            # section 6.3
+  segment_bytes: 4096
+  record_magic: 0x504B           # "PK"
+  record_header: 16              # magic u16, len u16, boot u32, seq u32, crc32 u32
+  max_payload: 1024
+  telemetry_cap_bytes: 524288
+  backfill_batch: 30
+  backoff_base_s: 2
+  backoff_cap_s: 300
+  breaker_failures: 3
+  breaker_open_s: 60
+
+dutycycle:         # G.S.R. 853(E) Table II, conservative (section 3.5)
+  window_s: 3600
+  node_budget_ms: 90000          # 2.5 %
+  relay_budget_ms: 360000        # 10 %
+  telemetry_stop_pct: 70
+
+radio:             # section 3.5
+  freq_primary_hz: 865402500
+  freq_secondary_hz: 865985000
+  bw_hz: 125000
+  sf: 10
+  cr: 5                          # 4/5
+  preamble: 8
+  sync_word: 0x12                # LoRa private; the spec's 0x34 is the LoRaWAN public word
+  tx_dbm: 22
+
+rain:              # section 3.2
+  poll_ms: 5
+  debounce_ms: 25
+  debounce_samples: 3
+  min_tip_ms: 400
+  burst_tips_per_min: 2

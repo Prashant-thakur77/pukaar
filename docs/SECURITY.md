@@ -141,8 +141,12 @@ is not built.
 
 **What a device checks** (the reference verifier, and what the firmware must do):
 - the signature: the command's canonical string signed with HMAC-SHA256, the first 16 bytes sent;
-- replay: a per-path counter (MQTT, SMS, LoRa) that must go up, and the last 32 command ids; on boot the
-  stored counter is taken plus 16, so a reboot between persists never accepts an old command;
+- replay: a per-path counter (MQTT, SMS, LoRa) that must go up, and the last 32 command ids. The
+  receive counters (and each LoRa sender's) are written through to flash when a message is accepted,
+  before the device acts on it, and restored exactly on boot, so a siren that lost power in a flood
+  takes its gauge's very next alarm. Power lost between the accept and the write can let that one
+  message in twice; its expiry (commands) or 15-minute time window (frames) bounds that. A device's
+  own outgoing frame counter is written in batches and skips 16 on boot, so it is never reused;
 - expiry: `exp` is at most 30 minutes after issue (sooner if the alert expires first); a command that
   arrives after `exp` is rejected and reported, never sounded late. With no synced clock, `exp` must
   fall within 12 hours of the last known time;

@@ -1,0 +1,7 @@
+{
+  "name": "pukaar_hal",
+  "version": "0.1.0",
+  "description": "Thin ESP32 drivers behind the pukaar_common interfaces (NVS, LittleFS, E22 LoRa, PPP+MQTT, serial simulator links). UNTESTED ON HARDWARE.",
+  "platforms": "espressif32",
+  "frameworks": "arduino"
+}

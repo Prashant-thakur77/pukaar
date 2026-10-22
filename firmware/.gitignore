@@ -1,0 +1,4 @@
+# PlatformIO build output, its package cache and the throwaway venv used to run it
+.pio/
+.pio-core/
+.venv/

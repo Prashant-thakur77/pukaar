@@ -18,10 +18,10 @@ from typing import Any
 
 from Pukaar.services.devices import protocol as p
 from Pukaar.services.devices.siren_model import (
-    BOOT_CTR_BUMP,
     FRAME_SKEW_S,
     PATTERN_DEFAULTS,
     RECENT_IDS,
+    SEND_CTR_BOOT_SKIP,
     UNSYNCED_EXP_WINDOW_S,
     CommandVerifier,
     FrameVerifier,
@@ -105,17 +105,17 @@ def command_checks() -> list[dict[str, Any]]:
     boot = CommandVerifier.after_boot(SIREN, keys, {"last_ctr": {"mqtt": 441, "sms": 0, "lora": 412},
                                                     "recent_ids": [], "last_known_time": NOW})
     boot_steps = []
-    for label, ctr in (("after boot, a counter within the +16 bump", 450), ("after boot, above the bump", 458)):
+    for label, ctr in (("after boot, the stored counter again", 441), ("after boot, the next counter", 442)):
         cmd = _signed(_cmd(id=f"cmd_boot_{ctr}", ctr=ctr))
         ok, reason = boot.accept(cmd, "mqtt", NOW)
         boot_steps.append({"label": label, "via": "mqtt", "now": NOW, "cmd": cmd, "accept": ok, "reason": reason})
     return [{"name": "acceptance_matrix", "device": SIREN, "keys_by_kid": {"1": keys[1].hex(), "2": keys[2].hex()},
              "initial_state": {"last_ctr": {"mqtt": 0, "sms": 0, "lora": 0}, "recent_ids": [], "last_known_time": 0},
              "steps": seq},
-            {"name": "boot_bump", "device": SIREN, "keys_by_kid": {"1": keys[1].hex()},
+            {"name": "boot_restore", "device": SIREN, "keys_by_kid": {"1": keys[1].hex()},
              "stored_state": {"last_ctr": {"mqtt": 441, "sms": 0, "lora": 412}, "recent_ids": [],
                               "last_known_time": NOW},
-             "boot_ctr_bump": BOOT_CTR_BUMP, "steps": boot_steps}]
+             "receive_ctr_boot_bump": 0, "steps": boot_steps}]
 
 
 def _hexed(fields: dict[str, Any]) -> dict[str, Any]:
@@ -198,9 +198,22 @@ def frame_rejects(good: list[dict[str, Any]]) -> list[dict[str, Any]]:
     assert ok and opened is None  # the outer MAC is the relay's own and valid; the inner command is not
     out.append({"name": "forwarder_forges_inner_command", "frame_hex": forged_inner.hex(), "now": NOW,
                 "expect_reason": "ok_outer_bad_inner", "outer_accepted": ok, "inner_valid": False})
+    # A reboot: the per-sender counters come back exactly (written through on accept), so the
+    # gauge's next GAUGE_ALARM is accepted at once; anything at or below the stored counter is not.
+    stored = v.persisted()
+    rebooted = FrameVerifier.after_boot(senders, stored)
+    nxt = p.encode_frame(key(GAUGE), ftype=p.FrameType.GAUGE_ALARM, src=ADDR[GAUGE], dst=ADDR[SIREN],
+                         ctr=stored[ADDR[GAUGE]] + 1, ts=NOW, payload=bytes.fromhex(good[0]["payload_hex"]))
+    reboot_cases = []
+    for name, data in (("replay_of_the_last_frame", alarm), ("next_frame", nxt), ("next_frame_again", nxt)):
+        ok, reason, _ = rebooted.accept(data, NOW)
+        reboot_cases.append({"name": name, "frame_hex": data.hex(), "now": NOW, "expect_reason": reason})
+    assert [c["expect_reason"] for c in reboot_cases] == ["replayed", "ok", "replayed"], reboot_cases
     return [{"receiver": SIREN, "senders": {f"0x{a:04x}": {"device": s.device_id, "key_hex": s.key.hex(),
                                                              "roles": list(s.roles)} for a, s in senders.items()},
-             "accepted_first": {"name": "gauge_alarm", "frame_hex": alarm.hex()}, "cases": out}]
+             "accepted_first": {"name": "gauge_alarm", "frame_hex": alarm.hex()}, "cases": out,
+             "after_reboot": {"stored_last_ctr": {f"0x{a:04x}": c for a, c in stored.items()},
+                              "cases": reboot_cases}}]
 
 
 def sms() -> dict[str, Any]:
@@ -259,7 +272,8 @@ def build() -> dict[str, Any]:
         "constants": {"proto": p.PROTO, "cmd_sig_bytes": p.CMD_SIG_BYTES, "frame_mac_bytes": p.FRAME_MAC_BYTES,
                       "inner_sig_bytes": p.INNER_SIG_BYTES, "sms_sig_bytes": p.SMS_SIG_BYTES,
                       "frame_max": p.FRAME_MAX, "payload_max": p.PAYLOAD_MAX, "frame_version": p.FRAME_VERSION,
-                      "broadcast": p.BROADCAST, "recent_ids": RECENT_IDS, "boot_ctr_bump": BOOT_CTR_BUMP,
+                      "broadcast": p.BROADCAST, "recent_ids": RECENT_IDS, "receive_ctr_boot_bump": 0,
+                      "send_ctr_boot_skip": SEND_CTR_BOOT_SKIP,
                       "unsynced_exp_window_s": UNSYNCED_EXP_WINDOW_S, "frame_skew_s": FRAME_SKEW_S,
                       "sms_max": p.SMS_MAX, "crockford_alphabet": p.CROCKFORD, "hkdf_salt": p.HKDF_SALT.decode(),
                       "hkdf_info": "pukaar-dev|<device>|<kid>", "now": NOW},

@@ -254,7 +254,9 @@ or place not in village data):
 | External CAP (SACHET, IMD, BBMB) | **Never sounds a siren.** It is `official` evidence only | - |
 
 Every command is signed for one device, carries a counter and expires within 30 minutes
-(docs/SECURITY.md, "Device signing"). Sounding is **verified**: during the first tone the node measures
+(docs/SECURITY.md, "Device signing"). A device writes the counters it has accepted to flash before it
+acts, and restores them exactly after a reboot: a siren that lost power in a flood sounds on its
+gauge's very next alarm, with no gap. Sounding is **verified**: during the first tone the node measures
 the amplifier current against its reference and the microphone's sound rise; a failed check never
 silences a real alarm. A command not verified in 180 s is `not_confirmed`: the duty officer is told to
 phone the pradhan and can send the same signed command by SMS from the console.

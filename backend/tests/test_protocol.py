@@ -76,8 +76,41 @@ def test_command_acceptance_sequences_replay_exactly(seq):
 def test_acceptance_matrix_covers_replay_expiry_kid_and_boot():
     reasons = {s["reason"] for seq in V["command_checks"] for s in seq["steps"]}
     assert {"ok", "replayed", "bad_sig", "wrong_kid", "expired", "exp_window"} <= reasons
-    boot = next(s for s in V["command_checks"] if s["name"] == "boot_bump")
-    assert [s["accept"] for s in boot["steps"]] == [False, True]  # the +16 on boot
+    boot = next(s for s in V["command_checks"] if s["name"] == "boot_restore")
+    # receive counters come back exactly: the stored counter is a replay, the very next one is accepted
+    assert [(s["cmd"]["ctr"], s["accept"]) for s in boot["steps"]] == [(441, False), (442, True)]
+
+
+def test_after_a_reboot_the_gauges_next_frame_is_accepted_and_replays_are_not():
+    r = V["frame_rejects"][0]
+    senders = {int(a, 16): Sender(s["device"], bytes.fromhex(s["key_hex"]), tuple(s["roles"]))
+               for a, s in r["senders"].items()}
+    stored = {int(a, 16): c for a, c in r["after_reboot"]["stored_last_ctr"].items()}
+    v = FrameVerifier.after_boot(senders, stored)
+    gauge = next(a for a, s in senders.items() if "gauge_alarm" in s.roles)
+    last = stored[gauge]
+    # ctr <= stored is refused, ctr = stored + 1 is accepted at once (no +16 gap after a power cut)
+    for case in r["after_reboot"]["cases"]:
+        ok, reason, frame = v.accept(bytes.fromhex(case["frame_hex"]), case["now"])
+        assert reason == case["expect_reason"], case["name"]
+        if case["name"] == "next_frame":
+            assert ok and frame is not None and frame.ctr == last + 1
+        if case["name"] == "replay_of_the_last_frame":
+            assert not ok and frame is not None and frame.ctr == last
+
+
+def test_frame_counters_are_restored_exactly_from_scratch():
+    key = p.derive_device_key(bytes(range(32)), "gauge-x-01")
+    senders = {0x0201: Sender("gauge-x-01", key, ("gauge_alarm",))}
+    v = FrameVerifier(senders)
+    payload = bytes(9)
+    for ctr in (1, 2, 3):
+        assert v.accept(p.encode_frame(key, ftype=2, src=0x0201, dst=0xFFFF, ctr=ctr, ts=0, payload=payload), None)[0]
+    w = FrameVerifier.after_boot(senders, v.persisted())
+    assert w.accept(p.encode_frame(key, ftype=2, src=0x0201, dst=0xFFFF, ctr=3, ts=0, payload=payload), None)[1] == "replayed"
+    assert w.accept(p.encode_frame(key, ftype=2, src=0x0201, dst=0xFFFF, ctr=4, ts=0, payload=payload), None)[0]
+    c = CommandVerifier.after_boot("siren-x", {}, {"last_ctr": {"mqtt": 7, "sms": 3, "lora": 9}})
+    assert c.last_ctr == {"mqtt": 7, "sms": 3, "lora": 9}  # no bump
 
 
 @pytest.mark.parametrize("case", V["frames"], ids=lambda c: c["name"])

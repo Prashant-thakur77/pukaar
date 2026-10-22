@@ -1,0 +1,61 @@
+name: firmware
+
+on:
+  push:
+    branches: [main]
+    paths: ["firmware/**", ".github/workflows/firmware.yml"]
+  pull_request:
+    paths: ["firmware/**", ".github/workflows/firmware.yml"]
+  schedule:
+    - cron: "30 21 * * *"  # nightly, 03:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: Firmware (schema check, host unit tests, golden vectors)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "platformio==6.2.0" "pyyaml==6.0.3"
+      - name: Generated schema.h is up to date
+        run: python tools/gen_schema.py --check
+      - name: Unit tests on the host (Unity), including every golden vector
+        run: pio test -e native
+
+  build:
+    name: Firmware (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [siren_node, siren_node_sim]
+    defaults:
+      run:
+        working-directory: firmware
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/platformio.ini') }}
+      - run: pip install "platformio==6.2.0"
+      - run: pio run -e ${{ matrix.env }}
+      - if: matrix.env == 'siren_node_sim'
+        uses: actions/upload-artifact@v4
+        with:
+          name: siren_node_sim
+          path: |
+            firmware/.pio/build/siren_node_sim/firmware.bin
+            firmware/.pio/build/siren_node_sim/firmware.elf

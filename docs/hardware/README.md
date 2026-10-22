@@ -1,5 +1,7 @@
 # River gauge for a Pukaar village
 
+> Alarm-layer firmware (siren node, shared logic, host tests, untested on hardware): [`firmware/`](../../firmware/README.md).
+
 A forecast says what the river *may* do. A gauge says what it *is* doing. Each
 Pukaar village can have one water-level gauge, mounted under a bridge deck, that
 reports the river stage every five minutes (every minute while it rises). The

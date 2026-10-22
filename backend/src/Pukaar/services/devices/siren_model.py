@@ -9,8 +9,16 @@ Command acceptance, in order (docs/hardware/ALARM.md):
      (mqtt, sms or lora)                                           else "replayed"
   3. clock synced: now <= cmd.exp                                  else "expired"
      clock unsynced: cmd.exp within 12 h of the last known time    else "exp_window"
-The counters persist; on boot the stored value is raised by 16 (writes are batched, so the last few may
-be lost: never accept an old counter again after a power cut).
+Receive counters (the last ctr accepted per path, and per sender for frames) are written through to
+NVS when a message is accepted, before the device acts on it, and restored EXACTLY on boot. No bump:
+a bump would make a siren that rebooted (floods cut power) refuse its gauge's next GAUGE_ALARM
+frames, exactly when edge autonomy matters. The one gap, power lost after the accept but before the
+write, can let that one message be accepted a second time. The existing checks bound it: a command's
+expiry (at most 30 minutes) and a frame's 900 s time window keep an old capture out, and the ring of
+recent command ids (persisted with the counters) stops the same command arriving again on another path.
+Send counters (a device's own outgoing frame ctr) are the other way round: they are batched, so on
+boot the stored value is raised by SEND_CTR_BOOT_SKIP and a counter is never reused after an unclean
+shutdown. The server's per-device command ctr is an atomic DynamoDB ADD and needs no skip.
 
 Frames: the sender is configured for the frame type's role, the MAC is valid with the sender's key,
 the counter is above the last one from that sender, and |ts - now| < 900 s when both clocks are synced.
@@ -29,7 +37,7 @@ from typing import Any, Mapping
 from Pukaar.services.devices import protocol as p
 
 RECENT_IDS = 32
-BOOT_CTR_BUMP = 16
+SEND_CTR_BOOT_SKIP = 16  # send counters only; receive counters are restored exactly
 UNSYNCED_EXP_WINDOW_S = 12 * 3600
 FRAME_SKEW_S = 900
 VIAS = ("mqtt", "sms", "lora")
@@ -81,10 +89,10 @@ class CommandVerifier:
 
     @classmethod
     def after_boot(cls, device_id: str, keys: dict[int, bytes], stored: Mapping[str, Any]) -> "CommandVerifier":
-        """Restore from NVS: every stored counter + BOOT_CTR_BUMP."""
+        """Restore from NVS exactly (receive counters are written through on accept; no bump)."""
         v = cls(device_id, dict(keys))
         for via, ctr in (stored.get("last_ctr") or {}).items():
-            v.last_ctr[via] = int(ctr) + BOOT_CTR_BUMP
+            v.last_ctr[via] = int(ctr)
         v.recent_ids.extend(stored.get("recent_ids") or [])
         v.last_known_time = int(stored.get("last_known_time") or 0)
         return v
@@ -163,6 +171,14 @@ class FrameVerifier:
 
     senders: dict[int, Sender]
     last_ctr: dict[int, int] = field(default_factory=dict)
+
+    def persisted(self) -> dict[int, int]:
+        return dict(self.last_ctr)
+
+    @classmethod
+    def after_boot(cls, senders: dict[int, Sender], stored: Mapping[int, int]) -> "FrameVerifier":
+        """Restore the per-sender counters exactly: they were written through when each frame was accepted."""
+        return cls(dict(senders), {int(src): int(ctr) for src, ctr in stored.items()})
 
     def accept(self, data: bytes, now: int | None) -> tuple[bool, str, p.Frame | None]:
         try:
