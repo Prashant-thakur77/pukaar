@@ -695,6 +695,31 @@ export const dict = {
   'audit.reads': { hi: 'रोज़ के पढ़ने वाले रिकॉर्ड दिखाएँ ({n})', en: 'Show reads ({n})' },
   'audit.clear': { hi: 'फ़िल्टर हटाएँ', en: 'Clear filter' },
 
+  // raahat (relief ledger)
+  'raahat.eyebrow': { hi: 'पुकार राहत', en: 'Pukaar Raahat' },
+  'raahat.title': { hi: 'राहत का पैसा कहाँ गया', en: 'Where the relief money goes' },
+  'raahat.lead': {
+    hi: 'राहत का नियम बाढ़ से पहले तय होता है और सबके सामने चेन पर रहता है। पानी चढ़ने के बाद उसे कोई नहीं बदल सकता।',
+    en: 'The relief rule is fixed before the flood and kept in public on a chain. Nobody can change it after the water rises.',
+  },
+  'raahat.pool': { hi: 'राहत कोष', en: 'Relief pool' },
+  'raahat.pool.balance': { hi: 'कोष में अभी', en: 'In the pool now' },
+  'raahat.pool.test': { hi: 'tINR जाँच का पैसा है, इसकी कोई कीमत नहीं। असली रुपये के लिए लाइसेंस वाला साझेदार चाहिए।', en: 'tINR is test money with no value. Real rupees need a licensed partner.' },
+  'raahat.pool.placeholder': { hi: 'राहत कोष का अनुबंध (ReliefPool) अभी नहीं बना है, तब तक यह पैसा तैनात करने वाले पते पर रखा है।', en: 'The ReliefPool contract is not deployed yet; until it is, this money sits at the deployer’s address.' },
+  'raahat.network': { hi: 'चेन', en: 'Chain' },
+  'raahat.block': { hi: 'ब्लॉक {n} पर पढ़ा', en: 'Read at block {n}' },
+  'raahat.token': { hi: 'टोकन', en: 'Token' },
+  'raahat.address.pool': { hi: 'कोष का पता', en: 'Pool address' },
+  'raahat.explorer.none': { hi: 'स्थानीय चेन, कोई एक्सप्लोरर नहीं', en: 'Local chain, no explorer' },
+  'raahat.verify.checking': { hi: 'आपके ब्राउज़र से चेन पर जाँच हो रही है…', en: 'Checking the chain from your browser…' },
+  'raahat.verify.ok': { hi: 'आपके ब्राउज़र ने चेन से सीधे पढ़कर यही रकम पाई', en: 'Your browser read the chain directly and found the same amount' },
+  'raahat.verify.mismatch': { hi: 'आपके ब्राउज़र ने चेन पर अलग रकम पाई: {v}', en: 'Your browser found a different amount on the chain: {v}' },
+  'raahat.verify.failed': { hi: 'आपका ब्राउज़र चेन नहीं पढ़ सका', en: 'Your browser could not read the chain' },
+  'raahat.unreachable': { hi: 'सर्वर अभी चेन नहीं पढ़ सका। नीचे आपके ब्राउज़र की जाँच है।', en: 'The server could not read the chain just now. Your browser’s own check is below.' },
+  'raahat.none.title': { hi: 'राहत अभी जुड़ी नहीं है', en: 'Raahat is not connected yet' },
+  'raahat.none.body': { hi: 'राहत के अनुबंध अभी इस सर्वर से नहीं जुड़े हैं।', en: 'The Raahat contracts are not connected to this server yet.' },
+  'raahat.error': { hi: 'राहत की जानकारी नहीं मिल सकी', en: 'Could not load Raahat' },
+
   // impact
   'impact.eyebrow': { hi: 'असर', en: 'Impact' },
   'impact.title': { hi: 'हम क्या माप रहे हैं', en: 'What we can show, and what we cannot yet' },

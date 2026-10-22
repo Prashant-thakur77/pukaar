@@ -65,3 +65,11 @@ Thumbs.db
 .mcp.json
 CLAUDE.md
 AGENTS.md
+
+# --- Raahat contracts (Foundry) ---
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/dependencies/
+contracts/.anvil/
+contracts/deployments/anvil.json

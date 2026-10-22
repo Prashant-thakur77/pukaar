@@ -46,7 +46,8 @@ DEPLOY_EXTRA   = $(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL)) \
                  $(if $(CAP_SENDER_NAME_HI),'CapSenderNameHi="$(CAP_SENDER_NAME_HI)"')
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke
+        seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke \
+        test-contracts raahat-deps raahat-anvil raahat-deploy raahat-fund raahat-seed-households
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -55,13 +56,16 @@ install: ## Install backend (uv) and frontend (npm) dependencies
 	cd backend && uv sync --frozen --extra dev
 	cd frontend && npm ci
 
-test: test-backend test-frontend ## Backend pytest, frontend vitest and build
+test: test-backend test-frontend test-contracts ## Backend pytest, frontend vitest and build, Foundry tests
 
 test-backend:
 	cd backend && $(PYTHON) -m pytest -q
 
 test-frontend:
 	cd frontend && npm test && npm run build
+
+test-contracts: raahat-deps
+	cd contracts && forge test
 
 lint: validate ## Ruff, ESLint, SAM/cfn-lint
 	ruff check backend scripts
@@ -158,8 +162,41 @@ smoke: ## Read-only check of the live site and API: pages, axe, sideways scroll,
 it: ## Run real approval executions against the deployed stack
 	$(PYTHON) scripts/it_workflow.py
 
-local: ## Run backend (PUKAAR_MODE=local, :8000) and Vite dev server (:5173)
+API_PORT ?= 8000
+WEB_PORT ?= 5173
+local: ## Run backend (PUKAAR_MODE=local, :8000) and Vite dev server (:5173); API_PORT= WEB_PORT= to move them
 	trap 'kill 0' EXIT; \
-	(cd backend && PUKAAR_MODE=local PYTHONPATH=src $(PYTHON) -m uvicorn Pukaar.main:app --reload --host 127.0.0.1 --port 8000) & \
-	(cd frontend && VITE_API_BASE=http://127.0.0.1:8000 npm run dev) & \
+	(cd backend && PUKAAR_MODE=local PUKAAR_WEB_URL=http://localhost:$(WEB_PORT) PUKAAR_API_URL=http://localhost:$(API_PORT) \
+	  PUKAAR_CORS_ORIGINS=http://localhost:$(WEB_PORT),http://127.0.0.1:$(WEB_PORT) \
+	  PYTHONPATH=src $(PYTHON) -m uvicorn Pukaar.main:app --reload --host 127.0.0.1 --port $(API_PORT)) & \
+	(cd frontend && VITE_API_BASE=http://127.0.0.1:$(API_PORT) npm run dev -- --port $(WEB_PORT) --strictPort) & \
 	wait
+
+# -- Pukaar Raahat (PLAN.md): contracts on anvil locally, Base Sepolia by default otherwise ----------------
+# RAAHAT_NETWORK=anvil (default) uses anvil's unlocked first account, so no key is written anywhere.
+# Any other network signs with RAAHAT_DEPLOYER_KEY from .env.deploy.local and RAAHAT_RPC_URL.
+RAAHAT_NETWORK    ?= anvil
+RAAHAT_ANVIL_PORT ?= 8545
+RAAHAT_ANVIL_FROM ?= 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+RAAHAT_RPC_URL    ?= $(if $(filter anvil,$(RAAHAT_NETWORK)),http://127.0.0.1:$(RAAHAT_ANVIL_PORT))
+RAAHAT_SIGN        = $(if $(filter anvil,$(RAAHAT_NETWORK)),--unlocked --sender $(RAAHAT_ANVIL_FROM),--private-key "$$RAAHAT_DEPLOYER_KEY")
+export RAAHAT_NETWORK
+
+raahat-deps: ## Fetch the pinned contract dependencies (OpenZeppelin 5.1, forge-std) with soldeer
+	@test -d contracts/dependencies/@openzeppelin-contracts-5.1.0 -a -d contracts/dependencies/forge-std-1.9.4 \
+	  || (cd contracts && forge soldeer install)
+
+raahat-anvil: ## Local chain for Raahat on :8545, state kept in contracts/.anvil/ (RAAHAT_ANVIL_PORT=)
+	mkdir -p contracts/.anvil
+	anvil --port $(RAAHAT_ANVIL_PORT) --chain-id 31337 --block-time 2 --state contracts/.anvil/state.json
+
+raahat-deploy: raahat-deps ## Deploy the Raahat contracts, addresses to contracts/deployments/<network>.json (RAAHAT_NETWORK=base-sepolia)
+	@test -n "$(RAAHAT_RPC_URL)" || { echo "RAAHAT_RPC_URL is not set for RAAHAT_NETWORK=$(RAAHAT_NETWORK)." >&2; exit 2; }
+	cd contracts && forge script script/Deploy.s.sol --rpc-url "$(RAAHAT_RPC_URL)" --broadcast $(RAAHAT_SIGN)
+	@cat contracts/deployments/$(RAAHAT_NETWORK).json; echo
+
+raahat-fund: ## Mint test tINR into the pool (RAAHAT_FUND_TINR=500000 whole tINR; test money, no value)
+	cd contracts && forge script script/Fund.s.sol --rpc-url "$(RAAHAT_RPC_URL)" --broadcast $(RAAHAT_SIGN)
+
+raahat-seed-households: ## Per-village Merkle root of salted household hashes from the recipient rows (local mode: the seeded demo)
+	cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.households

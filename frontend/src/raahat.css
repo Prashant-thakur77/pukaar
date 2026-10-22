@@ -1,0 +1,11 @@
+/* Pukaar Raahat (/raahat): loaded with its own chunk, never on the villager report page. */
+.raahat-pool { display: grid; gap: var(--s-3); }
+.raahat-check { display: flex; align-items: center; gap: var(--s-2); }
+.raahat-check svg { flex: none; width: 1.1em; height: 1.1em; }
+.raahat .kv-list { display: grid; gap: var(--s-2); margin: 0; }
+.raahat .kv { display: grid; grid-template-columns: minmax(7rem, 11rem) 1fr; gap: var(--s-2); }
+.raahat .kv dt { color: var(--ink-2, inherit); font-weight: 600; }
+.raahat .kv dd { margin: 0; min-width: 0; }
+.raahat .mono { font-family: var(--font-mono); font-size: 0.85rem; }
+.raahat .break { overflow-wrap: anywhere; }
+@media (max-width: 520px) { .raahat .kv { grid-template-columns: 1fr; gap: 0; } }

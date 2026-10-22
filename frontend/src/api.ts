@@ -26,6 +26,7 @@ import type {
   Me,
   PilotMetrics,
   PublicOverview,
+  RaahatPool,
   ReplayStatus,
   PushSubscriptionView,
   PushTestResult,
@@ -312,6 +313,7 @@ export const api = {
     request<ReplayStatus>('/replay/start', { method: 'POST', body: opts }),
   replayReset: () => request<ReplayStatus>('/replay/reset', { method: 'POST', body: {} }),
   replayStatus: () => request<ReplayStatus>('/replay/status', { auth: false }),
+  raahatPool: () => request<RaahatPool>('/raahat/pool', { auth: false }),
 
   audit: (p: { date?: string; resource?: string } = {}) => request<Audit[]>(`/audit${qs(p)}`),
   stats: () => request<Stats>('/stats'),

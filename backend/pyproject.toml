@@ -15,6 +15,7 @@ dependencies = [
     "cedarpy>=4.12.1",
     "python-ulid>=4.0.1",
     "pyjwt[crypto]>=2.15.1",
+    "web3>=7",
 ]
 
 [project.optional-dependencies]

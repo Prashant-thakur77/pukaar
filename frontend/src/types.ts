@@ -1319,3 +1319,20 @@ export interface SafePlacesView extends SampleFlag {
   limits_en: string;
   limits_hi: string;
 }
+
+/** GET /raahat/pool (Pukaar Raahat): the relief pool as the API read it from the chain. */
+export interface RaahatPool {
+  configured: boolean;
+  reachable?: boolean;
+  chain_id?: number;
+  network?: string;
+  explorer?: string | null;
+  /** The chain's public endpoint, for the browser's own check (never the API's private RPC URL). */
+  public_rpc_url?: string;
+  addresses?: { test_inr: string; pool: string };
+  /** False until the ReliefPool contract is deployed: the pool is then the deployer's own address. */
+  pool_is_contract?: boolean;
+  block?: number;
+  token?: { address: string; symbol: string; decimals: number };
+  pool?: { address: string; is_contract: boolean; balance_wei: string };
+}
