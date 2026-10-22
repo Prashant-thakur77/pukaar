@@ -282,3 +282,31 @@ def test_public_anchor_view_has_no_personal_data(repo, frozen, workflow, fake_ch
                          "registry", "chain_id", "network", "explorer", "tx", "state", "anchored_at",
                          "outcome_tx", "outcome_state", "delivered", "acknowledged", "after_action_hash"}
     assert view["level"] == 2 and view["village_id"] == "thunag"
+
+
+# -- review fix: the anchor never sits between the alert and anyone it has not reached yet ----------------------
+def test_anchor_waits_until_every_batch_has_been_sent(repo, frozen, workflow, fake_chain, monkeypatch):
+    """With more than one batch, deliver hands the rest to the Map: nothing may be sent to the chain before the
+    last batch has gone out (a slow RPC must never hold up a warning)."""
+    from Pukaar.core import config
+    from Pukaar.workflow.steps import drive_delivery
+
+    monkeypatch.setenv("PUKAAR_DELIVERY_BATCH_SIZE", "1")
+    config.get_settings.cache_clear()
+    try:
+        s, a, _ = drafted_and_asked(repo)
+        decide(repo, workflow, a.id, "approved", "officer1")
+        first = s.handle({"step": "deliver", "alert_id": a.id})
+        assert first["more"] is True and fake_chain.sent == []  # batch 1 still to go: no anchor yet
+        done = drive_delivery(s.handle, first, sleep=lambda _: None)
+        assert done["sent"] == 2 and len(fake_chain.sent) == 1  # anchored once, after the round
+    finally:
+        config.get_settings.cache_clear()
+
+
+def test_rpc_client_never_retries_and_times_out_fast():
+    """web3's HTTPProvider retries each call 5 times by default; on the alert path that turns a sick RPC into
+    minutes. The client gets one try per call and a short timeout."""
+    provider = chain._provider_for(_cfg())
+    assert provider.exception_retry_configuration is None
+    assert provider.get_request_kwargs()["timeout"] <= 3

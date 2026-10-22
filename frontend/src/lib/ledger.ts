@@ -62,3 +62,10 @@ export function ledgerTotals(items: RaahatLedgerItem[]): { live: Total; exercise
     }
   return out;
 }
+
+/** An attester's chip: done only when the chain has it (or its transaction was mined); failed and pending show as such. */
+export function attesterState(a: { state: string; on_chain: boolean } | null | undefined): 'none' | 'done' | 'pending' | 'failed' {
+  if (!a) return 'none';
+  if (a.on_chain || a.state === 'sent') return 'done';
+  return a.state === 'failed' ? 'failed' : 'pending';
+}

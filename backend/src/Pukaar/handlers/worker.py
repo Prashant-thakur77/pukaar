@@ -2,6 +2,7 @@
 
 {"task": "process_report", "report_id"}       transcribe, structure, describe, verify
 {"task": "replay", "speed_seconds_per_hour"}  walk the active replay scenario
+{"task": "raahat_notify", "alert_id", "tier"}  tell a village its relief was released (Pukaar Raahat; live only)
 """
 
 from __future__ import annotations
@@ -28,6 +29,10 @@ def run_task(event: dict[str, Any]) -> dict[str, Any]:
         st = replay.run(get_repo(), speed_seconds_per_hour=float(event.get("speed_seconds_per_hour", 2.0)),
                         workflow=get_workflow())
         return st.model_dump()
+    if task == "raahat_notify":
+        from Pukaar.raahat import relief
+
+        return {"told": relief.notify_village(get_repo(), event["alert_id"], int(event["tier"]))}
     raise ValueError(f"unknown task {task!r}")
 
 

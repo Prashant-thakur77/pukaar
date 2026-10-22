@@ -33,7 +33,7 @@ function TxLink({ explorer, hash }: { explorer: string | null; hash: string }) {
 
 /** When the anchor transaction was mined, read in the browser from the chain itself. */
 function useMined(a: RaahatAnchor | null) {
-  const [mined, setMined] = useState<{ tx: string; block: bigint; at: number } | null>(null);
+  const [mined, setMined] = useState<{ tx: string; block: bigint; at: number; reverted: boolean } | null>(null);
   const tx = a?.state === 'sent' ? a.tx : null;
   const rpc = a?.public_rpc_url ?? null;
   useEffect(() => {
@@ -117,9 +117,11 @@ export default function ChainReceipt({ alertId }: { alertId: string }) {
                 {a.tx && (
                   <span className="small muted">
                     {' · '}
-                    {mined
-                      ? t('raahat.receipt.mined', { n: fmtNumber(Number(mined.block), lang), t: fmtTime(new Date(mined.at * 1000).toISOString(), lang) })
-                      : t('raahat.receipt.pending')}
+                    {mined?.reverted
+                      ? t('raahat.receipt.reverted')
+                      : mined
+                        ? t('raahat.receipt.mined', { n: fmtNumber(Number(mined.block), lang), t: fmtTime(new Date(mined.at * 1000).toISOString(), lang) })
+                        : t('raahat.receipt.pending')}
                   </span>
                 )}
               </dd>

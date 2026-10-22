@@ -59,7 +59,7 @@ RAAHAT_STACK_PARAMS = $(if $(filter raahat,$(STAGE)),$(if $(wildcard $(RAAHAT_DE
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
         seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke \
-        test-contracts raahat-deps raahat-anvil raahat-deploy raahat-fund raahat-seed-households raahat-attesters raahat-demo-photo raahat-signer-ssm
+        test-contracts raahat-deps raahat-anvil raahat-deploy raahat-fund raahat-seal raahat-seed-households raahat-attesters raahat-demo-photo raahat-signer-ssm
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -193,12 +193,14 @@ RAAHAT_ANVIL_FROM ?= 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 RAAHAT_RPC_URL    ?= $(if $(filter anvil,$(RAAHAT_NETWORK)),http://127.0.0.1:$(RAAHAT_ANVIL_PORT),$(RAAHAT_RPC_DEFAULT))
 # The key reaches forge, the backend and the AWS CLI only through the environment of these targets: it is never
 # on a command line, so neither the log nor `make -n` shows it.
-RAAHAT_SIGN        = $(if $(filter anvil,$(RAAHAT_NETWORK)),--unlocked --sender $(RAAHAT_ANVIL_FROM),--private-key "$$RAAHAT_DEPLOYER_KEY")
+# Off anvil the scripts read RAAHAT_DEPLOYER_KEY from their environment (vm.startBroadcast(key)), so the key is
+# never on a command line.
+RAAHAT_SIGN        = $(if $(filter anvil,$(RAAHAT_NETWORK)),--unlocked --sender $(RAAHAT_ANVIL_FROM))
 # Anvil never gets them: the local chain signs with its own unlocked accounts.
 RAAHAT_USES_KEY = $(or $(filter-out anvil,$(RAAHAT_NETWORK)),$(filter raahat,$(STAGE)))
 ifneq ($(RAAHAT_USES_KEY),)
-raahat-deploy raahat-fund raahat-seed-households raahat-attesters raahat-signer-ssm: export RAAHAT_DEPLOYER_KEY := $(RAAHAT_DEPLOYER_KEY)
-raahat-deploy raahat-fund raahat-seed-households raahat-attesters: export RAAHAT_ORACLE := $(RAAHAT_ORACLE)
+raahat-deploy raahat-fund raahat-seal raahat-seed-households raahat-attesters raahat-signer-ssm: export RAAHAT_DEPLOYER_KEY := $(RAAHAT_DEPLOYER_KEY)
+raahat-deploy raahat-fund raahat-seal raahat-seed-households raahat-attesters: export RAAHAT_ORACLE := $(RAAHAT_ORACLE)
 endif
 RAAHAT_RPC_DEFAULT = $(if $(filter base-sepolia,$(RAAHAT_NETWORK)),https://sepolia.base.org,$(if $(filter arbitrum-sepolia,$(RAAHAT_NETWORK)),https://sepolia-rollup.arbitrum.io/rpc,$(if $(filter polygon-amoy,$(RAAHAT_NETWORK)),https://rpc-amoy.polygon.technology)))
 export RAAHAT_NETWORK
@@ -221,6 +223,10 @@ raahat-fund: ## Mint test tINR into the pool (RAAHAT_FUND_TINR=500000 whole tINR
 	@echo "forge script Fund.s.sol on $(RAAHAT_NETWORK)"
 	@cd contracts && forge script script/Fund.s.sol --rpc-url "$(RAAHAT_RPC_URL)" --broadcast $(RAAHAT_SIGN)
 
+raahat-seal: ## Seal the relief rule for the season, after raahat-seed-households (amounts and thresholds then fixed)
+	@echo "forge script Seal.s.sol on $(RAAHAT_NETWORK)"
+	@cd contracts && forge script script/Seal.s.sol --rpc-url "$(RAAHAT_RPC_URL)" --broadcast $(RAAHAT_SIGN)
+
 raahat-seed-households: ## Household roots and cash-out agents on chain (local mode; STAGE=raahat: the deployed table and the testnet)
 	@if [ "$(STAGE)" = raahat ]; then \
 	  eval "$$(scripts/stack_env.sh)"; cd backend && RAAHAT_SIGNER_KEY="$$RAAHAT_DEPLOYER_KEY" \
@@ -239,5 +245,5 @@ raahat-demo-photo: ## Demo only: file a labelled DEMO photo as a verified replay
 
 raahat-signer-ssm: ## Store the testnet signer key as the SecureString /pukaar-raahat/<stage>/signer_key (STAGE=raahat), never printed
 	@test -n "$$RAAHAT_DEPLOYER_KEY" || { echo "RAAHAT_DEPLOYER_KEY is not set in .env.deploy.local." >&2; exit 2; }
-	@aws ssm put-parameter --region $(REGION) --name /pukaar-raahat/$(STAGE)/signer_key --type SecureString \
-	  --overwrite --value "$$RAAHAT_DEPLOYER_KEY" --query Version --output text | sed 's/^/stored, version /'
+	@printf %s "$$RAAHAT_DEPLOYER_KEY" | aws ssm put-parameter --region $(REGION) --name /pukaar-raahat/$(STAGE)/signer_key \
+	  --type SecureString --overwrite --value file:///dev/stdin --query Version --output text | sed 's/^/stored, version /'

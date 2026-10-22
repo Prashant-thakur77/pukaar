@@ -101,10 +101,11 @@ def record(repo: Repo, alert_id: str, household: str, upi_ref: str, *, by: str) 
     except ConflictError:
         raise ReceiptRefused("already_receipted") from None
     tx = client.receipt(anchor.alert_key(alert.id), hh, proof, ref_hash)
-    repo._update(pk, sk, {"state": "sent" if tx else "failed", "tx": tx})
-    if tx:
+    state = {"mined": "sent", "pending": "pending"}.get(client.confirm(tx), "failed") if tx else "failed"
+    repo._update(pk, sk, {"state": state, "tx": tx})
+    if state != "failed":
         anchor.index(repo, alert)
-    return {k: v for k, v in claim.items() if k not in {"pk", "sk"}} | {"state": "sent" if tx else "failed", "tx": tx}
+    return {k: v for k, v in claim.items() if k not in {"pk", "sk"}} | {"state": state, "tx": tx}
 
 
 def counts(repo: Repo, alert_id: str) -> int:

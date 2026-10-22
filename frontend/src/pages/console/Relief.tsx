@@ -90,6 +90,8 @@ function ReliefCard({ item, village, onReleased }: { item: RaahatLedgerItem; vil
                 </>
               )}
             </p>
+          ) : tier.release?.state === 'pending' ? (
+            <p className="small">{t('raahat.receipt.pending')}</p>
           ) : tier.eligible ? (
             <button type="button" className="btn btn-accent btn-sm" onClick={() => setConfirm(tier)}>
               <HandCoins aria-hidden="true" /> {t('raahat.relief.release')}

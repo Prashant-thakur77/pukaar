@@ -68,14 +68,15 @@ class ReleaseBody(BaseModel):
 def release(alert_id: str, body: ReleaseBody,
             principal: Principal = Depends(Allowed("release_relief", "alert", "alert_id"))) -> dict:
     """One tap by a district officer (Cedar release_relief, audited). 409 with a reason code when not eligible;
-    502 when the chain refused or could not be reached (try again)."""
+    502 when the chain refused or could not be reached (try again); state "pending" when sent but not yet mined
+    (it is announced once mined)."""
     try:
         out = relief.release(get_repo(), alert_id, body.tier, by=principal.username)
     except KeyError:
         raise HTTPException(404, "Alert not found") from None
     except relief.ReliefRefused as exc:
         raise HTTPException(409, {"code": exc.code}) from None
-    if out["state"] != "sent":
+    if out["state"] == "failed":
         raise HTTPException(502, {"code": "chain_failed", "release": out})
     return out
 
@@ -156,6 +157,6 @@ def record_receipt(body: ReceiptBody, principal: Principal = Depends(require_use
         raise HTTPException(404, "Alert not found") from None
     except receipts.ReceiptRefused as exc:
         raise HTTPException(409, {"code": exc.code}) from None
-    if out["state"] != "sent":
+    if out["state"] == "failed":
         raise HTTPException(502, {"code": "chain_failed"})
     return out

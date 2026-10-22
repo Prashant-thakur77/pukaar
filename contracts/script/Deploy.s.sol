@@ -18,26 +18,39 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /// OFFICER_ROLE on the attestation; pradhans' roles are granted per village later (raahat/attest.py setup).
 /// RAAHAT_REUSE_TEST_INR / RAAHAT_REUSE_REGISTRY keep deployed contracts (their anchors and balances stay valid);
 /// the pool is always new, because its attestation contract is fixed at construction.
-/// The relief rule is set and sealed here, before any flood: illustrative amounts, SDRF norms to be mapped
+/// The relief rule is set here and sealed by Seal.s.sol before any flood: illustrative amounts, SDRF norms to be mapped
 /// with the DDMA. 1 tINR stands for Rs 1. RAAHAT_ALLOW_EXERCISE=false for anything but a testnet demo.
 contract Deploy is Script {
     using stdJson for string;
 
+    /// The broadcaster: RAAHAT_DEPLOYER_KEY from the environment (testnet), else the unlocked --sender (anvil).
+    function _begin() internal returns (address) {
+        uint256 key = vm.envOr("RAAHAT_DEPLOYER_KEY", uint256(0));
+        if (key == 0) {
+            vm.startBroadcast();
+            return msg.sender;
+        }
+        vm.startBroadcast(key);
+        return vm.addr(key);
+    }
+
     function run() external {
-        address deployer = msg.sender;
+        uint256 key = vm.envOr("RAAHAT_DEPLOYER_KEY", uint256(0));
+        address deployer = key == 0 ? msg.sender : vm.addr(key);
         address oracle = vm.envOr("RAAHAT_ORACLE", deployer);
         bool allowExercise = vm.envOr("RAAHAT_ALLOW_EXERCISE", true);
         address reuseToken = vm.envOr("RAAHAT_REUSE_TEST_INR", address(0));
         address reuseRegistry = vm.envOr("RAAHAT_REUSE_REGISTRY", address(0));
         address officerAttester = vm.envOr("RAAHAT_OFFICER_ATTESTER", address(0));
-        vm.startBroadcast();
+        _begin();
         TestINR token = reuseToken == address(0) ? new TestINR() : TestINR(reuseToken);
         AlertRegistry registry = reuseRegistry == address(0) ? new AlertRegistry(oracle) : AlertRegistry(reuseRegistry);
         ImpactAttestation attestation = new ImpactAttestation(registry, oracle);
         if (officerAttester != address(0)) attestation.grantRole(attestation.OFFICER_ROLE(), officerAttester);
         ReliefPool pool = new ReliefPool(IERC20(address(token)), registry, attestation, allowExercise, deployer);
+        // The rule is written now and sealed by Seal.s.sol once every village's households and cash-out agent are in
+        // (make raahat-seed-households, then make raahat-seal): after the seal those change only after a delay.
         pool.setRule(ReliefPool.Rule({minLevelAnticipatory: 2, amountAnticipatory: 1_500 ether, amountConfirmed: 4_000 ether, cooldownHours: 72}));
-        pool.sealRules();
         if (oracle != deployer) pool.grantRole(pool.DDMA_ROLE(), oracle);
         vm.stopBroadcast();
 

@@ -33,6 +33,10 @@ class FakeChain:
         self.state.update(over)
         self.sent: list[tuple[str, int]] = []
         self.fail = False
+        self.outcome = "mined"  # what confirm() says: mined, reverted or pending
+
+    def confirm(self, tx: str) -> str:
+        return self.outcome
 
     def relief_state(self, village_key: bytes, alert_key: bytes, exercise: bool) -> dict | None:
         return dict(self.state)
@@ -54,9 +58,15 @@ def _anchored(repo, *, level="warning", replay=True, village="sujanpur"):
 
 
 @pytest.fixture()
-def fake(monkeypatch):
+def fake(monkeypatch, repo):
+    from Pukaar.handlers import worker
+
+    monkeypatch.setattr(worker, "get_repo", lambda: repo)
+    monkeypatch.setattr(relief, "NOTIFY_INTERVAL_SECONDS", 0)
     c = FakeChain()
     monkeypatch.setattr(relief, "_client", lambda: c)
+    # The village is told by the worker (async invoke on AWS, a thread locally); here inline, so tests see it.
+    monkeypatch.setattr(worker, "dispatch", lambda event: worker.run_task(event))
     return c
 
 
@@ -286,3 +296,101 @@ def test_ledger_lists_anchored_alerts_with_releases_and_nothing_personal(api, re
     text = client.get("/raahat/ledger").text
     assert "Asha" not in text and "555001" not in text and "officer1" not in text
     assert client.get("/raahat/ledger?village_id=gohar").json()["items"] == []
+
+
+def test_drill_release_never_messages_a_real_phone(repo, frozen, fake, monkeypatch):
+    """A drill is not a replay (replay=False) but it is an exercise: relief for it is never announced to villagers."""
+    from Pukaar.delivery import telegram
+    from Pukaar.store.models import Recipient
+
+    sent = []
+    monkeypatch.setattr(telegram, "send_text", lambda chat, text: sent.append(chat))
+    repo.put_recipient(Recipient(id="555001", village_id="sujanpur", name="Asha", channel="telegram"))
+    a = _anchored(repo, replay=False)
+    repo.update_alert(a.id, decision_trace={"drill": True, "rules_fired": ["drill"]})
+    assert relief.release(repo, a.id, 1, by="officer1")["state"] == "sent"
+    assert sent == []
+
+
+
+# -- review fix: "sent" means mined; a revert or a still-pending transaction is never announced ------------------
+@pytest.mark.parametrize("outcome, state", [("reverted", "failed"), ("pending", "pending")])
+def test_release_is_only_sent_once_mined(repo, frozen, fake, monkeypatch, outcome, state):
+    from Pukaar.delivery import telegram
+    from Pukaar.store.models import Recipient
+
+    told, published = [], []
+    monkeypatch.setattr(telegram, "send_text", lambda chat, text: told.append(chat))
+    monkeypatch.setattr(events, "publish", lambda ch, ev: published.append(ev) or True)
+    repo.put_recipient(Recipient(id="555001", village_id="sujanpur", name="Asha", channel="telegram"))
+    a = _anchored(repo, replay=False)
+    fake.outcome = outcome
+    out = relief.release(repo, a.id, 1, by="officer1")
+    assert out["state"] == state and relief.get_release(repo, a.id, 1)["state"] == state
+    assert told == [] and published == []
+    if outcome == "reverted":  # the chain refused it: the officer may tap again
+        fake.outcome = "mined"
+        assert relief.release(repo, a.id, 1, by="officer1")["state"] == "sent"
+
+
+def test_send_retries_a_nonce_collision_with_a_fresh_nonce():
+    """Two Lambdas signing with one key can race for a nonce: the loser is sent again, not lost."""
+    endpoint = Chain()
+    calls = {"n": 0}
+    real = endpoint.make_request
+
+    def racy(method, params):
+        if method == "eth_sendTransaction":
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return {"jsonrpc": "2.0", "id": 1, "error": {"code": -32000, "message": "nonce too low"}}
+        return real(method, params)
+
+    endpoint.make_request = racy
+    cfg = chain.ChainConfig(**{**_cfg().__dict__, "pool_is_contract": True})
+    assert chain.RaahatChain(cfg, provider=endpoint).release(keccak(text="alr_n"), 1).startswith("0x")
+    assert calls["n"] == 2 and len(endpoint.sent) == 1
+
+
+def test_confirm_reads_the_receipt_status():
+    class R(Chain):
+        def __init__(self, status):
+            super().__init__()
+            self.status = status
+
+        def make_request(self, method, params):
+            if method == "eth_getTransactionReceipt":
+                if self.status is None:
+                    return {"jsonrpc": "2.0", "id": 1, "result": None}
+                return {"jsonrpc": "2.0", "id": 1, "result": {
+                    "status": hex(self.status), "blockNumber": "0x10", "transactionHash": "0x" + "ab" * 32,
+                    "blockHash": "0x" + "00" * 32, "transactionIndex": "0x0", "logs": [], "gasUsed": "0x1",
+                    "cumulativeGasUsed": "0x1", "from": "0x" + "00" * 20, "to": "0x" + "00" * 20,
+                    "contractAddress": None, "logsBloom": "0x" + "00" * 256, "type": "0x2",
+                    "effectiveGasPrice": "0x1"}}
+            return super().make_request(method, params)
+
+    tx = "0x" + "ab" * 32
+    assert chain.RaahatChain(_cfg(), provider=R(1)).confirm(tx, timeout=1) == "mined"
+    assert chain.RaahatChain(_cfg(), provider=R(0)).confirm(tx, timeout=1) == "reverted"
+    assert chain.RaahatChain(_cfg(), provider=R(None)).confirm(tx, timeout=1) == "pending"
+
+
+
+def test_relief_message_goes_through_the_worker_once(repo, frozen, fake, monkeypatch):
+    """The API Lambda never sends to villagers itself (Telegram's quota is shared with alert delivery): it hands a
+    raahat_notify task to the worker, which tells each person once even if the task runs twice."""
+    from Pukaar.delivery import telegram
+    from Pukaar.handlers import worker
+    from Pukaar.store.models import Recipient
+
+    tasks, sent = [], []
+    monkeypatch.setattr(worker, "dispatch", lambda event: tasks.append(event))
+    monkeypatch.setattr(telegram, "send_text", lambda chat, text: sent.append(chat))
+    repo.put_recipient(Recipient(id="555001", village_id="sujanpur", name="Asha", channel="telegram"))
+    a = _anchored(repo, replay=False)
+    relief.release(repo, a.id, 1, by="officer1")
+    assert sent == [] and tasks == [{"task": "raahat_notify", "alert_id": a.id, "tier": 1}]
+    worker.run_task(tasks[0])
+    worker.run_task(tasks[0])  # a duplicate delivery of the task
+    assert sent == ["555001"]

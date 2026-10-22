@@ -430,7 +430,7 @@ Pukaar Raahat (पुकार राहत) is the relief layer on this branch,
 It does three things:
 
 1. Every published alert is anchored: the keccak256 of the CAP 1.2 XML that `/cap/alerts/{id}.xml` serves, with the village, level, issue time and `exercise=true` for replays and drills, then at close the delivered and acknowledged counts and the hash of the after-action report. The "re-verify" button on every alert reads the hash from the chain, fetches the CAP feed and hashes it in the browser.
-2. The relief rule is a contract, sealed before the season: ₹1,500 per household when a village reaches Warning, ₹4,000 when the flood is confirmed, one anticipatory payout per village per 72 hours. The amounts are illustrative; SDRF norms are to be mapped with the DDMA. After `sealRules()` no amount or threshold can change.
+2. The relief rule is a contract, sealed before the season: ₹1,500 per household when a village reaches Warning, ₹4,000 when the flood is confirmed, one anticipatory payout per village per 72 hours. The amounts are illustrative; SDRF norms are to be mapped with the DDMA. After `sealRules()` no amount or threshold can change, and a village's household list or cash-out agent changes only after a public delay of one cooldown (72 hours), announced on chain when it is scheduled.
 3. Relief goes out in two tiers. Code works out eligibility, a district officer releases in one tap (Cedar `release_relief`, audited) and the contract checks it again. The second tier needs two of three attesters: the pradhan (a verified photo report), a district officer and the satellite (the Sentinel-2 pair behind /impact). Each household's payout ends in a receipt with a Merkle proof of its salted hash and a hash of the UPI or cash reference.
 
 Contracts on Base Sepolia (chain 84532; addresses in [contracts/deployments/base-sepolia.json](contracts/deployments/base-sepolia.json)):
@@ -451,7 +451,7 @@ What is real, a replay, simulated or planned:
 | Simulated | tINR is a test token. The demo stack's household register adds labelled demo households (no name, no phone). On testnet the backend holds the three attester keys (derived per role, so they are different addresses on chain) and signs after Cedar checks the person, and the cash-out agent is the backend's own address. The satellite pair covers only Pandoh, for July 2023 |
 | Planned | A licensed INR stablecoin or a bank/UPI rail; SDRF norm mapping with the DDMA; each attester's own device key; the production chain chosen with the issuing authority |
 
-No personal data goes on chain. A household is `keccak256(villageId, HMAC(salt, householdNo))`; the salt is a SecureString; names, phones and chat ids stay in DynamoDB. There is no token sale, DAO, NFT or upgradeable proxy.
+On this testnet one backend secret derives every signing key (oracle, officer, pradhans) and holds the DDMA role, so a leak of that secret would control the demo pool; a production deployment gives the DDMA, each attester and the admin their own keys, the admin a cold one. No personal data goes on chain. A household is `keccak256(villageId, HMAC(salt, householdNo))`; the salt is a SecureString; names, phones and chat ids stay in DynamoDB. There is no token sale, DAO, NFT or upgradeable proxy.
 
 How it is wired, and what the tests hold it to:
 
@@ -473,6 +473,7 @@ make raahat-deploy             # TestINR, AlertRegistry, ImpactAttestation, Reli
 make raahat-fund               # 5,00,000 tINR into the pool through fund()
 make raahat-seed-households    # household roots and cash-out agents
 make raahat-attesters          # the officer's and each village's pradhan's attester role
+make raahat-seal               # seal the rule: amounts and thresholds fixed from now on
 make local                     # sign in as officer1, start the July 2023 replay
 ```
 

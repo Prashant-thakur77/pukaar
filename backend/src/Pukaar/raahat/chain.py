@@ -42,7 +42,10 @@ ANVIL_RPC = "http://127.0.0.1:8545"
 # backend; the page gets RAAHAT_PUBLIC_RPC_URL, else the chain's own public endpoint.
 PUBLIC_RPCS = {31337: ANVIL_RPC, 84532: "https://sepolia.base.org", 421614: "https://sepolia-rollup.arbitrum.io/rpc",
                80002: "https://rpc-amoy.polygon.technology"}
-RPC_TIMEOUT_SECONDS = 5
+# One try per call and a short timeout: a sick RPC costs seconds, never the minutes web3's default retries take.
+RPC_TIMEOUT_SECONDS = 3
+RECEIPT_WAIT_SECONDS = 20  # an officer's release, attestation or receipt waits this long to be mined
+NONCE_TRIES = 3  # two Lambdas signing with one key can race for a nonce
 # Contract name -> env var holding its address: required, then optional (absent: that feature is off).
 ADDRESS_ENV = {"test_inr": "RAAHAT_TEST_INR", "pool": "RAAHAT_POOL"}
 OPTIONAL_ADDRESS_ENV = {"alert_registry": "RAAHAT_ALERT_REGISTRY", "impact_attestation": "RAAHAT_IMPACT_ATTESTATION"}
@@ -117,7 +120,7 @@ def load_config() -> ChainConfig | None:
 def _provider_for(cfg: ChainConfig):
     from web3 import HTTPProvider
 
-    return HTTPProvider(cfg.rpc_url, request_kwargs={"timeout": RPC_TIMEOUT_SECONDS})
+    return HTTPProvider(cfg.rpc_url, request_kwargs={"timeout": RPC_TIMEOUT_SECONDS}, exception_retry_configuration=None)
 
 
 def _aws_mode() -> bool:
@@ -196,20 +199,46 @@ class RaahatChain:
             if got != self.cfg.chain_id:
                 raise RuntimeError(f"RPC is on chain {got}, configured for {self.cfg.chain_id}")
             sender, acct = self._signer(role)
-            tx = call.build_transaction({"from": sender, "chainId": self.cfg.chain_id,
-                                         "nonce": self.w3.eth.get_transaction_count(sender, "pending")})
-            if acct is not None:
-                sent = self.w3.eth.send_raw_transaction(acct.sign_transaction(tx).raw_transaction)
-            else:
-                sent = self.w3.eth.send_transaction(tx)
             from web3 import Web3
 
-            return Web3.to_hex(sent)
+            for attempt in range(NONCE_TRIES):
+                tx = call.build_transaction({"from": sender, "chainId": self.cfg.chain_id,
+                                             "nonce": self.w3.eth.get_transaction_count(sender, "pending")})
+                try:
+                    if acct is not None:
+                        sent = self.w3.eth.send_raw_transaction(acct.sign_transaction(tx).raw_transaction)
+                    else:
+                        sent = self.w3.eth.send_transaction(tx)
+                    return Web3.to_hex(sent)
+                except Exception as exc:  # a nonce taken by a concurrent send: once more with a fresh one
+                    text = str(exc).lower()
+                    if attempt + 1 < NONCE_TRIES and any(k in text for k in ("nonce", "underpriced", "already known")):
+                        log(_LOG, "raahat nonce retry", 30, what=what, attempt=attempt + 1)
+                        continue
+                    raise
+            return None
         except Exception as exc:
             log(_LOG, "raahat tx failed", 40, what=what, network=self.cfg.network,
                 error=f"{type(exc).__name__}: {str(exc)[:200]}")
             metric("RaahatTxFailed", 1)
             return None
+
+    def confirm(self, tx: str, timeout: float = RECEIPT_WAIT_SECONDS) -> str:
+        """"mined" (status 1), "reverted" (status 0, counted) or "pending" (not mined within timeout, or unknown)."""
+        from web3.exceptions import TimeExhausted
+
+        try:
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx, timeout=timeout, poll_latency=1)
+        except TimeExhausted:
+            return "pending"
+        except Exception as exc:
+            log(_LOG, "raahat receipt read failed", 30, tx=tx, error=f"{type(exc).__name__}: {str(exc)[:120]}")
+            return "pending"
+        if int(receipt["status"]) == 1:
+            return "mined"
+        log(_LOG, "raahat tx reverted", 40, tx=tx, network=self.cfg.network)
+        metric("RaahatTxFailed", 1)
+        return "reverted"
 
     def anchor_alert(self, alert_key: bytes, record: tuple) -> str | None:
         reg = self.w3.eth.contract(address=self.cfg.addresses["alert_registry"], abi=abi.ALERT_REGISTRY)

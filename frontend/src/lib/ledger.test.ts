@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { raahatDict as dict } from '../i18n-raahat';
 import { translate } from '../i18n';
 import type { RaahatLedger } from '../types';
-import { inr, ledgerTotals, timelineSteps } from './ledger';
+import { attesterState, inr, ledgerTotals, timelineSteps } from './ledger';
 import fixture from './fixtures/ledger.json';
 
 const ledger = fixture as RaahatLedger;
@@ -76,5 +76,16 @@ describe('inr', () => {
     expect(inr('63000000000000000000000')).toBe('63,000');
     expect(inr(1500n * 10n ** 18n)).toBe('1,500');
     expect(inr('500000000000000000000000')).toBe('5,00,000');
+  });
+});
+
+describe('attester chip state (review fix)', () => {
+  it('is done only when the attestation is on chain or mined; failed and pending say so', () => {
+    expect(attesterState(null)).toBe('none');
+    expect(attesterState({ state: 'sent', on_chain: false })).toBe('done');
+    expect(attesterState({ state: 'sending', on_chain: true })).toBe('done');
+    expect(attesterState({ state: 'failed', on_chain: false })).toBe('failed');
+    expect(attesterState({ state: 'pending', on_chain: false })).toBe('pending');
+    expect(attesterState({ state: 'sending', on_chain: false })).toBe('pending');
   });
 });

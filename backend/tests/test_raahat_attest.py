@@ -55,9 +55,12 @@ class FakeAttestChain(FakeChain):
 
 @pytest.fixture()
 def fake(monkeypatch, repo):
+    from Pukaar.handlers import worker
     from Pukaar.raahat import relief
     from Pukaar.store.models import ReplayState
 
+    monkeypatch.setattr(worker, "get_repo", lambda: repo)
+    monkeypatch.setattr(worker, "dispatch", lambda event: worker.run_task(event))
     repo.put_replay(ReplayState(active=True, scenario="himachal_2023_07"))  # the replay the 2023 imagery is from
     c = FakeAttestChain()
     for mod in (relief, attest, receipts):
@@ -358,3 +361,31 @@ def test_demo_photo_report_is_a_replay_never_a_live_report(repo, frozen, fake):
     a = _anchored(repo, village="pandoh")
     out = attest.attest_pradhan(repo, a.id, report_id=rid, severity=2, by="pradhan_pandoh")
     assert out["state"] == "sent"
+
+
+# -- review fix: a pradhan's photo is evidence for this alert only ------------------------------------------
+def test_pradhan_evidence_must_belong_to_this_alert(repo, frozen, fake):
+    from datetime import timedelta
+
+    from Pukaar.core import clock
+
+    live = _anchored(repo, village="thunag", replay=False)
+    replay_photo = _report(repo, "thunag", state="verified", photo=b"img")  # _report files replay reports
+    with pytest.raises(attest.AttestRefused) as e:
+        attest.attest_pradhan(repo, live.id, report_id=replay_photo, severity=2, by="pradhan_thunag")
+    assert e.value.code == "report_from_another_flood"  # a replay's (or demo) photo never attests a live alert
+
+    a = _anchored(repo, village="thunag")
+    old = _report(repo, "thunag", state="verified", photo=b"old")
+    r = repo.get_report(old)
+    repo.put_report(r.model_copy(update={"created_at": clock.iso(clock.now() - timedelta(days=400))}))
+    with pytest.raises(attest.AttestRefused) as e:
+        attest.attest_pradhan(repo, a.id, report_id=old, severity=2, by="pradhan_thunag")
+    assert e.value.code == "report_too_old"
+
+    fresh = _report(repo, "thunag", state="verified", photo=b"fresh")
+    assert attest.attest_pradhan(repo, a.id, report_id=fresh, severity=2, by="pradhan_thunag")["state"] == "sent"
+    b = _anchored(repo, village="thunag")
+    with pytest.raises(attest.AttestRefused) as e:
+        attest.attest_pradhan(repo, b.id, report_id=fresh, severity=2, by="pradhan_thunag")
+    assert e.value.code == "report_already_used"

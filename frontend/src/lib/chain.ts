@@ -73,13 +73,16 @@ export async function verifyCapHash(
   return { ok: computed.toLowerCase() === onChainHash.toLowerCase(), computed };
 }
 
-/** When a transaction was mined (block number, unix seconds), or null while it is still pending. */
-export async function txMined(hash: string, transport: Transport): Promise<{ block: bigint; at: number } | null> {
+/** When a transaction was mined (block number, unix seconds, and whether it reverted), or null while pending. */
+export async function txMined(
+  hash: string,
+  transport: Transport,
+): Promise<{ block: bigint; at: number; reverted: boolean } | null> {
   const client = createPublicClient({ transport });
   try {
     const receipt = await client.getTransactionReceipt({ hash: hash as Hex });
     const block = await client.getBlock({ blockNumber: receipt.blockNumber });
-    return { block: receipt.blockNumber, at: Number(block.timestamp) };
+    return { block: receipt.blockNumber, at: Number(block.timestamp), reverted: receipt.status !== 'success' };
   } catch (err) {
     if ((err as Error)?.name === 'TransactionReceiptNotFoundError') return null;
     throw err;

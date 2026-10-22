@@ -1358,7 +1358,8 @@ export interface RaahatRule {
 
 export interface RaahatRelease {
   tier: number;
-  state: 'sending' | 'sent' | 'failed';
+  /** pending: broadcast, not yet mined (announced once it is). */
+  state: 'sending' | 'pending' | 'sent' | 'failed';
   tx: string | null;
   households: number | null;
   amount_wei: string | null;

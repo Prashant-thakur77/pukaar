@@ -91,10 +91,20 @@ contract ReliefPoolTest is Test {
     function _ready() internal {
         vm.startPrank(ddma);
         pool.setRule(_rule());
-        pool.sealRules();
         pool.setHouseholds(sujanpur, fx.readBytes32(".root"), uint32(fx.readUint(".count")));
         pool.setCashOutAgent(sujanpur, agent);
+        pool.sealRules(); // deploy, seed the households and agents, then seal
         vm.stopPrank();
+    }
+
+    /// After the seal a village change waits out the cooldown: schedule it, wait, apply.
+    function _changeAfterSeal(bytes32 village, bytes32 root, uint32 count, address agent_) internal {
+        vm.startPrank(ddma);
+        if (count != 0 || root != bytes32(0)) pool.setHouseholds(village, root, count);
+        if (agent_ != address(0)) pool.setCashOutAgent(village, agent_);
+        vm.stopPrank();
+        vm.warp(block.timestamp + 72 hours);
+        pool.applyDue(village);
     }
 
     function _anchor(bytes32 id, bytes32 village, uint8 level, bool exercise) internal {
@@ -273,9 +283,9 @@ contract ReliefPoolTest is Test {
         ReliefPool prod = new ReliefPool(IERC20(address(token)), registry, confirmation, false, ddma);
         vm.startPrank(ddma);
         prod.setRule(_rule());
-        prod.sealRules();
         prod.setHouseholds(sujanpur, fx.readBytes32(".root"), 5);
         prod.setCashOutAgent(sujanpur, agent);
+        prod.sealRules();
         vm.stopPrank();
         _anchor(A1, sujanpur, 3, true);
         vm.prank(ddma);
@@ -290,18 +300,15 @@ contract ReliefPoolTest is Test {
         vm.expectRevert(bytes("ReliefPool: village has no households"));
         pool.release(A1, 1);
 
-        vm.prank(ddma);
-        pool.setHouseholds(GOHAR, bytes32(uint256(1)), 1);
+        _changeAfterSeal(GOHAR, bytes32(uint256(1)), 1, address(0));
         vm.prank(ddma);
         vm.expectRevert(bytes("ReliefPool: village has no cash-out agent"));
         pool.release(A1, 1);
 
-        vm.startPrank(ddma);
-        pool.setCashOutAgent(GOHAR, agent);
-        pool.setHouseholds(GOHAR, bytes32(uint256(1)), 1_000);
+        _changeAfterSeal(GOHAR, bytes32(uint256(1)), 1_000, agent);
+        vm.prank(ddma);
         vm.expectRevert(bytes("ReliefPool: pool too small for this release"));
         pool.release(A1, 1);
-        vm.stopPrank();
         assertFalse(pool.released(A1, 1));
     }
 
@@ -347,9 +354,9 @@ contract ReliefPoolTest is Test {
         vm.stopPrank();
         vm.startPrank(ddma);
         p.setRule(_rule());
-        p.sealRules();
         p.setHouseholds(sujanpur, fx.readBytes32(".root"), 5);
         p.setCashOutAgent(sujanpur, agent);
+        p.sealRules();
         vm.stopPrank();
         bytes32 role = p.DDMA_ROLE();
         vm.prank(deployer);
@@ -428,9 +435,9 @@ contract ReliefPoolTest is Test {
         n = uint16(bound(n, 1, 5_000));
         vm.startPrank(ddma);
         pool.setRule(ReliefPool.Rule(2, anticipatory, confirmed, 72));
-        pool.sealRules();
         pool.setHouseholds(sujanpur, bytes32(uint256(1)), n);
         pool.setCashOutAgent(sujanpur, agent);
+        pool.sealRules();
         vm.stopPrank();
         vm.prank(deployer);
         token.mint(address(pool), uint256(n) * (uint256(anticipatory) + uint256(confirmed)));

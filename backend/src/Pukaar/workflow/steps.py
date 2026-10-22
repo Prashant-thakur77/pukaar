@@ -441,8 +441,6 @@ class Steps:
         deadline = time.monotonic() + s.delivery_budget_seconds
         res = dispatch.deliver_round(self.repo, alert, action=action, recall=recall, batch=0, recipients=people,
                                      deadline=deadline)
-        if res.sent and not recall:  # Raahat: anchor on chain once it reached someone; never raises
-            raahat_anchor.on_delivered(self.repo, alert.id)
         specs = dispatch.batch_specs(people)
         counts = {"sent": len(res.sent), "failed": len(res.failed - res.sent), "batches": len(specs)}
         todo = (specs[:1] if res.deferred else []) + specs[1:]
@@ -535,7 +533,7 @@ class Steps:
             events.alert_changed(alert)
         # In people reached: a voice call counts once answered, a "both" recipient once (dispatch.recount).
         alert = dispatch.recount(self.repo, alert.id) or alert
-        if sent:  # Raahat: the anchor, if batch 0 reached nobody but a later batch did (once per alert)
+        if sent:  # Raahat: anchor on chain only once every batch has gone out (never raises, once per alert)
             raahat_anchor.on_delivered(self.repo, alert.id)
         if mode == "failsafe":
             events.counts_changed(alert)

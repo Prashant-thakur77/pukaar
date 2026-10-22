@@ -10,8 +10,9 @@ Three attesters, each once per alert, each with the hash of its evidence (the ev
   the crop (Pandoh), is attested from it; any other alert is refused as no_satellite_coverage.
 - officer: a district officer's severity and note; the evidence hash is keccak256 of the note with the alert id,
   the officer and the time, and the note is kept in the table.
-- pradhan: the village's pradhan, from a verified photo report of their own village; the evidence hash is
-  keccak256 of the photo's S3 object.
+- pradhan: the village's pradhan, from a verified photo report of their own village, of the same kind as the alert
+  (replay or live), made at most EVIDENCE_WINDOW before it and used for no other attestation; the evidence hash
+  is keccak256 of the photo's S3 object.
 
 Two different keys at severity 2 or more confirm the flood (the contract counts keys, not roles), which opens the
 confirmed tranche (relief.py tier 2). Cedar attest_impact decides who may attest (api/routers/raahat.py). Each
@@ -21,6 +22,7 @@ attestation is claimed in the table first (RAAHAT#ALERT#<id> / ATTEST#<who>) so 
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +41,7 @@ SCENARIO = "himachal_2023_07"  # the replay the 2023 imagery belongs to
 ROOT = Path(__file__).resolve().parents[4]
 SATELLITE_DIR = ROOT / "frontend" / "public" / "satellite" / "2023"
 EVIDENCE_FILE = get_settings().data_dir / "raahat" / "satellite_2023.json"
+EVIDENCE_WINDOW = timedelta(hours=24)  # a pradhan's photo may be at most this much older than the alert
 
 
 class AttestRefused(Exception):
@@ -109,12 +112,13 @@ def _attest(repo: Repo, alert: Alert, who: int, severity: int, evidence_hash: by
     except ConflictError:
         raise AttestRefused("already_attested") from None
     tx = client.attest(anchor.alert_key(alert.id), who, severity, evidence_hash, village_id=alert.village_id)
-    repo._update(pk, sk, {"state": "sent" if tx else "failed", "tx": tx})
-    repo.add_timeline(alert.id, "raahat_attest", f"{NAMES[who]} attested severity {severity} ({by})" +
-                      (f"; tx {tx}" if tx else "; failed on chain"))
-    if tx:
+    state = {"mined": "sent", "pending": "pending"}.get(client.confirm(tx), "failed") if tx else "failed"
+    repo._update(pk, sk, {"state": state, "tx": tx})
+    repo.add_timeline(alert.id, "raahat_attest", f"{NAMES[who]} attested severity {severity} ({by}): {state}" +
+                      (f"; tx {tx}" if tx else ""))
+    if state != "failed":
         anchor.index(repo, alert)
-    return {k: v for k, v in claim.items() if k not in {"pk", "sk"}} | {"state": "sent" if tx else "failed", "tx": tx}
+    return {k: v for k, v in claim.items() if k not in {"pk", "sk"}} | {"state": state, "tx": tx}
 
 
 def _alert(repo: Repo, alert_id: str) -> Alert:
@@ -156,8 +160,22 @@ def attest_pradhan(repo: Repo, alert_id: str, *, report_id: str, severity: int, 
         raise AttestRefused("report_not_verified")
     if not report.photo_key:
         raise AttestRefused("report_has_no_photo")
+    if bool(report.replay) != bool(alert.replay):
+        raise AttestRefused("report_from_another_flood")  # a replay's (or demo) photo never attests a live alert
+    if clock.parse(report.created_at) < clock.parse(alert.created_at) - EVIDENCE_WINDOW:
+        raise AttestRefused("report_too_old")
+    # One photo report is evidence for one attestation: claimed before the attestation, released if it is refused.
+    try:
+        repo._put({"pk": f"RAAHAT#EVIDENCE#{report.id}", "sk": "USED", "alert_id": alert.id, "by": by},
+                  condition=Attr("pk").not_exists())
+    except ConflictError:
+        raise AttestRefused("report_already_used") from None
     photo, _ = storage.get_bytes(report.photo_key)
-    return _attest(repo, alert, PRADHAN, severity, keccak(photo), by, {"report_id": report.id})
+    try:
+        return _attest(repo, alert, PRADHAN, severity, keccak(photo), by, {"report_id": report.id})
+    except AttestRefused:
+        repo.t.delete_item(Key={"pk": f"RAAHAT#EVIDENCE#{report.id}", "sk": "USED"})
+        raise
 
 
 def status(repo: Repo, alert_id: str) -> dict[str, Any]:

@@ -3,6 +3,7 @@ import { CircleCheck, CircleDashed, Satellite } from 'lucide-react';
 import { api, ApiError } from '../../api';
 import { Skeleton } from '../../components/States';
 import { useT } from '../../i18n';
+import { attesterState } from '../../lib/ledger';
 import type { RaahatAttestations, RaahatAttester, Report } from '../../types';
 import { raahatApi } from '../../lib/raahatApi';
 import '../../i18n-raahat';
@@ -61,17 +62,24 @@ export function AttestControls({ alertId, villageId, role, onChange }: { alertId
       {st && <ul className="chips-row" aria-label={t('raahat.attest.title')}>
         {ATTESTERS.map((who) => {
           const a = st?.attestations[who];
+          const state = attesterState(a);
           return (
-            <li key={who} className={`chip${a && a.severity >= 2 ? ' chip-ok' : ' chip-muted'}`}>
-              {a ? <CircleCheck aria-hidden="true" /> : <CircleDashed aria-hidden="true" />} {t(`raahat.attest.${who}` as never)}
+            <li key={who} className={`chip${state === 'done' && a && a.severity >= 2 ? ' chip-ok' : ' chip-muted'}`}>
+              {state === 'done' ? <CircleCheck aria-hidden="true" /> : <CircleDashed aria-hidden="true" />} {t(`raahat.attest.${who}` as never)}
               {' · '}
-              {a ? t('raahat.attest.severity', { s: a.severity }) : t('raahat.attest.none')}
+              {state === 'done' && a
+                ? t('raahat.attest.severity', { s: a.severity })
+                : state === 'failed'
+                  ? t('raahat.step.failed')
+                  : state === 'pending'
+                    ? t('raahat.receipt.pending')
+                    : t('raahat.attest.none')}
             </li>
           );
         })}
       </ul>}
       {st?.confirmed && <p className="small ok-text">{t('raahat.attest.confirmed')}</p>}
-      {st && !st.attestations[mine] && (
+      {st && ['none', 'failed'].includes(attesterState(st.attestations[mine])) && (
         <div className="attest-form">
           <label className="field small">
             <span>{t('raahat.attest.severity', { s: '' }).replace(/\s*\/3$/, '')}</span>
@@ -115,7 +123,7 @@ export function AttestControls({ alertId, villageId, role, onChange }: { alertId
           )}
         </div>
       )}
-      {role === 'officer' && st && !st.attestations.satellite && (
+      {role === 'officer' && st && ['none', 'failed'].includes(attesterState(st.attestations.satellite)) && (
         st.satellite_covers ? (
           <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void send({ who: 'satellite' })}>
             <Satellite aria-hidden="true" /> {t('raahat.attest.satellite_run')}

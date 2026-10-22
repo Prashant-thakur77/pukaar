@@ -70,7 +70,7 @@ def _why(tier: int, alert: Alert, level: int, exercise: bool, s: dict, recorded:
         why.append("rules_not_sealed")
     if exercise and not s["allow_exercise"]:
         why.append("exercise_not_allowed")
-    if s["released"].get(tier) or (recorded and recorded.get("state") in {"sent", "sending"}):
+    if s["released"].get(tier) or (recorded and recorded.get("state") in {"sent", "sending", "pending"}):
         why.append("already_released")
     if tier == 1:
         if level < rule["min_level"]:
@@ -112,6 +112,8 @@ def status(repo: Repo, alert_id: str) -> dict[str, Any]:
                        "sealed": state["sealed"], "sealed_at": state["sealed_at"]}
     for tier in TIERS:
         recorded = get_release(repo, alert.id, tier)
+        if recorded and recorded.get("state") == "pending" and client is not None:
+            recorded = _settle(repo, alert, tier, recorded, client)
         entry: dict[str, Any] = {"tier": tier, "eligible": False, "why": [], "households": None, "amount_wei": None,
                                  "total_wei": None, "release": recorded}
         if client is None:
@@ -150,18 +152,46 @@ def release(repo: Repo, alert_id: str, tier: int, *, by: str) -> dict[str, Any]:
         raise ReliefRefused("already_released") from None
     client = _client()
     tx = client.release(anchor.alert_key(alert.id), tier) if client else None
-    repo._update(pk, sk, {"state": "sent" if tx else "failed", "tx": tx})
+    outcome = client.confirm(tx) if tx else "failed"
+    state = {"mined": "sent", "pending": "pending"}.get(outcome, "failed")
+    repo._update(pk, sk, {"state": state, "tx": tx})
     tier_name = "anticipatory" if tier == 1 else "confirmed"
-    if not tx:
-        repo.add_timeline(alert.id, "raahat_release", f"tier {tier} ({tier_name}) release by {by} failed on chain")
-        return {**claim, "state": "failed", "tx": None}
+    if state == "failed":
+        repo.add_timeline(alert.id, "raahat_release", f"tier {tier} ({tier_name}) release by {by} failed on chain"
+                          + (f" (reverted: {tx})" if tx else ""))
+        return {**claim, "state": "failed", "tx": tx}
+    if state == "pending":  # broadcast, not yet mined: nothing is announced until it is (status() settles it)
+        repo.add_timeline(alert.id, "raahat_release", f"tier {tier} ({tier_name}) release by {by} sent, not yet mined: tx {tx}")
+        return {**claim, "state": "pending", "tx": tx}
+    _released(repo, alert, tier, entry, st["exercise"], by, tx)
+    return {**claim, "state": "sent", "tx": tx}
+
+
+def _released(repo: Repo, alert: Alert, tier: int, entry: dict, exercise: bool, by: str, tx: str) -> None:
+    """A release is mined: the timeline, the ledger, the live push and (live alerts only) the village."""
+    tier_name = "anticipatory" if tier == 1 else "confirmed"
     repo.add_timeline(alert.id, "raahat_release",
                       f"tier {tier} ({tier_name}) released by {by}: {entry['households']} households x "
                       f"{inr(entry['amount_wei'])} tINR ({ILLUSTRATIVE}); tx {tx}")
     anchor.index(repo, alert)
-    _announce(alert, tier, entry, st["exercise"])
-    _tell_village(repo, alert, entry)
-    return {**claim, "state": "sent", "tx": tx}
+    _announce(alert, tier, entry, exercise)
+    if not exercise:  # the village hears it from the worker, never from this request (alerts share Telegram's quota)
+        from Pukaar.handlers import worker
+
+        worker.dispatch({"task": "raahat_notify", "alert_id": alert.id, "tier": tier})
+
+
+def _settle(repo: Repo, alert: Alert, tier: int, row: dict, client: chain.RaahatChain) -> dict:
+    """A release recorded as pending: ask the chain again (briefly); once mined it is announced like any other."""
+    outcome = client.confirm(row["tx"], timeout=2)
+    if outcome == "pending":
+        return row
+    state = "sent" if outcome == "mined" else "failed"
+    repo._update(anchor.PK + alert.id, f"RELEASE#{tier}", {"state": state})
+    if state == "sent":
+        _released(repo, alert, tier, {k: row.get(k) for k in ("households", "amount_wei", "total_wei")},
+                  bool(row.get("exercise")), row.get("by", ""), row["tx"])
+    return {**row, "state": state}
 
 
 def ledger(repo: Repo, village_id: str = "", limit: int = 50) -> dict[str, Any]:
@@ -210,19 +240,38 @@ def relief_message(alert: Alert, amount_wei: str | int) -> str:
             f"जारी। प्रधान या बैंक मित्र से लें। रसीद: {get_settings().web_url}/raahat?alert={alert.id}")
 
 
-def _tell_village(repo: Repo, alert: Alert, entry: dict) -> None:
-    """Live alerts only, to registered Telegram users of the village (never stub or voice-only). Never raises."""
+NOTIFY_INTERVAL_SECONDS = 0.2  # relief messages go slower than alerts, which share the bot's quota
+
+
+def notify_village(repo: Repo, alert_id: str, tier: int) -> int:
+    """The worker's raahat_notify task: tell the village's registered Telegram users of a mined release, live alerts
+    only (never a replay or a drill), never stub or voice-only, each person once. Returns how many were told."""
+    import time
+
     from Pukaar.delivery import telegram
     from Pukaar.policy.guard import SYSTEM, authorize
 
-    text = relief_message(alert, entry["amount_wei"])
+    alert = repo.get_alert(alert_id)
+    row = get_release(repo, alert_id, tier)
+    if alert is None or not row or row.get("state") != "sent" or anchor.cap.is_exercise(alert):
+        return 0
+    text = relief_message(alert, row["amount_wei"])
+    told = 0
     for r in repo.list_recipients(alert.village_id):
         if not r.takes_telegram or r.channel == "stub":
             continue
-        ctx = {"replay": bool(alert.replay), "channel": "telegram", "village_id": alert.village_id}
+        try:  # one message per person per release, even if the task is delivered twice
+            repo._put({"pk": anchor.PK + alert.id, "sk": f"NOTIFIED#{tier}#{r.id}", "at": clock.iso(clock.now())},
+                      condition=Attr("pk").not_exists())
+        except ConflictError:
+            continue
+        ctx = {"replay": anchor.cap.is_exercise(alert), "channel": "telegram", "village_id": alert.village_id}
         if not authorize(SYSTEM, "notify_relief", "alert", alert.id, ctx, repo=repo).allowed:
             continue
         try:
             telegram.send_text(r.id, text)
+            told += 1
         except Exception as exc:
             log(_LOG, "relief message failed", 30, alert_id=alert.id, error=f"{type(exc).__name__}: {str(exc)[:120]}")
+        time.sleep(NOTIFY_INTERVAL_SECONDS)
+    return told
