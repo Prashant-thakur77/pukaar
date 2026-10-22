@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Pukaar flood warning (stack pukaar-<stage>, us-east-1). Interface: docs/CONTRACT.md.
+  Pukaar flood warning (stack pukaar-<stage>; dev in us-east-1, prod in ap-south-1, any region with the
+  services in docs/DEPLOY.md). Interface: docs/CONTRACT.md.
   Secrets live in SSM SecureString under /pukaar/ and are read at run time, never set here.
 
 Parameters:
@@ -46,10 +47,15 @@ Parameters:
   BedrockModelId:
     Type: String
     Default: us.amazon.nova-2-lite-v1:0
+    AllowedPattern: "^((us|eu|apac|jp|au|global)\\.)?amazon\\.nova-[a-z0-9.:-]+$"
+    Description: >
+      A Nova model or inference profile callable from this region. us.* runs in the US regions only; in
+      ap-south-1 use global.amazon.nova-2-lite-v1:0 or apac.amazon.nova-lite-v1:0 (docs/DEPLOY.md, "Production stage").
   BedrockFallbackRegion:
     Type: String
     Default: us-west-2
-    AllowedValues: [us-west-2, us-east-2]
+    AllowedPattern: "^[a-z]{2}(-[a-z]+)+-[0-9]$"
+    Description: "Second region on throttling or 5xx; the model id must be callable there too (prod uses ap-southeast-1)."
   Architecture:
     Type: String
     Default: x86_64
@@ -61,11 +67,44 @@ Parameters:
     AllowedValues: ["true", "false"]
   CriticalAutoSend:
     Type: String
-    Default: "true"
+    Default: "false"
     AllowedValues: ["true", "false"]
     Description: >
-      Needs DDMA sign-off. "true": a critical alert goes out with the fixed template, flagged unapproved, when
-      every officer in the duty chain timed out. "false": it expires unsent and the sweep asks again.
+      Needs DDMA sign-off, so off unless set. "true": a critical alert goes out with the fixed template, flagged
+      unapproved, when every officer in the duty chain timed out. "false": it expires unsent and the sweep asks again.
+  RequireMfa:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >
+      "true": every sign-in needs a TOTP code from an authenticator app (Cognito MFA ON; required for Stage=prod).
+      "false": TOTP is optional (MFA OPTIONAL), so the demo accounts sign in with a password alone. Cognito may
+      refuse to switch an existing pool to required: set it when the stack is created.
+  RetentionDays:
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 3650
+    Description: >
+      DPDP retention. Villager reports (words, transcript, GPS) expire this many days after they were made
+      (DynamoDB TTL) and their photos and voice notes with them (S3 lifecycle). 0 keeps them. Prod: 365.
+  CapSender:
+    Type: String
+    Default: ""
+    AllowedPattern: "^[^\\s,<&]*$"
+    Description: >
+      CAP <sender>: the issuing authority's identifier, e.g. its e-mail address (no spaces, commas, '<' or '&').
+      Empty: pukaar-<stage>@<web host>. Required for Stage=prod.
+  CapSenderName:
+    Type: String
+    Default: ""
+    Description: >
+      CAP <senderName> in English: the issuing authority's name. Empty: "Pukaar — District Disaster Management
+      (demo)" with a note that it is not an official channel. Required for Stage=prod.
+  CapSenderNameHi:
+    Type: String
+    Default: ""
+    Description: "CAP <senderName> in Hindi. Empty means the English name (or the Hindi demo name when that is empty too)."
   AlarmEmail:
     Type: String
     Default: ""
@@ -85,8 +124,27 @@ Parameters:
     Default: 1822262400
     Description: Expiry (epoch seconds) of the public, subscribe-only live-push API key.
 
+# A production stack refuses to deploy without the settings a real pilot needs (docs/DEPLOY.md,
+# "Production stage"). CloudFormation checks these before it changes anything.
+Rules:
+  ProductionStage:
+    RuleCondition: !Equals [!Ref Stage, prod]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref CapSender, ""]]
+        AssertDescription: Stage prod needs CapSender, the issuing authority's CAP sender id.
+      - Assert: !Not [!Equals [!Ref CapSenderName, ""]]
+        AssertDescription: Stage prod needs CapSenderName, the issuing authority's name; the demo name is never sent from prod.
+      - Assert: !Equals [!Ref ReplayEnabled, "false"]
+        AssertDescription: Stage prod runs with ReplayEnabled=false.
+      - Assert: !Equals [!Ref RequireMfa, "true"]
+        AssertDescription: Stage prod needs RequireMfa=true (TOTP for every sign-in).
+      - Assert: !Not [!Equals [!Ref RetentionDays, "0"]]
+        AssertDescription: Stage prod needs RetentionDays above 0 (DPDP); 365 is the default in samconfig.toml.
+
 Conditions:
   HasWebOrigin: !Not [!Equals [!Ref WebOrigin, ""]]
+  MfaRequired: !Equals [!Ref RequireMfa, "true"]
+  HasRetention: !Not [!Equals [!Ref RetentionDays, "0"]]
   HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
   HasAfterActionFrom: !Not [!Equals [!Ref AfterActionFrom, ""]]
 
@@ -122,6 +180,12 @@ Globals:
         # Voice calls (delivery/voice.py): placed by the workflow function, answered by the API's /voice/* webhooks.
         PUKAAR_VOICE_PROVIDER: !Ref VoiceProvider
         PUKAAR_EXOTEL_API_HOST: !Ref ExotelApiHost
+        # CAP feed (services/cap.py): who the message is from. Empty values mean the demo sender.
+        PUKAAR_CAP_SENDER: !Ref CapSender
+        PUKAAR_CAP_SENDER_NAME: !Ref CapSenderName
+        PUKAAR_CAP_SENDER_NAME_HI: !Ref CapSenderNameHi
+        # DPDP retention of villager reports (store/repo.put_report TTL); 0 keeps them.
+        PUKAAR_REPORT_RETENTION_DAYS: !Ref RetentionDays
 
 Resources:
   # ---------------------------------------------------------------- storage
@@ -161,6 +225,19 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      # DPDP retention: a villager's voice note and photo expire with the report (services/reports.py keys).
+      LifecycleConfiguration: !If
+        - HasRetention
+        - Rules:
+            - Id: report-voice-notes
+              Status: Enabled
+              Prefix: audio/reports/
+              ExpirationInDays: !Ref RetentionDays
+            - Id: report-photos
+              Status: Enabled
+              Prefix: photos/
+              ExpirationInDays: !Ref RetentionDays
+        - !Ref AWS::NoValue
       CorsConfiguration:
         CorsRules:
           - AllowedMethods: [GET, HEAD]
@@ -294,12 +371,12 @@ Resources:
             - Sid: Bedrock
               Effect: Allow
               Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+              # A cross-region profile (us., apac., global.) may run the model in any region it covers, so the
+              # foundation models are Nova only but any region; the profiles are this region's and the fallback's.
               Resource:
-                - !Sub arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:${BedrockFallbackRegion}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*.amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${BedrockFallbackRegion}:${AWS::AccountId}:inference-profile/*.amazon.nova-*
             - Sid: Polly
               Effect: Allow
               Action: polly:SynthesizeSpeech
@@ -416,15 +493,13 @@ Resources:
               Resource: "*"
             # The model-access probe (services/model_probe.py): at most one 1-token Converse call every 6 hours,
             # on the drafting model in this region only (Converse is authorised as bedrock:InvokeModel). The
-            # cross-region inference profile routes to the three US regions' foundation models.
+            # cross-region inference profile routes to the foundation models of the regions it covers.
             - Sid: ModelAccessProbe
               Effect: Allow
               Action: bedrock:InvokeModel
               Resource:
-                - !Sub arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*.amazon.nova-*
             - Sid: StartApproval
               Effect: Allow
               Action: states:StartExecution
@@ -478,12 +553,12 @@ Resources:
             - Sid: Bedrock
               Effect: Allow
               Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+              # A cross-region profile (us., apac., global.) may run the model in any region it covers, so the
+              # foundation models are Nova only but any region; the profiles are this region's and the fallback's.
               Resource:
-                - !Sub arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:${BedrockFallbackRegion}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*.amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${BedrockFallbackRegion}:${AWS::AccountId}:inference-profile/*.amazon.nova-*
             - Sid: Polly
               Effect: Allow
               Action: polly:SynthesizeSpeech
@@ -533,12 +608,12 @@ Resources:
             - Sid: Bedrock
               Effect: Allow
               Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+              # A cross-region profile (us., apac., global.) may run the model in any region it covers, so the
+              # foundation models are Nova only but any region; the profiles are this region's and the fallback's.
               Resource:
-                - !Sub arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
-                - !Sub arn:${AWS::Partition}:bedrock:${BedrockFallbackRegion}:${AWS::AccountId}:inference-profile/us.amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*.amazon.nova-*
+                - !Sub arn:${AWS::Partition}:bedrock:${BedrockFallbackRegion}:${AWS::AccountId}:inference-profile/*.amazon.nova-*
             - Sid: ScreenReports
               Effect: Allow
               Action: bedrock:ApplyGuardrail
@@ -766,6 +841,11 @@ Resources:
       UserPoolName: !Sub pukaar-${Stage}
       UsernameConfiguration: { CaseSensitive: false }
       AdminCreateUserConfig: { AllowAdminCreateUserOnly: true }
+      # TOTP from an authenticator app (no SMS). Required for every sign-in when RequireMfa (prod); otherwise
+      # optional, so a user may add it and the demo accounts sign in with a password. The web app enrols a
+      # new device (MFA_SETUP) and asks for the code (SOFTWARE_TOKEN_MFA) at sign-in (frontend/src/api.ts).
+      MfaConfiguration: !If [MfaRequired, "ON", "OPTIONAL"]
+      EnabledMfas: [SOFTWARE_TOKEN_MFA]
       Policies:
         PasswordPolicy:
           MinimumLength: 12

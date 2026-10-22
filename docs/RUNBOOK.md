@@ -453,7 +453,8 @@ commit.
 - [ ] Secrets older than a year rotated.
 - [ ] A full drill in every village, timed to acknowledgement, and the numbers written in the drill log.
 - [ ] Last season's alerts each have a "was this real?" answer; per-rule false-alarm rates reviewed with the DDMA.
-- [ ] `ReplayEnabled=false` on the pilot stack; demo accounts deleted; officers use MFA.
+- [ ] The pilot runs on the prod stack (`make deploy STAGE=prod`, docs/DEPLOY.md "Production stage"):
+      `ReplayEnabled=false`, no demo accounts, TOTP MFA required, `RetentionDays` set, the DDMA's CAP sender.
 - [ ] Report salt exists (`aws ssm get-parameter --name /pukaar/report_ip_salt`); without it no report auto-verifies.
 - [ ] Security headers live: `curl -sI https://<web url> | grep -i -e content-security -e strict-transport`.
 - [ ] AWS budget alarm set; Exotel balance topped up for the season.

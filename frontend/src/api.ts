@@ -364,37 +364,98 @@ export async function loadPilotReadiness(): Promise<unknown> {
   }
 }
 
-/** Cognito InitiateAuth (USER_PASSWORD_AUTH) by plain fetch. Returns the ID token. */
-export async function cognitoSignIn(username: string, password: string): Promise<string> {
+interface CognitoReply {
+  AuthenticationResult?: { IdToken?: string };
+  ChallengeName?: string;
+  ChallengeParameters?: Record<string, string>;
+  Session?: string;
+  SecretCode?: string;
+  Status?: string;
+  message?: string;
+}
+
+/** One Cognito user-pool call by plain fetch (no SDK). */
+async function cognitoCall(target: string, body: Record<string, unknown>): Promise<CognitoReply> {
   const region = import.meta.env.VITE_COGNITO_REGION;
-  const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID;
   let res: Response;
   try {
     res = await fetch(`https://cognito-idp.${region}.amazonaws.com/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-amz-json-1.1',
-        'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth',
+        'X-Amz-Target': `AWSCognitoIdentityProviderService.${target}`,
       },
-      body: JSON.stringify({
-        AuthFlow: 'USER_PASSWORD_AUTH',
-        ClientId: clientId,
-        AuthParameters: { USERNAME: username, PASSWORD: password },
-      }),
+      body: JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, null);
   }
-  const data = (await res.json().catch(() => ({}))) as {
-    AuthenticationResult?: { IdToken?: string };
-    ChallengeName?: string;
-    message?: string;
-  };
+  const data = (await res.json().catch(() => ({}))) as CognitoReply;
   if (!res.ok) throw new ApiError(res.status, data.message ?? 'Sign-in failed.');
-  if (data.ChallengeName) throw new ApiError(400, `Cognito asks for ${data.ChallengeName}; finish it in the AWS console first.`);
+  return data;
+}
+
+function idToken(data: CognitoReply): string {
   const token = data.AuthenticationResult?.IdToken;
   if (!token) throw new ApiError(500, 'Cognito returned no ID token.');
   return token;
+}
+
+/**
+ * Where a sign-in stands. With MFA (RequireMfa=true on the prod stack, optional on dev) Cognito asks for a
+ * code from an authenticator app: `totp` when the account already has one, `setup` the first time (scan
+ * `uri` as a QR code, or type `secret`), then cognitoTotp() with the 6-digit code finishes it.
+ */
+export type CognitoStep =
+  | { kind: 'done'; token: string }
+  | { kind: 'totp'; username: string; session: string }
+  | { kind: 'setup'; username: string; session: string; secret: string; uri: string };
+
+/** Cognito InitiateAuth (USER_PASSWORD_AUTH) by plain fetch: the ID token, or the TOTP step to finish. */
+export async function cognitoSignIn(username: string, password: string): Promise<CognitoStep> {
+  const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID;
+  const data = await cognitoCall('InitiateAuth', {
+    AuthFlow: 'USER_PASSWORD_AUTH',
+    ClientId: clientId,
+    AuthParameters: { USERNAME: username, PASSWORD: password },
+  });
+  // Cognito's own name for the user (sign-in is case-insensitive) answers each challenge.
+  const user = data.ChallengeParameters?.USER_ID_FOR_SRP ?? username;
+  if (data.ChallengeName === 'SOFTWARE_TOKEN_MFA' && data.Session) return { kind: 'totp', username: user, session: data.Session };
+  if (data.ChallengeName === 'MFA_SETUP' && data.Session) {
+    const assoc = await cognitoCall('AssociateSoftwareToken', { Session: data.Session });
+    if (!assoc.SecretCode || !assoc.Session) throw new ApiError(500, 'Cognito returned no authenticator key.');
+    const uri = `otpauth://totp/Pukaar:${encodeURIComponent(user)}?secret=${assoc.SecretCode}&issuer=Pukaar`;
+    return { kind: 'setup', username: user, session: assoc.Session, secret: assoc.SecretCode, uri };
+  }
+  if (data.ChallengeName) throw new ApiError(400, `Cognito asks for ${data.ChallengeName}; finish it in the AWS console first.`);
+  return { kind: 'done', token: idToken(data) };
+}
+
+/** Finish a TOTP step with the app's 6-digit code (and, the first time, register the app). Returns the ID token. */
+export async function cognitoTotp(step: Exclude<CognitoStep, { kind: 'done' }>, code: string): Promise<string> {
+  const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID;
+  const digits = code.replace(/\s/g, '');
+  if (step.kind === 'totp') {
+    return idToken(
+      await cognitoCall('RespondToAuthChallenge', {
+        ChallengeName: 'SOFTWARE_TOKEN_MFA',
+        ClientId: clientId,
+        Session: step.session,
+        ChallengeResponses: { USERNAME: step.username, SOFTWARE_TOKEN_MFA_CODE: digits },
+      }),
+    );
+  }
+  const verified = await cognitoCall('VerifySoftwareToken', { Session: step.session, UserCode: digits, FriendlyDeviceName: 'Pukaar' });
+  if (verified.Status !== 'SUCCESS' || !verified.Session) throw new ApiError(400, 'That code did not match. Check the phone clock and try the next code.');
+  return idToken(
+    await cognitoCall('RespondToAuthChallenge', {
+      ChallengeName: 'MFA_SETUP',
+      ClientId: clientId,
+      Session: verified.Session,
+      ChallengeResponses: { USERNAME: step.username },
+    }),
+  );
 }
 
 export const cognitoEnabled = Boolean(import.meta.env.VITE_COGNITO_CLIENT_ID && import.meta.env.VITE_COGNITO_REGION);

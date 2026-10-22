@@ -1,8 +1,11 @@
 # Deploying Pukaar to AWS
 
-Everything runs in one account, region `us-east-1`, stack `pukaar-dev`. The
-infrastructure is `infra/template.yaml` (AWS SAM) plus the approval state
-machine `infra/approval.asl.json`; settings are in `samconfig.toml`.
+Everything runs in one account. The demo stack is `pukaar-dev` in `us-east-1`;
+sections 1 to 9 describe it. A pilot runs on a separate stack, `pukaar-prod` in
+`ap-south-1` (Mumbai), from the same template: see
+[Production stage](#production-stage). The infrastructure is
+`infra/template.yaml` (AWS SAM) plus the approval state machine
+`infra/approval.asl.json`; settings for both stacks are in `samconfig.toml`.
 
 ## 0. Tools on the deploying machine
 
@@ -114,10 +117,16 @@ Parameters (override with
 | `VoiceProvider` | `off` | `exotel` or `plivo` turns on voice calls with "press 1" ([VOICE.md](VOICE.md)); off records voice deliveries as failed |
 | `ExotelApiHost` | `api.exotel.com` | `api.in.exotel.com` for an account on Exotel's Mumbai cluster |
 | `WebOrigin` | empty | CORS origin; empty means the Amplify URL |
-| `BedrockModelId` | `us.amazon.nova-2-lite-v1:0` | |
-| `BedrockFallbackRegion` | `us-west-2` | Second region on throttling or 5xx |
+| `BedrockModelId` | `us.amazon.nova-2-lite-v1:0` | A Nova model or inference profile callable from the stack's region (prod: see [Production stage](#production-stage)) |
+| `BedrockFallbackRegion` | `us-west-2` | Second region on throttling or 5xx; the model id must be callable there too |
 | `Architecture` | `x86_64` | `arm64` when building on ARM |
-| `ReplayEnabled` | `true` | A replay never touches live levels or live alerts, but a real pilot should still set `false` |
+| `ReplayEnabled` | `true` | A replay never touches live levels or live alerts, but a real pilot should still set `false` (prod must) |
+| `CriticalAutoSend` | `false` | `true` sends a critical alert, flagged unapproved, when every officer timed out. Needs DDMA sign-off, so off unless set (see the migration note under [Production stage](#production-stage)) |
+| `RequireMfa` | `false` | `true`: every sign-in needs a TOTP code (Cognito MFA ON; prod must). `false`: TOTP optional |
+| `RetentionDays` | `0` | Villager reports, their photos and voice notes expire this many days after they were made; 0 keeps them (prod: 365) |
+| `CapSender` | empty | CAP `<sender>`. Empty: `pukaar-<stage>@<web host>`. Prod must set the authority's |
+| `CapSenderName` | empty | CAP `<senderName>`. Empty: the "(demo)" name and a not-official note. Prod must set the authority's |
+| `CapSenderNameHi` | empty | The Hindi `<senderName>`; empty uses the English one |
 | `AlarmEmail` | empty | `make deploy` passes `ALARM_EMAIL` from `.env.deploy.local`. Confirm the SNS e-mail after deploy. Empty means the alarms notify nobody |
 | `AfterActionFrom` | empty | Verified SES sender for after-action reports (section 5a). Empty = no e-mail, no SES permission |
 | `EventsApiKeyExpires` | a fixed date | Expiry (epoch seconds) of the public, subscribe-only live-push API key; `make deploy` passes now + 360 days |
@@ -153,7 +162,8 @@ This loads the villages into the table (`python -m Pukaar.scripts.seed` with
 Users are created with a temporary password (`PUKAAR_DEMO_TEMP_PASSWORD`, or a
 random one) and then set to the permanent password, so the demo signs in
 without a password-change screen. Share the password out of band; it is never
-written to the repository.
+written to the repository. `make seed STAGE=prod` loads the villages only: a
+production stack never gets these users (see [Production stage](#production-stage)).
 
 `make reset-demo` clears demo state on the deployed stack.
 
@@ -208,7 +218,7 @@ console (Account dashboard).
 | Variable | Value |
 |---|---|
 | `VITE_API_BASE` | stack output `ApiUrl` |
-| `VITE_COGNITO_REGION` | `us-east-1` |
+| `VITE_COGNITO_REGION` | the stack's region (`us-east-1` for dev, `ap-south-1` for prod) |
 | `VITE_COGNITO_USER_POOL_ID` | stack output `UserPoolId` |
 | `VITE_COGNITO_CLIENT_ID` | stack output `UserPoolClientId` |
 
@@ -293,6 +303,163 @@ done
 bucket it created. Log groups are deleted with the stack. Delete the Telegram
 bot in BotFather (`/deletebot`) if it is no longer needed, and deactivate the
 IAM user's access key.
+
+## Production stage
+
+A pilot never runs on `pukaar-dev`: that stack has the published judge
+password, replays and optional MFA. `make deploy STAGE=prod` builds and deploys
+a separate stack, `pukaar-prod`, in `ap-south-1` (Mumbai) from the same
+template, with the `[prod.*]` settings in `samconfig.toml`. Nothing is shared
+with dev: the table, bucket, user pool, alarms and SSM secrets are all in the
+other region.
+
+### What differs from dev
+
+| Setting | dev | prod | Where it is enforced |
+|---|---|---|---|
+| Stack, region | `pukaar-dev`, `us-east-1` | `pukaar-prod`, `ap-south-1` | `samconfig.toml` `[prod.global.parameters]` |
+| `ReplayEnabled` | `true` | `false` | template rule `ProductionStage` refuses `true` |
+| `RequireMfa` | `false` (TOTP optional) | `true` (TOTP for every sign-in) | template rule; Cognito `MfaConfiguration ON` |
+| `RetentionDays` | `0` (kept) | `365` | template rule refuses `0` |
+| `CapSender`, `CapSenderName` | empty: the "(demo)" sender | the issuing authority's | template rule and `make deploy` refuse them empty; `make` also refuses a name with "(demo)" |
+| `CriticalAutoSend` | `false` | `false` | turn on only after the DDMA signs off |
+| `VoiceProvider` | `.env.deploy.local` | `.env.deploy.prod.local` | as configured; `off` until a provider account exists |
+| `BedrockModelId` | `us.amazon.nova-2-lite-v1:0` | `global.amazon.nova-2-lite-v1:0` | see the region table below |
+| `BedrockFallbackRegion` | `us-west-2` | `ap-southeast-1` | |
+| `ALARM_EMAIL` | a warning when unset | required | `make deploy STAGE=prod` stops without it |
+| Demo and judge users | `make seed` creates them | never | `make seed STAGE=prod` seeds villages only; `scripts/seed_users.py` refuses a `-prod` stack |
+| `make reset-demo` | allowed | refused | `Makefile` |
+| Change set | applied at once | shown, and waits for `y` | `confirm_changeset = true` |
+
+### What changes in ap-south-1
+
+Checked from the account on 22 Oct 2026 with read-only calls
+(`aws bedrock list-inference-profiles`, `list-foundation-models`,
+`aws polly describe-voices`, and a list call on each other service in
+`ap-south-1`).
+
+| Service | In ap-south-1 | What the stack does |
+|---|---|---|
+| Bedrock Nova | No Nova model runs on demand in the region (inference type `INFERENCE_PROFILE` only). The profiles there are `global.amazon.nova-2-lite-v1:0` (any commercial region in the world) and `apac.amazon.nova-lite-v1:0`, `-micro-`, `-pro-` (Tokyo, Seoul, Osaka, Mumbai, Singapore, Sydney). The `us.` profile cannot be called from Mumbai | Prod uses `global.amazon.nova-2-lite-v1:0`, the model the drafts were tested with. The IAM grants allow any Nova inference profile of the stack's region and of `BedrockFallbackRegion`, and the Nova foundation models in any region, because a profile may run the call in any region it covers |
+| Bedrock Guardrails | available | the report guardrail is created in the region |
+| Polly | `Kajal` neural, `hi-IN`, available | unchanged |
+| Transcribe | available; batch `hi-IN` | unchanged |
+| Cognito, TOTP MFA | available | unchanged |
+| AppSync Events, IoT Core, EventBridge Scheduler, SES, Amplify Hosting | available | unchanged; endpoints come from `${AWS::Region}` |
+| CSP `connect-src` | | built from `${AWS::Region}` in the Amplify headers, so it names the Mumbai hosts |
+
+Data residency, honestly: the table, the bucket, the logs and Cognito stay in
+India. A model call does not. With the `global.` profile a draft, a report's
+words for structuring, or an analyst question may be processed in any
+commercial AWS region. To keep model calls in the Asia Pacific regions instead,
+set `BedrockModelId=apac.amazon.nova-lite-v1:0` (Nova Lite, an older model than
+the one the drafts were tuned on: check a few drafts before the season). No
+setting keeps Bedrock inside India today. Without any model the rules and the
+fixed templates still work (drafts fall back to the template). Request model
+access for Nova in `ap-south-1` and `ap-southeast-1` (section 2) before the first
+deploy, and check with:
+
+```
+aws bedrock-runtime converse --region ap-south-1 \
+  --model-id global.amazon.nova-2-lite-v1:0 \
+  --messages '[{"role":"user","content":[{"text":"Say OK"}]}]'
+```
+
+### Officer accounts and MFA
+
+`RequireMfa=true` sets the user pool's MFA to ON with TOTP only (no SMS). Cognito
+sets MFA per pool, so pradhans need an authenticator app too. Set it when the
+stack is created: Cognito may refuse to change an existing pool to required.
+
+There are no demo users on prod. Add each real person by hand, with a password
+you give them in person:
+
+```
+POOL=$(aws cloudformation describe-stacks --region ap-south-1 --stack-name pukaar-prod \
+  --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" --output text)
+aws cognito-idp admin-create-user --region ap-south-1 --user-pool-id "$POOL" \
+  --username dso_mandi --message-action SUPPRESS \
+  --user-attributes Name=custom:village_ids,Value=thunag,janjehli,gohar,pandoh,sujanpur
+aws cognito-idp admin-set-user-password --region ap-south-1 --user-pool-id "$POOL" \
+  --username dso_mandi --password '<12+ chars>' --permanent
+aws cognito-idp admin-add-user-to-group --region ap-south-1 --user-pool-id "$POOL" \
+  --username dso_mandi --group-name officer     # or pradhan, with that pradhan's villages only
+```
+
+At the first sign-in the web app shows a QR code (and the key as text). The
+person scans it with an authenticator app (Google Authenticator, Microsoft
+Authenticator or any TOTP app) and enters the 6-digit code; after that every
+sign-in asks for the current code. For a lost phone, delete the user and create
+them again with the same groups and villages; they enrol the new phone at the
+next sign-in. Never name a prod user `judge` or `judge_pradhan`: Cedar holds
+those names to replay data on every stack.
+
+### Retention (DPDP)
+
+`RetentionDays=365` gives every villager report a DynamoDB TTL of its creation
+time plus 365 days (the report, its reference and its tracking code expire
+together; a state change never extends it), and an S3 lifecycle rule expires
+`audio/reports/` and `photos/` after the same number of days. DynamoDB deletes
+an expired item within a few days, and the API never serves a report past its
+expiry meanwhile. Reports stored before the setting carry no TTL: delete them
+by hand at the end of the pilot, as the RUNBOOK's consent section says.
+Alerts, deliveries and the audit trail are the authority's record and are not
+expired by this setting.
+
+### CAP sender
+
+Put the authority's values in `.env.deploy.prod.local` (gitignored):
+
+```
+ALARM_EMAIL=deoc-mandi@example.gov.in
+CAP_SENDER=ddma-mandi@hp.gov.in
+CAP_SENDER_NAME=District Disaster Management Authority, Mandi
+CAP_SENDER_NAME_HI=ज़िला आपदा प्रबंधन प्राधिकरण, मंडी
+VOICE_PROVIDER=off
+```
+
+`make deploy STAGE=prod` passes each name to SAM as one quoted value. The feed
+then carries them in `<sender>` and both `<senderName>` blocks, and the "Demo
+deployment" note is left out (a replay or drill still says so). Use the values
+the DDMA gives, and the same sender code it uses in SACHET.
+
+### Migration note: CriticalAutoSend
+
+`CriticalAutoSend` now defaults to `false` in the template and in the app, and
+`samconfig.toml` sets it to `false` for dev as well. The next `make deploy` on
+dev therefore turns critical auto-send off there too: when every officer times
+out, a critical alert expires unsent and the sweep asks again after the
+cooldown. To keep the old behaviour on dev, change `CriticalAutoSend=false` to
+`true` in `[default.deploy.parameters]`. Never set it on prod without the
+DDMA's written sign-off.
+
+### Checklist
+
+Before the first deploy:
+
+- [ ] AWS credentials for the pilot account; `aws sts get-caller-identity` names it.
+- [ ] Bedrock model access for Nova in `ap-south-1` and `ap-southeast-1`; the `converse` check above answers.
+- [ ] `.env.deploy.prod.local` has `ALARM_EMAIL`, `CAP_SENDER`, `CAP_SENDER_NAME` (and `CAP_SENDER_NAME_HI`) as the DDMA gave them.
+- [ ] A second Telegram bot for prod (one bot has one webhook), from @BotFather.
+
+Deploy:
+
+- [ ] `make deploy STAGE=prod`; read the change set and answer `y`.
+- [ ] `make secrets STAGE=prod` (the prod bot's token), then again after the deploy to register its webhook.
+- [ ] `make vapid-keys STAGE=prod`.
+- [ ] `make seed STAGE=prod` (villages only), then add each officer and pradhan by hand (above).
+- [ ] Each person signs in once, enrols TOTP, and turns on approval alerts on their phone.
+
+After:
+
+- [ ] The alarm e-mail is confirmed, and an SMS subscriber added and tested (RUNBOOK, pre-season checklist).
+- [ ] The duty roster is filled from the DEOC's chart, with the ADM or DM as escalation.
+- [ ] `curl -s "$STACK_ApiUrl/health"` says `"mode": "aws"`; `/replay/status` is inactive and `POST /replay/start` is refused.
+- [ ] `/cap/alerts.atom` names the authority, not "(demo)".
+- [ ] `aws cognito-idp describe-user-pool --region ap-south-1 --user-pool-id "$POOL" --query UserPool.MfaConfiguration` says `ON`.
+- [ ] `aws s3api get-bucket-lifecycle-configuration --bucket "$STACK_BucketName"` lists the two report rules.
+- [ ] `SMOKE_SITE=<prod web url> SMOKE_API=<prod api url> make smoke` passes.
+- [ ] `CriticalAutoSend` stays `false` until the DDMA signs off.
 
 ## Fallback: S3 and CloudFront instead of Amplify
 

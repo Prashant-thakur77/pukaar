@@ -1,5 +1,9 @@
-# SAM CLI settings for stack pukaar-dev. Run sam from the repository root
-# (or use `make build` / `make deploy`).
+# SAM CLI settings. Two stacks from the one template:
+#   dev  (default)  pukaar-dev in us-east-1: the demo and judging stack.
+#   prod            pukaar-prod in ap-south-1 (Mumbai): the pilot stack (docs/DEPLOY.md, "Production stage").
+# Run sam from the repository root, or use `make deploy` / `make deploy STAGE=prod`.
+# Values that belong to one deployment (the alarm address, the CAP sender, the voice provider) are not here:
+# `make deploy` reads them from the gitignored .env.deploy.local / .env.deploy.prod.local.
 version = 0.1
 
 [default.global.parameters]
@@ -23,7 +27,32 @@ fail_on_empty_changeset = false
 resolve_s3 = true
 resolve_image_repos = true
 s3_prefix = "pukaar-dev"
-parameter_overrides = "Stage=dev ApprovalTimeoutSeconds=600 AckWaitSeconds=300 Architecture=x86_64 ReplayEnabled=true"
+parameter_overrides = "Stage=dev ApprovalTimeoutSeconds=600 AckWaitSeconds=300 Architecture=x86_64 ReplayEnabled=true CriticalAutoSend=false RequireMfa=false RetentionDays=0"
 
 [default.sync.parameters]
 watch = false
+
+[prod.global.parameters]
+stack_name = "pukaar-prod"
+region = "ap-south-1"
+
+[prod.validate.parameters]
+template_file = "infra/template.yaml"
+lint = true
+
+[prod.build.parameters]
+template_file = "infra/template.yaml"
+cached = true
+parallel = true
+
+# The template's ProductionStage rule refuses Stage=prod without CapSender and CapSenderName, with replay on,
+# without MFA, or with RetentionDays=0. Bedrock: no Nova model runs in-region in ap-south-1, so the drafting
+# model is a cross-region profile (docs/DEPLOY.md says where it may run and the APAC-only alternative).
+[prod.deploy.parameters]
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+confirm_changeset = true
+fail_on_empty_changeset = false
+resolve_s3 = true
+resolve_image_repos = true
+s3_prefix = "pukaar-prod"
+parameter_overrides = "Stage=prod ApprovalTimeoutSeconds=600 AckWaitSeconds=300 Architecture=x86_64 ReplayEnabled=false CriticalAutoSend=false RequireMfa=true RetentionDays=365 BedrockModelId=global.amazon.nova-2-lite-v1:0 BedrockFallbackRegion=ap-southeast-1"

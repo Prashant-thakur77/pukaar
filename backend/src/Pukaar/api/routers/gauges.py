@@ -122,7 +122,7 @@ def set_gauge_thresholds(village_id: str, body: ThresholdsBody, principal: Princ
 def list_staff_gauges(village_id: str) -> list[dict]:
     repo = get_repo()
     _village(repo, village_id)
-    return [staff.view(g) for g in staff.active(repo, village_id)]
+    return views.scrub_people([staff.view(g) for g in staff.active(repo, village_id)])
 
 
 @router.post("/villages/{village_id}/staff-gauges")

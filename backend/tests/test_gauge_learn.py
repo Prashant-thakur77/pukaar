@@ -174,7 +174,8 @@ def test_proposal_route_and_accepting_it(client, repo, frozen):
     row = next(a for a in repo.list_audit(clock.iso(NOW)[:10], "village:thunag") if a.action == "set_gauge_thresholds")
     assert f"watch {before.watch_cm:g} -> {prop['watch_cm']:g} cm" in row.reason
     assert f"critical {before.critical_cm:g} -> {prop['critical_cm']:g} cm" in row.reason
-    assert client.get("/villages/thunag").json()["gauge"]["config"]["thresholds_set_by"] == "officer1"
+    # The public page says staff set them, never which officer (views.scrub_people).
+    assert client.get("/villages/thunag").json()["gauge"]["config"]["thresholds_set_by"] == "staff"
 
 
 def test_manual_thresholds_must_rise(client, repo, frozen):

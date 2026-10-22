@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from Pukaar.api import views
-from Pukaar.api.auth import Allowed, require_user
+from Pukaar.api.auth import Allowed, current_principal, require_user
 from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.core.ids import new_id
@@ -99,6 +99,12 @@ def get_alert(alert_id: str, principal: Principal = Depends(Allowed("view_consol
     deliveries = [{**d.model_dump(exclude={"all_clear_call_id"}),
                    "relay_role": roles.get(d.recipient_id) if roles.get(d.recipient_id) in RELAY_ROLES else None}
                   for d in repo.list_deliveries(a.id)]
+    # Who it reached (names, chat ids, call ids) is villagers' data: a public demo account sees it
+    # for replay alerts only, and otherwise the same rows with the person left out.
+    people = authorize(principal, "view_recipients", "alert", a.id,
+                       {"village_id": a.village_id, "replay": a.replay, "level": a.level}, repo=repo)
+    if not people.allowed:
+        deliveries = [views.masked_delivery(d, i) for i, d in enumerate(deliveries, 1)]
     return {"alert": views.alert(a), "deliveries": deliveries,
             "timeline": [t.model_dump() for t in repo.list_timeline(a.id)],
             "audit": [r.model_dump() for r in sorted(audit, key=lambda r: r.at)]}
@@ -196,10 +202,13 @@ def decline(alert_id: str, body: DeclineBody | None = None,
 
 
 @router.get("/directives")
-def list_directives(village_id: str = "") -> list[dict]:
+def list_directives(request: Request, village_id: str = "") -> list[dict]:
+    """Public. Who issued a directive (an officer's username) is shown to a signed-in caller only."""
     repo = get_repo()
     ids = [village_id] if village_id else [v.id for v in repo.list_villages()]
-    return [d.model_dump() for vid in ids for d in repo.list_directives(vid)]
+    signed_in = current_principal(request) is not None
+    return [d.model_dump() if signed_in else views.public_directive(d)
+            for vid in ids for d in repo.list_directives(vid)]
 
 
 class DirectiveBody(BaseModel):

@@ -56,8 +56,11 @@ EXPIRES_AFTER = timedelta(hours=12)
 AREA_RADIUS_KM = 5.0
 AREA_DESC_MAX = 50  # characters, in every language
 FEED_SIZE = 50
+# The demo senderName. A production stack sets the issuing authority's own (Settings.cap_sender_name,
+# template parameters CapSenderName and CapSenderNameHi); docs/SACHET.md and docs/DEPLOY.md.
 SENDER_NAME = "Pukaar — District Disaster Management (demo)"
 SENDER_NAME_HI = "पुकार — ज़िला आपदा प्रबंधन (डेमो)"
+DEMO_NOTE = "Demo deployment of Pukaar, not an official government channel."
 STATE = "Himachal Pradesh"
 STATE_HI = "हिमाचल प्रदेश"
 
@@ -360,7 +363,21 @@ def alert_certainty(a: Alert) -> str:
     return certainty_from_probability(river_probability(a)) or MAPPING[a.level][2]
 
 
-def _info(alert_el: ET.Element, a: Alert, village: Village | None, lang: str, web_url: str) -> None:
+def sender_names(name: str = "", name_hi: str = "") -> tuple[str, str]:
+    """(English, Hindi) <senderName>. Empty: the demo name. No Hindi name: the English one in both."""
+    name, name_hi = name.strip(), name_hi.strip()
+    if not name:
+        return SENDER_NAME, SENDER_NAME_HI
+    return name, name_hi or name
+
+
+def is_demo_sender(name: str = "") -> bool:
+    """True for the demo senderName (or none set): the message then says it is not an official channel."""
+    return "(demo)" in sender_names(name)[0].lower()
+
+
+def _info(alert_el: ET.Element, a: Alert, village: Village | None, lang: str, web_url: str,
+          names: tuple[str, str] = (SENDER_NAME, SENDER_NAME_HI)) -> None:
     urgency, severity, _, response = MAPPING[a.level]
     certainty = alert_certainty(a)
     effective = _sent(a)
@@ -377,7 +394,7 @@ def _info(alert_el: ET.Element, a: Alert, village: Village | None, lang: str, we
     _event_code(info, event_code(a))
     _sub(info, "effective", cap_time(effective))
     _sub(info, "expires", cap_time(effective + EXPIRES_AFTER))
-    _sub(info, "senderName", SENDER_NAME_HI if hindi else SENDER_NAME)
+    _sub(info, "senderName", names[1] if hindi else names[0])
     if hindi:
         headline = f"{a.village_name_hi}: {level_label(a, True)}"
         description = a.text_hi or hi.fallback_alert(a.level, a.village_name_hi, a.village_name)[0]
@@ -408,10 +425,11 @@ def _document(root: ET.Element) -> bytes:
 
 
 def render(a: Alert, village: Village | None, *, sender: str, web_url: str,
-           refs: Sequence[Alert] = ()) -> bytes:
+           refs: Sequence[Alert] = (), sender_name: str = "", sender_name_hi: str = "") -> bytes:
     """One CAP 1.2 <alert> document (UTF-8 bytes) for a published alert.
 
     refs: what references(a, ...) returned. Non-empty makes it an Update.
+    sender_name, sender_name_hi: the authority's <senderName>; empty means the demo name.
     """
     if not is_published(a):
         raise ValueError(f"alert {a.id} is not published (status {a.status})")
@@ -427,12 +445,15 @@ def render(a: Alert, village: Village | None, *, sender: str, web_url: str,
         notes.append("Replay of archived forecast data through the live rules; not a current flood.")
     if a.decision_trace.get("drill"):
         notes.append("Drill: a labelled test alert started by hand; not a real flood.")
-    notes.append("Demo deployment of Pukaar, not an official government channel.")
-    _sub(root, "note", " ".join(notes))
+    if is_demo_sender(sender_name):
+        notes.append(DEMO_NOTE)
+    if notes:
+        _sub(root, "note", " ".join(notes))
     if refs:
         _sub(root, "references", " ".join(reference(sender, r) for r in refs))
-    _info(root, a, village, "hi-IN", web_url)
-    _info(root, a, village, "en-IN", web_url)
+    names = sender_names(sender_name, sender_name_hi)
+    _info(root, a, village, "hi-IN", web_url, names)
+    _info(root, a, village, "en-IN", web_url, names)
     return _document(root)
 
 
@@ -464,7 +485,8 @@ def all_clear_text(c: AllClear, hindi: bool) -> tuple[str, str, str]:
     )
 
 
-def _all_clear_info(alert_el: ET.Element, c: AllClear, lang: str, web_url: str) -> None:
+def _all_clear_info(alert_el: ET.Element, c: AllClear, lang: str, web_url: str,
+                    names: tuple[str, str] = (SENDER_NAME, SENDER_NAME_HI)) -> None:
     urgency, severity, certainty, response = ALL_CLEAR_MAPPING
     hindi = lang == "hi-IN"
     v, latest = c.village, c.latest
@@ -479,7 +501,7 @@ def _all_clear_info(alert_el: ET.Element, c: AllClear, lang: str, web_url: str) 
     _event_code(info, event_code(latest))
     _sub(info, "effective", cap_time(c.sent))
     _sub(info, "expires", cap_time(c.sent + EXPIRES_AFTER))
-    _sub(info, "senderName", SENDER_NAME_HI if hindi else SENDER_NAME)
+    _sub(info, "senderName", names[1] if hindi else names[0])
     headline, description, instruction = all_clear_text(c, hindi)
     _sub(info, "headline", headline)
     _sub(info, "description", description)
@@ -493,7 +515,8 @@ def _all_clear_info(alert_el: ET.Element, c: AllClear, lang: str, web_url: str) 
     _area(info, v, v.name, v.name_hi, hindi)
 
 
-def render_all_clear(c: AllClear, *, sender: str, web_url: str) -> bytes:
+def render_all_clear(c: AllClear, *, sender: str, web_url: str, sender_name: str = "",
+                     sender_name_hi: str = "") -> bytes:
     """The Cancel <alert> for a village back at normal, referencing every alert it cancels."""
     root = ET.Element(f"{{{CAP_NS}}}alert")
     _sub(root, "identifier", c.identifier)
@@ -502,16 +525,17 @@ def render_all_clear(c: AllClear, *, sender: str, web_url: str) -> bytes:
     _sub(root, "status", "Actual")
     _sub(root, "msgType", "Cancel")
     _sub(root, "scope", "Public")
-    _sub(root, "note", "All clear: the village level is back to normal. "
-                       "Demo deployment of Pukaar, not an official government channel.")
+    _sub(root, "note", "All clear: the village level is back to normal."
+                       + (f" {DEMO_NOTE}" if is_demo_sender(sender_name) else ""))
     _sub(root, "references", " ".join(reference(sender, r) for r in c.cancels))
-    _all_clear_info(root, c, "hi-IN", web_url)
-    _all_clear_info(root, c, "en-IN", web_url)
+    names = sender_names(sender_name, sender_name_hi)
+    _all_clear_info(root, c, "hi-IN", web_url, names)
+    _all_clear_info(root, c, "en-IN", web_url, names)
     return _document(root)
 
 
 def atom(alerts: list[Alert], *, api_base: str, web_url: str, now: datetime | None = None,
-         all_clears: Sequence[AllClear] = ()) -> bytes:
+         all_clears: Sequence[AllClear] = (), sender_name: str = "") -> bytes:
     """ATOM 1.0 index: one entry per published alert and per all-clear, newest first, linking to its CAP XML."""
     rows: list[tuple[datetime, str, str, str, str, str]] = []  # sent, id, title, summary, term, village
     seen: set[str] = set()
@@ -533,13 +557,14 @@ def atom(alerts: list[Alert], *, api_base: str, web_url: str, now: datetime | No
     feed = ET.Element("feed", {"xmlns": ATOM_NS})  # Atom elements unqualified under a default xmlns
     self_url = f"{api_base}/cap/alerts.atom"
     _sub(feed, "id", self_url, ns="")
-    _sub(feed, "title", "Pukaar CAP 1.2 flood alerts, Himachal Pradesh (demo)", ns="")
+    _sub(feed, "title", "Pukaar CAP 1.2 flood alerts, Himachal Pradesh"
+         + (" (demo)" if is_demo_sender(sender_name) else ""), ns="")
     _sub(feed, "subtitle", "Published village flood alerts (approved, auto-sent or failsafe) and all-clear "
                            "cancellations. Replays and drills carry CAP status Exercise.", ns="")
     updated = rows[0][0] if rows else (now or clock.now())
     _sub(feed, "updated", clock.iso(updated), ns="")
     author = _sub(feed, "author", ns="")
-    _sub(author, "name", SENDER_NAME, ns="")
+    _sub(author, "name", sender_names(sender_name)[0], ns="")
     ET.SubElement(feed, "link", rel="self", type="application/atom+xml", href=self_url)
     ET.SubElement(feed, "link", rel="alternate", type="text/html", href=f"{web_url}/how")
     for sent, ident, title, summary, term, village_id in rows:

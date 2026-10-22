@@ -87,7 +87,20 @@ def ensure_user(
     )
 
 
+def is_production(stack: str = STACK, stage: str | None = None) -> bool:
+    """A production stack never gets the shared-password demo users (docs/DEPLOY.md, "Production stage")."""
+    stage = os.environ.get("STAGE", "") if stage is None else stage
+    return stage == "prod" or stack.endswith("-prod")
+
+
 def main() -> int:
+    if is_production():
+        print(
+            f"{STACK} is a production stack: no demo or judge users are created there. "
+            "Add each real officer and pradhan by hand (docs/DEPLOY.md).",
+            file=sys.stderr,
+        )
+        return 2
     password = os.environ.get("PUKAAR_DEMO_PASSWORD")
     if not password:
         print(

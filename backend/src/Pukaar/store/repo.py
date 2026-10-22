@@ -71,6 +71,22 @@ PUSH_TTL_DAYS = 180
 ROSTER_TTL_DAYS = 400  # a year of duty charts, for the after-action record
 
 
+def report_expiry(created_at: str, days: int | None = None) -> int | None:
+    """Epoch seconds at which a villager report expires (DynamoDB TTL), or None when reports are kept
+    (Settings.report_retention_days 0). The photo and voice note expire under the S3 lifecycle rule
+    the template makes from the same parameter (RetentionDays)."""
+    days = get_settings().report_retention_days if days is None else days
+    if days <= 0:
+        return None
+    return int(clock.parse(created_at).timestamp()) + days * 86400
+
+
+def _expired(item: dict[str, Any], now: int | None = None) -> bool:
+    """DynamoDB deletes an expired item within a few days, not at once: never serve one meanwhile."""
+    ttl = item.get("ttl")
+    return ttl is not None and int(ttl) <= (now if now is not None else int(clock.now().timestamp()))
+
+
 class ConflictError(Exception):
     """A conditional write lost: the item changed or already exists."""
 
@@ -364,13 +380,17 @@ class Repo:
     # -- reports ---------------------------------------------------------
     def put_report(self, r: Report) -> None:
         sk = f"REPORT#{r.created_at}#{r.id}"
-        item: dict[str, Any] = {"pk": f"VILLAGE#{r.village_id}", "sk": sk, **r.model_dump()}
+        # DPDP retention (Settings.report_retention_days): the report, its reference and its tracking code
+        # expire together, counted from when the report was made, so writing it again never extends it.
+        ttl = report_expiry(r.created_at)
+        expiry = {"ttl": ttl} if ttl else {}
+        item: dict[str, Any] = {"pk": f"VILLAGE#{r.village_id}", "sk": sk, **r.model_dump(), **expiry}
         if r.state in {"received", "transcribing", "unverified"}:
             item.update(gsi1pk="OPEN#REPORT", gsi1sk=r.created_at)
         self._put(item)
-        self._put({"pk": f"REPORTREF#{r.id}", "sk": "META", "village_id": r.village_id, "ref_sk": sk})
+        self._put({"pk": f"REPORTREF#{r.id}", "sk": "META", "village_id": r.village_id, "ref_sk": sk, **expiry})
         if r.track_code:
-            self._put({"pk": f"TRACK#{r.track_code}", "sk": "META", "report_id": r.id})
+            self._put({"pk": f"TRACK#{r.track_code}", "sk": "META", "report_id": r.id, **expiry})
 
     def _report_key(self, report_id: str) -> tuple[str, str] | None:
         ref = self._get(f"REPORTREF#{report_id}", "META")
@@ -379,7 +399,7 @@ class Repo:
     def get_report(self, report_id: str) -> Report | None:
         key = self._report_key(report_id)
         item = self._get(*key) if key else None
-        return _model(Report, item) if item else None
+        return _model(Report, item) if item and not _expired(item) else None
 
     def update_report(self, report_id: str, **fields: Any) -> Report:
         key = self._report_key(report_id)
@@ -397,7 +417,8 @@ class Repo:
 
     def list_reports(self, village_id: str, limit: int = 100) -> list[Report]:
         items = self._query(f"VILLAGE#{village_id}", "REPORT#", newest_first=True, limit=limit)
-        return [_model(Report, i) for i in items]
+        now = int(clock.now().timestamp())
+        return [_model(Report, i) for i in items if not _expired(i, now)]
 
     def bump_rate(self, scope: str, key: str, window: str, ttl_seconds: int = 86400) -> int:
         """Add one to a fixed-window counter and return the new count (services/report_guard.py).

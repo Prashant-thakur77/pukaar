@@ -9,7 +9,7 @@ from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.services import checklist, gauge, readiness, risk_rules, rollcall, soil, staff_gauge, storage
 from Pukaar.services.nowcast import nowcast
-from Pukaar.store.models import Alert, Report, Village
+from Pukaar.store.models import Alert, Directive, Report, Village
 from Pukaar.store.repo import Repo
 
 _ALERT_HIDDEN = {"task_token", "token_version", "execution_arn", "audio_key"}
@@ -59,6 +59,67 @@ def alert(a: Alert) -> dict[str, Any]:
     return out
 
 
+# Officer usernames on an alert: who decided, who was asked, who stood it down, who marked the
+# outcome. Signed-in views keep them; a public page says what happened, never which officer.
+_ALERT_PEOPLE = {"decided_by", "officer_chain", "officers_asked", "all_clear_by", "outcome_by"}
+
+
+def _decider_role(a: Alert) -> str | None:
+    who = a.decided_by or ""
+    if not who:
+        return None
+    return "system" if who.startswith("system") else "officer"
+
+
+def public_alert(a: Alert) -> dict[str, Any]:
+    """An alert on a page that needs no sign-in: no officer usernames (docs/SECURITY.md)."""
+    out = a.model_dump(exclude=_ALERT_HIDDEN | _ALERT_PEOPLE)
+    out["has_audio"] = bool(a.audio_key)
+    out["decided_by_role"] = _decider_role(a)
+    return out
+
+
+def public_directive(d: Directive) -> dict[str, Any]:
+    """A directive on a public page: what was ordered and when, not which officer issued it."""
+    return d.model_dump(exclude={"issued_by"})
+
+
+# Fields that hold the username of whoever did something (an officer or a pradhan). A username is half
+# of a sign-in, so a page that needs no sign-in never shows one: scrub_people() puts "staff" in its place
+# ("system" for the system), and drops the lists of officers asked.
+PEOPLE_KEYS = {"decided_by", "all_clear_by", "outcome_by", "issued_by", "done_by", "updated_by", "created_by",
+               "renewed_by", "cleared_by", "confirmed_by", "thresholds_set_by", "opened_by_user", "verified_by"}
+PEOPLE_LISTS = {"officer_chain", "officers_asked", "officers"}
+PUBLIC_ACTOR = "staff"
+
+
+def scrub_people(value: Any) -> Any:
+    """A copy of a public answer with every username replaced (PEOPLE_KEYS) or dropped (PEOPLE_LISTS)."""
+    if isinstance(value, dict):
+        out: dict[str, Any] = {}
+        for k, v in value.items():
+            if k in PEOPLE_LISTS:
+                continue
+            if k in PEOPLE_KEYS and isinstance(v, str) and v:
+                out[k] = "system" if v.startswith("system") else PUBLIC_ACTOR
+            else:
+                out[k] = scrub_people(v)
+        return out
+    if isinstance(value, list):
+        return [scrub_people(v) for v in value]
+    return value
+
+
+# Who an alert reached, with the person left out (a public demo account on a live alert).
+_DELIVERY_PEOPLE = {"recipient_id", "name", "call_ids", "error", "digit"}
+
+
+def masked_delivery(row: dict[str, Any], n: int) -> dict[str, Any]:
+    out = {k: v for k, v in row.items() if k not in _DELIVERY_PEOPLE}
+    out.update(recipient_id=f"hidden-{n}", name=f"Recipient {n}", call_ids=[], error=None, digit=None, masked=True)
+    return out
+
+
 # What a public (signed-out) page may show about a villager's report: the coarse facts only.
 # Never the words, the exact GPS, the voice or photo, a name or a tracking code; officers read
 # those on /reports, under Cedar.
@@ -93,10 +154,10 @@ def village_detail(repo: Repo, v: Village) -> dict[str, Any]:
     return {
         "village": village(repo, v),
         "readings": [r.model_dump() for r in readings],
-        "alerts": [alert(a) for a in repo.list_alerts(village_id=v.id, limit=20)],
+        "alerts": [public_alert(a) for a in repo.list_alerts(village_id=v.id, limit=20)],
         "reports": [report(r, public=True) for r in reports],
         "past_events": [e.model_dump() for e in repo.list_past_events(v.id)],
-        "directives": [d.model_dump() for d in repo.list_directives(v.id)[:5]],
+        "directives": [public_directive(d) for d in repo.list_directives(v.id)[:5]],
         "nowcast": nowcast(readings[0] if readings else None, v.thresholds, v.level),
         "gauge": gauge.view(repo, v),
         "soil": soil_view(v, readings[0] if readings else None),

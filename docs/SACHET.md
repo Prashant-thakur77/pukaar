@@ -17,8 +17,8 @@ re-issuing an IMD Jaipur warning.
 |---|---|---|
 | RSS item | `<author>controlroom@ndma.gov.in (Andhra Pradesh SDMA)</author>`, link to the CAP file, guid = numeric id | ATOM entry per message: unique id (the CAP URL), `application/cap+xml` link, related village page |
 | `identifier` | `IN-1792661906424028_28` | alert id (`alr_...`), or `allclear-{village}-{UTC stamp}` for a Cancel |
-| `sender` | agency code: `Andhra-Pradesh-SDMA`, `Rajasthan-SDMA`, `CWC` | `PUKAAR_CAP_SENDER` (default `pukaar-{stage}@{web host}`) |
-| `senderName` | not used | "Pukaar — District Disaster Management (demo)", Hindi and English |
+| `sender` | agency code: `Andhra-Pradesh-SDMA`, `Rajasthan-SDMA`, `CWC` | template parameter `CapSender` (`PUKAAR_CAP_SENDER`; default `pukaar-{stage}@{web host}`; a prod deploy refuses it empty) |
+| `senderName` | not used | `CapSenderName` / `CapSenderNameHi`; on dev the default "Pukaar — District Disaster Management (demo)", Hindi and English |
 | `status` / `msgType` | `Actual`; `Alert` and `Update` | `Actual`, or `Exercise` for replays and drills; `Alert`, `Update`, `Cancel` |
 | `references` | `IMD-Jaipur,IN-1792661906424028_57,2026-10-22T15:07:55+05:30` | every earlier alert still in force, same form |
 | times | IST, `+05:30` | IST, `+05:30` |
@@ -41,8 +41,11 @@ would need a local body code, not a village code.
 ## How an authority would relay Pukaar's alerts
 
 1. **Own the decision.** The district (DDMA Mandi or Hamirpur) or HP SDMA decides
-   that Pukaar's village alerts may go out under its name. Pukaar's own messages say
-   "(demo)" and "not an official government channel" and stay that way.
+   that Pukaar's village alerts may go out under its name. The dev stack's messages say
+   "(demo)" and "not an official government channel" and stay that way. A production
+   stack carries the authority's own `CapSender` and `CapSenderName` (docs/DEPLOY.md,
+   "Production stage"); the deploy refuses Stage=prod with either empty, and the demo
+   note is then left out.
 2. **Read the feed.** Subscribe to `/cap/alerts.atom`. Each entry links to one CAP
    message that passes the OASIS CAP 1.2 schema and Google's profile rules
    (`backend/tests/test_cap_profile.py`).

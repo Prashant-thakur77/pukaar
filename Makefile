@@ -1,5 +1,6 @@
-# Pukaar tasks. Run from the repository root. AWS targets use your current
-# AWS credentials and the stack in samconfig.toml (pukaar-dev, us-east-1).
+# Pukaar tasks. Run from the repository root. AWS targets use your current AWS credentials and
+# the stack of STAGE in samconfig.toml: dev (default) is pukaar-dev in us-east-1, STAGE=prod is
+# pukaar-prod in ap-south-1 (docs/DEPLOY.md, "Production stage").
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := help
@@ -7,17 +8,40 @@ SHELL := /bin/bash
 PY       ?= backend/.venv/bin/python
 PYTHON    = $(abspath $(PY))
 SAM      ?= sam
+STAGE    ?= dev
+# samconfig.toml section for the stage: [default.*] is dev, [prod.*] is prod.
+SAM_ENV   = $(if $(filter dev,$(STAGE)),default,$(STAGE))
+# One value from samconfig.toml: $(call samconfig,<section>,<key>)
+samconfig = $(shell awk -v s='[$(SAM_ENV).$(1).parameters]' '/^\[/{on=($$0==s)} on && index($$0,"$(2) = \"")==1{v=substr($$0,length("$(2) = \"")+1); sub(/"$$/,"",v); print v}' samconfig.toml)
+STACK     = $(call samconfig,global,stack_name)
+REGION    = $(call samconfig,global,region)
+# Every AWS script and the stack outputs (scripts/stack_env.sh) follow the stage.
+export PUKAAR_STACK = $(STACK)
+export AWS_REGION   = $(REGION)
 STACK_ENV = eval "$$(scripts/stack_env.sh)"
 # sam's --parameter-overrides replaces samconfig's list, so read it and add the live-push key
 # expiry (now + 360 days; AppSync allows at most 365). Re-deploying extends the same key.
-SAM_PARAMS     = $(shell sed -n 's/^parameter_overrides = "\(.*\)"$$/\1/p' samconfig.toml)
+SAM_PARAMS     = $(call samconfig,deploy,parameter_overrides)
 EVENTS_KEY_EXP = $(shell date -u -d '+360 days' +%s 2>/dev/null || date -u -v+360d +%s)
-# Kept out of git, in .env.deploy.local:
+# Kept out of git, in .env.deploy.local (every stage) and .env.deploy.<stage>.local (that stage; wins):
 #   ALARM_EMAIL=<on-call address>          subscribed to the alarm topic (confirm the e-mail SNS sends)
 #   AFTER_ACTION_FROM=<SES-verified sender> optional after-action e-mail
+#   VOICE_PROVIDER=exotel|plivo|off        voice calls (docs/VOICE.md); EXOTEL_API_HOST for a Mumbai account
+#   CAP_SENDER=<authority id>              CAP <sender>, e.g. the DDMA's e-mail (required for STAGE=prod)
+#   CAP_SENDER_NAME=<authority name>       CAP <senderName> in English (required for STAGE=prod)
+#   CAP_SENDER_NAME_HI=<name in Hindi>     CAP <senderName> in Hindi (optional)
+#   WEB_ORIGIN=https://<host>              the web app's own domain, when not the Amplify URL
 -include .env.deploy.local
+-include .env.deploy.$(STAGE).local
+# Names hold spaces and commas: each goes to sam as one quoted Key="value".
 DEPLOY_EXTRA   = $(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL)) \
-                 $(if $(AFTER_ACTION_FROM),AfterActionFrom=$(AFTER_ACTION_FROM))
+                 $(if $(AFTER_ACTION_FROM),AfterActionFrom=$(AFTER_ACTION_FROM)) \
+                 $(if $(VOICE_PROVIDER),VoiceProvider=$(VOICE_PROVIDER)) \
+                 $(if $(EXOTEL_API_HOST),ExotelApiHost=$(EXOTEL_API_HOST)) \
+                 $(if $(WEB_ORIGIN),WebOrigin=$(WEB_ORIGIN)) \
+                 $(if $(CAP_SENDER),CapSender=$(CAP_SENDER)) \
+                 $(if $(CAP_SENDER_NAME),'CapSenderName="$(CAP_SENDER_NAME)"') \
+                 $(if $(CAP_SENDER_NAME_HI),'CapSenderNameHi="$(CAP_SENDER_NAME_HI)"')
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
         seed reset-demo drill voice-add voice-list voice-remove voice-urls gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke
@@ -45,11 +69,17 @@ validate: ## Lint the SAM template offline
 	$(SAM) validate --lint
 
 build: ## Build the Lambda images (needs Docker)
-	$(SAM) build
+	$(SAM) build --config-env $(SAM_ENV)
 
-deploy: build ## Deploy the stack, then publish the web app to Amplify (set ALARM_EMAIL in .env.deploy.local)
+deploy: build ## Deploy the stack of STAGE (dev, or prod), then publish the web app to Amplify (set ALARM_EMAIL in .env.deploy.local)
+	@test -n "$(STACK)" -a -n "$(SAM_PARAMS)" || { echo "No [$(SAM_ENV).*] settings for STAGE=$(STAGE) in samconfig.toml." >&2; exit 2; }
 	@test -n "$(ALARM_EMAIL)" || echo "WARNING: ALARM_EMAIL is not set in .env.deploy.local: CloudWatch alarms will notify nobody." >&2
-	$(SAM) deploy --parameter-overrides $(SAM_PARAMS) EventsApiKeyExpires=$(EVENTS_KEY_EXP) $(DEPLOY_EXTRA)
+	@if [ "$(STAGE)" = prod ]; then \
+	  test -n "$(ALARM_EMAIL)" || { echo "STAGE=prod needs ALARM_EMAIL (.env.deploy.prod.local): alarms must reach someone." >&2; exit 2; }; \
+	  test -n "$(CAP_SENDER)" -a -n "$(CAP_SENDER_NAME)" || { echo "STAGE=prod needs CAP_SENDER and CAP_SENDER_NAME, the issuing authority's (.env.deploy.prod.local)." >&2; exit 2; }; \
+	  case "$(CAP_SENDER_NAME)" in *"(demo)"*) echo "STAGE=prod: CAP_SENDER_NAME must be the authority's name, not the demo one." >&2; exit 2;; esac; \
+	fi
+	$(SAM) deploy --config-env $(SAM_ENV) --parameter-overrides $(SAM_PARAMS) EventsApiKeyExpires=$(EVENTS_KEY_EXP) $(DEPLOY_EXTRA)
 	$(MAKE) deploy-web
 
 deploy-web: ## Build the front end against the stack and upload it to Amplify
@@ -61,11 +91,13 @@ secrets: ## Store Telegram token and random secrets in SSM, set the Telegram web
 vapid-keys: ## Make the Web Push (VAPID) key pair in SSM, private key never shown (ROTATE=1 to replace it)
 	cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.vapid_keys $(if $(ROTATE),--rotate,)
 
-seed: ## Seed villages into the deployed table and create Cognito demo users
+seed: ## Seed villages into the deployed table and create Cognito demo users (villages only for STAGE=prod)
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.seed
-	$(PYTHON) scripts/seed_users.py
+	@if [ "$(STAGE)" = prod ]; then echo "STAGE=prod: no demo or judge users. Add each officer and pradhan by hand (docs/DEPLOY.md, \"Production stage\")."; \
+	else $(PYTHON) scripts/seed_users.py; fi
 
-reset-demo: ## Clear demo state (alerts, reports, replay) on the deployed stack
+reset-demo: ## Clear demo state (alerts, reports, replay) on the deployed stack (refused for STAGE=prod)
+	@test "$(STAGE)" != prod || { echo "reset-demo deletes alerts and reports: never on STAGE=prod." >&2; exit 2; }
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.reset_demo
 
 drill: ## Send a labelled drill alert to registered phones (VILLAGE=gohar LEVEL=watch CHANNEL=all|telegram|voice)

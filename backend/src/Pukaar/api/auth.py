@@ -10,6 +10,7 @@ short-lived HS256 dev tokens from POST /auth/dev-login for the demo users.
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 from functools import lru_cache
 
 import jwt
@@ -17,7 +18,7 @@ from fastapi import Depends, HTTPException, Request
 
 from Pukaar.core.config import get_settings
 from Pukaar.core.secrets import get_secret
-from Pukaar.policy.guard import Principal, authorize
+from Pukaar.policy.guard import Decision, Principal, authorize, evaluate
 from Pukaar.store.repo import get_repo
 
 DEV_USERS = {
@@ -92,15 +93,15 @@ def require_user(request: Request) -> Principal:
 
 def resource_facts(repo, resource_type: str, resource_id: str) -> dict:
     """Policy context read from the record itself (never from the request): whether an alert or
-    report is a replay's, and an alert's level. Anything unreadable is left out, so context.replay
-    stays false and the stricter rule applies."""
+    report is a replay's, its village, and an alert's level. Anything unreadable is left out, so
+    context.replay stays false and the stricter rule applies."""
     try:
         if resource_type == "alert":
             a = repo.get_alert(resource_id)
-            return {"replay": a.replay, "level": a.level} if a else {}
+            return {"replay": a.replay, "level": a.level, "village_id": a.village_id} if a else {}
         if resource_type == "report":
             r = repo.get_report(resource_id)
-            return {"replay": r.replay} if r else {}
+            return {"replay": r.replay, "village_id": r.village_id} if r else {}
     except Exception:
         return {}
     return {}
@@ -111,12 +112,31 @@ class Allowed:
 
     village_from_path: the policy's context.village_id is the path's village id, not the
     query string, so a pradhan cannot point a write at another village.
+
+    A pradhan's request that names no village (a list) is asked once for each of their own
+    villages: no Cedar policy matches an empty village (policy/base.cedar), and the route
+    filters the list to those villages.
+
+    replay_reads: for read routes that list villagers' data. When Cedar refuses the live read
+    but allows the same read of replay records (a public demo account), the request goes on
+    with principal.replay_only set and the route serves replay records only.
     """
 
     def __init__(self, action: str, resource_type: str = "app", path_param: str | None = None,
-                 village_from_path: bool = False) -> None:
+                 village_from_path: bool = False, replay_reads: bool = False) -> None:
         self.action, self.resource_type, self.path_param = action, resource_type, path_param
         self.village_from_path = village_from_path
+        self.replay_reads = replay_reads
+
+    def _decide(self, principal: Principal, rid: str, context: dict, repo) -> tuple[Decision, bool]:
+        """(the audited decision, whether it holds for replay records only). One audit row."""
+        if self.replay_reads and context.get("replay") is not True:
+            live = evaluate(principal, self.action, self.resource_type, rid, context)
+            if not live.allowed:
+                as_replay = {**context, "replay": True}
+                if evaluate(principal, self.action, self.resource_type, rid, as_replay).allowed:
+                    return authorize(principal, self.action, self.resource_type, rid, as_replay, repo=repo), True
+        return authorize(principal, self.action, self.resource_type, rid, context, repo=repo), False
 
     def __call__(self, request: Request, principal: Principal = Depends(require_user)) -> Principal:
         rid = request.path_params.get(self.path_param, "pukaar") if self.path_param else "pukaar"
@@ -126,8 +146,14 @@ class Allowed:
             village = request.query_params.get("village_id", "")
         repo = get_repo()
         context = {"village_id": village, **resource_facts(repo, self.resource_type, rid)}
-        decision = authorize(principal, self.action, self.resource_type, rid, context, repo=repo)
+        own = [v for v in principal.village_ids if v] if principal.role == "pradhan" else []
+        if principal.role == "pradhan" and not context.get("village_id") and own:
+            results = [self._decide(principal, rid, {**context, "village_id": v}, repo) for v in own]
+            allowed = [r for r in results if r[0].allowed]
+            decision, replay_only = (allowed[0][0], any(r[1] for r in allowed)) if allowed else results[0]
+        else:
+            decision, replay_only = self._decide(principal, rid, context, repo)
         if not decision.allowed:
             raise HTTPException(status_code=403, detail={"code": "denied", "reason": decision.reason,
                                                          "action": self.action, "role": principal.role})
-        return principal
+        return replace(principal, replay_only=replay_only) if replay_only else principal

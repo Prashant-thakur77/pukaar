@@ -31,11 +31,18 @@ def _load(rollcall_id: str, principal: Principal, action: str) -> RollCall:
 
 
 @router.get("/rollcalls")
-def list_rollcalls(village_id: str = "", principal: Principal = Depends(Allowed("view_rollcall"))) -> list[dict]:
+def list_rollcalls(village_id: str = "",
+                   principal: Principal = Depends(Allowed("view_rollcall", replay_reads=True))) -> list[dict]:
     repo = get_repo()
-    ids = [village_id] if village_id else [v.id for v in repo.list_villages()]
+    villages = repo.list_villages()
+    ids = [village_id] if village_id else [v.id for v in villages]
     if principal.role != "officer":
         ids = [i for i in ids if i in principal.village_ids]
+    if principal.replay_only:
+        # A public demo account reads replay records only. The board names villagers, and a replay
+        # never opens a roll-call (policy no-replay-rollcall), so in practice this list is empty.
+        replay_ids = {v.id for v in villages if v.replay}
+        ids = [i for i in ids if i in replay_ids]
     out = [svc.summary(rc) for vid in ids for rc in repo.list_rollcalls(vid, limit=10)]
     return sorted(out, key=lambda r: r["opened_at"], reverse=True)
 

@@ -16,6 +16,7 @@ from typing import Any
 
 from fastapi import APIRouter, Query
 
+from Pukaar.api import views
 from Pukaar.core.config import get_settings
 from Pukaar.services import agents as agents_svc
 from Pukaar.store.repo import get_repo
@@ -39,14 +40,14 @@ def _cached(key: str, build: Callable[[], Any]) -> Any:
 
 @router.get("/agents")
 def agents() -> dict:
-    return _cached("agents", lambda: agents_svc.registry(get_repo()))
+    return _cached("agents", lambda: views.scrub_people(agents_svc.registry(get_repo())))
 
 
 @router.get("/agents/traces")
 def agent_traces(limit: int = Query(5, ge=1, le=10)) -> list[dict]:
-    return _cached(f"traces:{limit}", lambda: agents_svc.traces(get_repo(), limit))
+    return _cached(f"traces:{limit}", lambda: views.scrub_people(agents_svc.traces(get_repo(), limit)))
 
 
 @router.get("/sensors")
 def sensors() -> dict:
-    return _cached("sensors", lambda: agents_svc.sensors(get_repo()))
+    return _cached("sensors", lambda: views.scrub_people(agents_svc.sensors(get_repo())))

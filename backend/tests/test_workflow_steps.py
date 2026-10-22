@@ -112,7 +112,19 @@ def test_deliver_refuses_an_unapproved_alert(repo, frozen):
         s.handle({"step": "deliver", "alert_id": a.id})
 
 
-def test_critical_auto_send_is_flagged_unapproved(repo, frozen):
+@pytest.fixture()
+def auto_send_on(monkeypatch):
+    """CriticalAutoSend is off unless set (it needs DDMA sign-off); these tests turn it on."""
+    from Pukaar.core.config import get_settings
+
+    monkeypatch.setenv("PUKAAR_CRITICAL_AUTO_SEND", "true")
+    get_settings.cache_clear()
+    yield
+    monkeypatch.delenv("PUKAAR_CRITICAL_AUTO_SEND")
+    get_settings.cache_clear()
+
+
+def test_critical_auto_send_is_flagged_unapproved(repo, frozen, auto_send_on):
     s, a, _ = drafted_and_asked(repo, "critical")
     s.handle({"step": "auto_send", "alert_id": a.id})
     s.handle({"step": "deliver", "alert_id": a.id})
@@ -120,7 +132,7 @@ def test_critical_auto_send_is_flagged_unapproved(repo, frozen):
     assert alert.status == "auto_sent_unapproved" and not alert.approved and alert.delivered_count == 2
 
 
-def test_warning_cannot_auto_send(repo, frozen):
+def test_warning_cannot_auto_send(repo, frozen, auto_send_on):
     s, a, _ = drafted_and_asked(repo, "warning")
     with pytest.raises(StepError, match="denied"):
         s.handle({"step": "auto_send", "alert_id": a.id})

@@ -211,7 +211,8 @@ def test_roster_api_edit_week_and_handover_are_audited(api, repo, frozen):
     week = api.get("/roster?district=Mandi&start=2026-06-30", headers=h).json()
     assert week["district"] == "Mandi" and week["districts"] == ["Hamirpur", "Mandi"]
     assert week["days"][0]["shifts"]["night"]["entry"]["escalation"] == "adm_mandi"
-    assert week["critical_auto_send"] is True and week["critical_auto_send_label"] == "needs DDMA sign-off"
+    # Off unless set (CriticalAutoSend); turning it on needs DDMA sign-off.
+    assert week["critical_auto_send"] is False and week["critical_auto_send_label"] == "needs DDMA sign-off"
     now = {d["district"]: d for d in week["now"]}
     assert now["Mandi"]["chain"] == ["officer1", "officer2", "adm_mandi"] and now["Hamirpur"]["source"] == "fallback"
     # bad input is a 400 with the reason

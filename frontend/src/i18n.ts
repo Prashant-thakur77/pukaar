@@ -774,6 +774,20 @@ export const dict = {
   'login.demo.officer2': { hi: 'ज़िला अधिकारी 2', en: 'District officer 2' },
   'login.demo.pradhan': { hi: 'प्रधान, थुनाग (सीमित अधिकार)', en: 'Pradhan, Thunag (limited rights)' },
   'login.public': { hi: 'गाँव का हाल देखने के लिए साइन इन ज़रूरी नहीं।', en: 'No sign-in is needed to see village levels.' },
+  'login.mfa.title': { hi: 'दूसरा चरण: ऑथेंटिकेटर ऐप', en: 'Second step: authenticator app' },
+  'login.mfa.lead': {
+    hi: 'अपने फ़ोन के ऑथेंटिकेटर ऐप में पुकार का 6 अंकों का कोड डालें।',
+    en: 'Enter the 6-digit Pukaar code from the authenticator app on your phone.',
+  },
+  'login.mfa.setup': {
+    hi: 'इस खाते के लिए दो-चरण वाला साइन इन ज़रूरी है। फ़ोन के ऑथेंटिकेटर ऐप (जैसे Google Authenticator) से यह QR कोड स्कैन करें, फिर ऐप में दिखा कोड डालें।',
+    en: 'This account needs two-step sign-in. Scan this QR code with an authenticator app on your phone (for example Google Authenticator), then enter the code it shows.',
+  },
+  'login.mfa.qr': { hi: 'ऑथेंटिकेटर ऐप के लिए QR कोड', en: 'QR code for the authenticator app' },
+  'login.mfa.key': { hi: 'स्कैन न हो तो यह कुंजी डालें', en: 'Cannot scan? Type this key' },
+  'login.mfa.code': { hi: '6 अंकों का कोड', en: '6-digit code' },
+  'login.mfa.verify': { hi: 'पुष्टि करें', en: 'Verify' },
+  'login.mfa.back': { hi: 'वापस', en: 'Back' },
 
   'notfound.title': { hi: 'यह पेज नहीं मिला', en: 'Page not found' },
 

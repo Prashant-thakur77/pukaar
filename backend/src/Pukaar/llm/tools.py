@@ -119,7 +119,8 @@ class DataTools:
             for d in self.repo.list_deliveries(a.id):
                 if unacknowledged_only and d.acknowledged_at:
                     continue
-                out.append({"alert_id": a.id, "village": a.village_name, "recipient": d.name, "status": d.status,
+                # The channel, not the person: no name or chat id goes to the model or into the tool trace.
+                out.append({"alert_id": a.id, "village": a.village_name, "channel": d.channel, "status": d.status,
                             "sent_at": d.sent_at, "attempts": d.attempts, "acknowledged_at": d.acknowledged_at})
         return out
 
@@ -131,7 +132,9 @@ class DataTools:
             for r in self.repo.list_reports(v.id, limit=50):
                 if r.created_at >= since:
                     out.append({"id": r.id, "village_id": v.id, "at": r.created_at, "type": r.report_type,
-                                "severity": r.severity, "state": r.state, "held": r.held, "lat": r.lat, "lon": r.lon})
+                                "severity": r.severity, "state": r.state, "held": r.held,
+                                # never the exact GPS: the analyst's map uses the village point
+                                "has_location": r.lat is not None and r.lon is not None})
         counts: dict[str, int] = {}
         for r in out:
             counts[r["village_id"]] = counts.get(r["village_id"], 0) + 1

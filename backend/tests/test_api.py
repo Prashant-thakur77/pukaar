@@ -136,7 +136,8 @@ def test_pradhan_sees_only_own_village_alerts(client):
     get_repo().put_alert(a)
     h = token(client, "pradhan_thunag")
     assert all(x["village_id"] == "thunag" for x in client.get("/alerts", headers=h).json())
-    assert client.get(f"/alerts/{a.id}", headers=h).status_code == 404
+    # Cedar checks the village on the alert itself: another village's alert is refused, not just hidden.
+    assert client.get(f"/alerts/{a.id}", headers=h).status_code == 403
     assert client.get(f"/alerts/{a.id}", headers=token(client, "officer1")).status_code == 200
 
 

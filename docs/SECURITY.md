@@ -78,6 +78,27 @@ so a full throttle delays a villager's report but does not lose it. Per-client l
 Lambda need AWS WAF rate-based rules, which HTTP APIs do not support directly; the next step is
 CloudFront with WAF in front of the API (or a REST API stage with WAF).
 
+## Who may read villagers' data
+
+- **The published demo password.** The README gives the `judge` and `judge_pradhan` password so anyone
+  can try the console. Cedar's `public-demo-accounts-replay-only` lets those names act on replays only,
+  and read villagers' data from replays only: `view_reports` (words, transcript, exact GPS, photo and
+  voice links, name), `view_recipients` (who an alert reached: names, chat ids, call ids),
+  `view_rollcall` (names) and `view_after_action` (first names). Their report feed is served with
+  replay reports only (`api/auth.py` `Allowed(replay_reads=True)`); a live alert's delivery rows come
+  back with the person left out (`masked: true`); a live after-action report is refused.
+  `backend/tests/test_public_privacy.py` signs in as both and checks it.
+- **Pradhans.** No Cedar policy matches a request that names no village. A pradhan's list is asked
+  once for each of their own villages, and an alert or report is checked against the village on its
+  own record, so another village's alert is refused, not just hidden (`test_policy_tokens.py`).
+- **Public pages** carry no officer usernames: an alert says `decided_by_role`, a directive drops
+  `issued_by`, and any other "done by" field reads "staff" (`views.scrub_people`).
+- **Ask Pukaar** never puts a report's GPS or a recipient's name into the model or the tool trace.
+- **Sign-in.** The production stack requires a TOTP code at every sign-in (`RequireMfa=true`, Cognito
+  MFA ON, no SMS) and has no demo users; dev keeps TOTP optional (docs/DEPLOY.md, "Production stage").
+- **Retention.** With `RetentionDays` set (365 on prod), a report, its photo and its voice note
+  expire that many days after they were made (DynamoDB TTL and an S3 lifecycle rule).
+
 ## Browser security headers
 
 Amplify sends these on every file (`infra/template.yaml`, `AmplifyApp.CustomHeaders`; checked by

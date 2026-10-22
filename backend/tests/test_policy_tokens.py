@@ -101,8 +101,11 @@ def test_judge_may_act_on_replay_alerts_and_read_freely():
     assert evaluate(JUDGE, "approve", "alert", "a1", {"replay": True}).allowed
     assert evaluate(JUDGE, "decline", "alert", "a1", {"replay": True}).allowed
     assert evaluate(JUDGE, "set_report_state", "report", "r1", {"replay": True}).allowed
-    for action in ("view_console", "view_reports", "start_replay", "read_audit", "ask_analyst"):
+    for action in ("view_console", "start_replay", "read_audit", "ask_analyst"):
         assert evaluate(JUDGE, action, "app", "pukaar").allowed, action
+    # villagers' data: replay records only
+    for action in ("view_reports", "view_recipients", "view_rollcall", "view_after_action"):
+        assert evaluate(JUDGE, action, "alert", "a1", {"replay": True}).allowed, action
     # other officers are not affected
     assert evaluate(OFFICER, "approve", "alert", "a1", {"replay": False}).allowed
 
@@ -119,3 +122,52 @@ def test_approval_token_expires_after_30_minutes():
     t = tokens.sign("alr_1", "officer1", 1, "approve", now=time.time() - 31 * 60)
     with pytest.raises(tokens.TokenError, match="expired"):
         tokens.verify(t, "approve")
+
+
+# -- villagers' data and the published demo password ----------------------------------------------
+PERSONAL_READS = ["view_reports", "view_recipients", "view_rollcall", "view_after_action"]
+
+
+@pytest.mark.parametrize("action", PERSONAL_READS)
+@pytest.mark.parametrize("who", [JUDGE, JUDGE_PRADHAN])
+def test_demo_accounts_read_villagers_data_from_replays_only(action, who):
+    for resource_type, rid in (("alert", "a1"), ("village", "thunag"), ("report", "r1"), ("rollcall", "rc1"),
+                               ("app", "pukaar")):
+        d = evaluate(who, action, resource_type, rid, {"village_id": "thunag", "replay": False})
+        assert not d.allowed, (action, resource_type)
+        assert d.policy_ids in ([], ["public-demo-accounts-replay-only"]), d.policy_ids
+    # no replay flag at all is live too
+    assert not evaluate(who, action, "alert", "a1", {"village_id": "thunag"}).allowed
+
+
+def test_demo_accounts_read_replay_records_and_real_staff_keep_live_reads():
+    for action in ("view_reports", "view_recipients"):
+        assert evaluate(JUDGE, action, "village", "thunag", {"village_id": "thunag", "replay": True}).allowed
+    assert evaluate(JUDGE, "view_after_action", "alert", "a1", {"village_id": "thunag", "replay": True}).allowed
+    assert evaluate(JUDGE_PRADHAN, "view_reports", "village", "thunag", {"village_id": "thunag", "replay": True}).allowed
+    assert evaluate(OFFICER, "view_reports", "village", "gohar", {"village_id": "gohar"}).allowed
+    assert evaluate(OFFICER, "view_recipients", "alert", "a1", {"village_id": "gohar"}).allowed
+    assert evaluate(PRADHAN, "view_reports", "village", "thunag", {"village_id": "thunag"}).allowed
+    assert evaluate(PRADHAN, "view_recipients", "alert", "a1", {"village_id": "thunag"}).allowed
+    assert not evaluate(PRADHAN, "view_recipients", "alert", "a1", {"village_id": "gohar"}).allowed
+
+
+PRADHAN_ACTIONS = ["view_console", "view_reports", "view_recipients", "view_rollcall", "open_rollcall",
+                   "remind_rollcall", "view_after_action", "tick_checklist", "set_shelter_status", "block_road",
+                   "view_gauge_proposal", "manage_staff_gauge"]
+
+
+@pytest.mark.parametrize("action", PRADHAN_ACTIONS)
+def test_a_pradhan_request_naming_no_village_never_matches(action):
+    for resource_type in ("app", "village", "alert", "report", "rollcall"):
+        for ctx in ({}, {"village_id": ""}, {"village_id": "", "replay": False}):
+            assert not evaluate(PRADHAN, action, resource_type, "x", ctx).allowed, (action, resource_type, ctx)
+    # not even for a pradhan whose village list holds an empty id
+    odd = Principal("pradhan_odd", "pradhan", [""])
+    assert not evaluate(odd, action, "village", "x", {"village_id": ""}).allowed
+
+
+def test_no_policy_matches_on_an_empty_village_id():
+    from Pukaar.policy.guard import _POLICY_FILE
+
+    assert 'village_id == ""' not in _POLICY_FILE.read_text(encoding="utf-8")

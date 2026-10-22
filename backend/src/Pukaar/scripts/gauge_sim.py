@@ -51,9 +51,11 @@ BACKFILL_STEP_MIN = 5
 FW = "sim-2.0"
 
 
-def stack_api_url(stack: str = "pukaar-dev", region: str = "us-east-1") -> str:
+def stack_api_url(stack: str | None = None, region: str | None = None) -> str:
     if os.environ.get("STACK_ApiUrl"):
         return os.environ["STACK_ApiUrl"]
+    stack = stack or os.environ.get("PUKAAR_STACK", "pukaar-dev")
+    region = region or os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
     out = subprocess.run(
         ["aws", "cloudformation", "describe-stacks", "--stack-name", stack, "--region", region,
          "--query", "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue", "--output", "text"],

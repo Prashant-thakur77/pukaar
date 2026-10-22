@@ -24,12 +24,14 @@ failure after the certificate was created rolls it back, so a re-run starts clea
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from typing import Any
 
-REGION = "us-east-1"
-STACK = "pukaar-dev"
+# The stage's stack and region: `make gauge-provision STAGE=prod` exports both (Makefile).
+REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
+STACK = os.environ.get("PUKAAR_STACK", "pukaar-dev")
 SSM_PREFIX = "/pukaar/gauge"
 
 

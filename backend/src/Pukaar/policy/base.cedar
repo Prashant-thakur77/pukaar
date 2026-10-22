@@ -4,26 +4,29 @@
 // Context:    level, approved, all_officers_timed_out, replay, channel, village_id.
 
 @id("officer-operate")
-@desc("Officers run the console: approve or decline alerts, triage reports, issue directives, update the shelter ledger, run replays, read the audit trail, ask the analyst and tick any village's early-action checklist.")
+@desc("Officers run the console: approve or decline alerts, triage reports, see who an alert reached, issue directives, update the shelter ledger, run replays, read the audit trail, ask the analyst and tick any village's early-action checklist.")
 permit (
   principal is Pukaar::Officer,
   action in [
     Pukaar::Action::"view_console", Pukaar::Action::"approve", Pukaar::Action::"decline",
-    Pukaar::Action::"view_reports", Pukaar::Action::"set_report_state", Pukaar::Action::"issue_directive",
+    Pukaar::Action::"view_reports", Pukaar::Action::"view_recipients", Pukaar::Action::"set_report_state",
+    Pukaar::Action::"issue_directive",
     Pukaar::Action::"start_replay", Pukaar::Action::"read_audit", Pukaar::Action::"ask_analyst",
     Pukaar::Action::"health_deep", Pukaar::Action::"dev_link", Pukaar::Action::"tick_checklist", Pukaar::Action::"set_shelter_status"
   ],
   resource
 );
 
+// A request that names no village never matches: a list route asks once for each of the pradhan's own
+// villages (api/auth.py Allowed), and an alert or report is checked against the village on its record.
 @id("pradhan-own-village")
-@desc("A pradhan sees the console and the reports of their own villages only.")
+@desc("A pradhan sees the console, the reports and who an alert reached for their own villages only.")
 permit (
   principal is Pukaar::Pradhan,
-  action in [Pukaar::Action::"view_console", Pukaar::Action::"view_reports"],
+  action in [Pukaar::Action::"view_console", Pukaar::Action::"view_reports", Pukaar::Action::"view_recipients"],
   resource
 )
-when { context.village_id == "" || principal.village_ids.contains(context.village_id) };
+when { context.village_id != "" && principal.village_ids.contains(context.village_id) };
 
 @id("pradhan-own-checklist")
 @desc("A pradhan ticks the early-action checklist of their own village only.")
@@ -132,16 +135,7 @@ permit (
   action in [Pukaar::Action::"open_rollcall", Pukaar::Action::"view_rollcall", Pukaar::Action::"remind_rollcall"],
   resource
 )
-when { principal.village_ids.contains(context.village_id) };
-
-@id("pradhan-rollcall-list")
-@desc("A pradhan may list roll-calls without naming a village; the list is filtered to their own villages.")
-permit (
-  principal is Pukaar::Pradhan,
-  action == Pukaar::Action::"view_rollcall",
-  resource is Pukaar::App
-)
-when { context.village_id == "" };
+when { context.village_id != "" && principal.village_ids.contains(context.village_id) };
 
 @id("system-rollcall-after-alert")
 @desc("The system opens a safety roll-call after a warning or critical alert reached the village.")
@@ -230,9 +224,13 @@ when { context.village_id != "" && principal.village_ids.contains(context.villag
 // group they are in, they may act on replay alerts only: nothing they do can reach a real phone,
 // change what a real alert says, or change a live village's shelters, roads or checklist, or the
 // live duty roster (there is no replay roster, so the roster is never theirs to edit).
+// Nor may they read villagers' data that is not a replay's: the report feed (exact GPS, words,
+// transcripts, photo and voice links, names), who an alert reached (names, chat ids, call ids), the
+// roll-call board (names) and the after-action report (first names). Their report feed is served
+// with replay reports only (api/auth.py Allowed with replay_reads).
 // context.replay comes from the record itself (api/auth.py resource_facts), never from the request.
 @id("public-demo-accounts-replay-only")
-@desc("Public demo account (judge, judge_pradhan; its password is published): it may act on replay alerts only, never on a live alert or a live village.")
+@desc("Public demo account (judge, judge_pradhan; its password is published): it may act on replay alerts only, never on a live alert or a live village, and may read villagers' data from replays only.")
 forbid (
   principal,
   action in [
@@ -242,7 +240,9 @@ forbid (
     Pukaar::Action::"set_report_state", Pukaar::Action::"set_gauge_thresholds",
     Pukaar::Action::"manage_staff_gauge", Pukaar::Action::"confirm_staff_reading", Pukaar::Action::"dev_link",
     Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe",
-    Pukaar::Action::"edit_roster", Pukaar::Action::"take_over_duty", Pukaar::Action::"set_alert_outcome"
+    Pukaar::Action::"edit_roster", Pukaar::Action::"take_over_duty", Pukaar::Action::"set_alert_outcome",
+    Pukaar::Action::"view_reports", Pukaar::Action::"view_recipients", Pukaar::Action::"view_rollcall",
+    Pukaar::Action::"view_after_action"
   ],
   resource
 )

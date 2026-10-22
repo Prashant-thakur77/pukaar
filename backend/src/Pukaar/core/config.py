@@ -75,8 +75,9 @@ class Settings:
     exotel_api_host: str = "api.exotel.com"
     # A critical alert goes out with the fixed template when every officer in the chain timed out.
     # NEEDS DDMA SIGN-OFF: sending without a human decision is the DDMA's call, not Pukaar's. Off means
-    # the alert expires unsent and the sweep asks again after the cooldown.
-    critical_auto_send: bool = True
+    # the alert expires unsent and the sweep asks again after the cooldown. Off unless set (template
+    # parameter CriticalAutoSend; docs/DEPLOY.md "Production stage").
+    critical_auto_send: bool = False
     # River trigger (risk_rules.river_assessment): a level is raised when at least this share of the
     # GloFAS ensemble members reach its return-period threshold on lead day 1-3 (the ECMWF reporting-
     # point convention is 0.3). The ensemble is fetched once a day per river cell (external_data).
@@ -102,6 +103,15 @@ class Settings:
     rain_intensity_enabled: bool = True
     rain_models: tuple[str, ...] = ("best_match", "icon_seamless", "gfs_seamless")
     rain_models_combine: str = "max"
+    # CAP <senderName> (services/cap.py), English and Hindi. Empty: the demo name, marked "(demo)". A
+    # production stack must carry the issuing authority's own name (template parameter CapSenderName;
+    # the deploy refuses an empty one for Stage=prod).
+    cap_sender_name: str = ""
+    cap_sender_name_hi: str = ""
+    # DPDP: villager reports (words, transcript, GPS) expire this many days after they were made
+    # (DynamoDB TTL), with their photo and voice note (S3 lifecycle, same parameter RetentionDays).
+    # 0 keeps them until deleted by hand.
+    report_retention_days: int = 0
 
     @property
     def guardrail_enabled(self) -> bool:
@@ -161,7 +171,7 @@ def get_settings() -> Settings:
         voice_max_attempts=max(1, min(5, int(os.environ.get("PUKAAR_VOICE_MAX_ATTEMPTS", "3")))),
         voice_ring_timeout_seconds=int(os.environ.get("PUKAAR_VOICE_RING_TIMEOUT_SECONDS", "40")),
         exotel_api_host=os.environ.get("PUKAAR_EXOTEL_API_HOST", "api.exotel.com").strip() or "api.exotel.com",
-        critical_auto_send=_bool("PUKAAR_CRITICAL_AUTO_SEND", True),
+        critical_auto_send=_bool("PUKAAR_CRITICAL_AUTO_SEND", False),
         river_ensemble_enabled=_bool("PUKAAR_RIVER_ENSEMBLE", True),
         river_ensemble_p_min=min(1.0, max(0.02, float(os.environ.get("PUKAAR_RIVER_ENSEMBLE_P_MIN", "0.3")))),
         official_data_enabled=_bool("PUKAAR_OFFICIAL_DATA", True),
@@ -176,6 +186,9 @@ def get_settings() -> Settings:
         rain_models=_rain_models(os.environ.get("PUKAAR_RAIN_MODELS", ",".join(DEFAULT_RAIN_MODELS))),
         rain_models_combine="mean" if os.environ.get("PUKAAR_RAIN_MODELS_COMBINE", "max").strip().lower() == "mean"
         else "max",
+        cap_sender_name=os.environ.get("PUKAAR_CAP_SENDER_NAME", "").strip(),
+        cap_sender_name_hi=os.environ.get("PUKAAR_CAP_SENDER_NAME_HI", "").strip(),
+        report_retention_days=max(0, int(os.environ.get("PUKAAR_REPORT_RETENTION_DAYS", "0") or "0")),
     )
 
 

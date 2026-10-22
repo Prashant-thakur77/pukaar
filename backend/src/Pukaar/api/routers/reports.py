@@ -80,12 +80,15 @@ async def create_report(
 
 @router.get("/reports")
 def list_reports(village_id: str = "", state: str = "",
-                 principal: Principal = Depends(Allowed("view_reports", "village"))) -> list[dict]:
+                 principal: Principal = Depends(Allowed("view_reports", "village", replay_reads=True))) -> list[dict]:
     repo = get_repo()
     villages = [village_id] if village_id else [v.id for v in repo.list_villages()]
     if principal.role == "pradhan":
         villages = [v for v in villages if v in principal.village_ids]
     out = [r for vid in villages for r in repo.list_reports(vid, limit=100)]
+    if principal.replay_only:
+        # A public demo account: Cedar lets it read replay reports only, never a villager's live one.
+        out = [r for r in out if r.replay]
     if state:
         out = [r for r in out if r.state in set(state.split(","))]
     out.sort(key=lambda r: r.created_at, reverse=True)

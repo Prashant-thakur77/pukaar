@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, ApiError } from './api';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { api, ApiError, cognitoSignIn, cognitoTotp } from './api';
 import { useAuth, useNet } from './store';
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -136,5 +136,78 @@ describe('api client', () => {
     fetchMock.mockResolvedValueOnce(json(200, [{ id: 'x', _sample: true }]));
     await api.villages();
     expect(useNet.getState().sample).toBe(true);
+  });
+});
+
+describe('Cognito sign-in with an authenticator app (MFA)', () => {
+  const amz = (i: number) => ({
+    url: String(fetchMock.mock.calls[i][0]),
+    target: (fetchMock.mock.calls[i][1]?.headers as Record<string, string>)['X-Amz-Target'],
+    body: JSON.parse(String(fetchMock.mock.calls[i][1]?.body)) as Record<string, unknown>,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv('VITE_COGNITO_REGION', 'ap-south-1');
+    vi.stubEnv('VITE_COGNITO_CLIENT_ID', 'client123');
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, writable: true, value: fetchMock });
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('a password alone is enough when the account has no MFA', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { AuthenticationResult: { IdToken: 'id-1' } }));
+    expect(await cognitoSignIn('officer1', 'pw')).toEqual({ kind: 'done', token: 'id-1' });
+    const c = amz(0);
+    expect(c.url).toBe('https://cognito-idp.ap-south-1.amazonaws.com/');
+    expect(c.target).toBe('AWSCognitoIdentityProviderService.InitiateAuth');
+    expect(c.body).toMatchObject({ AuthFlow: 'USER_PASSWORD_AUTH', ClientId: 'client123' });
+  });
+
+  it('an enrolled account answers SOFTWARE_TOKEN_MFA with the app code', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, { ChallengeName: 'SOFTWARE_TOKEN_MFA', Session: 's1', ChallengeParameters: { USER_ID_FOR_SRP: 'dso_mandi' } }))
+      .mockResolvedValueOnce(json(200, { AuthenticationResult: { IdToken: 'id-2' } }));
+    const step = await cognitoSignIn('DSO_Mandi', 'pw');
+    expect(step).toEqual({ kind: 'totp', username: 'dso_mandi', session: 's1' });
+    if (step.kind === 'done') throw new Error('expected a TOTP step');
+    expect(await cognitoTotp(step, '123 456')).toBe('id-2');
+    const c = amz(1);
+    expect(c.target).toBe('AWSCognitoIdentityProviderService.RespondToAuthChallenge');
+    expect(c.body).toEqual({
+      ChallengeName: 'SOFTWARE_TOKEN_MFA',
+      ClientId: 'client123',
+      Session: 's1',
+      ChallengeResponses: { USERNAME: 'dso_mandi', SOFTWARE_TOKEN_MFA_CODE: '123456' },
+    });
+  });
+
+  it('a first sign-in with MFA required registers the app (MFA_SETUP), then signs in', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, { ChallengeName: 'MFA_SETUP', Session: 's1', ChallengeParameters: {} }))
+      .mockResolvedValueOnce(json(200, { SecretCode: 'JBSWY3DPEHPK3PXP', Session: 's2' }))
+      .mockResolvedValueOnce(json(200, { Status: 'SUCCESS', Session: 's3' }))
+      .mockResolvedValueOnce(json(200, { AuthenticationResult: { IdToken: 'id-3' } }));
+    const step = await cognitoSignIn('officer1', 'pw');
+    expect(step).toMatchObject({ kind: 'setup', username: 'officer1', session: 's2', secret: 'JBSWY3DPEHPK3PXP' });
+    if (step.kind !== 'setup') throw new Error('expected the setup step');
+    expect(step.uri).toBe('otpauth://totp/Pukaar:officer1?secret=JBSWY3DPEHPK3PXP&issuer=Pukaar');
+    expect(amz(1)).toMatchObject({ target: 'AWSCognitoIdentityProviderService.AssociateSoftwareToken', body: { Session: 's1' } });
+    expect(await cognitoTotp(step, '654321')).toBe('id-3');
+    expect(amz(2)).toMatchObject({
+      target: 'AWSCognitoIdentityProviderService.VerifySoftwareToken',
+      body: { Session: 's2', UserCode: '654321' },
+    });
+    expect(amz(3).body).toEqual({ ChallengeName: 'MFA_SETUP', ClientId: 'client123', Session: 's3', ChallengeResponses: { USERNAME: 'officer1' } });
+  });
+
+  it('a wrong code is an error, and no token is returned', async () => {
+    fetchMock.mockResolvedValueOnce(json(400, { __type: 'CodeMismatchException', message: 'Invalid code received for user' }));
+    const err = (await cognitoTotp({ kind: 'totp', username: 'u', session: 's' }, '000000').catch((e) => e)) as ApiError;
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(400);
+    fetchMock.mockResolvedValueOnce(json(200, { Status: 'ERROR' }));
+    const setup = { kind: 'setup' as const, username: 'u', session: 's', secret: 'K', uri: 'otpauth://x' };
+    expect(((await cognitoTotp(setup, '000000').catch((e) => e)) as ApiError).status).toBe(400);
+    expect(fetchMock).toHaveBeenCalledTimes(2); // never went on to RespondToAuthChallenge
   });
 });

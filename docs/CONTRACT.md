@@ -90,6 +90,10 @@ Alert     {id, village_id, village_name, village_name_hi, level, previous_level,
            draft_check{passed, reason}, decision_trace{...}, recipients_count,
            officer_index, decided_by|null, decided_at|null, approved: bool,
            delivered_count, acknowledged_count, has_audio, replay}
+          (signed-in routes. On a public page (GET /villages/{id}) an alert has no officer usernames:
+           decided_by, officer_chain, officers_asked, all_clear_by and outcome_by are left out and
+           decided_by_role "officer"|"system"|null says who decided. Every other public answer puts
+           "staff" ("system" for the system) where a *_by field held a username: views.scrub_people.)
 Delivery  {alert_id, recipient_id, name, channel: "telegram"|"voice"|"stub", status,
            sent_at|null, attempts, acknowledged_at|null, error|null,
            provider|null, call_ids[], call_status|null, last_attempt_at|null, not_connected, no_key,
@@ -97,7 +101,10 @@ Delivery  {alert_id, recipient_id, name, channel: "telegram"|"voice"|"stub", sta
           (officer routes only. One row per person per channel: a "both" recipient has a telegram and
            a voice row, and delivered_count/acknowledged_count count people. A voice row is "pending"
            while the call rings, "sent" once answered (sent_at = first answer), "acknowledged" after
-           key 1 or 2, "failed" when not connected or not placed. No phone number in any shape.)
+           key 1 or 2, "failed" when not connected or not placed. No phone number in any shape.
+           Who it reached is Cedar view_recipients: a public demo account on a live alert gets each row
+           with recipient_id "hidden-<n>", name "Recipient <n>", no call_ids, error or digit, and
+           masked: true.)
 Report    {id, village_id, created_at, text, transcript, report_type, severity,
            summary_en, reply_hi, lat|null, lon|null, photo_url|null, audio_url|null,
            state, previous_state|null, parser_source, flags[], track_code, replay}
@@ -105,6 +112,7 @@ Report    {id, village_id, created_at, text, transcript, report_type, severity,
 PublicReport {id, village_id, created_at, report_type, severity, state, held, replay,
            has_location, has_photo, has_audio}   (never words, GPS, media links, names or codes)
 Directive {id, village_id, type, text_hi, text_en, issued_by, issued_at, active}
+          (signed out: no issued_by)
 Audit     {at, id, actor, role, action, resource, decision: "allow"|"deny", reason}
 Event     {at, step, detail}          (alert timeline)
 PastEvent {village_id, date, level, note_en, note_hi, source}
@@ -216,7 +224,8 @@ POST /villages/{id}/roadblocks/{bid}/clear  same Cedar: the road is open again; 
 GET  /alerts?status=&village_id=   [Alert]
 GET  /alerts/{id}            {alert, deliveries[], timeline[Event], audit[Audit]}
 GET  /alerts/{id}/after-action?fresh=&format=   officer, or pradhan of the alert's village (Cedar
-                             view_after_action; 403 otherwise): text/html after-action report (the copy stored
+                             view_after_action; 403 otherwise, and for a public demo account on a live
+                             alert): text/html after-action report (the copy stored
                              at close, else built now; fresh=true rebuilds); format=json -> the small summary.
                              No phone numbers or chat ids; first names only
 POST /alerts/{id}/outcome    officer (Cedar set_alert_outcome): {outcome: "real_flood"|"no_flood"|"unknown"}
@@ -238,7 +247,10 @@ POST /reports                multipart: village_id, text?, audio?, photo?, lat?,
                              hold_reason "source_rate_limit" | "village_surge" (services/report_guard.py).
                              The IP, network range, device and session are kept only as salted hashes and
                              never returned
-GET  /reports?village_id=&state=   officer/pradhan: [Report]
+GET  /reports?village_id=&state=   officer/pradhan: [Report]. A pradhan's list without village_id is
+                             checked once per own village (no Cedar policy matches an empty village). The
+                             public demo accounts (judge, judge_pradhan) get replay reports only
+                             (Cedar public-demo-accounts-replay-only); GET /rollcalls likewise
 PATCH /reports/{id}/state    officer: {state} -> Report (undo = PATCH back to previous_state)
 GET  /directives?village_id= [Directive]
 POST /directives             officer: {village_id, type, note_en?} -> Directive (+ stood_down when

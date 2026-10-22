@@ -2,7 +2,8 @@ import { Headline } from '../components/PageBand';
 import { useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LoaderCircle, LogIn, ShieldCheck, UserRound } from 'lucide-react';
-import { api, ApiError, cognitoEnabled, cognitoSignIn } from '../api';
+import { api, ApiError, cognitoEnabled, cognitoSignIn, cognitoTotp, type CognitoStep } from '../api';
+import { QRCode } from '../components/QRCode';
 import { ErrorState } from '../components/States';
 import { useT, type Key } from '../i18n';
 import { useAuth } from '../store';
@@ -23,6 +24,9 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
+  // The authenticator-app step (Cognito MFA), after the password was accepted.
+  const [mfa, setMfa] = useState<Exclude<CognitoStep, { kind: 'done' }> | null>(null);
+  const [code, setCode] = useState('');
   const next = (loc.state as { from?: string } | null)?.from ?? '/console';
 
   async function finish(token: string, fallbackUser: string) {
@@ -55,10 +59,31 @@ export default function Login() {
     setBusy('cognito');
     setError(null);
     try {
-      const token = await cognitoSignIn(username, password);
-      await finish(token, username);
+      const step = await cognitoSignIn(username, password);
+      if (step.kind === 'done') await finish(step.token, username);
+      else {
+        setCode('');
+        setMfa(step);
+      }
     } catch (err) {
       useAuth.getState().signOut();
+      setError(err instanceof ApiError ? err : new ApiError(0, null));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function totp(e: FormEvent) {
+    e.preventDefault();
+    if (!mfa) return;
+    setBusy('mfa');
+    setError(null);
+    try {
+      await finish(await cognitoTotp(mfa, code), username);
+    } catch (err) {
+      useAuth.getState().signOut();
+      // A Cognito session lasts a few minutes: once it has gone, start again from the password.
+      if (err instanceof ApiError && /session/i.test(String(err.detail ?? ''))) setMfa(null);
       setError(err instanceof ApiError ? err : new ApiError(0, null));
     } finally {
       setBusy(null);
@@ -92,7 +117,42 @@ export default function Login() {
           </h1>
           <p className="muted">{t('login.lead')}</p>
 
-          {cognitoEnabled ? (
+          {cognitoEnabled && mfa ? (
+            <form className="stack" onSubmit={totp}>
+              <p className="eyebrow">{t('login.mfa.title')}</p>
+              {mfa.kind === 'setup' ? (
+                <>
+                  <p className="small">{t('login.mfa.setup')}</p>
+                  <QRCode value={mfa.uri} label={t('login.mfa.qr')} />
+                  <p className="small muted">
+                    {t('login.mfa.key')}: <code style={{ wordBreak: 'break-all' }}>{mfa.secret}</code>
+                  </p>
+                </>
+              ) : (
+                <p className="small">{t('login.mfa.lead')}</p>
+              )}
+              <label className="field">
+                <span className="field-label">{t('login.mfa.code')}</span>
+                <input
+                  className="input-lg"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9 ]{6,7}"
+                  maxLength={7}
+                  required
+                  autoFocus
+                />
+              </label>
+              <button type="submit" className="btn btn-lg btn-accent btn-block btn-press" disabled={busy !== null}>
+                {busy ? <LoaderCircle className="spin" aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />} {t('login.mfa.verify')}
+              </button>
+              <button type="button" className="btn btn-block" onClick={() => setMfa(null)} disabled={busy !== null}>
+                {t('login.mfa.back')}
+              </button>
+            </form>
+          ) : cognitoEnabled ? (
             <form className="stack" onSubmit={cognito}>
               <label className="field">
                 <span className="field-label">{t('login.username')}</span>

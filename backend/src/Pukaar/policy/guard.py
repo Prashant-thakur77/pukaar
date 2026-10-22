@@ -36,6 +36,7 @@ DENY_HINTS = {
     "read_audit": "Only a district officer can read the audit trail.",
     "ask_analyst": "Only a district officer can use Ask Pukaar.",
     "view_reports": "You can only see reports from your own villages.",
+    "view_recipients": "You can only see who an alert reached in your own villages.",
     "deliver": "An alert is delivered only after an officer approves it.",
     "auto_send": "Auto-send is allowed only for a critical alert after every officer timed out.",
     "use_tool": "That tool is not on the agent's read-only allowlist.",
@@ -65,6 +66,9 @@ class Principal:
     username: str
     role: str  # officer | pradhan | system | agent
     village_ids: list[str] = field(default_factory=list)
+    # Set by api/auth.Allowed(replay_reads=True) when Cedar lets this caller read replay records only
+    # (a public demo account): the route then serves replay records and nothing live.
+    replay_only: bool = False
 
 
 SYSTEM = Principal("pukaar-system", "system")

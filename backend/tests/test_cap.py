@@ -197,3 +197,73 @@ def test_routes_serve_published_alerts_and_hide_the_rest(client):
     assert len(hrefs) <= cap.FEED_SIZE
     for field in ("id", "title", "updated", "author/atom:name"):
         assert root.find(f"atom:{field}", NS) is not None
+
+
+# -- who the message is from (CapSender, CapSenderName, CapSenderNameHi) -------------------------
+AUTHORITY = "District Disaster Management Authority, Mandi"
+AUTHORITY_HI = "ज़िला आपदा प्रबंधन प्राधिकरण, मंडी"
+
+
+def _sender_names(root: ET.Element) -> dict[str, str]:
+    return {text(i, "cap:language"): text(i, "cap:senderName") for i in root.findall("cap:info", NS)}
+
+
+def test_demo_sender_is_marked_demo_and_says_it_is_not_official():
+    root = render(make())
+    assert _sender_names(root) == {"hi-IN": cap.SENDER_NAME_HI, "en-IN": cap.SENDER_NAME}
+    assert "(demo)" in cap.SENDER_NAME and cap.DEMO_NOTE in text(root, "cap:note")
+
+
+def test_authority_sender_name_replaces_the_demo_one_in_both_languages():
+    xml = cap.render(make(), VILLAGE, sender="ddma-mandi@hp.gov.in", web_url="https://web.example",
+                     sender_name=AUTHORITY, sender_name_hi=AUTHORITY_HI)
+    SCHEMA.validate(xml.decode("utf-8"))
+    root = ET.fromstring(xml)
+    assert text(root, "cap:sender") == "ddma-mandi@hp.gov.in"
+    assert _sender_names(root) == {"hi-IN": AUTHORITY_HI, "en-IN": AUTHORITY}
+    assert root.find("cap:note", NS) is None  # a live alert from the authority carries no demo note
+    assert "(demo)" not in xml.decode("utf-8") and "डेमो" not in xml.decode("utf-8")
+    # no Hindi name given: the English one in both blocks; a replay still says it is a replay
+    replay = ET.fromstring(cap.render(make(replay=True), VILLAGE, sender="s@x", web_url="w", sender_name=AUTHORITY))
+    assert set(_sender_names(replay).values()) == {AUTHORITY}
+    assert "Replay" in text(replay, "cap:note") and cap.DEMO_NOTE not in text(replay, "cap:note")
+
+
+def test_all_clear_and_feed_carry_the_authority_name():
+    sent = make("warning", created="2026-07-01T02:00:00Z")
+    gohar = VILLAGE.model_copy(update={"level": "normal", "level_since": "2026-07-01T06:00:00Z"})
+    clear = cap.all_clear(gohar, [sent])
+    assert clear is not None
+    root = ET.fromstring(cap.render_all_clear(clear, sender="ddma-mandi@hp.gov.in", web_url="w",
+                                              sender_name=AUTHORITY, sender_name_hi=AUTHORITY_HI))
+    assert _sender_names(root) == {"hi-IN": AUTHORITY_HI, "en-IN": AUTHORITY}
+    assert cap.DEMO_NOTE not in text(root, "cap:note")
+    feed = ET.fromstring(cap.atom([sent], api_base="https://api.example", web_url="w", sender_name=AUTHORITY))
+    assert feed.find("atom:author/atom:name", NS).text == AUTHORITY
+    assert "(demo)" not in feed.find("atom:title", NS).text
+    demo_feed = ET.fromstring(cap.atom([sent], api_base="https://api.example", web_url="w"))
+    assert demo_feed.find("atom:title", NS).text.endswith("(demo)")
+
+
+def test_settings_read_the_sender_from_the_stack(monkeypatch, client):
+    from Pukaar.core.config import get_settings
+    from Pukaar.store.repo import get_repo
+
+    monkeypatch.setenv("PUKAAR_CAP_SENDER", "ddma-mandi@hp.gov.in")
+    monkeypatch.setenv("PUKAAR_CAP_SENDER_NAME", AUTHORITY)
+    monkeypatch.setenv("PUKAAR_CAP_SENDER_NAME_HI", AUTHORITY_HI)
+    get_settings.cache_clear()
+    try:
+        s = get_settings()
+        assert (s.cap_sender, s.cap_sender_name, s.cap_sender_name_hi) == ("ddma-mandi@hp.gov.in", AUTHORITY, AUTHORITY_HI)
+        a = make("warning", village="janjehli")
+        get_repo().put_alert(a)
+        root = ET.fromstring(client.get(f"/cap/alerts/{a.id}.xml").content)
+        assert text(root, "cap:sender") == "ddma-mandi@hp.gov.in"
+        assert _sender_names(root)["en-IN"] == AUTHORITY
+    finally:
+        for var in ("PUKAAR_CAP_SENDER", "PUKAAR_CAP_SENDER_NAME", "PUKAAR_CAP_SENDER_NAME_HI"):
+            monkeypatch.delenv(var)
+        get_settings.cache_clear()
+    s = get_settings()
+    assert s.cap_sender.startswith("pukaar-dev@") and s.cap_sender_name == ""  # dev keeps the demo sender

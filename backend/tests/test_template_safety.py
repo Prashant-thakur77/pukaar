@@ -301,15 +301,18 @@ def test_gauge_rule_feeds_the_ingest_lambda_with_errors_to_the_dlq():
 
 
 def test_sweep_may_only_invoke_the_nova_model_for_its_access_probe():
-    """The sweep's one model permission is a plain InvokeModel (what Converse needs) on Nova models and the US profile."""
+    """The sweep's one model permission is a plain InvokeModel (what Converse needs) on Nova models and
+    Nova inference profiles of this region (any geography: us., apac., global.)."""
     grants = [s for n, s in _statements() if n == "SweepFunction" and any(a.startswith("bedrock:") for a in _as_list(s["Action"]))]
     assert len(grants) == 1
     (s,) = grants
     assert s["Sid"] == "ModelAccessProbe" and _as_list(s["Action"]) == ["bedrock:InvokeModel"]
     resources = [r["Fn::Sub"] for r in _as_list(s["Resource"])]
-    assert resources and all(":foundation-model/amazon.nova-" in r or ":inference-profile/us.amazon.nova-" in r
+    assert resources and all(":foundation-model/amazon.nova-" in r or ":inference-profile/*.amazon.nova-" in r
                              for r in resources)
     assert not any(r.endswith("*:*") or r.endswith("/*") for r in resources)
+    profiles = [r for r in resources if ":inference-profile/" in r]
+    assert profiles and all(":${AWS::Region}:${AWS::AccountId}:" in r for r in profiles)
 
 
 def test_apply_guardrail_scoped_to_the_report_guardrail():

@@ -67,7 +67,7 @@ def villages() -> list[dict]:
     repo = get_repo()
     villages = repo.list_villages()
     shown = replay_svc.display(repo, villages)
-    return [views.village(repo, v, shown[v.id]) for v in villages]
+    return views.scrub_people([views.village(repo, v, shown[v.id]) for v in villages])
 
 
 @router.get("/villages/{village_id}")
@@ -76,7 +76,7 @@ def village(village_id: str) -> dict:
     v = repo.get_village(village_id)
     if v is None:
         raise HTTPException(404, "Village not found")
-    return views.village_detail(repo, v)
+    return views.scrub_people(views.village_detail(repo, v))
 
 
 @router.get("/villages/{village_id}/safe-places")
@@ -85,7 +85,7 @@ def village_safe_places(village_id: str) -> dict:
     repo = get_repo()
     if repo.get_village(village_id) is None:
         raise HTTPException(404, "Village not found")
-    return safe_places.view(repo, village_id)
+    return views.scrub_people(safe_places.view(repo, village_id))
 
 
 @router.get("/public/overview")
@@ -162,7 +162,8 @@ def cap_feed(request: Request) -> Response:
     alerts = [a for a in repo.list_alerts(limit=200) if cap.is_published(a)]
     # Cancels are derived here from each village's level, never stored (services/cap.py).
     clears = [c for c in (cap.all_clear(v, alerts) for v in repo.list_villages()) if c is not None]
-    body = cap.atom(alerts, api_base=_api_base(request), web_url=s.web_url, all_clears=clears)
+    body = cap.atom(alerts, api_base=_api_base(request), web_url=s.web_url, all_clears=clears,
+                    sender_name=s.cap_sender_name)
     return Response(content=body, media_type=cap.ATOM_CONTENT_TYPE, headers=_CAP_CACHE)
 
 
@@ -177,13 +178,15 @@ def cap_alert(alert_id: str) -> Response:
         clear = cap.all_clear(village, repo.list_alerts(village_id=village_id, limit=100)) if village else None
         if clear is None or clear.identifier != alert_id:
             raise HTTPException(404, "No current all-clear with this id")
-        body = cap.render_all_clear(clear, sender=s.cap_sender, web_url=s.web_url)
+        body = cap.render_all_clear(clear, sender=s.cap_sender, web_url=s.web_url,
+                                    sender_name=s.cap_sender_name, sender_name_hi=s.cap_sender_name_hi)
         return Response(content=body, media_type=cap.CAP_CONTENT_TYPE, headers=_CAP_CACHE)
     a = repo.get_alert(alert_id)
     if a is None or not cap.is_published(a):
         raise HTTPException(404, "No published alert with this id")
     refs = cap.references(a, repo.list_alerts(village_id=a.village_id, limit=100))
-    body = cap.render(a, repo.get_village(a.village_id), sender=s.cap_sender, web_url=s.web_url, refs=refs)
+    body = cap.render(a, repo.get_village(a.village_id), sender=s.cap_sender, web_url=s.web_url, refs=refs,
+                      sender_name=s.cap_sender_name, sender_name_hi=s.cap_sender_name_hi)
     return Response(content=body, media_type=cap.CAP_CONTENT_TYPE, headers=_CAP_CACHE)
 
 
