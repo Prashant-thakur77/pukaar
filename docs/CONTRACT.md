@@ -34,7 +34,7 @@ Every record that came from replay data carries `replay: true`.
 Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`, `GET /villages/{id}/safe-places`,
 `GET /villages/{id}/staff-gauges`,
 `POST /reports`, `POST /alerts/{id}/ack`, `GET /approval/{token}`,
-`POST /approval/{token}`, `POST /telegram/webhook`, `GET /public/overview`,
+`POST /approval/{token}`, `POST /telegram/webhook`, `GET /public/overview`, `GET /public/pilot-metrics`,
 `GET /track/{code}`, `GET /replay/status`, `GET /alerts/{id}/audio`, `GET /safe/{token}`,
 `POST /sensors/{id}/readings` (river gauge, HMAC-signed body, see docs/hardware/README.md),
 `GET /cap/alerts.atom` and `GET /cap/alerts/{id}.xml` (CAP 1.2 feed of published alerts, XML),
@@ -221,6 +221,14 @@ Counters  every one counted from stored records, nothing estimated (api/views.py
                                         per sweep), replay rows excluded
           gauge_readings_24h            river-gauge readings received in the last 24 h (as GET /sensors)
           gauge_readings_24h_simulated  how many of those came from the labelled simulator
+GET  /public/pilot-metrics   {counters: Counters, drills: Group, live: Group, backtest|null, as_of}  (api/pilot.py)
+          Group = {alerts, reached, acknowledged, ack_share|null, median_minutes_first_ack|null,
+                   median_minutes_to_ack|null}; drills = drill alerts that reached a real phone, live = live
+                   alerts that went out. reached counts real-phone deliveries only (never the stub channel).
+                   Null means not measured yet; nothing is estimated.
+          backtest = {rules, scenarios[{name, title, title_hi, villages_scored, villages_alerted,
+                     median_lead_hours|null, max_lead_hours|null, villages[{village_id, village, outcome,
+                     lead_hours|null}]}]}  from data/backtest.json
 GET  /track/{code}           {code, village_name, village_name_hi, created_at, report_type, state,
                               steps[{key:"received"|"verified"|"acted_on", done, at|null}]}
 POST /telegram/webhook       Telegram update; header X-Telegram-Bot-Api-Secret-Token

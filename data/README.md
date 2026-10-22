@@ -14,6 +14,7 @@ script in this repository. The few hand-entered files say so in their `_note`.
 | `ground_truth.json` | What actually happened in each village during each scenario, with the source for every entry | News and government reports, cited per entry | Edit by hand, with a source |
 | `scores.json` | The back-test scored against `ground_truth.json`, with a source ablation (rain only, river only, both); method in [docs/SCORING.md](../docs/SCORING.md) | Computed | `python -m Pukaar.scripts.score` |
 | `evidence.json` | The sourced numbers shown on the landing and how-it-works pages | Published reports and papers, cited per entry | Edit by hand, with a source |
+| `pilot_readiness.json` | The pilot-readiness checklist on /pilot: each item's status (done, in progress, not started), why it matters and its owner | Hand-kept; statuses are honest as of `updated` | Edit by hand (the page picks it up at the next web build) |
 | `safe_places/*.geojson`, `summary.json` | Named high ground near each village and slope-aware walking routes to it | © OpenStreetMap contributors (ODbL), via Overpass; heights from Mapzen Terrain Tiles on AWS Open Data | `scripts/build_safe_places.py` |
 
 Licences: OpenStreetMap data is ODbL and must keep its attribution; Open-Meteo

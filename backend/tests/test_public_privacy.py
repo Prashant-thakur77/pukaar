@@ -96,7 +96,8 @@ def test_every_public_route_is_free_of_personal_data(seeded):
             if report_like:
                 assert key not in FORBIDDEN_IN_REPORT, f"{url}: {where}.{key} inside a report"
     # the walk really covered the public pages
-    for p in ("/villages", "/villages/{village_id}", "/public/overview", "/track/{code}", "/agents/traces",
+    for p in ("/villages", "/villages/{village_id}", "/public/overview", "/public/pilot-metrics", "/track/{code}",
+              "/agents/traces",
               "/sensors", "/villages/{village_id}/safe-places", "/directives"):
         assert p in checked, p
 

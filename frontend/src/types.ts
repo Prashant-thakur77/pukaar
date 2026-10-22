@@ -763,6 +763,39 @@ export interface PublicOverview extends SampleFlag {
   replay: { active: boolean };
 }
 
+/** GET /public/pilot-metrics (api/pilot.py). Null means not measured yet; nothing is estimated. */
+export interface PilotGroup {
+  alerts: number;
+  /** Real-phone deliveries (never the stub channel), summed over the alerts. */
+  reached: number;
+  acknowledged: number;
+  /** 0..1 */
+  ack_share: number | null;
+  /** Per alert: first send to the first "मिल गया"; the median over alerts. */
+  median_minutes_first_ack: number | null;
+  /** Per person: their send to their "मिल गया"; the median over people. */
+  median_minutes_to_ack: number | null;
+}
+
+export interface PilotBacktestScenario {
+  name: string;
+  title: string;
+  title_hi: string | null;
+  villages_scored: number;
+  villages_alerted: number;
+  median_lead_hours: number | null;
+  max_lead_hours: number | null;
+  villages: { village_id: string; village: string; outcome: string; lead_hours: number | null }[];
+}
+
+export interface PilotMetrics extends SampleFlag {
+  counters: Counters;
+  drills: PilotGroup;
+  live: PilotGroup;
+  backtest: { rules: string | null; scenarios: PilotBacktestScenario[] } | null;
+  as_of: string;
+}
+
 export interface TrackStep {
   key: 'received' | 'verified' | 'acted_on';
   done: boolean;

@@ -277,6 +277,17 @@ const server = http.createServer(async (req, res) => {
   if (p === '/push/vapid-public-key') return send(res, 200, { key: null, configured: false });
   if (p === '/me') return needUser() && send(res, 200, user);
   if (p === '/public/overview') return send(res, 200, overview());
+  if (p === '/public/pilot-metrics') {
+    // SAMPLE: a drill measured, no live alert yet (nulls are "not measured yet" on /pilot).
+    const none = { alerts: 0, reached: 0, acknowledged: 0, ack_share: null, median_minutes_first_ack: null, median_minutes_to_ack: null };
+    return send(res, 200, {
+      counters: overview().counters,
+      drills: { alerts: 2, reached: 31, acknowledged: 24, ack_share: 0.774, median_minutes_first_ack: 1.5, median_minutes_to_ack: 6.2 },
+      live: none,
+      backtest: null,
+      as_of: iso(0),
+    });
+  }
   if (p === '/villages') return send(res, 200, VILLAGES.map(village));
   if (seg[0] === 'villages' && seg[1] && (seg[2] === 'safe-places' || seg[2] === 'shelters')) {
     if (!VILLAGES.find((x) => x.id === seg[1])) return send(res, 404, { detail: 'Village not found' });

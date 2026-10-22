@@ -784,6 +784,8 @@ export const dict = {
   'nav.agents.sub': { hi: 'क्या करते हैं, क्या कभी नहीं कर सकते', en: 'What they do, what they may never do' },
   'nav.sensors': { hi: 'सेंसर', en: 'Sensors' },
   'nav.sensors.sub': { hi: 'नदी के गेज से नियमों तक', en: 'From the river gauge to the rules' },
+  'nav.pilot': { hi: 'पायलट', en: 'Pilot' },
+  'nav.pilot.sub': { hi: 'ख़र्च, मापे गए आँकड़े, तैयारी', en: 'Cost, what is measured, readiness' },
 
   // virtual staff gauges (CrowdWater pattern)
   'state.loading': { hi: 'लोड हो रहा है…', en: 'Loading…' },

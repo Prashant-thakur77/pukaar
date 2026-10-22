@@ -322,6 +322,8 @@ Resources:
         ApprovalPost: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/approval/{token}", Method: POST, Auth: { Authorizer: NONE } } }
         TelegramWebhook: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /telegram/webhook, Method: POST, Auth: { Authorizer: NONE } } }
         PublicOverview: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /public/overview, Method: GET, Auth: { Authorizer: NONE } } }
+        # Pilot metrics for /pilot: drill and acknowledgement counts and medians, back-test lead times (api/pilot.py). No personal data.
+        PilotMetrics: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /public/pilot-metrics, Method: GET, Auth: { Authorizer: NONE } } }
         Track: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/track/{code}", Method: GET, Auth: { Authorizer: NONE } } }
         # Roll-call family link: a signed 7-day token; the answer is a first name, a time and a village, nothing else.
         SafeShare: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/safe/{token}", Method: GET, Auth: { Authorizer: NONE } } }

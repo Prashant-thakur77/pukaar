@@ -25,3 +25,4 @@ dist-ssr
 
 # copied from ../data at build time
 public/backtest.json
+public/pilot_readiness.json

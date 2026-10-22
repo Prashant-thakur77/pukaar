@@ -1,0 +1,131 @@
+{
+  "how_to_update": "Change an item's status to done, in_progress or not_started, add a short note if useful, and set updated to today's date. The /pilot page reads this file at build time (frontend/scripts/copy-backtest.mjs copies it to public/). Keep the ids.",
+  "updated": "2026-10-22",
+  "items": [
+    {
+      "id": "ddma_approval",
+      "status": "not_started",
+      "title": { "en": "DDMA approval", "hi": "DDMA की मंज़ूरी" },
+      "why": {
+        "en": "The DM Act (s.30) makes the District Authority responsible for early warning; no pilot runs without its consent.",
+        "hi": "आपदा प्रबंधन क़ानून (धारा 30) चेतावनी की ज़िम्मेदारी ज़िला प्राधिकरण को देता है; उसकी सहमति के बिना कोई पायलट नहीं।"
+      },
+      "owner": { "en": "District authority (DDMA), asked by the Pukaar team", "hi": "ज़िला प्राधिकरण (DDMA), पुकार टीम के अनुरोध पर" }
+    },
+    {
+      "id": "dlt_registration",
+      "status": "not_started",
+      "title": { "en": "DLT registration (TRAI)", "hi": "DLT पंजीकरण (TRAI)" },
+      "why": {
+        "en": "Indian operators block SMS from a sender, header or template that is not registered on DLT.",
+        "hi": "DLT पर पंजीकृत न हो तो भारतीय ऑपरेटर उस भेजने वाले, हेडर या संदेश-ढाँचे का SMS रोक देते हैं।"
+      },
+      "owner": { "en": "Pukaar team", "hi": "पुकार टीम" }
+    },
+    {
+      "id": "voice_provider",
+      "status": "not_started",
+      "title": { "en": "Voice provider account (Exotel or Plivo)", "hi": "वॉइस कॉल कंपनी का खाता (Exotel या Plivo)" },
+      "why": {
+        "en": "Keypad phones and people who cannot read need a call with “press 1”; Telegram reaches smartphones only.",
+        "hi": "कीपैड फ़ोन और जो पढ़ नहीं सकते, उन्हें “1 दबाएँ” वाली कॉल चाहिए; Telegram सिर्फ़ स्मार्टफ़ोन तक पहुँचता है।"
+      },
+      "owner": { "en": "Pukaar team", "hi": "पुकार टीम" }
+    },
+    {
+      "id": "imd_api_key",
+      "status": "not_started",
+      "title": { "en": "IMD API key", "hi": "IMD API कुंजी" },
+      "why": {
+        "en": "Official IMD rain data and district warnings beside the global forecasts used today.",
+        "hi": "आज के वैश्विक पूर्वानुमान के साथ IMD की आधिकारिक बारिश जानकारी और ज़िला चेतावनियाँ।"
+      },
+      "owner": { "en": "Pukaar team, with a request from the DDMA", "hi": "पुकार टीम, DDMA के अनुरोध के साथ" }
+    },
+    {
+      "id": "forecast_licence",
+      "status": "not_started",
+      "title": { "en": "Commercial forecast licence", "hi": "पूर्वानुमान का व्यावसायिक लाइसेंस" },
+      "why": {
+        "en": "Open-Meteo’s free tier is for non-commercial use; a paid or funded pilot needs a licence.",
+        "hi": "Open-Meteo का मुफ़्त स्तर ग़ैर-व्यावसायिक उपयोग के लिए है; पैसे से चलने वाले पायलट को लाइसेंस चाहिए।"
+      },
+      "owner": { "en": "Pukaar team", "hi": "पुकार टीम" }
+    },
+    {
+      "id": "pradhan_consent",
+      "status": "not_started",
+      "title": { "en": "Pradhan consent, per village", "hi": "प्रधान की सहमति, हर गाँव में" },
+      "why": {
+        "en": "The pradhan enrols households and keeps the safe-place list; no village is enrolled without consent.",
+        "hi": "प्रधान घरों को जोड़ते हैं और सुरक्षित जगहों की सूची रखते हैं; सहमति के बिना कोई गाँव नहीं जुड़ता।"
+      },
+      "owner": { "en": "Gram panchayat pradhan", "hi": "ग्राम पंचायत प्रधान" }
+    },
+    {
+      "id": "safe_places_verified",
+      "status": "in_progress",
+      "title": { "en": "Safe places verified on the ground", "hi": "सुरक्षित जगहें ज़मीन पर जाँची गईं" },
+      "why": {
+        "en": "An alert should send people only to a place someone has walked to and found open.",
+        "hi": "चेतावनी लोगों को सिर्फ़ उसी जगह भेजे जहाँ कोई जाकर देख आया हो कि वह खुली है।"
+      },
+      "note": {
+        "en": "Places and routes are baked from OpenStreetMap; none is verified on the ground yet.",
+        "hi": "जगहें और रास्ते OpenStreetMap से लिए गए हैं; अभी कोई भी ज़मीन पर जाँचा नहीं गया।"
+      },
+      "owner": { "en": "Pradhan, with the Pukaar team", "hi": "प्रधान, पुकार टीम के साथ" }
+    },
+    {
+      "id": "gauge_installed",
+      "status": "not_started",
+      "title": { "en": "River gauge installed", "hi": "नदी का गेज लगा" },
+      "why": {
+        "en": "The global forecasts missed the 2025 Mandi cloudburst in our back-test; a local gauge sees the river rise.",
+        "hi": "हमारे बैक-टेस्ट में वैश्विक पूर्वानुमान 2025 का मंडी बादल-फटना नहीं पकड़ पाए; गाँव का गेज नदी का चढ़ना देखता है।"
+      },
+      "note": { "en": "Gauges on the site are simulated and labelled.", "hi": "साइट पर गेज सिम्युलेटेड हैं और ऐसा लिखा है।" },
+      "owner": { "en": "Pukaar team, with the panchayat for the site", "hi": "पुकार टीम, जगह के लिए पंचायत के साथ" }
+    },
+    {
+      "id": "field_drill",
+      "status": "not_started",
+      "title": { "en": "Field drill done", "hi": "गाँव में अभ्यास हुआ" },
+      "why": {
+        "en": "Only a drill with real households measures who was reached, who confirmed and who knew where to go.",
+        "hi": "सिर्फ़ असली घरों के साथ अभ्यास से पता चलता है कि किस तक पहुँचा, किसने पुष्टि की और कौन जानता था कहाँ जाना है।"
+      },
+      "owner": { "en": "Pukaar team and the pradhan", "hi": "पुकार टीम और प्रधान" }
+    },
+    {
+      "id": "local_language",
+      "status": "not_started",
+      "title": { "en": "Local-language templates recorded (Mandeali, Kangri)", "hi": "स्थानीय बोली में संदेश रिकॉर्ड (मंडियाली, कांगड़ी)" },
+      "why": {
+        "en": "Older people understand their own dialect best; today the voice is Hindi only.",
+        "hi": "बुज़ुर्ग अपनी बोली सबसे अच्छी समझते हैं; आज आवाज़ सिर्फ़ हिंदी में है।"
+      },
+      "owner": { "en": "Pukaar team, with village volunteers", "hi": "पुकार टीम, गाँव के स्वयंसेवकों के साथ" }
+    },
+    {
+      "id": "dpdp_notice",
+      "status": "not_started",
+      "title": { "en": "Data-protection notice (DPDP Act 2023)", "hi": "डेटा सुरक्षा सूचना (DPDP क़ानून 2023)" },
+      "why": {
+        "en": "Phone numbers are personal data: a plain Hindi notice and consent come before anyone is registered.",
+        "hi": "फ़ोन नंबर निजी जानकारी है: किसी को जोड़ने से पहले सरल हिंदी में सूचना और सहमति।"
+      },
+      "owner": { "en": "Pukaar team", "hi": "पुकार टीम" }
+    },
+    {
+      "id": "auto_send_approval",
+      "status": "not_started",
+      "title": { "en": "Auto-send on no answer, approved by the DDMA", "hi": "जवाब न मिलने पर अपने-आप भेजना, DDMA की मंज़ूरी" },
+      "why": {
+        "en": "Pukaar sends a critical alert when no officer answers; the district must agree to that rule in writing.",
+        "hi": "कोई अधिकारी जवाब न दे तो पुकार गंभीर चेतावनी ख़ुद भेजता है; ज़िले को यह नियम लिखित में मानना होगा।"
+      },
+      "owner": { "en": "District authority (DDMA)", "hi": "ज़िला प्राधिकरण (DDMA)" }
+    }
+  ]
+}

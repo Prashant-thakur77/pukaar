@@ -22,6 +22,7 @@ import type {
   GaugeThresholdSet,
   Health,
   Me,
+  PilotMetrics,
   PublicOverview,
   ReplayStatus,
   PushSubscriptionView,
@@ -302,6 +303,7 @@ export const api = {
   ask: (question: string) => request<AskResponse>('/ask/officer', { method: 'POST', body: { question } }),
 
   overview: () => request<PublicOverview>('/public/overview', { auth: false }),
+  pilotMetrics: () => request<PilotMetrics>('/public/pilot-metrics', { auth: false }),
   track: (code: string) => request<TrackView>(`/track/${enc(code)}`, { auth: false }),
 
   rollcalls: (village_id?: string) => request<RollCall[]>(`/rollcalls${qs({ village_id })}`),
@@ -324,6 +326,17 @@ export async function loadBacktest(): Promise<Backtest | null> {
     if (!type.includes('json')) return null;
     const data = (await res.json()) as Backtest;
     return Array.isArray(data?.scenarios) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The hand-kept pilot-readiness checklist, served by the web host (data/pilot_readiness.json). Null when absent. */
+export async function loadPilotReadiness(): Promise<unknown> {
+  try {
+    const res = await fetch('/pilot_readiness.json', { headers: { Accept: 'application/json' } });
+    if (!res.ok || !(res.headers.get('content-type') ?? '').includes('json')) return null;
+    return await res.json();
   } catch {
     return null;
   }

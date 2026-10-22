@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
-from Pukaar.api import views
+from Pukaar.api import pilot, views
 from Pukaar.api.auth import DEV_USERS, dev_token
 from Pukaar.core.config import get_settings
 from Pukaar.delivery import dispatch, telegram
@@ -108,6 +108,12 @@ def overview() -> dict:
                            "replay": a.replay} for a in alerts],
         "replay": {"active": repo.get_replay().active},
     }
+
+
+@router.get("/public/pilot-metrics")
+def pilot_metrics() -> dict:
+    """What has been measured for a pilot (api/pilot.py): counts and medians only, no personal data."""
+    return pilot.metrics(get_repo())
 
 
 @router.get("/track/{code}")

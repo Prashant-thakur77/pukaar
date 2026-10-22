@@ -59,6 +59,7 @@ const Track = lazyPage(() => import('./pages/Track'));
 const Safe = lazyPage(() => import('./pages/Safe'));
 const Approve = lazyPage(() => import('./pages/Approve'));
 const Impact = lazyPage(() => import('./pages/Impact'));
+const Pilot = lazyPage(() => import('./pages/Pilot'));
 const Login = lazyPage(() => import('./pages/Login'));
 const Audit = lazyPage(() => import('./pages/Audit'));
 const NotFound = lazyPage(() => import('./pages/NotFound'));
@@ -91,6 +92,7 @@ export default function App() {
             <Route path="console" element={<ConsolePage />} />
             <Route path="audit" element={<Audit />} />
             <Route path="impact" element={<Impact />} />
+            <Route path="pilot" element={<Pilot />} />
             <Route path="login" element={<Login />} />
             <Route path="*" element={<NotFound />} />
           </Route>

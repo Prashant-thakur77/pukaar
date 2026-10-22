@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Bot,
   ChevronDown,
+  ClipboardCheck,
   History,
   LogOut,
   Menu,
@@ -39,11 +40,12 @@ const NAV = [
   { to: '/impact', key: 'nav.impact' },
 ] as const;
 
-/** "How it works" opens a small menu: the loop, the agents, the sensors. */
+/** "How it works" opens a small menu: the loop, the agents, the sensors, the pilot. */
 const HOW_GROUP = [
   { to: '/how', key: 'nav.loop', sub: 'nav.loop.sub', icon: Workflow },
   { to: '/agents', key: 'nav.agents', sub: 'nav.agents.sub', icon: Bot },
   { to: '/sensors', key: 'nav.sensors', sub: 'nav.sensors.sub', icon: RadioTower },
+  { to: '/pilot', key: 'nav.pilot', sub: 'nav.pilot.sub', icon: ClipboardCheck },
 ] as const;
 
 function HowMenu() {
@@ -308,6 +310,7 @@ function Footer() {
           <Link to="/agents">{t('nav.agents')}</Link>
           <Link to="/sensors">{t('nav.sensors')}</Link>
           <Link to="/impact">{t('nav.impact')}</Link>
+          <Link to="/pilot">{t('nav.pilot')}</Link>
         </nav>
         <nav className="ftr-col" aria-label={en ? 'Use it' : 'इस्तेमाल करें'}>
           <span className="ftr-h">{en ? 'Use it' : 'इस्तेमाल करें'}</span>
