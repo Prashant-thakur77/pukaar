@@ -1,6 +1,7 @@
 # SAM CLI settings. Two stacks from the one template:
 #   dev  (default)  pukaar-dev in us-east-1: the demo and judging stack.
 #   prod            pukaar-prod in ap-south-1 (Mumbai): the pilot stack (docs/DEPLOY.md, "Production stage").
+#   raahat          pukaar-raahat in us-east-1: the Pukaar Raahat (web3-social-good branch) demo stack, apart from dev.
 # Run sam from the repository root, or use `make deploy` / `make deploy STAGE=prod`.
 # Values that belong to one deployment (the alarm address, the CAP sender, the voice provider) are not here:
 # `make deploy` reads them from the gitignored .env.deploy.local / .env.deploy.prod.local.
@@ -56,3 +57,28 @@ resolve_s3 = true
 resolve_image_repos = true
 s3_prefix = "pukaar-prod"
 parameter_overrides = "Stage=prod ApprovalTimeoutSeconds=600 AckWaitSeconds=300 Architecture=x86_64 ReplayEnabled=false CriticalAutoSend=false RequireMfa=true RetentionDays=365 ReadingRetentionDays=400 BedrockModelId=global.amazon.nova-2-lite-v1:0 BedrockFallbackRegion=ap-southeast-1"
+
+# Pukaar Raahat demo stack (branch web3-social-good): its own API, site, table and Cognito, so the dev stack is
+# untouched. No Telegram webhook points here; replays use the stub channel. Contract addresses come from
+# .env.deploy.raahat.local (make raahat-deploy RAAHAT_NETWORK=base-sepolia writes contracts/deployments/).
+[raahat.global.parameters]
+stack_name = "pukaar-raahat"
+region = "us-east-1"
+
+[raahat.validate.parameters]
+template_file = "infra/template.yaml"
+lint = true
+
+[raahat.build.parameters]
+template_file = "infra/template.yaml"
+cached = true
+parallel = true
+
+[raahat.deploy.parameters]
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+resolve_image_repos = true
+s3_prefix = "pukaar-raahat"
+parameter_overrides = "Stage=raahat ApprovalTimeoutSeconds=600 AckWaitSeconds=300 Architecture=x86_64 ReplayEnabled=true CriticalAutoSend=false RequireMfa=false RetentionDays=0 ReadingRetentionDays=30"

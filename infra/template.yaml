@@ -437,7 +437,7 @@ Resources:
     Metadata:
       Dockerfile: backend/Dockerfile
       DockerContext: ..
-      DockerTag: api
+      DockerTag: raahat-api  # this branch: local image tags apart from main's, so parallel builds never swap images
       DockerBuildTarget: api
     Properties:
       PackageType: Image
@@ -563,7 +563,7 @@ Resources:
     Metadata:
       Dockerfile: backend/Dockerfile
       DockerContext: ..
-      DockerTag: worker
+      DockerTag: raahat-worker
       DockerBuildTarget: worker
     Properties:
       PackageType: Image
@@ -616,7 +616,7 @@ Resources:
     Metadata:
       Dockerfile: backend/Dockerfile
       DockerContext: ..
-      DockerTag: worker
+      DockerTag: raahat-worker
       DockerBuildTarget: worker
     Properties:
       PackageType: Image
@@ -699,7 +699,7 @@ Resources:
     Metadata:
       Dockerfile: backend/Dockerfile
       DockerContext: ..
-      DockerTag: worker
+      DockerTag: raahat-worker
       DockerBuildTarget: worker
     Properties:
       PackageType: Image
@@ -777,7 +777,7 @@ Resources:
     Metadata:
       Dockerfile: backend/Dockerfile
       DockerContext: ..
-      DockerTag: worker
+      DockerTag: raahat-worker
       DockerBuildTarget: worker
     Properties:
       PackageType: Image
@@ -923,7 +923,7 @@ Resources:
     Metadata:
       Dockerfile: backend/Dockerfile
       DockerContext: ..
-      DockerTag: worker
+      DockerTag: raahat-worker
       DockerBuildTarget: worker
     Properties:
       PackageType: Image

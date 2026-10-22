@@ -15,7 +15,7 @@ import '../../raahat.css';
 type Tier = RaahatRelief['tiers'][number];
 
 /** One alert's two tiers: amount, eligibility (reason codes in words) and the one-tap Release. */
-function ReliefCard({ item, village }: { item: RaahatLedgerItem; village: Village | undefined }) {
+function ReliefCard({ item, village, onReleased }: { item: RaahatLedgerItem; village: Village | undefined; onReleased: () => void }) {
   const { t, lang } = useT();
   const [relief, setRelief] = useState<RaahatRelief | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
@@ -51,6 +51,7 @@ function ReliefCard({ item, village }: { item: RaahatLedgerItem; village: Villag
       setBusy(false);
       setConfirm(null);
       void load();
+      onReleased(); // the pool balance and the ledger change with a release: re-read them now
     }
   };
 
@@ -134,8 +135,14 @@ export function Relief({ villages }: { villages: Village[] }) {
   const { t, lang } = useT();
   const ledger = usePoll(() => api.raahatLedger(), [], 30000, { live: [CHANNELS.raahat, CHANNELS.alerts] });
   const pool = usePoll(() => api.raahatPool(), [], 60000, { live: [CHANNELS.raahat] });
+  // Names: the console's list when it has them, else this panel's own (it can render before the console's arrives).
+  const own = usePoll(() => api.villages(), [], 300000);
   const items = (ledger.data?.items ?? []).filter((i) => i.anchor_state === 'sent').slice(0, 8);
-  const byId = new Map(villages.map((v) => [v.id, v]));
+  const byId = new Map([...(own.data ?? []), ...villages].map((v) => [v.id, v]));
+  const refresh = () => {
+    void ledger.refresh();
+    void pool.refresh();
+  };
   return (
     <div className="relief">
       <p className="small muted">{t('raahat.relief.lead')}</p>
@@ -150,7 +157,7 @@ export function Relief({ villages }: { villages: Village[] }) {
       ) : (
         <ul className="relief-list">
           {items.map((it) => (
-            <ReliefCard key={it.alert_id} item={it} village={byId.get(it.village_id)} />
+            <ReliefCard key={it.alert_id} item={it} village={byId.get(it.village_id)} onReleased={refresh} />
           ))}
         </ul>
       )}

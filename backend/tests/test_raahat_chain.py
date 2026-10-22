@@ -201,3 +201,14 @@ def test_alert_anchor_route(api_client, monkeypatch):
     monkeypatch.setattr(chain, "load_config", lambda: None)
     assert api_client.get("/raahat/alerts/alr_1").json() == {"alert_id": "alr_1", "tx": "0xabc", "public_rpc_url": None}
     assert api_client.get("/raahat/alerts/alr_none").status_code == 404
+
+
+def test_a_deployed_stack_never_points_at_a_local_anvil(monkeypatch):
+    """Anvil (31337) is for local mode only: a stack given anvil addresses runs with Raahat off."""
+    monkeypatch.setattr(chain, "_aws_mode", lambda: True)
+    monkeypatch.setenv("RAAHAT_CHAIN_ID", "31337")
+    monkeypatch.setenv("RAAHAT_TEST_INR", TOKEN)
+    monkeypatch.setenv("RAAHAT_POOL", POOL)
+    assert chain.load_config() is None
+    monkeypatch.setenv("RAAHAT_CHAIN_ID", "84532")
+    assert chain.load_config() is not None

@@ -90,6 +90,9 @@ def load_config() -> ChainConfig | None:
         rpc_url = os.environ.get("RAAHAT_RPC_URL", "").strip() or PUBLIC_RPCS.get(chain_id, "")
         if not chain_id or not rpc_url:
             return None
+        if chain_id == 31337 and _aws_mode():  # anvil is for local mode only, never a deployed stack
+            log(_LOG, "raahat config refused: anvil addresses on a deployed stack", 40)
+            return None
         addresses = {name: Web3.to_checksum_address(os.environ.get(env) or dep[name])
                      for name, env in ADDRESS_ENV.items()}
         for name, env in OPTIONAL_ADDRESS_ENV.items():

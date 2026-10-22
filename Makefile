@@ -43,11 +43,21 @@ DEPLOY_EXTRA   = $(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL)) \
                  $(if $(EDGE_WEB_ACL_ARN),EdgeWebAclArn=$(EDGE_WEB_ACL_ARN)) \
                  $(if $(CAP_SENDER),CapSender=$(CAP_SENDER)) \
                  $(if $(CAP_SENDER_NAME),'CapSenderName="$(CAP_SENDER_NAME)"') \
-                 $(if $(CAP_SENDER_NAME_HI),'CapSenderNameHi="$(CAP_SENDER_NAME_HI)"')
+                 $(if $(CAP_SENDER_NAME_HI),'CapSenderNameHi="$(CAP_SENDER_NAME_HI)"') \
+                 $(RAAHAT_STACK_PARAMS)
+# Pukaar Raahat contract addresses, for STAGE=raahat only (contracts/deployments/<RAAHAT_STACK_NETWORK>.json, which
+# make raahat-deploy writes). Any other stage deploys with Raahat off, as before.
+RAAHAT_STACK_NETWORK ?= base-sepolia
+RAAHAT_DEPLOYMENT = contracts/deployments/$(RAAHAT_STACK_NETWORK).json
+raahat_json = $(shell jq -r '.$(1) // empty' $(RAAHAT_DEPLOYMENT) 2>/dev/null)
+RAAHAT_STACK_PARAMS = $(if $(filter raahat,$(STAGE)),$(if $(wildcard $(RAAHAT_DEPLOYMENT)),\
+                 RaahatChainId=$(call raahat_json,chain_id) RaahatTestInr=$(call raahat_json,test_inr) \
+                 RaahatPool=$(call raahat_json,pool) RaahatPoolIsContract=true \
+                 RaahatAlertRegistry=$(call raahat_json,alert_registry) RaahatOracle=$(call raahat_json,oracle)))
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
         seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke \
-        test-contracts raahat-deps raahat-anvil raahat-deploy raahat-fund raahat-seed-households
+        test-contracts raahat-deps raahat-anvil raahat-deploy raahat-fund raahat-seed-households raahat-signer-ssm
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -178,8 +188,13 @@ local: ## Run backend (PUKAAR_MODE=local, :8000) and Vite dev server (:5173); AP
 RAAHAT_NETWORK    ?= anvil
 RAAHAT_ANVIL_PORT ?= 8545
 RAAHAT_ANVIL_FROM ?= 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
-RAAHAT_RPC_URL    ?= $(if $(filter anvil,$(RAAHAT_NETWORK)),http://127.0.0.1:$(RAAHAT_ANVIL_PORT))
+RAAHAT_RPC_URL    ?= $(if $(filter anvil,$(RAAHAT_NETWORK)),http://127.0.0.1:$(RAAHAT_ANVIL_PORT),$(RAAHAT_RPC_DEFAULT))
+# The key reaches forge, the backend and the AWS CLI only through the environment of these targets: it is never
+# on a command line, so neither the log nor `make -n` shows it.
 RAAHAT_SIGN        = $(if $(filter anvil,$(RAAHAT_NETWORK)),--unlocked --sender $(RAAHAT_ANVIL_FROM),--private-key "$$RAAHAT_DEPLOYER_KEY")
+raahat-deploy raahat-fund raahat-seed-households raahat-signer-ssm: export RAAHAT_DEPLOYER_KEY := $(RAAHAT_DEPLOYER_KEY)
+raahat-deploy raahat-fund raahat-seed-households: export RAAHAT_ORACLE := $(RAAHAT_ORACLE)
+RAAHAT_RPC_DEFAULT = $(if $(filter base-sepolia,$(RAAHAT_NETWORK)),https://sepolia.base.org,$(if $(filter arbitrum-sepolia,$(RAAHAT_NETWORK)),https://sepolia-rollup.arbitrum.io/rpc,$(if $(filter polygon-amoy,$(RAAHAT_NETWORK)),https://rpc-amoy.polygon.technology)))
 export RAAHAT_NETWORK
 
 raahat-deps: ## Fetch the pinned contract dependencies (OpenZeppelin 5.1, forge-std) with soldeer
@@ -192,11 +207,21 @@ raahat-anvil: ## Local chain for Raahat on :8545, state kept in contracts/.anvil
 
 raahat-deploy: raahat-deps ## Deploy the Raahat contracts, addresses to contracts/deployments/<network>.json (RAAHAT_NETWORK=base-sepolia)
 	@test -n "$(RAAHAT_RPC_URL)" || { echo "RAAHAT_RPC_URL is not set for RAAHAT_NETWORK=$(RAAHAT_NETWORK)." >&2; exit 2; }
-	cd contracts && forge script script/Deploy.s.sol --rpc-url "$(RAAHAT_RPC_URL)" --broadcast $(RAAHAT_SIGN)
+	@echo "forge script Deploy.s.sol on $(RAAHAT_NETWORK) ($(RAAHAT_RPC_URL))"
+	@cd contracts && forge script script/Deploy.s.sol --rpc-url "$(RAAHAT_RPC_URL)" --broadcast $(RAAHAT_SIGN)
 	@cat contracts/deployments/$(RAAHAT_NETWORK).json; echo
 
 raahat-fund: ## Mint test tINR into the pool (RAAHAT_FUND_TINR=500000 whole tINR; test money, no value)
-	cd contracts && forge script script/Fund.s.sol --rpc-url "$(RAAHAT_RPC_URL)" --broadcast $(RAAHAT_SIGN)
+	@echo "forge script Fund.s.sol on $(RAAHAT_NETWORK)"
+	@cd contracts && forge script script/Fund.s.sol --rpc-url "$(RAAHAT_RPC_URL)" --broadcast $(RAAHAT_SIGN)
 
-raahat-seed-households: ## Per-village Merkle root of salted household hashes from the recipient rows (local mode: the seeded demo)
-	cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.households
+raahat-seed-households: ## Household roots and cash-out agents on chain (local mode; STAGE=raahat: the deployed table and the testnet)
+	@if [ "$(STAGE)" = raahat ]; then \
+	  eval "$$(scripts/stack_env.sh)"; cd backend && RAAHAT_SIGNER_KEY="$$RAAHAT_DEPLOYER_KEY" \
+	    RAAHAT_DEPLOYMENTS=$(abspath $(RAAHAT_DEPLOYMENT)) PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.households; \
+	else cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.households; fi
+
+raahat-signer-ssm: ## Store the testnet signer key as the SecureString /pukaar-raahat/<stage>/signer_key (STAGE=raahat), never printed
+	@test -n "$$RAAHAT_DEPLOYER_KEY" || { echo "RAAHAT_DEPLOYER_KEY is not set in .env.deploy.local." >&2; exit 2; }
+	@aws ssm put-parameter --region $(REGION) --name /pukaar-raahat/$(STAGE)/signer_key --type SecureString \
+	  --overwrite --value "$$RAAHAT_DEPLOYER_KEY" --query Version --output text | sed 's/^/stored, version /'
