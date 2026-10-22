@@ -11,6 +11,7 @@ Channels (infra/template.yaml, namespaces "public" and "officer"):
   /public/alerts      an alert's status changed         anyone (API key)
   /public/deliveries  delivered / acknowledged counts   anyone (API key)
   /public/rollcall    roll-call counts for a village    anyone (API key)
+  /public/raahat      a relief release (raahat/relief.py): ids, tier, amounts   anyone (API key)
   /officer/alerts     approvals and roll-call "need help"  signed-in users (Cognito)
 
 Payloads carry ids, levels, statuses, times and counts only: never alert

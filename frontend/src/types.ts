@@ -1335,6 +1335,79 @@ export interface RaahatPool {
   block?: number;
   token?: { address: string; symbol: string; decimals: number };
   pool?: { address: string; is_contract: boolean; balance_wei: string };
+  /** The sealed relief rule (ReliefPool), once the pool is the contract. */
+  rule?: RaahatRule | null;
+  illustrative?: string;
+}
+
+export interface RaahatRule {
+  min_level: number;
+  amount_anticipatory_wei: string;
+  amount_confirmed_wei: string;
+  cooldown_hours: number;
+  sealed: boolean;
+  sealed_at: number;
+  allow_exercise?: boolean;
+}
+
+export interface RaahatRelease {
+  tier: number;
+  state: 'sending' | 'sent' | 'failed';
+  tx: string | null;
+  households: number | null;
+  amount_wei: string | null;
+  total_wei: string | null;
+  at: string | null;
+}
+
+/** GET /raahat/ledger: one row per alert with a chain record. Ids, counts, amounts and hashes only. */
+export interface RaahatLedgerItem {
+  alert_id: string;
+  village_id: string;
+  level: number;
+  exercise: boolean;
+  anchor_state: 'sending' | 'sent' | 'failed' | null;
+  anchor_tx: string | null;
+  anchored_at: string | null;
+  cap_hash: string | null;
+  cap_uri: string | null;
+  outcome_tx: string | null;
+  delivered: number | null;
+  acknowledged: number | null;
+  chain_id: number;
+  network: string;
+  explorer: string | null;
+  releases: RaahatRelease[];
+}
+
+export interface RaahatLedger {
+  items: RaahatLedgerItem[];
+  illustrative: string;
+}
+
+export type RaahatWhy =
+  | 'raahat_off' | 'not_anchored' | 'chain_unreachable' | 'rules_not_sealed' | 'exercise_not_allowed'
+  | 'already_released' | 'level_below_rule' | 'cooldown' | 'not_confirmed' | 'no_households' | 'no_agent'
+  | 'pool_too_small';
+
+/** GET /raahat/alerts/{id}/relief (officer): per tier, eligible or why not. */
+export interface RaahatRelief {
+  alert_id: string;
+  village_id: string;
+  level: number;
+  exercise: boolean;
+  anchored: boolean;
+  illustrative: string;
+  rule: RaahatRule | null;
+  tiers: {
+    tier: 1 | 2;
+    eligible: boolean;
+    why: RaahatWhy[];
+    households: number | null;
+    amount_wei: string | null;
+    total_wei: string | null;
+    release: (RaahatRelease & { by?: string }) | null;
+  }[];
 }
 
 /** GET /raahat/alerts/{id}: an alert's anchor on the AlertRegistry. Ids, counts and hashes only. */

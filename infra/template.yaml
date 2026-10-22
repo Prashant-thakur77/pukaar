@@ -159,11 +159,12 @@ Parameters:
   RaahatPool:
     Type: String
     Default: ""
-    Description: "Relief pool address (the ReliefPool contract once deployed). Empty: Raahat off."
+    Description: "ReliefPool contract address (pool in contracts/deployments/<network>.json). Empty: Raahat off."
   RaahatPoolIsContract:
     Type: String
-    Default: "false"
+    Default: "true"
     AllowedValues: ["true", "false"]
+    Description: "true once RaahatPool is the ReliefPool contract (every deploy from Step 2 on)."
   RaahatAlertRegistry:
     Type: String
     Default: ""
@@ -534,6 +535,7 @@ Resources:
         CapAlert: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/cap/alerts/{file}", Method: GET, Auth: { Authorizer: NONE } } }
         RaahatPool: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /raahat/pool, Method: GET, Auth: { Authorizer: NONE } } }
         RaahatAlert: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/raahat/alerts/{alert_id}", Method: GET, Auth: { Authorizer: NONE } } }
+        RaahatLedger: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /raahat/ledger, Method: GET, Auth: { Authorizer: NONE } } }
         # Read-only agent registry, decision traces and gauge board: no personal data (services/agents.py).
         Agents: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agents, Method: GET, Auth: { Authorizer: NONE } } }
         AgentTraces: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agents/traces, Method: GET, Auth: { Authorizer: NONE } } }
@@ -1278,7 +1280,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub pukaar-${Stage}-raahat-tx-failed
-      AlarmDescription: A Pukaar Raahat chain transaction (alert anchor, outcome) failed. No alert was held back or changed; the chain record is missing until close retries it.
+      AlarmDescription: A Pukaar Raahat chain transaction (alert anchor, outcome, relief release) failed. No alert was held back or changed; the chain record is missing until close retries it.
       Metrics:
         - Id: q
           Expression: "SELECT SUM(RaahatTxFailed) FROM Pukaar"

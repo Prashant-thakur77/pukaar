@@ -11,8 +11,14 @@ an HMAC input: names, phones and chat ids never leave DynamoDB, and nothing here
 The salt is the SecureString raahat_household_salt (core/secrets.py). Local mode, where nothing is
 secret, uses LOCAL_SALT so a root built in one process matches the proofs built in another.
 
-`make raahat-seed-households` prints each village's root and count. Writing the roots to ReliefPool
-comes with the contract (PLAN.md Step 2).
+On non-prod stages the register adds labelled demo households (data/raahat/demo_households.json: no
+phone, no name) so the testnet demo has a village's worth of households; prod registers recipients only.
+
+`make raahat-seed-households` builds each village's tree, stores a snapshot of its hashes (never the ids)
+at RAAHAT#HOUSEHOLDS#<village> / ROOT so later proofs match the root on chain, and, when the ReliefPool is
+configured, sends setHouseholds and setCashOutAgent. On testnet the cash-out agent is the backend's own
+signer, holding the village's relief for the pradhan (no wallets for pradhans); in production it is the
+Business Correspondent's or pradhan's own account (RAAHAT_AGENT_<VILLAGE>).
 """
 
 from __future__ import annotations
@@ -92,7 +98,12 @@ class VillageTree:
 
 
 def village_tree(village_id: str, recipients: Iterable[Recipient], salt_: bytes) -> VillageTree:
-    hashes = sorted({household_hash(village_id, r.id, salt_) for r in recipients if r.village_id == village_id})
+    return tree_of(village_id, {household_hash(village_id, r.id, salt_) for r in recipients
+                                if r.village_id == village_id})
+
+
+def tree_of(village_id: str, household_hashes: Iterable[bytes]) -> VillageTree:
+    hashes = sorted(set(household_hashes))
     tree = VillageTree(village_id=village_id, households=hashes)
     if hashes:
         layer = sorted(leaf(h) for h in hashes)
@@ -102,6 +113,63 @@ def village_tree(village_id: str, recipients: Iterable[Recipient], salt_: bytes)
                      for i in range(0, len(layer), 2)]
             tree.layers.append(layer)
     return tree
+
+
+SNAPSHOT_PK, SNAPSHOT_SK = "RAAHAT#HOUSEHOLDS#", "ROOT"
+DEMO_FILE = "raahat/demo_households.json"
+
+
+def _demo_allowed() -> bool:
+    return get_settings().stage != "prod"
+
+
+def _demo_counts() -> dict[str, int]:
+    path = get_settings().data_dir / DEMO_FILE
+    if not path.is_file():
+        return {}
+    return {k: int(v) for k, v in json.loads(path.read_text(encoding="utf-8")).items() if not k.startswith("_")}
+
+
+def register(repo, village_id: str) -> list[tuple[str, bool]]:
+    """(householdNo, is_demo) for every household of the village: its registered recipients, plus the labelled
+    demo households off prod."""
+    out = [(r.id, False) for r in repo.list_recipients(village_id)]
+    if _demo_allowed():
+        out += [(f"demo-household-{village_id}-{i:03d}", True) for i in range(1, _demo_counts().get(village_id, 0) + 1)]
+    return out
+
+
+def snapshot(repo, village_id: str) -> dict | None:
+    item = repo._get(SNAPSHOT_PK + village_id, SNAPSHOT_SK)
+    if not item:
+        return None
+    return {k: (int(v) if k in {"count", "demo"} else v) for k, v in item.items() if k not in {"pk", "sk"}}
+
+
+def snapshot_tree(repo, village_id: str) -> VillageTree | None:
+    snap = snapshot(repo, village_id)
+    return tree_of(village_id, (bytes.fromhex(h[2:]) for h in snap["hashes"])) if snap else None
+
+
+def seed(repo, pool, salt_: bytes) -> list[dict]:
+    """Build, snapshot and (with a pool client) write every village's root and cash-out agent."""
+    import os
+
+    from Pukaar.core import clock
+
+    out = []
+    for v in repo.list_villages():
+        reg = register(repo, v.id)
+        tree = tree_of(v.id, (household_hash(v.id, no, salt_) for no, _ in reg))
+        row = {**tree.summary(), "demo": sum(1 for _, demo in reg if demo), "households_tx": None, "agent_tx": None}
+        if pool is not None:
+            agent = os.environ.get(f"RAAHAT_AGENT_{v.id.upper()}", "").strip() or pool.cfg.oracle
+            row["households_tx"] = pool.set_households(village_key(v.id), tree.root, tree.count)
+            row["agent_tx"] = pool.set_cash_out_agent(village_key(v.id), agent) if agent else None
+        repo._put({"pk": SNAPSHOT_PK + v.id, "sk": SNAPSHOT_SK, **row, "at": clock.iso(clock.now()),
+                   "hashes": ["0x" + h.hex() for h in tree.households]})
+        out.append(row)
+    return out
 
 
 def main() -> int:
@@ -116,9 +184,13 @@ def main() -> int:
     if key is None:
         print("raahat_household_salt is not set in SSM: no roots built (scripts/put_secrets.sh).")
         return 2
-    repo = get_repo()
-    for v in repo.list_villages():
-        print(json.dumps(village_tree(v.id, repo.list_recipients(v.id), key).summary()))
+    from Pukaar.raahat import relief
+
+    pool = relief._client()
+    if pool is None:
+        print("ReliefPool not configured: roots are built and stored, not written on chain.")
+    for row in seed(get_repo(), pool, key):
+        print(json.dumps(row))
     return 0
 
 

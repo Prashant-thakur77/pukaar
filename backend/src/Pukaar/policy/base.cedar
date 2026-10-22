@@ -119,7 +119,8 @@ permit (
 @desc("Replay alerts never reach real phones, by Telegram or by voice call, and neither does their all-clear; they go to the stub channel only.")
 forbid (
   principal,
-  action in [Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe", Pukaar::Action::"all_clear"],
+  action in [Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe", Pukaar::Action::"all_clear",
+             Pukaar::Action::"notify_relief"],
   resource
 )
 when { context.replay == true && context.channel != "stub" };
@@ -259,7 +260,7 @@ forbid (
     Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe",
     Pukaar::Action::"edit_roster", Pukaar::Action::"take_over_duty", Pukaar::Action::"set_alert_outcome",
     Pukaar::Action::"view_reports", Pukaar::Action::"view_recipients", Pukaar::Action::"view_rollcall",
-    Pukaar::Action::"view_after_action", Pukaar::Action::"set_recipient_role"
+    Pukaar::Action::"view_after_action", Pukaar::Action::"set_recipient_role", Pukaar::Action::"release_relief"
   ],
   resource
 )
@@ -282,5 +283,23 @@ permit (
 permit (
   principal is Pukaar::System,
   action == Pukaar::Action::"all_clear",
+  resource is Pukaar::Alert
+);
+
+// Pukaar Raahat (PLAN.md): code decides eligibility, the contract enforces the sealed rule, and only a
+// district officer releases. The public demo accounts may release only for replay alerts (the forbid above).
+@id("officer-release-relief")
+@desc("A district officer releases relief for an alert under the sealed rule; the ReliefPool contract re-checks eligibility.")
+permit (
+  principal is Pukaar::Officer,
+  action == Pukaar::Action::"release_relief",
+  resource is Pukaar::Alert
+);
+
+@id("system-notify-relief")
+@desc("After an officer released relief for a live alert, the system tells the village's registered Telegram users (replays never: the forbid above).")
+permit (
+  principal is Pukaar::System,
+  action == Pukaar::Action::"notify_relief",
   resource is Pukaar::Alert
 );

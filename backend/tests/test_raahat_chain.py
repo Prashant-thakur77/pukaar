@@ -72,6 +72,7 @@ def test_read_pool_returns_balance_as_exact_wei_string():
         "chain_id": 31337, "network": "anvil", "explorer": None, "block": 1234,
         "token": {"address": TOKEN, "symbol": "tINR", "decimals": 18},
         "pool": {"address": POOL, "is_contract": False, "balance_wei": str(500_000 * 10**18)},
+        "rule": None,
     }
 
 

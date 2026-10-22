@@ -31,6 +31,7 @@ from Pukaar.store.repo import ConflictError, Repo
 
 _LOG = get_logger("raahat")
 PK, SK = "RAAHAT#ALERT#", "ANCHOR"
+LEDGER_PK = "RAAHAT#LEDGER"  # one row per alert with a chain record, newest first by the alert's creation
 LEVELS = {"watch": 1, "warning": 2, "critical": 3}
 ZERO = b"\x00" * 32
 PUBLIC_KEYS = ("alert_id", "alert_key", "village_id", "level", "exercise", "cap_hash", "cap_uri", "registry",
@@ -70,6 +71,11 @@ def public_view(repo: Repo, alert_id: str) -> dict[str, Any] | None:
     view = {k: row.get(k) for k in PUBLIC_KEYS}
     view["explorer"] = chain.explorer_url(int(row.get("chain_id") or 0))
     return view
+
+
+def index(repo: Repo, alert: Alert) -> None:
+    repo._put({"pk": LEDGER_PK, "sk": f"{alert.created_at}#{alert.id}", "alert_id": alert.id,
+               "village_id": alert.village_id})
 
 
 def _client() -> chain.RaahatChain | None:
@@ -126,6 +132,8 @@ def _anchor_alert(repo: Repo, alert_id: str, client: chain.RaahatChain | None = 
     tx = client.anchor_alert(alert_key(alert.id), record)
     repo._update(PK + alert_id, SK, {"state": "sent" if tx else "failed", "tx": tx, "cap_hash": "0x" + keccak(xml).hex(),
                                     "cap_uri": cap_uri(alert.id), "anchored_at": clock.iso(clock.now())})
+    if tx:
+        index(repo, alert)
     repo.add_timeline(alert.id, "raahat_anchor",
                       f"anchored on {client.cfg.network}: tx {tx}" + (" (exercise)" if exercise else "") if tx
                       else f"chain anchor on {client.cfg.network} failed; the alert went out unchanged")

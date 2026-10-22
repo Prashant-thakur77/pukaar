@@ -203,6 +203,53 @@ class RaahatChain:
         return self._send("anchor_outcome", reg.functions.anchorOutcome(alert_key, delivered, acknowledged,
                                                                         report_hash))
 
+    def _pool(self) -> Any:
+        if not self.cfg.pool_is_contract:
+            raise RuntimeError("the pool is not the ReliefPool contract yet (RAAHAT_POOL_IS_CONTRACT)")
+        return self.w3.eth.contract(address=self.cfg.addresses["pool"], abi=abi.RELIEF_POOL)
+
+    def release(self, alert_key: bytes, tier: int) -> str | None:
+        try:
+            pool = self._pool()
+        except Exception as exc:
+            log(_LOG, "raahat tx failed", 40, what="release", network=self.cfg.network, error=str(exc)[:200])
+            metric("RaahatTxFailed", 1)
+            return None
+        return self._send("release", pool.functions.release(alert_key, tier))
+
+    def set_households(self, village_key: bytes, root: bytes, count: int) -> str | None:
+        return self._send("set_households", self._pool().functions.setHouseholds(village_key, root, count))
+
+    def set_cash_out_agent(self, village_key: bytes, agent: str) -> str | None:
+        return self._send("set_cash_out_agent", self._pool().functions.setCashOutAgent(village_key, agent))
+
+    def relief_state(self, village_key: bytes, alert_key: bytes, exercise: bool) -> dict | None:
+        """Everything the ReliefPool checks for a release, read now: the code's pre-check mirrors the contract."""
+        def read() -> dict:
+            pool = self._pool()
+            f = pool.functions
+            token = self.w3.eth.contract(address=self.cfg.addresses["test_inr"], abi=abi.ERC20)
+            min_level, amount_a, amount_c, cooldown = f.rule().call()
+            agent = f.cashOutAgent(village_key).call()
+            confirmer = f.confirmation().call()
+            confirmed = None
+            if int(confirmer, 16) != 0:
+                confirmed = self.w3.eth.contract(address=confirmer, abi=abi.CONFIRMATION).functions.isConfirmed(
+                    alert_key).call()
+            return {
+                "sealed": f.rulesSealed().call(), "sealed_at": f.sealedAt().call(),
+                "allow_exercise": f.allowExercisePayout().call(),
+                "rule": {"min_level": min_level, "amount_anticipatory_wei": amount_a,
+                         "amount_confirmed_wei": amount_c, "cooldown_hours": cooldown},
+                "households": f.householdCount(village_key).call(),
+                "agent": None if int(agent, 16) == 0 else agent,
+                "balance_wei": token.functions.balanceOf(pool.address).call(),
+                "released": {1: f.released(alert_key, 1).call(), 2: f.released(alert_key, 2).call()},
+                "last_anticipatory": f.lastAnticipatory(village_key, exercise).call(),
+                "now": self.w3.eth.get_block("latest")["timestamp"], "confirmed": confirmed,
+            }
+        return self._safe("relief_state", read)
+
     def read_pool(self) -> dict | None:
         """The pool's tINR balance (exact wei, as a string), the token and the block it was read at."""
         def read() -> dict:
@@ -215,8 +262,16 @@ class RaahatChain:
                           "decimals": token.functions.decimals().call()},
                 "pool": {"address": pool, "is_contract": self.cfg.pool_is_contract,
                          "balance_wei": str(token.functions.balanceOf(pool).call())},
+                "rule": self._rule() if self.cfg.pool_is_contract else None,
             }
         return self._safe("read_pool", read)
+
+    def _rule(self) -> dict:
+        f = self._pool().functions
+        min_level, amount_a, amount_c, cooldown = f.rule().call()
+        return {"min_level": min_level, "amount_anticipatory_wei": str(amount_a), "amount_confirmed_wei": str(amount_c),
+                "cooldown_hours": cooldown, "sealed": f.rulesSealed().call(), "sealed_at": f.sealedAt().call(),
+                "allow_exercise": f.allowExercisePayout().call()}
 
 
 def client() -> RaahatChain | None:

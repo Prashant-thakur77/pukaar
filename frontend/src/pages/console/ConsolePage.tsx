@@ -2,7 +2,7 @@ import { ChainReceiptLazy } from '../../components/ChainReceiptLazy';
 import { useState } from 'react';
 import { TimeToEar } from '../../components/TimeToEar';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { ArrowRight, Bell, BellRing, CalendarClock, ChevronDown, Cloud, Download, FileText, HeartHandshake, History, Home, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
+import { ArrowRight, Bell, BellRing, CalendarClock, ChevronDown, Cloud, Download, FileText, HandCoins, HeartHandshake, History, Home, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
 import { api, API_BASE, ApiError } from '../../api';
 import { AlertStatusChip, DeliveryChips } from '../../components/Chips';
 import { LevelBadge } from '../../components/Level';
@@ -24,6 +24,7 @@ import { useAuth } from '../../store';
 import { Approvals } from './Approvals';
 import { Ask } from './Ask';
 import { Directives } from './Directives';
+import { Relief } from './Relief';
 import { Replay } from './Replay';
 import { ReportFeed } from './ReportFeed';
 import { RollCallPanel } from './RollCall';
@@ -81,6 +82,7 @@ function Console() {
     { href: '#reports', label: t('console.tab.reports'), icon: FileText },
     ...(officer
       ? [
+          { href: '#relief', label: t('raahat.relief.title'), icon: HandCoins },
           { href: '#ask', label: t('console.tab.ask'), icon: Sparkles },
           { href: '#act', label: t('console.tab.act'), icon: Megaphone },
         ]
@@ -134,6 +136,14 @@ function Console() {
         <HeartHandshake aria-hidden="true" /> {t('rollcall.title')}
       </h2>
       <RollCallPanel villages={vs} villageIds={officer ? null : myIds} />
+    </section>
+  );
+  const secRelief = (
+    <section id="relief" className="panel panel-relief" aria-labelledby="rl-h">
+      <h2 id="rl-h" className="panel-title">
+        <HandCoins aria-hidden="true" /> {t('raahat.relief.title')}
+      </h2>
+      <Relief villages={vs} />
     </section>
   );
   const secAsk = (
@@ -218,6 +228,7 @@ function Console() {
         {officer ? (
           <>
             {secApprovals}
+            {secRelief}
             {secQueue}
             {secTop}
             {secRollcall}

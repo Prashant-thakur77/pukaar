@@ -18,6 +18,7 @@ export const CHANNELS = {
   alerts: '/public/alerts',
   deliveries: '/public/deliveries',
   rollcall: '/public/rollcall',
+  raahat: '/public/raahat',
   officer: '/officer/alerts',
 } as const;
 

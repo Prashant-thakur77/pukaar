@@ -145,12 +145,40 @@ async function apiChecks() {
     expect(body.includes('<feed xmlns="http://www.w3.org/2005/Atom">'), 'not an Atom feed');
     return `${(body.match(/<entry>/g) ?? []).length} entries`;
   });
+
+  // Pukaar Raahat (PLAN.md): the pool with its sealed rule, and a ledger whose transactions are real hashes on a
+  // real explorer. SMOKE_RAAHAT=off for a stack deployed without Raahat.
+  if (process.env.SMOKE_RAAHAT !== 'off') {
+    await check('api', 'GET /raahat/pool: configured, sealed, readable', async () => {
+      const { res, body } = await get('/raahat/pool');
+      expect(res.status === 200, `status ${res.status}`);
+      expect(body.configured === true, 'Raahat not configured on this stack');
+      expect(body.reachable === true, 'the API could not read the chain');
+      expect(body.rule && body.rule.sealed === true, 'relief rule not sealed');
+      expect(/^\d+$/.test(body.pool?.balance_wei ?? ''), 'pool balance missing');
+      expect(!('rpc_url' in body), "the backend's RPC URL is exposed");
+      return `${body.network}, pool ${BigInt(body.pool.balance_wei) / 10n ** 18n} tINR, rule sealed`;
+    });
+    await check('api', 'GET /raahat/ledger: links to real transactions', async () => {
+      const { res, body } = await get('/raahat/ledger');
+      expect(res.status === 200, `status ${res.status}`);
+      expect(Array.isArray(body.items), 'items missing');
+      expect(body.illustrative?.includes('illustrative'), 'illustrative label missing');
+      const anchored = body.items.filter((i) => i.anchor_state === 'sent');
+      for (const it of anchored) {
+        expect(/^0x[0-9a-f]{64}$/.test(it.anchor_tx ?? ''), `anchor tx of ${it.alert_id} is not a tx hash`);
+        expect(it.explorer?.startsWith('https://'), `no explorer link for ${it.alert_id}`);
+      }
+      expect(!/"name"|chat_id|phone/.test(JSON.stringify(body)), 'personal data in the ledger');
+      return `${body.items.length} alerts, ${anchored.length} anchored`;
+    });
+  }
 }
 
 // ---------------------------------------------------------------- API: protected routes refuse anonymous calls
 async function authChecks() {
   // Everything not listed as public in infra/template.yaml goes through the Cognito authorizer.
-  const protectedGets = ['/overview', '/stats', '/alerts', '/health/deep'];
+  const protectedGets = ['/overview', '/stats', '/alerts', '/health/deep', '/raahat/alerts/x/relief'];
   for (const path of protectedGets) {
     await check('auth', `GET ${path} without a token is 401`, async () => {
       const { res } = await get(path);

@@ -58,6 +58,8 @@ DENY_HINTS = {
     "take_over_duty": "Only a district officer can take over a duty shift.",
     "all_clear": "The all-clear goes only to people contacted for a stood-down alert.",
     "set_alert_outcome": "Only a district officer can record whether an alert was real.",
+    "release_relief": "Only a district officer can release relief.",
+    "notify_relief": "Relief messages go to real phones for live alerts only.",
     "set_recipient_role": "Only a district officer, or the pradhan of this village, can name its relays.",
 }
 

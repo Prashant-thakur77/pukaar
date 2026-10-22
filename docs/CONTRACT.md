@@ -38,7 +38,7 @@ Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`, 
 `GET /track/{code}`, `GET /replay/status`, `GET /alerts/{id}/audio`, `GET /safe/{token}`,
 `POST /sensors/{id}/readings` and `POST /sensors/{id}/backfill` (river gauge, HMAC-signed body, see docs/hardware/README.md),
 `GET /cap/alerts.atom` and `GET /cap/alerts/{id}.xml` (CAP 1.2 feed of published alerts, XML),
-`GET /raahat/pool` and `GET /raahat/alerts/{id}` (Pukaar Raahat: the relief pool and an alert's chain anchor; ids, amounts and hashes only),
+`GET /raahat/pool`, `GET /raahat/ledger` and `GET /raahat/alerts/{id}` (Pukaar Raahat: the relief pool and its sealed rule, the ledger, an alert's chain anchor; ids, amounts and hashes only),
 `GET /agents`, `GET /agents/traces?limit=5`, `GET /sensors` (read-only, no personal data),
 `GET /push/vapid-public-key` (the Web Push applicationServerKey; `{key: null, configured: false}` until `make vapid-keys`),
 the voice-call webhooks (`GET`/`HEAD /voice/exotel/flow`, `GET /voice/exotel/gather`, `POST /voice/exotel/status`,
@@ -150,6 +150,21 @@ GET  /raahat/alerts/{id}     public: the alert's AlertRegistry anchor {alert_id,
                              cap_hash, cap_uri, registry, chain_id, network, explorer, public_rpc_url, tx, state
                              sending|sent|failed, anchored_at, outcome_tx, outcome_state, delivered, acknowledged,
                              after_action_hash}; 404 when the alert was never anchored
+GET  /raahat/ledger?village_id=  public: {items[{alert_id, village_id, level, exercise, anchor_state, anchor_tx,
+                             anchored_at, cap_hash, cap_uri, outcome_tx, delivered, acknowledged, chain_id, network,
+                             explorer, releases[{tier, state, tx, households, amount_wei, total_wei, at}]}],
+                             illustrative}; newest first; no names, no officer usernames
+GET  /raahat/alerts/{id}/relief  officer (view_console): {alert_id, village_id, level, exercise, anchored, rule,
+                             illustrative, tiers[{tier 1|2, eligible, why[code], households, amount_wei, total_wei,
+                             release|null}]}; why codes: raahat_off, not_anchored, chain_unreachable, rules_not_sealed,
+                             exercise_not_allowed, already_released, level_below_rule, cooldown, not_confirmed,
+                             no_households, no_agent, pool_too_small
+POST /raahat/alerts/{id}/release  officer (Cedar release_relief; the public demo accounts on replay alerts only):
+                             {tier: 1|2} -> {state: "sent", tx, tier, households, amount_wei, total_wei, ...};
+                             409 {code} when not eligible (a why code); 502 {code: "chain_failed"} when the chain
+                             refused or was unreachable (tap again). A sent release is pushed on /public/raahat
+                             {type, kind, alert_id, village_id, tier, households, total_wei, exercise, at} and, for a
+                             live alert only, told to the village's Telegram users as test money
 GET  /health/deep            officer: one 1-token Converse call now; {bedrock: "ok"|"pending model access"|"failed"|"disabled", model, detail}; refreshes the cached model-access flag
 GET  /me                     {username, role, village_ids}
 POST /me/telegram-link       officer: {} -> {code, command, expires_in_seconds}  (one-time; send the

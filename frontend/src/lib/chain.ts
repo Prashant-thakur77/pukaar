@@ -3,13 +3,7 @@
 import { createPublicClient, erc20Abi, formatUnits, http, keccak256, parseAbi, toBytes, type Hex, type Transport } from 'viem';
 import type { Lang } from '../store';
 
-export function explorerAddress(explorer: string | null | undefined, address: string): string | null {
-  return explorer ? `${explorer}/address/${address}` : null;
-}
-
-export function explorerTx(explorer: string | null | undefined, hash: string): string | null {
-  return explorer ? `${explorer}/tx/${hash}` : null;
-}
+export { explorerAddress, explorerTx } from './chain-links';
 
 /** Whole tINR (18 decimals) with Indian grouping and at most 2 decimals, exact for any amount. */
 export function formatTinr(wei: string | bigint, lang: Lang): string {

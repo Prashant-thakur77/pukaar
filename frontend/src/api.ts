@@ -27,6 +27,9 @@ import type {
   PilotMetrics,
   PublicOverview,
   RaahatAnchor,
+  RaahatLedger,
+  RaahatRelease,
+  RaahatRelief,
   RaahatPool,
   ReplayStatus,
   PushSubscriptionView,
@@ -316,6 +319,11 @@ export const api = {
   replayStatus: () => request<ReplayStatus>('/replay/status', { auth: false }),
   raahatPool: () => request<RaahatPool>('/raahat/pool', { auth: false }),
   raahatAnchor: (alertId: string) => request<RaahatAnchor>(`/raahat/alerts/${enc(alertId)}`, { auth: false }),
+  raahatLedger: (villageId = '') =>
+    request<RaahatLedger>(`/raahat/ledger${villageId ? `?village_id=${enc(villageId)}` : ''}`, { auth: false }),
+  raahatRelief: (alertId: string) => request<RaahatRelief>(`/raahat/alerts/${enc(alertId)}/relief`),
+  raahatRelease: (alertId: string, tier: 1 | 2) =>
+    request<RaahatRelease & { alert_id: string }>(`/raahat/alerts/${enc(alertId)}/release`, { method: 'POST', body: { tier } }),
 
   audit: (p: { date?: string; resource?: string } = {}) => request<Audit[]>(`/audit${qs(p)}`),
   stats: () => request<Stats>('/stats'),

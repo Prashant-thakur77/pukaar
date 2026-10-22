@@ -23,3 +23,30 @@
 @media (max-width: 520px) { .chain-receipt .kv { grid-template-columns: 1fr; gap: 0; } }
 .chain-verify .raahat-check { flex-wrap: wrap; }
 .chain-verify .raahat-check .mono { flex-basis: 100%; }
+/* Console: Release relief (pages/console/Relief.tsx). */
+.relief { display: grid; gap: var(--s-3); }
+.relief-list { display: grid; gap: var(--s-3); list-style: none; margin: 0; padding: 0; }
+.relief-card { display: grid; gap: var(--s-2); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); }
+.relief-card .ac-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.relief-tier { display: grid; gap: var(--s-1, 4px); justify-items: start; }
+.relief-tier p { margin: 0; }
+.relief-tier svg { width: 1em; height: 1em; vertical-align: -0.125em; }
+.relief .chips-row { display: flex; flex-wrap: wrap; gap: var(--s-1, 4px); list-style: none; margin: 0; padding: 0; }
+.relief .mono { font-family: var(--font-mono); font-size: 0.85rem; }
+/* /raahat: the rule and the ledger timeline. */
+.raahat-top { display: grid; gap: var(--s-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); align-items: start; }
+.raahat-rule { display: grid; gap: var(--s-2); }
+.raahat-rule-line { font-size: 1.15rem; font-weight: 600; margin: 0; }
+.ledger-totals { list-style: none; margin: 0 0 var(--s-2); padding: 0; display: grid; gap: 2px; }
+.ledger-list { list-style: none; margin: var(--s-3) 0 0; padding: 0; display: grid; gap: var(--s-3); }
+.ledger-row { padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface, transparent); display: grid; gap: var(--s-2); }
+.ledger-row.is-focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.ledger-row .ac-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.ledger-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1, 4px); }
+.lstep { display: grid; grid-template-columns: 1.25rem minmax(0, 12rem) 1fr auto; gap: var(--s-2); align-items: baseline; }
+.lstep svg { width: 1.1em; height: 1.1em; align-self: center; }
+.lstep.is-done svg { color: var(--ok); }
+.lstep.is-failed svg { color: var(--bad); }
+.lstep.is-waiting { color: var(--ink-3); }
+.lstep-name { font-weight: 600; }
+@media (max-width: 520px) { .lstep { grid-template-columns: 1.25rem 1fr; } .lstep > :nth-child(n+3) { grid-column: 2; } }

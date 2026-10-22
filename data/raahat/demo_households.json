@@ -1,0 +1,8 @@
+{
+  "_note": "Demo households per village for the Raahat demo on testnet: labelled, no phone, no name; added to the registered recipients on non-prod stages only (backend/src/Pukaar/raahat/households.py). Sujanpur: 2 demo phones + 40 = 42 households.",
+  "sujanpur": 40,
+  "gohar": 30,
+  "thunag": 25,
+  "janjehli": 20,
+  "pandoh": 28
+}

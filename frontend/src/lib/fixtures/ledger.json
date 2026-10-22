@@ -1,0 +1,31 @@
+{
+  "illustrative": "illustrative, SDRF norms to be mapped with DDMA",
+  "items": [
+    {
+      "alert_id": "alr_replay", "village_id": "sujanpur", "level": 2, "exercise": true,
+      "anchor_state": "sent", "anchor_tx": "0xaaa", "anchored_at": "2026-10-23T01:00:00Z",
+      "cap_hash": "0x65b9", "cap_uri": "https://api.example/cap/alerts/alr_replay.xml",
+      "outcome_tx": "0xbbb", "delivered": 42, "acknowledged": 37, "chain_id": 84532, "network": "base-sepolia",
+      "explorer": "https://sepolia.basescan.org",
+      "releases": [
+        { "tier": 1, "state": "sent", "tx": "0xccc", "households": 42, "amount_wei": "1500000000000000000000",
+          "total_wei": "63000000000000000000000", "at": "2026-10-23T01:05:00Z" }
+      ]
+    },
+    {
+      "alert_id": "alr_live", "village_id": "gohar", "level": 1, "exercise": false,
+      "anchor_state": "sent", "anchor_tx": "0xddd", "anchored_at": "2026-10-22T20:00:00Z",
+      "cap_hash": "0x1234", "cap_uri": "https://api.example/cap/alerts/alr_live.xml",
+      "outcome_tx": null, "delivered": null, "acknowledged": null, "chain_id": 84532, "network": "base-sepolia",
+      "explorer": "https://sepolia.basescan.org", "releases": []
+    },
+    {
+      "alert_id": "alr_failed", "village_id": "thunag", "level": 3, "exercise": false,
+      "anchor_state": "failed", "anchor_tx": null, "anchored_at": "2026-10-22T19:00:00Z",
+      "cap_hash": "0x9999", "cap_uri": null, "outcome_tx": null, "delivered": null, "acknowledged": null,
+      "chain_id": 84532, "network": "base-sepolia", "explorer": "https://sepolia.basescan.org",
+      "releases": [{ "tier": 1, "state": "failed", "tx": null, "households": 25, "amount_wei": "1500000000000000000000",
+        "total_wei": "37500000000000000000000", "at": "2026-10-22T19:10:00Z" }]
+    }
+  ]
+}

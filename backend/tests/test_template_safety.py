@@ -693,7 +693,7 @@ def test_raahat_public_routes_are_read_only():
     events = RES["ApiFunction"]["Properties"]["Events"]
     raahat = {e["Properties"]["Path"]: e["Properties"] for e in events.values()
               if str(e.get("Properties", {}).get("Path", "")).startswith("/raahat")}
-    assert set(raahat) == {"/raahat/pool", "/raahat/alerts/{alert_id}"}
+    assert set(raahat) == {"/raahat/pool", "/raahat/alerts/{alert_id}", "/raahat/ledger"}  # the release is not public
     for path, props in raahat.items():
         assert props["Method"] == "GET" and props["Auth"] == {"Authorizer": "NONE"}, path
 

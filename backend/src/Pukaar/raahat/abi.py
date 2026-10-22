@@ -26,3 +26,39 @@ ALERT_REGISTRY = [
                 {"name": "acknowledged", "type": "uint32"}, {"name": "afterActionHash", "type": "bytes32"}],
      "outputs": []},
 ]
+
+RELIEF_POOL = [
+    {"type": "function", "name": "rulesSealed", "stateMutability": "view",
+     "inputs": [], "outputs": [{"name": "", "type": "bool"}]},
+    {"type": "function", "name": "sealedAt", "stateMutability": "view",
+     "inputs": [], "outputs": [{"name": "", "type": "uint64"}]},
+    {"type": "function", "name": "allowExercisePayout", "stateMutability": "view",
+     "inputs": [], "outputs": [{"name": "", "type": "bool"}]},
+    {"type": "function", "name": "rule", "stateMutability": "view",
+     "inputs": [], "outputs": [{"name": "", "type": "uint8"}, {"name": "", "type": "uint256"}, {"name": "", "type": "uint256"}, {"name": "", "type": "uint32"}]},
+    {"type": "function", "name": "confirmation", "stateMutability": "view",
+     "inputs": [], "outputs": [{"name": "", "type": "address"}]},
+    {"type": "function", "name": "householdCount", "stateMutability": "view",
+     "inputs": [{"name": "villageId", "type": "bytes32"}], "outputs": [{"name": "", "type": "uint32"}]},
+    {"type": "function", "name": "households", "stateMutability": "view",
+     "inputs": [{"name": "villageId", "type": "bytes32"}], "outputs": [{"name": "", "type": "bytes32"}]},
+    {"type": "function", "name": "cashOutAgent", "stateMutability": "view",
+     "inputs": [{"name": "villageId", "type": "bytes32"}], "outputs": [{"name": "", "type": "address"}]},
+    {"type": "function", "name": "released", "stateMutability": "view",
+     "inputs": [{"name": "alertId", "type": "bytes32"}, {"name": "tier", "type": "uint8"}], "outputs": [{"name": "", "type": "bool"}]},
+    {"type": "function", "name": "lastAnticipatory", "stateMutability": "view",
+     "inputs": [{"name": "villageId", "type": "bytes32"}, {"name": "exercise", "type": "bool"}], "outputs": [{"name": "", "type": "uint64"}]},
+    {"type": "function", "name": "receiptCount", "stateMutability": "view",
+     "inputs": [{"name": "alertId", "type": "bytes32"}], "outputs": [{"name": "", "type": "uint32"}]},
+    {"type": "function", "name": "release", "stateMutability": "nonpayable",
+     "inputs": [{"name": "alertId", "type": "bytes32"}, {"name": "tier", "type": "uint8"}], "outputs": []},
+    {"type": "function", "name": "setHouseholds", "stateMutability": "nonpayable",
+     "inputs": [{"name": "villageId", "type": "bytes32"}, {"name": "root", "type": "bytes32"}, {"name": "count", "type": "uint32"}], "outputs": []},
+    {"type": "function", "name": "setCashOutAgent", "stateMutability": "nonpayable",
+     "inputs": [{"name": "villageId", "type": "bytes32"}, {"name": "agent", "type": "address"}], "outputs": []},
+]
+
+CONFIRMATION = [
+    {"type": "function", "name": "isConfirmed", "stateMutability": "view",
+     "inputs": [{"name": "alertId", "type": "bytes32"}], "outputs": [{"name": "", "type": "bool"}]},
+]
