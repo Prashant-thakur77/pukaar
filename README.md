@@ -438,8 +438,8 @@ Contracts on Base Sepolia (chain 84532; addresses in [contracts/deployments/base
 | Contract | Address | What it holds |
 |---|---|---|
 | AlertRegistry | [0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3](https://sepolia.basescan.org/address/0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3) | Write-once alert anchors and outcomes |
-| ReliefPool | [0xddca26C10c01848B02C792dDfA75AE000802d868](https://sepolia.basescan.org/address/0xddca26C10c01848B02C792dDfA75AE000802d868) | The sealed rule, household roots, releases and receipts |
-| ImpactAttestation | [0x04C66132b763DCaC00C6CFF986fB94CC6Ce48211](https://sepolia.basescan.org/address/0x04C66132b763DCaC00C6CFF986fB94CC6Ce48211) | The three attesters; confirmed at two different keys with severity 2 or more |
+| ReliefPool | [0x8ef8BCe3E7800845ae6b17A51bDe56554bF47C52](https://sepolia.basescan.org/address/0x8ef8BCe3E7800845ae6b17A51bDe56554bF47C52) | The sealed rule, household roots, releases and receipts |
+| ImpactAttestation | [0x9e0285F6ECe2794F05148E88E6A89A19465e0bDF](https://sepolia.basescan.org/address/0x9e0285F6ECe2794F05148E88E6A89A19465e0bDF) | The three attesters; confirmed at two different keys with severity 2 or more |
 | TestINR (tINR) | [0x6b3C4E4E29233b8d3e336a6148702ab1D395a419](https://sepolia.basescan.org/address/0x6b3C4E4E29233b8d3e336a6148702ab1D395a419) | Test money with no value, minted by the deployer only |
 
 What is real, a replay, simulated or planned:

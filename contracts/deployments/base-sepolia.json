@@ -2,12 +2,12 @@
   "alert_registry": "0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3",
   "allow_exercise_payout": true,
   "chain_id": 84532,
-  "deployed_at_block": 48904804,
+  "deployed_at_block": 48910401,
   "deployer": "0xAB0F2329359E9DA30930a20320aE744E664e271D",
-  "impact_attestation": "0x04C66132b763DCaC00C6CFF986fB94CC6Ce48211",
+  "impact_attestation": "0x9e0285F6ECe2794F05148E88E6A89A19465e0bDF",
   "network": "base-sepolia",
   "oracle": "0xAB0F2329359E9DA30930a20320aE744E664e271D",
-  "pool": "0xddca26C10c01848B02C792dDfA75AE000802d868",
+  "pool": "0x8ef8BCe3E7800845ae6b17A51bDe56554bF47C52",
   "pool_is_contract": true,
   "test_inr": "0x6b3C4E4E29233b8d3e336a6148702ab1D395a419"
 }

@@ -117,3 +117,35 @@ contract ReliefPoolReviewTest is Test {
         assertEq(at, uint64(block.timestamp + 72 hours));
     }
 }
+
+contract ReliefPoolExerciseResetTest is ReliefPoolReviewTest {
+    event ExerciseCooldownCleared(bytes32 indexed villageId);
+
+    /// Replays are re-run (a demo, a training): the DDMA may clear a village's exercise cooldowns, never its live ones.
+    function test_exerciseCooldownsCanBeClearedLiveOnesNever() public {
+        bytes32 live = keccak256("live");
+        bytes32 r1 = keccak256("replay-1");
+        bytes32 r2 = keccak256("replay-2");
+        _anchor(live, false);
+        _anchor(r1, true);
+        _anchor(r2, true);
+        vm.startPrank(ddma);
+        pool.release(live, 1);
+        pool.release(r1, 1);
+        pool.release(r1, 2);
+        vm.expectEmit(true, false, false, false, address(pool));
+        emit ExerciseCooldownCleared(V);
+        pool.clearExerciseCooldown(V);
+        pool.release(r2, 1);
+        pool.release(r2, 2);
+        bytes32 live2 = keccak256("live-2");
+        vm.stopPrank();
+        _anchor(live2, false);
+        vm.prank(ddma);
+        vm.expectRevert(bytes("ReliefPool: village is in its cooldown"));
+        pool.release(live2, 1); // the live cooldown is untouched
+        vm.prank(thief);
+        vm.expectRevert();
+        pool.clearExerciseCooldown(V);
+    }
+}

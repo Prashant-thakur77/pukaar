@@ -57,6 +57,8 @@ RELIEF_POOL = [
     {"type": "function", "name": "receipt", "stateMutability": "nonpayable",
      "inputs": [{"name": "alertId", "type": "bytes32"}, {"name": "householdHash", "type": "bytes32"},
                 {"name": "proof", "type": "bytes32[]"}, {"name": "upiRefHash", "type": "bytes32"}], "outputs": []},
+    {"type": "function", "name": "clearExerciseCooldown", "stateMutability": "nonpayable",
+     "inputs": [{"name": "villageId", "type": "bytes32"}], "outputs": []},
     {"type": "function", "name": "setCashOutAgent", "stateMutability": "nonpayable",
      "inputs": [{"name": "villageId", "type": "bytes32"}, {"name": "agent", "type": "address"}], "outputs": []},
 ]

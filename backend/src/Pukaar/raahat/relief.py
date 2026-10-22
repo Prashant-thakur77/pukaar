@@ -14,6 +14,7 @@ Amounts are illustrative (ILLUSTRATIVE): SDRF norms are to be mapped with the DD
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from boto3.dynamodb.conditions import Attr
@@ -275,3 +276,25 @@ def notify_village(repo: Repo, alert_id: str, tier: int) -> int:
             log(_LOG, "relief message failed", 30, alert_id=alert.id, error=f"{type(exc).__name__}: {str(exc)[:120]}")
         time.sleep(NOTIFY_INTERVAL_SECONDS)
     return told
+
+
+def main(argv: list[str]) -> int:
+    """python -m Pukaar.raahat.relief reset-exercise: clear every village's exercise cooldowns on chain (re-running a
+    replay for a demo or a training); live cooldowns are never touched."""
+    if argv[:1] != ["reset-exercise"]:
+        print("usage: python -m Pukaar.raahat.relief reset-exercise")
+        return 2
+    client = _client()
+    if client is None:
+        print("ReliefPool not configured.")
+        return 2
+    data = json.loads((get_settings().data_dir / "villages.json").read_text(encoding="utf-8"))
+    for v in data if isinstance(data, list) else data.get("villages", []):
+        print(v["id"], client.clear_exercise_cooldown(chain.anchor_key(v["id"])))
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    raise SystemExit(main(sys.argv[1:]))

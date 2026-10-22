@@ -4,7 +4,7 @@ Recorded on the deployed stack (`pukaar-raahat`, Base Sepolia) during a labelled
 
 ## Before recording
 
-1. `make reset-demo STAGE=raahat`.
+1. `make reset-demo STAGE=raahat` and `make raahat-reset-exercise STAGE=raahat` (clears the replays' cooldowns on chain from the last take; live ones are never touched).
 2. Sign in as `officer1` in one browser profile and `pradhan_pandoh` in another.
 3. Check `/raahat`: the pool shows its balance, the rule card says "sealed", and the browser check line is green.
 4. Open BaseScan on the AlertRegistry, ReliefPool and ImpactAttestation addresses.

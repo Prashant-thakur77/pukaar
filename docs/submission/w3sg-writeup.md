@@ -5,7 +5,7 @@ Flood warning that pays the household before the river rises: forecast-triggered
 - Track: Tech Track (built prototype, repo and demo)
 - Code: https://github.com/Prashant-thakur77/pukaar/tree/web3-social-good
 - Live relief ledger: https://main.d227ld968f3fok.amplifyapp.com/raahat (no sign-in)
-- Contracts on Base Sepolia (chain 84532): AlertRegistry [`0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3`](https://sepolia.basescan.org/address/0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3), ReliefPool [`0xddca26C10c01848B02C792dDfA75AE000802d868`](https://sepolia.basescan.org/address/0xddca26C10c01848B02C792dDfA75AE000802d868), ImpactAttestation [`0x04C66132b763DCaC00C6CFF986fB94CC6Ce48211`](https://sepolia.basescan.org/address/0x04C66132b763DCaC00C6CFF986fB94CC6Ce48211), TestINR [`0x6b3C4E4E29233b8d3e336a6148702ab1D395a419`](https://sepolia.basescan.org/address/0x6b3C4E4E29233b8d3e336a6148702ab1D395a419)
+- Contracts on Base Sepolia (chain 84532): AlertRegistry [`0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3`](https://sepolia.basescan.org/address/0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3), ReliefPool [`0x8ef8BCe3E7800845ae6b17A51bDe56554bF47C52`](https://sepolia.basescan.org/address/0x8ef8BCe3E7800845ae6b17A51bDe56554bF47C52), ImpactAttestation [`0x9e0285F6ECe2794F05148E88E6A89A19465e0bDF`](https://sepolia.basescan.org/address/0x9e0285F6ECe2794F05148E88E6A89A19465e0bDF), TestINR [`0x6b3C4E4E29233b8d3e336a6148702ab1D395a419`](https://sepolia.basescan.org/address/0x6b3C4E4E29233b8d3e336a6148702ab1D395a419)
 - Demo video (3:00): to be added after recording ([script](w3sg-demo-script.md))
 - Sources for every number: [w3sg-sources.md](w3sg-sources.md)
 - Tags: Web3, Social Impact, Sustainability, AI, Decentralized Identity, DAPP

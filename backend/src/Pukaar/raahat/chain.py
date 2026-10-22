@@ -272,6 +272,9 @@ class RaahatChain:
     def set_households(self, village_key: bytes, root: bytes, count: int) -> str | None:
         return self._send("set_households", self._pool().functions.setHouseholds(village_key, root, count))
 
+    def clear_exercise_cooldown(self, village_key: bytes) -> str | None:
+        return self._send("clear_exercise_cooldown", self._pool().functions.clearExerciseCooldown(village_key))
+
     def set_cash_out_agent(self, village_key: bytes, agent: str) -> str | None:
         return self._send("set_cash_out_agent", self._pool().functions.setCashOutAgent(village_key, agent))
 

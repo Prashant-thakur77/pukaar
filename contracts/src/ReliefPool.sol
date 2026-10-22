@@ -73,6 +73,7 @@ contract ReliefPool is AccessControl, ReentrancyGuard {
     event CashOutAgentSet(bytes32 indexed villageId, address agent);
     event HouseholdsScheduled(bytes32 indexed villageId, bytes32 root, uint32 count, uint64 effectiveAt);
     event CashOutAgentScheduled(bytes32 indexed villageId, address agent, uint64 effectiveAt);
+    event ExerciseCooldownCleared(bytes32 indexed villageId);
     event Released(
         bytes32 indexed alertId, bytes32 indexed villageId, uint8 tier, uint32 households, uint256 total, bool exercise
     );
@@ -148,6 +149,13 @@ contract ReliefPool is AccessControl, ReentrancyGuard {
             delete pendingAgent[villageId];
             emit CashOutAgentSet(villageId, g.agent);
         }
+    }
+
+    /// Replays and drills are run again (a demo, a training): their cooldowns may be cleared. Live ones never are.
+    function clearExerciseCooldown(bytes32 villageId) external onlyRole(DDMA_ROLE) {
+        lastAnticipatory[villageId][true] = 0;
+        lastConfirmed[villageId][true] = 0;
+        emit ExerciseCooldownCleared(villageId);
     }
 
     /// Anyone may fund the pool (a donor approves the token first).

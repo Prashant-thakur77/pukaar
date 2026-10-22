@@ -394,3 +394,12 @@ def test_relief_message_goes_through_the_worker_once(repo, frozen, fake, monkeyp
     worker.run_task(tasks[0])
     worker.run_task(tasks[0])  # a duplicate delivery of the task
     assert sent == ["555001"]
+
+
+def test_clear_exercise_cooldown_calldata():
+    endpoint = Chain()
+    cfg = chain.ChainConfig(**{**_cfg().__dict__, "pool_is_contract": True})
+    assert chain.RaahatChain(cfg, provider=endpoint).clear_exercise_cooldown(keccak(text="pandoh")).startswith("0x")
+    raw = bytes.fromhex(endpoint.sent[0]["data"][2:])
+    assert raw[:4] == function_signature_to_4byte_selector("clearExerciseCooldown(bytes32)")
+    assert decode(["bytes32"], raw[4:]) == (keccak(text="pandoh"),)

@@ -59,7 +59,7 @@ RAAHAT_STACK_PARAMS = $(if $(filter raahat,$(STAGE)),$(if $(wildcard $(RAAHAT_DE
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
         seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke \
-        test-contracts raahat-deps raahat-anvil raahat-deploy raahat-fund raahat-seal raahat-seed-households raahat-attesters raahat-demo-photo raahat-signer-ssm
+        test-contracts raahat-deps raahat-anvil raahat-deploy raahat-fund raahat-seal raahat-seed-households raahat-attesters raahat-reset-exercise raahat-demo-photo raahat-signer-ssm
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -199,7 +199,7 @@ RAAHAT_SIGN        = $(if $(filter anvil,$(RAAHAT_NETWORK)),--unlocked --sender 
 # Anvil never gets them: the local chain signs with its own unlocked accounts.
 RAAHAT_USES_KEY = $(or $(filter-out anvil,$(RAAHAT_NETWORK)),$(filter raahat,$(STAGE)))
 ifneq ($(RAAHAT_USES_KEY),)
-raahat-deploy raahat-fund raahat-seal raahat-seed-households raahat-attesters raahat-signer-ssm: export RAAHAT_DEPLOYER_KEY := $(RAAHAT_DEPLOYER_KEY)
+raahat-deploy raahat-fund raahat-seal raahat-seed-households raahat-attesters raahat-reset-exercise raahat-signer-ssm: export RAAHAT_DEPLOYER_KEY := $(RAAHAT_DEPLOYER_KEY)
 raahat-deploy raahat-fund raahat-seal raahat-seed-households raahat-attesters: export RAAHAT_ORACLE := $(RAAHAT_ORACLE)
 endif
 RAAHAT_RPC_DEFAULT = $(if $(filter base-sepolia,$(RAAHAT_NETWORK)),https://sepolia.base.org,$(if $(filter arbitrum-sepolia,$(RAAHAT_NETWORK)),https://sepolia-rollup.arbitrum.io/rpc,$(if $(filter polygon-amoy,$(RAAHAT_NETWORK)),https://rpc-amoy.polygon.technology)))
@@ -238,6 +238,13 @@ raahat-attesters: ## Grant the officer and each village's pradhan attester role 
 	  eval "$$(scripts/stack_env.sh)"; cd backend && RAAHAT_SIGNER_KEY="$$RAAHAT_DEPLOYER_KEY" \
 	    RAAHAT_DEPLOYMENTS=$(abspath $(RAAHAT_DEPLOYMENT)) PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.attest setup; \
 	else cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.attest setup; fi
+
+raahat-reset-exercise: ## Demo only: clear every village's exercise (replay, drill) cooldowns on chain; live ones untouched (STAGE=raahat: testnet)
+	@test "$(STAGE)" != prod || { echo "never on STAGE=prod" >&2; exit 2; }
+	@if [ "$(STAGE)" = raahat ]; then \
+	  cd backend && RAAHAT_SIGNER_KEY="$$RAAHAT_DEPLOYER_KEY" RAAHAT_DEPLOYMENTS=$(abspath $(RAAHAT_DEPLOYMENT)) \
+	    PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.relief reset-exercise; \
+	else cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.relief reset-exercise; fi
 
 raahat-demo-photo: ## Demo only, after starting the replay: a labelled DEMO photo as a verified replay report for the pradhan (VILLAGE=pandoh)
 	@test "$(STAGE)" != prod || { echo "never on STAGE=prod" >&2; exit 2; }
