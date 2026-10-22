@@ -51,6 +51,9 @@ MAX_REPROMPTS = 1  # an invalid key is asked again once, then the call ends
 IN_PROGRESS_GRACE_SECONDS = 180  # a call placed this recently with no final status is still ringing
 TOKEN_TTL_HOURS = 48
 EXOTEL_CUSTOMFIELD_MAX = 128
+# The all-clear call (workflow/steps.stand_down) is signed as attempt 0: alert calls count from 1. It
+# speaks the all-clear once with no menu, and its webhooks never move an alert call's counters.
+ALL_CLEAR_ATTEMPT = 0
 
 
 class VoiceError(RuntimeError):

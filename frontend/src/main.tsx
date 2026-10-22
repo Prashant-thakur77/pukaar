@@ -7,6 +7,7 @@ import './app.css';
 import './pages.css';
 import './agents.css';
 import './gauges.css';
+import './roster.css';
 import './editorial.css';
 import App from './App';
 import { applyTheme, usePrefs } from './store';

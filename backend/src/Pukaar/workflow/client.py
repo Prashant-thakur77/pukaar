@@ -72,16 +72,21 @@ class LocalWorkflow:
         entry[0].set()
 
     def _wait_for_decision(self, steps, alert_id: str, index: int) -> dict | None:
-        token = f"local:{alert_id}:{index}:{time.monotonic_ns()}"
-        event, holder = threading.Event(), {}
-        with self._lock:
-            self._waiting[token] = (event, holder)
-        try:
-            steps.handle({"step": "ask_officer", "alert_id": alert_id, "officer_index": index, "task_token": token})
-            return holder if event.wait(self.approval_timeout) else None
-        finally:
+        """Ask, wait half the window, remind the same officer (nudge_officer), wait the other half."""
+        first = max(0.0, self.approval_timeout / 2)
+        for step, wait in (("ask_officer", first), ("nudge_officer", max(0.0, self.approval_timeout - first))):
+            token = f"local:{alert_id}:{index}:{step}:{time.monotonic_ns()}"
+            event, holder = threading.Event(), {}
             with self._lock:
-                self._waiting.pop(token, None)
+                self._waiting[token] = (event, holder)
+            try:
+                steps.handle({"step": step, "alert_id": alert_id, "officer_index": index, "task_token": token})
+                if event.wait(wait):
+                    return holder
+            finally:
+                with self._lock:
+                    self._waiting.pop(token, None)
+        return None
 
     def _run(self, alert_id: str) -> None:
         steps = self.steps_factory(self.repo_factory())
@@ -107,11 +112,14 @@ class LocalWorkflow:
                 steps.handle({"step": "recall", "alert_id": alert_id})
                 outcome = "delivered"
             elif level == "critical":
-                steps.handle({"step": "auto_send", "alert_id": alert_id})
-                steps.handle({"step": "deliver", "alert_id": alert_id})
-                time.sleep(self.ack_wait)
-                steps.handle({"step": "recall", "alert_id": alert_id})
-                outcome = "auto_sent_unapproved"
+                auto = steps.handle({"step": "auto_send", "alert_id": alert_id})
+                if auto.get("mode") == "auto":
+                    steps.handle({"step": "deliver", "alert_id": alert_id})
+                    time.sleep(self.ack_wait)
+                    steps.handle({"step": "recall", "alert_id": alert_id})
+                    outcome = "auto_sent_unapproved"
+                else:  # critical auto-send is off (needs DDMA sign-off): nothing was sent
+                    outcome = "expired"
             else:
                 steps.handle({"step": "expire", "alert_id": alert_id})
                 outcome = "expired"

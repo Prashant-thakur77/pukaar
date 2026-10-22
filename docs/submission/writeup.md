@@ -50,7 +50,7 @@ Deployed as one AWS SAM stack (`pukaar-dev`, us-east-1); nothing runs between re
 | Transcribe (hi-IN) | Villager voice reports |
 | API Gateway HTTP API + Cognito | Every route; officer and pradhan sign-in; villagers need no account |
 | S3, SSM Parameter Store, SQS | Private audio and photos; secrets; encrypted dead-letter queues |
-| CloudWatch + X-Ray | Eleven alarms, one dashboard, tracing on every function |
+| CloudWatch + X-Ray | Twelve alarms, one dashboard, tracing on every function |
 | Amplify Hosting | The web app (PWA) |
 | AWS Open Data (Terrain Tiles) | Real Himalayan relief for the 3D map and the landing valley |
 | AWS IoT Core | River gauges over MQTT with one X.509 certificate per device; a policy pinned to the device's own topic; a topic rule into the gauge-ingest Lambda |

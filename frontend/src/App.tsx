@@ -62,6 +62,7 @@ const Impact = lazyPage(() => import('./pages/Impact'));
 const Pilot = lazyPage(() => import('./pages/Pilot'));
 const Login = lazyPage(() => import('./pages/Login'));
 const Audit = lazyPage(() => import('./pages/Audit'));
+const Roster = lazyPage(() => import('./pages/console/Roster'));
 const NotFound = lazyPage(() => import('./pages/NotFound'));
 
 function PageFallback() {
@@ -91,6 +92,7 @@ export default function App() {
             <Route path="village/:id" element={<VillagePage />} />
             <Route path="console" element={<ConsolePage />} />
             <Route path="audit" element={<Audit />} />
+            <Route path="roster" element={<Roster />} />
             <Route path="impact" element={<Impact />} />
             <Route path="pilot" element={<Pilot />} />
             <Route path="login" element={<Login />} />

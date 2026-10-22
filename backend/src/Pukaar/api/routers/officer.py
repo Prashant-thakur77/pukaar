@@ -14,9 +14,9 @@ from Pukaar.core.ids import new_id
 from Pukaar.handlers import worker
 from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.policy.guard import Principal, authorize
-from Pukaar.services import after_action, analyst, checklist, safe_places
+from Pukaar.services import after_action, analyst, checklist, roster, safe_places
 from Pukaar.services import replay as replay_svc
-from Pukaar.store.models import SHELTER_STATES, AuditRow, Directive, ShelterStatus
+from Pukaar.store.models import RELAY_ROLES, SHELTER_STATES, AuditRow, Directive, ShelterStatus
 from Pukaar.store.repo import ConflictError, get_repo
 from Pukaar.templates import hi
 from Pukaar.workflow.client import RetryLater, decide, get_workflow
@@ -54,8 +54,10 @@ def dev_approval_link(alert_id: str, principal: Principal = Depends(Allowed("dev
     if a is None or a.status != "pending":
         raise HTTPException(409, {"code": "late", "message_en": hi.LATE_REPLY_EN, "message_hi": hi.LATE_REPLY_HI,
                                   "reason": "not pending"})
-    village = get_repo().get_village(a.village_id)
-    officers = village.officers if village else []
+    officers = a.officer_chain
+    if not officers:  # drafted before chains were stored: the fallback list
+        village = get_repo().get_village(a.village_id)
+        officers = village.officers if village else []
     officer = officers[a.officer_index] if a.officer_index < len(officers) else principal.username
     token = tokens.sign(a.id, officer, a.token_version, "approve")
     return {"url": f"{get_settings().web_url}/a/{token}", "token": token, "officer": officer}
@@ -90,7 +92,12 @@ def get_alert(alert_id: str, principal: Principal = Depends(Allowed("view_consol
     if a is None or (principal.role != "officer" and a.village_id not in principal.village_ids):
         raise HTTPException(404, "Alert not found")
     audit = [r for day in {a.created_at[:10], clock.iso(clock.now())[:10]} for r in repo.list_audit(day, f"alert:{a.id}")]
-    return {"alert": views.alert(a), "deliveries": [d.model_dump() for d in repo.list_deliveries(a.id)],
+    # Each row says whether the person is a village relay (pradhan, gauge reader, task force).
+    roles = {r.id: r.role for r in repo.list_recipients(a.village_id)}
+    deliveries = [{**d.model_dump(exclude={"all_clear_call_id"}),
+                   "relay_role": roles.get(d.recipient_id) if roles.get(d.recipient_id) in RELAY_ROLES else None}
+                  for d in repo.list_deliveries(a.id)]
+    return {"alert": views.alert(a), "deliveries": deliveries,
             "timeline": [t.model_dump() for t in repo.list_timeline(a.id)],
             "audit": [r.model_dump() for r in sorted(audit, key=lambda r: r.at)]}
 
@@ -179,7 +186,69 @@ def create_directive(body: DirectiveBody, principal: Principal = Depends(Allowed
                   text_en=hi.DIRECTIVE_EN[body.type] + (f" Note: {note}" if note else ""),
                   issued_by=principal.username, issued_at=clock.iso(clock.now()))
     repo.put_directive(d)
-    return d.model_dump()
+    out = d.model_dump()
+    if body.type == "all_clear":
+        # The officer stands the village down: everyone contacted for its recent alerts hears so.
+        from Pukaar.workflow.steps import stand_down_village
+
+        out["stood_down"] = stand_down_village(repo, body.village_id, replay=False, by=principal.username,
+                                               reason="an officer issued the all-clear")
+    return out
+
+
+# -- duty roster (services/roster.py; Cedar "officer-roster") ------------------------------------
+def _roster_error(exc: roster.RosterError) -> HTTPException:
+    return HTTPException(400, {"code": "roster", "reason": str(exc)})
+
+
+@router.get("/roster")
+def get_roster(district: str = "", start: str = "", _: Principal = Depends(Allowed("view_roster"))) -> dict:
+    """The week from `start` (IST date; default today) for one district, and who is on duty now in each."""
+    try:
+        return roster.view(get_repo(), district or None, roster.parse_day(start) if start else None)
+    except roster.RosterError as exc:
+        raise _roster_error(exc) from None
+
+
+class RosterShiftBody(BaseModel):
+    primary: str
+    backup: str | None = None
+    escalation: str | None = None
+    escalation_title: str = "ADM"
+    note: str = ""
+
+
+@router.post("/roster/{district}/{day}/{shift}")
+def put_roster_shift(district: str, day: str, shift: str, body: RosterShiftBody,
+                     principal: Principal = Depends(Allowed("edit_roster"))) -> dict:
+    repo = get_repo()
+    try:
+        row = roster.set_shift(repo, principal.username, principal.role, district, day, shift, primary=body.primary,
+                               backup=body.backup, escalation=body.escalation,
+                               escalation_title=body.escalation_title, note=body.note)
+    except roster.RosterError as exc:
+        raise _roster_error(exc) from None
+    return row.model_dump()
+
+
+@router.delete("/roster/{district}/{day}/{shift}")
+def delete_roster_shift(district: str, day: str, shift: str,
+                        principal: Principal = Depends(Allowed("edit_roster"))) -> dict:
+    try:
+        cleared = roster.clear_shift(get_repo(), principal.username, principal.role, district, day, shift)
+    except roster.RosterError as exc:
+        raise _roster_error(exc) from None
+    return {"cleared": cleared}
+
+
+@router.post("/roster/{district}/take-over")
+def take_over_duty(district: str, principal: Principal = Depends(Allowed("take_over_duty"))) -> dict:
+    """"Taking over": the signed-in officer becomes the primary of the shift running now (audited)."""
+    try:
+        row = roster.take_over(get_repo(), principal.username, principal.role, district)
+    except roster.RosterError as exc:
+        raise _roster_error(exc) from None
+    return row.model_dump()
 
 
 class ChecklistBody(BaseModel):

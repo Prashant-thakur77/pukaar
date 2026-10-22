@@ -267,7 +267,7 @@ Things that cost money even when small:
 - Bedrock Nova tokens (per call; no model call at level `normal`).
 - Polly generative voice, Transcribe minutes after the 12-month free tier.
 - ECR storage for the images (two images, roughly 0.5 to 1 GB each).
-- CloudWatch: eleven alarms and one dashboard; the free tier covers ten alarms
+- CloudWatch: twelve alarms and one dashboard; the free tier covers ten alarms
   and three dashboards, so the eleventh is billed (cents a month). X-Ray
   traces past the free tier.
 - DynamoDB point-in-time recovery is billed per GB stored (tiny here).

@@ -11,6 +11,9 @@ refused as forged. Then:
     other   asked again once, then the call ends; silence ends the call (the menu itself re-prompts)
 
 Side effects are idempotent on (call id, digit): a provider retrying the same webhook acts once.
+
+The all-clear call (token attempt 0, delivery.all_clear_call_id) only speaks the all-clear: no key
+acts on it and no status moves the alert call's counters.
 """
 
 from __future__ import annotations
@@ -49,15 +52,24 @@ def load(repo: Repo, tok: voice.CallToken, *call_ids: str | None) -> CallContext
     """call_ids: the ids the webhook names (Plivo sends both RequestUUID and CallUUID); one must be ours."""
     d = repo.get_delivery(tok.alert_id, tok.recipient_id, "voice")
     alert = repo.get_alert(tok.alert_id)
-    match = next((c for c in call_ids if c and d is not None and c in d.call_ids), None)
+    # A token signed for the all-clear call names that call only; an alert-call token, the alert calls.
+    ours = ([d.all_clear_call_id] if tok.attempt == voice.ALL_CLEAR_ATTEMPT else d.call_ids) if d else []
+    match = next((c for c in call_ids if c and c in ours), None)
     if d is None or alert is None or match is None:
         raise Forged("unknown call for this alert and person")
     return CallContext(alert, d, match)
 
 
+def is_all_clear(ctx: CallContext) -> bool:
+    """The all-clear call (workflow/steps.stand_down): spoken once, no menu, no counter moves."""
+    return bool(ctx.delivery.all_clear_call_id) and ctx.call_id == ctx.delivery.all_clear_call_id
+
+
 def answered(repo: Repo, ctx: CallContext) -> Delivery:
     """The voice reached the ear: sent_at is the first answer, kept across re-calls."""
     d = ctx.delivery
+    if is_all_clear(ctx):
+        return d
     fields: dict = {}
     if not d.sent_at:
         fields["sent_at"] = clock.iso(clock.now())
@@ -77,6 +89,8 @@ def press(repo: Repo, ctx: CallContext, raw_digits: str | None) -> KeyResult:
     from Pukaar.templates import hi
 
     call_id = ctx.call_id
+    if is_all_clear(ctx):
+        return KeyResult("end", "all_clear", hi.VOICE_GOODBYE_HI)
     d = answered(repo, ctx)
     digit = voice.clean_digit(raw_digits)
     if digit == "1":
@@ -156,6 +170,8 @@ def call_status(repo: Repo, ctx: CallContext, st: voice.CallStatus) -> str:
     """A provider's status callback. Updates the two retry counters; flags a number no call can reach.
     Only the newest call of the person counts; a repeated final status changes nothing."""
     d = ctx.delivery
+    if is_all_clear(ctx):
+        return "all_clear"
     if ctx.call_id != d.call_ids[-1]:
         return "stale"
     if st.answered:

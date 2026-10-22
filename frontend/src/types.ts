@@ -234,12 +234,89 @@ export interface Delivery {
   alert_id: string;
   recipient_id: string;
   name: string;
-  channel: 'telegram' | 'stub';
+  channel: 'telegram' | 'stub' | 'voice';
   status: string;
   sent_at: string | null;
   attempts: number;
   acknowledged_at: string | null;
   error: string | null;
+  /** Set when the person is a village relay, contacted first (GET /alerts/{id}). */
+  relay_role?: RelayRole | null;
+  /** The all-clear on this row's channel, once the alert was stood down. */
+  all_clear_status?: 'sent' | 'failed' | 'stub' | null;
+  all_clear_at?: string | null;
+}
+
+export type RelayRole = 'pradhan' | 'gauge_reader' | 'task_force';
+
+// -- duty roster (GET /roster) --------------------------------------------------------------------
+export type ShiftId = 'day' | 'night';
+export type EscalationTitle = 'ADM' | 'DM';
+
+export interface RosterShift {
+  district: string;
+  date: string;
+  shift: ShiftId;
+  primary: string;
+  backup: string | null;
+  escalation: string | null;
+  escalation_title: EscalationTitle;
+  note: string;
+  updated_by: string;
+  updated_at: string;
+  taken_over_from: string | null;
+  taken_over_at: string | null;
+}
+
+export interface RosterSlot {
+  starts_at: string;
+  ends_at: string;
+  entry: RosterShift | null;
+}
+
+export interface RosterDay {
+  date: string;
+  weekday: string;
+  shifts: Record<ShiftId, RosterSlot>;
+}
+
+export interface OnDuty {
+  district: string;
+  date: string;
+  shift: ShiftId;
+  starts_at: string;
+  ends_at: string;
+  source: 'roster' | 'fallback' | 'none';
+  chain: string[];
+  roles: string[];
+  primary: string | null;
+  backup: string | null;
+  escalation: string | null;
+  escalation_title: EscalationTitle | null;
+  taken_over_from: string | null;
+  taken_over_at: string | null;
+}
+
+export interface RosterView extends SampleFlag {
+  district: string;
+  districts: string[];
+  timezone: string;
+  shifts: { id: ShiftId; start: string; end: string }[];
+  start: string;
+  days: RosterDay[];
+  now: OnDuty[];
+  officers: string[];
+  critical_auto_send: boolean;
+  critical_auto_send_label: string;
+  approval_timeout_seconds: number;
+}
+
+export interface RosterShiftInput {
+  primary: string;
+  backup?: string | null;
+  escalation?: string | null;
+  escalation_title: EscalationTitle;
+  note?: string;
 }
 
 export interface Report extends SampleFlag {

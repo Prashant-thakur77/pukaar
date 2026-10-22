@@ -52,6 +52,10 @@ DENY_HINTS = {
     "manage_staff_gauge": "Only a district officer, or the pradhan of this village, can set up its staff gauge.",
     "confirm_staff_reading": "Only a district officer can confirm a staff gauge reading.",
     "subscribe_push": "Only a signed-in officer or pradhan can get approval alerts on a phone.",
+    "view_roster": "Only a district officer can see the duty roster.",
+    "edit_roster": "Only a district officer can change the duty roster.",
+    "take_over_duty": "Only a district officer can take over a duty shift.",
+    "all_clear": "The all-clear goes only to people contacted for a stood-down alert.",
 }
 
 

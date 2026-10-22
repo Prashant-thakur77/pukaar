@@ -200,7 +200,19 @@ POST /reports                multipart: village_id, text?, audio?, photo?, lat?,
 GET  /reports?village_id=&state=   officer/pradhan: [Report]
 PATCH /reports/{id}/state    officer: {state} -> Report (undo = PATCH back to previous_state)
 GET  /directives?village_id= [Directive]
-POST /directives             officer: {village_id, type, note_en?} -> Directive
+POST /directives             officer: {village_id, type, note_en?} -> Directive (+ stood_down when
+                             type is all_clear: the all-clear to everyone contacted for the village's alerts)
+GET  /roster?district=&start=   officer: {district, districts[], shifts[], start, days[{date, weekday,
+                             shifts{day|night: {starts_at, ends_at, entry: RosterShift|null}}}],
+                             now[{district, date, shift, source: roster|fallback|none, chain[], roles[],
+                             primary, backup, escalation, escalation_title, taken_over_from}],
+                             officers[], critical_auto_send, critical_auto_send_label}   (IST shifts:
+                             day 08:00-20:00, night 20:00-08:00, dated the day it starts)
+POST /roster/{district}/{date}/{day|night}   officer: {primary, backup?, escalation?, escalation_title:
+                             "ADM"|"DM", note?} -> RosterShift   (audited: roster_changed)
+DELETE /roster/{district}/{date}/{day|night} officer: {cleared}
+POST /roster/{district}/take-over   officer: the caller becomes the primary of the shift running now
+                             -> RosterShift   (audited: duty_taken_over)
 POST /replay/start           officer: {scenario?: "himachal_2023_07"|"mandi_2025", speed_seconds_per_hour?: number}
                              -> ReplayStatus (speed capped so the run fits one worker invocation)
 POST /replay/reset           officer: {} -> ReplayStatus
@@ -300,10 +312,11 @@ Event `{"step": <name>, ...}`; returns a dict. Execution input:
 
 | Step | Input | Output |
 |---|---|---|
-| `draft` | `alert_id` | `{alert_id, level, officer_count, recipients_count}` |
+| `draft` | `alert_id` | `{alert_id, level, officer_count, recipients_count, nudge_after_seconds, nudge_wait_seconds}` (freezes the duty-roster chain on the alert) |
 | `ask_officer` | `alert_id, officer_index, task_token` | (callback) task success output `{decision: "approved"\|"declined", by}` |
+| `nudge_officer` | `alert_id, officer_index, task_token` | half-way reminder to the same officer (Telegram, Web Push), then the same callback as `ask_officer` |
 | `next_officer` | `alert_id, officer_index` | `{has_next, officer_index, level}` |
-| `auto_send` | `alert_id` | `{alert_id, mode: "auto"}` (marks `auto_sent_unapproved` after Cedar allows `System`) |
+| `auto_send` | `alert_id` | `{alert_id, mode: "auto"}` (marks `auto_sent_unapproved` after Cedar allows `System`), or `{alert_id, mode: "off"}` when `PUKAAR_CRITICAL_AUTO_SEND=false` (needs DDMA sign-off; the alert expires unsent) |
 | `expire` | `alert_id` | `{alert_id, outcome: "expired"}` |
 | `deliver` | `alert_id` | `{alert_id, sent, failed}` |
 | `recall` | `alert_id` | `{alert_id, resent}` |

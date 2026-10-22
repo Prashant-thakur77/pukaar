@@ -311,11 +311,29 @@ class Alert(BaseModel):
     # Voice: the 8 kHz call audio (voice/polly.synthesize_call_audio), and how many re-send rounds ran.
     call_audio_key: str | None = None
     recall_rounds: int = 0
+    # Who is asked, in order, frozen when the alert is drafted (services/roster.py): the duty roster's
+    # primary, backup and escalation officer (ADM or DM) for the shift on duty then, or the village's
+    # fallback list when the district has no roster for that shift. officer_chain_roles says which is which.
+    officer_chain: list[str] = Field(default_factory=list)
+    officer_chain_roles: list[str] = Field(default_factory=list)
+    officers_asked: list[str] = Field(default_factory=list)  # everyone asked or reminded, for the all-clear
+    nudges: int = 0  # reminders sent half-way through an officer's approval window
+    # The all-clear (workflow/steps.stand_down): when the alert was stood down, by whom and why, and how
+    # many people and officers it reached or failed to reach. Set once.
+    all_clear_at: str | None = None
+    all_clear_by: str | None = None
+    all_clear_reason: str | None = None
+    all_clear_sent: int = 0
+    all_clear_failed: int = 0
 
 
 E164 = re.compile(r"^\+[1-9]\d{7,14}$")
 VOICE_CHANNELS = {"voice", "both"}
 TELEGRAM_CHANNELS = {"telegram", "both"}
+# Village relays (the Practical Action "cascade" pattern): the pradhan, the gauge reader and the task-force
+# volunteers are contacted first, so the siren and the megaphone start while the other phones still ring.
+RELAY_ROLES = {"pradhan", "gauge_reader", "task_force"}
+RecipientRole = Literal["villager", "pradhan", "gauge_reader", "task_force", "officer"]
 
 
 class Recipient(BaseModel):
@@ -324,7 +342,7 @@ class Recipient(BaseModel):
     id: str
     village_id: str
     name: str
-    role: Literal["villager", "pradhan", "officer"] = "villager"
+    role: RecipientRole = "villager"
     # "stub" only for demo recipients with no phone. A telegram or voice recipient is never quietly
     # sent to the stub: if the channel cannot be reached the delivery is recorded as failed (dispatch.py).
     channel: Literal["telegram", "voice", "both", "stub"] = "telegram"
@@ -358,6 +376,10 @@ class Recipient(BaseModel):
     @property
     def takes_telegram(self) -> bool:
         return self.channel in TELEGRAM_CHANNELS
+
+    @property
+    def is_relay(self) -> bool:
+        return self.role in RELAY_ROLES
 
 
 VoiceCategory = Literal["busy", "no_answer", "failed", "no_status", "invalid_number", "machine", "no_key",
@@ -394,6 +416,11 @@ class Delivery(BaseModel):
     repeats: int = 0
     reprompts: int = 0
     unreachable: bool = False  # terminally: flagged to the pradhan and on the alert timeline
+    # -- the all-clear on this row's channel (workflow/steps.stand_down)
+    all_clear_status: Literal["sent", "failed", "stub"] | None = None
+    all_clear_at: str | None = None
+    all_clear_error: str | None = None
+    all_clear_call_id: str | None = None  # voice: the all-clear call; it has no menu and moves no counter
 
     @property
     def row_key(self) -> str:
@@ -466,6 +493,33 @@ class RoadBlock(BaseModel):
     expires_at: str
     cleared_by: str | None = None
     cleared_at: str | None = None
+
+
+ShiftId = Literal["day", "night"]
+EscalationTitle = Literal["ADM", "DM"]
+
+
+class RosterShift(BaseModel):
+    """One shift of a district's duty roster (services/roster.py). Times are IST.
+
+    date is the IST date the shift starts: "night" on 22 Oct runs from 20:00 on 22 Oct to 08:00 on
+    23 Oct. The approval chain is the primary, then the backup, then the escalation officer above
+    them (the ADM or the DM).
+    """
+
+    district: str
+    date: str  # YYYY-MM-DD, IST
+    shift: ShiftId
+    primary: str
+    backup: str | None = None
+    escalation: str | None = None
+    escalation_title: EscalationTitle = "ADM"
+    note: str = ""
+    updated_by: str
+    updated_at: str
+    # Handover: who took this shift over from whom, and when (the audit trail has it too).
+    taken_over_from: str | None = None
+    taken_over_at: str | None = None
 
 
 class AuditRow(BaseModel):

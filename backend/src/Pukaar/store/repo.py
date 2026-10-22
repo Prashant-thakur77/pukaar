@@ -17,6 +17,7 @@ Keys:
   REPLAY      META | VILLAGE#id (the replay's own copy of a village: level, hysteresis, open alert)
   OFFICER#username META (Telegram chat) | PUSH#id (Web Push subscription; TTL 180 days) | PUSHTEST (rate limit)
   MODELPROBE  META                   (last Bedrock model-access probe; at most one per 6 hours)
+  ROSTER#district  date#shift        (duty roster: primary, backup, escalation officer; TTL 400 days)
 Sparse GSI gsi1: gsi1pk = "OPEN#ALERT" / "OPEN#REPORT" while work is open.
 """
 
@@ -51,6 +52,7 @@ from Pukaar.store.models import (
     RollCall,
     RollCallAsked,
     RollCallResponse,
+    RosterShift,
     SensorReading,
     ShelterStatus,
     StaffGauge,
@@ -62,6 +64,7 @@ M = TypeVar("M", bound=BaseModel)
 _KEY_FIELDS = {"pk", "sk", "gsi1pk", "gsi1sk", "ttl", "kind"}
 ROLLCALL_TTL_DAYS = 30
 PUSH_TTL_DAYS = 180
+ROSTER_TTL_DAYS = 400  # a year of duty charts, for the after-action record
 
 
 class ConflictError(Exception):
@@ -467,6 +470,35 @@ class Repo:
 
     def put_model_probe(self, fields: dict[str, Any]) -> None:
         self._update("MODELPROBE", "META", fields)
+
+    # -- duty roster (services/roster.py) --------------------------------
+    def put_roster_shift(self, r: RosterShift, ttl_days: int = ROSTER_TTL_DAYS) -> None:
+        expires = int(clock.now().timestamp()) + ttl_days * 86400
+        self._put({"pk": f"ROSTER#{r.district}", "sk": f"{r.date}#{r.shift}", "kind": "roster", "ttl": expires,
+                   **r.model_dump()})
+
+    def get_roster_shift(self, district: str, date: str, shift: str) -> RosterShift | None:
+        item = self._get(f"ROSTER#{district}", f"{date}#{shift}")
+        return _model(RosterShift, item) if item else None
+
+    def list_roster(self, district: str, first_date: str, last_date: str) -> list[RosterShift]:
+        """Shifts with first_date <= date <= last_date, in date and shift order."""
+        kwargs: dict[str, Any] = {
+            "KeyConditionExpression": Key("pk").eq(f"ROSTER#{district}")
+            & Key("sk").between(f"{first_date}#", f"{last_date}#~"),
+        }
+        items: list[dict] = []
+        while True:
+            page = self.t.query(**kwargs)
+            items.extend(page.get("Items", []))
+            if "LastEvaluatedKey" not in page:
+                break
+            kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+        return [_model(RosterShift, i) for i in items]
+
+    def delete_roster_shift(self, district: str, date: str, shift: str) -> bool:
+        old = self.t.delete_item(Key={"pk": f"ROSTER#{district}", "sk": f"{date}#{shift}"}, ReturnValues="ALL_OLD")
+        return bool(old.get("Attributes"))
 
     # -- road blocks on evacuation routes --------------------------------
     def put_roadblock(self, b: RoadBlock) -> None:

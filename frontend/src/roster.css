@@ -1,0 +1,103 @@
+/* =====================================================================================================
+   /roster: the district duty roster, set as a ledger. Who is on duty now comes first (it is all a
+   phone shows above the fold); the week is a hairline table that stacks into entries on a phone.
+   No pills: the role is a small word above the name, an empty shift is a word in the warning ink.
+   ===================================================================================================== */
+
+.roster { display: grid; gap: clamp(28px, 4vw, 44px); padding-top: clamp(24px, 3vw, 36px); padding-bottom: 64px; }
+.rs-h { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(1.5rem, 2.6vw, 1.9rem); line-height: 1.2; letter-spacing: -0.01em; }
+
+/* -- on duty now: one ledger entry per district, the level rule replaced by the duty rule -- */
+.rs-now { display: grid; gap: 14px; }
+.rs-now-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hair); }
+.rs-now-row { display: grid; gap: 10px; padding: 16px 4px 18px 16px; border-bottom: 1px solid var(--hair); border-left: 3px solid var(--ok); }
+.rs-now-row.is-empty { border-left-color: var(--lv-warning-ink); }
+.rs-district { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; }
+.rs-district-name { font-family: var(--font-display); font-size: clamp(1.4rem, 2.4vw, 1.75rem); line-height: 1.2; color: var(--ink); }
+.rs-shift { font-size: 0.86rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rs-chain { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 28px; }
+.rs-chain li { display: grid; gap: 2px; min-width: 0; }
+.rs-role, .rs-people dt {
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3);
+}
+:root[lang='hi'] :is(.rs-role, .rs-people dt) { letter-spacing: 0; text-transform: none; font-size: 0.82rem; }
+.rs-name { font-size: 1.05rem; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.rs-chain li.is-first .rs-name { font-family: var(--font-display); font-weight: 400; font-size: 1.35rem; line-height: 1.25; }
+.rs-gap { margin: 0; max-width: 62ch; color: var(--lv-warning-ink); font-weight: 700; line-height: 1.45; }
+.rs-meta { margin: 0; font-size: 0.86rem; color: var(--ink-2); }
+.rs-actions { margin: 2px 0 0; }
+.rs-actions .btn { min-height: 48px; }
+
+/* -- the rules of the night, as sentences on hairlines -- */
+.rs-policy { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hair); max-width: 80ch; }
+.rs-policy li { padding: 10px 2px; border-bottom: 1px solid var(--hair); color: var(--ink-2); line-height: 1.5; }
+.rs-policy strong { color: var(--ink); }
+.rs-ddma { color: var(--lv-warning-ink); font-weight: 700; }
+
+/* -- the week -- */
+.rs-week { display: grid; gap: 14px; }
+.rs-week-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 18px; }
+.rs-count { margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--ok); }
+.rs-count.is-gap { color: var(--lv-warning-ink); }
+.rs-tools { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 18px; }
+.rs-district-pick { display: grid; gap: 6px; min-width: 200px; }
+.rs-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.rs-nav .btn { min-height: 44px; }
+.rs-table-wrap.table-wrap { border: 0; border-top: 1px solid var(--hair); border-radius: 0; background: none; }
+.rs-table { table-layout: fixed; }
+.rs-table-wrap .rs-table thead th { background: none; border-bottom: 1px solid var(--line); }
+.rs-table thead th:first-child { width: 22%; }
+.rs-th-time { font-weight: 600; letter-spacing: 0.04em; color: var(--ink-3); }
+.rs-table tbody tr:hover { background: none; }
+.rs-table-wrap .rs-table tbody th.rs-day { font-family: var(--font-display); font-weight: 400; font-size: 1.1rem; color: var(--ink); white-space: nowrap; text-transform: none; letter-spacing: 0; background: none; }
+.rs-cell { padding: 12px 14px; }
+.rs-cell.is-now { box-shadow: inset 3px 0 0 var(--accent-text); background: color-mix(in srgb, var(--accent-text) 5%, transparent); }
+.rs-cell-inner { display: grid; gap: 6px; }
+.rs-people { margin: 0; display: grid; gap: 6px; }
+.rs-people div { display: grid; gap: 1px; }
+@media (min-width: 1000px) { .rs-people { grid-auto-flow: column; justify-content: start; gap: 6px 22px; } }
+.rs-people dd { margin: 0; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.rs-people dd.rs-primary { font-weight: 800; }
+.rs-none { margin: 0; color: var(--ink-3); font-weight: 600; }
+.rs-cell.is-now .rs-none { color: var(--lv-warning-ink); font-weight: 700; }
+.rs-cell-foot { margin: 0; display: flex; align-items: center; gap: 12px; }
+.rs-now-word { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-text); }
+:root[lang='hi'] .rs-now-word { letter-spacing: 0; text-transform: none; font-size: 0.82rem; }
+
+/* -- editing one shift -- */
+.rs-form { display: grid; gap: 14px; padding: 18px 0 4px 16px; border-left: 3px solid var(--accent-text); }
+.rs-form-h { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.3rem; }
+.rs-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px 18px; }
+.rs-fields .rs-note { grid-column: 1 / -1; }
+.rs-fields input, .rs-fields select { min-height: 48px; width: 100%; }
+.rs-form p { margin: 0; }
+.rs-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.rs-form-actions .btn { min-height: 48px; }
+
+/* -- the console's delivery list: a relay is a word, not a chip -- */
+.dl-relay-word { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-text); }
+:root[lang='hi'] .dl-relay-word { letter-spacing: 0; text-transform: none; font-size: 0.82rem; }
+.dl-list li.dl-relay { box-shadow: inset 3px 0 0 var(--accent-text); }
+
+/* -- a phone: who is on duty now leads; the week stacks into one entry per day (app.css stack-sm at 640px) -- */
+@media (max-width: 640px) {
+  .roster { gap: 28px; }
+  .rs-chain { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .rs-chain li { grid-template-columns: 6.5em minmax(0, 1fr); align-items: baseline; gap: 10px; }
+  .rs-actions .btn { width: 100%; justify-content: center; }
+  .rs-tools { align-items: stretch; }
+  .rs-district-pick { min-width: 0; width: 100%; }
+  .rs-nav { width: 100%; }
+  .rs-nav .btn { flex: 1 1 0; justify-content: center; }
+  .rs-table { table-layout: auto; }
+  .rs-table.stack-sm tr { padding: 12px 0 14px; }
+  .rs-table-wrap .rs-table.stack-sm tbody th.rs-day { padding: 0 0 6px; font-size: 1.25rem; letter-spacing: 0; }
+  .rs-table.stack-sm td { display: block; text-align: left; padding: 8px 0 8px 12px; border: 0; }
+  .rs-table.stack-sm td.is-now { box-shadow: inset 3px 0 0 var(--accent-text); }
+  .rs-table.stack-sm td::before {
+    display: block; margin-bottom: 4px;
+    font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3);
+  }
+  :root[lang='hi'] .rs-table.stack-sm td::before { letter-spacing: 0; text-transform: none; font-size: 0.82rem; }
+  .rs-form { padding-left: 12px; }
+}

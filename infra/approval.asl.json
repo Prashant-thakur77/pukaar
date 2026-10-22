@@ -79,7 +79,7 @@
     "AskOfficer": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
-      "Comment": "The handler stores task_token on the alert and notifies the officer; the API answers with SendTaskSuccess {decision, by}.",
+      "Comment": "The handler stores task_token on the alert and notifies the officer; the API answers with SendTaskSuccess {decision, by}. The first half of the window: draft computes both halves from PUKAAR_APPROVAL_TIMEOUT_SECONDS (the same ApprovalTimeoutSeconds parameter).",
       "Parameters": {
         "FunctionName": "${WorkflowFunctionArn}",
         "Payload": {
@@ -89,7 +89,52 @@
           "task_token.$": "$$.Task.Token"
         }
       },
-      "TimeoutSecondsPath": "$.config.approval_timeout_seconds",
+      "TimeoutSecondsPath": "$.draft.result.nudge_after_seconds",
+      "ResultPath": "$.approval",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "ResultPath": "$.error",
+          "Next": "NudgeOfficer"
+        },
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Failsafe"
+        }
+      ],
+      "Next": "RouteDecision"
+    },
+    "NudgeOfficer": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Comment": "Night-friendly: half the window passed with no decision, so the same officer is reminded on every channel they have (Web Push and Telegram) and gets the second half before the next officer is asked. The first link still works.",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "nudge_officer",
+          "alert_id.$": "$.alert_id",
+          "officer_index.$": "$.officer_index",
+          "task_token.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.draft.result.nudge_wait_seconds",
       "ResultPath": "$.approval",
       "Retry": [
         {
@@ -325,7 +370,27 @@
           "Next": "Failsafe"
         }
       ],
-      "Next": "OutcomeAutoSent"
+      "Next": "AutoSendOn"
+    },
+    "AutoSendOn": {
+      "Type": "Choice",
+      "Comment": "Critical auto-send is configurable (PUKAAR_CRITICAL_AUTO_SEND; keeping it on needs DDMA sign-off). Off: auto_send marked the alert expired and nothing is delivered.",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.auto.result.mode",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.auto.result.mode",
+              "StringEquals": "auto"
+            }
+          ],
+          "Next": "OutcomeAutoSent"
+        }
+      ],
+      "Default": "OutcomeExpired"
     },
     "OutcomeAutoSent": {
       "Type": "Pass",

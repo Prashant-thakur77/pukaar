@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from Pukaar.core.log import get_logger, log, metric
-from Pukaar.services import model_probe
+from Pukaar.services import model_probe, roster
 from Pukaar.services.decision_engine import sweep_all
 from Pukaar.store.repo import get_repo
 from Pukaar.workflow.client import get_workflow
@@ -18,10 +18,12 @@ def handler(event: dict[str, Any] | None = None, context: Any = None) -> dict[st
     results = sweep_all(repo, workflow=get_workflow())
     # At most once every 6 hours: does this account have Bedrock model access yet? (never raises)
     model_probe.maybe_run(repo)
+    # A district with no officer rostered for the current shift (IST): NobodyOnDuty, alarmed. Never raises.
+    empty = roster.nobody_on_duty(repo)
     summary = {r.village_id: {"level": r.level, "raw": r.raw_level, "rose": r.rose, "alert_id": r.alert_id,
                               "skipped": r.skipped, "note": r.note} for r in results}
     errors = sum(1 for r in results if r.note.startswith("error"))
     log(_LOG, "sweep done", villages=len(results), errors=errors)
     if errors < len(results):
         metric("SweepCompleted", 1)
-    return {"villages": summary, "errors": errors}
+    return {"villages": summary, "errors": errors, "nobody_on_duty": empty}

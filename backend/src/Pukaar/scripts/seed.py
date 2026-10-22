@@ -47,8 +47,10 @@ def seed(repo: Repo) -> list[str]:
             village.replay = False  # live records never carry the replay flag (services/replay.py)
         repo.put_village(village)
         for i in range(1, STUB_RECIPIENTS_PER_VILLAGE + 1):
+            # The first demo phone stands for the pradhan: a relay, contacted first (delivery/dispatch.py).
             repo.put_recipient(Recipient(id=f"stub-{raw['id']}-{i}", village_id=raw["id"],
-                                         name=f"Demo phone {i} (stub channel)", channel="stub"))
+                                         name=f"Demo phone {i} (stub channel)", channel="stub",
+                                         role="pradhan" if i == 1 else "villager"))
         for ev in (th or {}).get("past_events", []):
             level = "critical" if th and ev["discharge"] >= th["critical"] else "warning"
             repo.put_past_event(PastEvent(

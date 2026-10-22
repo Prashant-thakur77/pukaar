@@ -82,10 +82,17 @@ def test_timeout_path_and_execution_limit(definition):
     ask = states["AskOfficer"]
     assert ask["Resource"].endswith(":lambda:invoke.waitForTaskToken")
     assert ask["Parameters"]["Payload"]["task_token.$"] == "$$.Task.Token"
-    assert ask["TimeoutSecondsPath"] == "$.config.approval_timeout_seconds"
+    # The window is split in two: ask, then (no decision) remind the same officer, then time out.
+    assert ask["TimeoutSecondsPath"] == "$.draft.result.nudge_after_seconds"
     first = ask["Catch"][0]
-    assert first["ErrorEquals"] == ["States.Timeout"]
-    assert states[first["Next"]]["Result"] == {"decision": "timeout"}
+    assert first["ErrorEquals"] == ["States.Timeout"] and first["Next"] == "NudgeOfficer"
+    nudge = states["NudgeOfficer"]
+    assert nudge["Resource"].endswith(":lambda:invoke.waitForTaskToken")
+    assert nudge["Parameters"]["Payload"]["task_token.$"] == "$$.Task.Token"
+    assert nudge["TimeoutSecondsPath"] == "$.draft.result.nudge_wait_seconds"
+    assert nudge["Catch"][0]["ErrorEquals"] == ["States.Timeout"]
+    assert states[nudge["Catch"][0]["Next"]]["Result"] == {"decision": "timeout"}
+    assert nudge["Next"] == ask["Next"] == "RouteDecision"
     assert states["WaitForAcks"]["SecondsPath"] == "$.config.ack_wait_seconds"
     assert states["WaitBeforeRecall"]["SecondsPath"] == "$.config.voice_retry_seconds"
 
@@ -94,6 +101,8 @@ def test_every_task_names_a_contract_step(definition):
     steps = {
         "draft",
         "ask_officer",
+        "nudge_officer",
+        "nudge_officer",
         "next_officer",
         "auto_send",
         "expire",
@@ -275,8 +284,9 @@ def run(definition: dict, execution_input: dict, fake) -> tuple[list[str], dict]
 class FakeWorkflow:
     """Fake workflow Lambda. `decisions` answers ask_officer per call."""
 
-    def __init__(self, level="warning", officers=2, decisions=(), fail_step=None, voice_rounds=0):
+    def __init__(self, level="warning", officers=2, decisions=(), fail_step=None, voice_rounds=0, auto_off=False):
         self.level, self.officers, self.fail_step = level, officers, fail_step
+        self.auto_off = auto_off  # PUKAAR_CRITICAL_AUTO_SEND=false
         self.decisions = list(decisions)
         self.voice_rounds = voice_rounds  # how many recall results say "again" (another voice round)
         self.calls: list[dict] = []
@@ -292,10 +302,18 @@ class FakeWorkflow:
                 "level": self.level,
                 "officer_count": self.officers,
                 "recipients_count": 3,
+                "nudge_after_seconds": 300,
+                "nudge_wait_seconds": 300,
             }
-        if step == "ask_officer":
+        if step in {"ask_officer", "nudge_officer"}:
             assert payload["task_token"].startswith("token-")
+            # "timeout": no answer in either half; "nudged:<d>": no answer, then <d> after the reminder.
             decision = self.decisions.pop(0)
+            if decision == "timeout" and step == "ask_officer":
+                self.decisions.insert(0, "timeout")
+            if decision.startswith("nudged:"):
+                self.decisions.insert(0, decision.split(":", 1)[1])
+                raise TaskFailed("States.Timeout")
             if decision == "timeout":
                 raise TaskFailed("States.Timeout")
             return {
@@ -312,6 +330,8 @@ class FakeWorkflow:
             }
         if step == "close":
             return {"alert_id": alert_id, "status": payload["outcome"]}
+        if step == "auto_send":
+            return {"alert_id": alert_id, "mode": "off" if self.auto_off else "auto"}
         if step == "recall" and self.voice_rounds:
             self.voice_rounds -= 1
             return {"alert_id": alert_id, "resent": 1, "again": True}
@@ -348,6 +368,7 @@ def test_timeout_then_next_officer_approves(definition):
     assert steps == [
         "draft",
         "ask_officer",
+        "nudge_officer",
         "next_officer",
         "ask_officer",
         "deliver",
@@ -356,6 +377,9 @@ def test_timeout_then_next_officer_approves(definition):
     ]
     asks = [c for c in fake.calls if c["step"] == "ask_officer"]
     assert [a["officer_index"] for a in asks] == [0, 1]
+    nudges = [c for c in fake.calls if c["step"] == "nudge_officer"]
+    assert [n["officer_index"] for n in nudges] == [0]  # the first officer was reminded before the second was asked
+    assert nudges[0]["task_token"] not in {a["task_token"] for a in asks}
     assert asks[0]["task_token"] != asks[1]["task_token"]
     assert fake.calls[-1]["outcome"] == "delivered"
 
@@ -366,8 +390,10 @@ def test_all_timeout_critical_auto_sends(definition):
     assert steps == [
         "draft",
         "ask_officer",
+        "nudge_officer",
         "next_officer",
         "ask_officer",
+        "nudge_officer",
         "next_officer",
         "auto_send",
         "deliver",
@@ -383,8 +409,10 @@ def test_all_timeout_warning_expires(definition):
     assert steps == [
         "draft",
         "ask_officer",
+        "nudge_officer",
         "next_officer",
         "ask_officer",
+        "nudge_officer",
         "next_officer",
         "expire",
         "close",
@@ -430,3 +458,19 @@ def test_recall_without_again_goes_straight_to_close(definition):
     assert states["Recall"]["Next"] == "MoreVoiceRounds"
     assert states["MoreVoiceRounds"]["Default"] == "Close"
     assert definition["States"]["Init"]["Parameters"]["config"]["voice_retry_seconds.$"] == "States.StringToJson('600')"
+
+
+def test_reminded_officer_approves_in_the_second_half(definition):
+    """Night-friendly: the first officer is reminded half-way and approves before the next is asked."""
+    fake = FakeWorkflow(decisions=["nudged:approved"])
+    steps, _ = _run(definition, fake)
+    assert steps == ["draft", "ask_officer", "nudge_officer", "deliver", "recall", "close"]
+    assert fake.calls[-1]["outcome"] == "delivered"
+
+
+def test_critical_auto_send_off_expires_without_delivering(definition):
+    """PUKAAR_CRITICAL_AUTO_SEND=false (needs DDMA sign-off to turn on): nothing goes out unapproved."""
+    fake = FakeWorkflow(level="critical", decisions=["timeout", "timeout"], auto_off=True)
+    steps, _ = _run(definition, fake, level="critical")
+    assert steps[-2:] == ["auto_send", "close"] and "deliver" not in steps
+    assert fake.calls[-1]["outcome"] == "expired"

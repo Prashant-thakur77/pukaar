@@ -73,6 +73,10 @@ class Settings:
     voice_ring_timeout_seconds: int = 40
     # Exotel API host: api.exotel.com (Singapore cluster) or api.in.exotel.com (Mumbai cluster).
     exotel_api_host: str = "api.exotel.com"
+    # A critical alert goes out with the fixed template when every officer in the chain timed out.
+    # NEEDS DDMA SIGN-OFF: sending without a human decision is the DDMA's call, not Pukaar's. Off means
+    # the alert expires unsent and the sweep asks again after the cooldown.
+    critical_auto_send: bool = True
 
     @property
     def guardrail_enabled(self) -> bool:
@@ -132,6 +136,7 @@ def get_settings() -> Settings:
         voice_max_attempts=max(1, min(5, int(os.environ.get("PUKAAR_VOICE_MAX_ATTEMPTS", "3")))),
         voice_ring_timeout_seconds=int(os.environ.get("PUKAAR_VOICE_RING_TIMEOUT_SECONDS", "40")),
         exotel_api_host=os.environ.get("PUKAAR_EXOTEL_API_HOST", "api.exotel.com").strip() or "api.exotel.com",
+        critical_auto_send=_bool("PUKAAR_CRITICAL_AUTO_SEND", True),
     )
 
 

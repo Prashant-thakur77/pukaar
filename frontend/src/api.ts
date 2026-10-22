@@ -32,7 +32,11 @@ import type {
   RollCall,
   RollCallBoard,
   RollCallRemind,
+  RosterShift,
+  RosterShiftInput,
+  RosterView,
   SafeView,
+  ShiftId,
   SensorBoard,
   SafePlacesView,
   ShelterState,
@@ -315,6 +319,13 @@ export const api = {
   agents: () => request<AgentRegistry>('/agents', { auth: false }),
   agentTraces: (limit = 5) => request<AgentTrace[]>(`/agents/traces?limit=${limit}`, { auth: false }),
   sensors: () => request<SensorBoard>('/sensors', { auth: false }),
+  // Duty roster (officers only, under Cedar "officer-roster").
+  roster: (p: { district?: string; start?: string } = {}) => request<RosterView>(`/roster${qs(p)}`),
+  setRosterShift: (district: string, date: string, shift: ShiftId, body: RosterShiftInput) =>
+    request<RosterShift>(`/roster/${enc(district)}/${enc(date)}/${shift}`, { method: 'POST', body }),
+  clearRosterShift: (district: string, date: string, shift: ShiftId) =>
+    request<{ cleared: boolean }>(`/roster/${enc(district)}/${enc(date)}/${shift}`, { method: 'DELETE' }),
+  takeOver: (district: string) => request<RosterShift>(`/roster/${enc(district)}/take-over`, { method: 'POST', body: {} }),
 };
 
 /** Static back-test results served by the web host, not the API. Null when absent. */

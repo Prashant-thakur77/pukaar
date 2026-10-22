@@ -16,6 +16,12 @@ answered, "acknowledged" after a key press, "failed" when not connected.
 Re-sends (workflow recall): Telegram once, after AckWaitSeconds. Voice up to
 PUKAAR_VOICE_MAX_ATTEMPTS calls in all, with two counters (docs/VOICE.md):
 not_connected (busy, no answer, failed) and no_key (answered, no key).
+
+Relays first: the village's relays (pradhan, gauge reader, task-force volunteers; Recipient.role)
+are contacted before everyone else, and their Telegram message asks them to sound the siren and
+the megaphone. A relay's acknowledgement is recorded as "relay done: siren and megaphone" on the
+alert timeline. This is the "cascade" of Practical Action's community early-warning work in Nepal:
+the alert reaches a few trusted people first, and they carry it the last mile by siren and voice.
 """
 
 from __future__ import annotations
@@ -62,7 +68,14 @@ def _channels(recipient: Recipient, alert: Alert) -> list[str]:
 def _send_telegram(alert: Alert, recipient: Recipient, audio: bytes | None) -> None:
     if not telegram.configured():
         raise telegram.TelegramError("Telegram token unavailable (not configured, or SSM could not be read)")
-    telegram.send_alert(recipient.id, alert.id, alert.text_hi, audio)
+    text = f"{hi.RELAY_LINE_HI}\n\n{alert.text_hi}" if recipient.is_relay else alert.text_hi
+    telegram.send_alert(recipient.id, alert.id, text, audio)
+
+
+def relays_first(recipients: list[Recipient]) -> list[Recipient]:
+    """The Practical Action cascade: relays (pradhan, gauge reader, task force) before everyone else.
+    Stable, so the order within each group is the stored order."""
+    return sorted(recipients, key=lambda r: 0 if r.is_relay else 1)
 
 
 def _call_audio(repo: Repo, alert: Alert) -> Alert:
@@ -107,7 +120,7 @@ def deliver(repo: Repo, alert: Alert, *, action: str = "deliver", recall: bool =
     A voice call counts as sent here once the provider accepted it; the delivery row says "sent"
     only when the call is answered (delivery/ivr.py).
     """
-    recipients = repo.list_recipients(alert.village_id)
+    recipients = relays_first(repo.list_recipients(alert.village_id))
     existing = {(d.recipient_id, "voice" if d.channel == "voice" else "other"): d for d in repo.list_deliveries(alert.id)}
     audio = None
     if alert.audio_key:
@@ -252,7 +265,24 @@ def acknowledge(repo: Repo, alert_id: str, recipient_id: str, channel: str = "")
     except ConflictError:
         return None
     recount(repo, alert_id)
+    _relay_done(repo, alert_id, d)
     return d
+
+
+def _relay_done(repo: Repo, alert_id: str, d: Delivery) -> None:
+    """A relay's acknowledgement means the village has been told by siren and megaphone. Never raises."""
+    try:
+        alert = repo.get_alert(alert_id)
+        person = repo.get_recipient(alert.village_id, d.recipient_id) if alert else None
+        if person is None or not person.is_relay:
+            return
+        if any(x.recipient_id == d.recipient_id and x.channel != d.channel and x.acknowledged_at
+               for x in repo.list_deliveries(alert_id)):
+            return  # a "both" relay already acknowledged on the other channel: recorded once
+        repo.add_timeline(alert_id, "relay_done", hi.relay_done_detail(person.name, person.role, d.channel))
+        metric("RelayDone", 1)
+    except Exception as exc:
+        log(_LOG, "relay-done record failed", 30, alert_id=alert_id, error=str(exc)[:200])
 
 
 def flag_unreachable(repo: Repo, alert: Alert, d: Delivery) -> None:

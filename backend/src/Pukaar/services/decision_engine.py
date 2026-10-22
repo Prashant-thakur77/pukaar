@@ -307,6 +307,8 @@ def recompute_village(
         data=quality["status"] if quality else village.data_status)
 
     if new_level == "normal":
+        if previous != "normal":
+            _stand_down(repo, village, replay)
         return result
     reask = None
     if not rose:
@@ -355,6 +357,18 @@ def recompute_village(
     if workflow is not None:
         start_workflow(repo, workflow, alert)
     return result
+
+
+def _stand_down(repo: Repo, village: Village, replay: bool) -> None:
+    """Back to normal: the all-clear to everyone contacted for the village's recent alerts
+    (workflow/steps.stand_down; a replay's all-clear is a stub record only). Never raises."""
+    try:
+        from Pukaar.workflow.steps import stand_down_village
+
+        stand_down_village(repo, village.id, replay=replay, by="system",
+                           reason="the village is back to normal")
+    except Exception as exc:
+        log(_LOG, "all-clear failed", 40, village_id=village.id, error=str(exc)[:300])
 
 
 def start_workflow(repo: Repo, workflow: WorkflowStarter, alert: Alert) -> bool:

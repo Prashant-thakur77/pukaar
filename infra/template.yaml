@@ -59,6 +59,13 @@ Parameters:
     Type: String
     Default: "true"
     AllowedValues: ["true", "false"]
+  CriticalAutoSend:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >
+      Needs DDMA sign-off. "true": a critical alert goes out with the fixed template, flagged unapproved, when
+      every officer in the duty chain timed out. "false": it expires unsent and the sweep asks again.
   AlarmEmail:
     Type: String
     Default: ""
@@ -104,6 +111,7 @@ Globals:
         PUKAAR_WEB_URL: !If [HasWebOrigin, !Ref WebOrigin, !Sub "https://main.${AmplifyApp.DefaultDomain}"]
         PUKAAR_WORKER_FUNCTION: !Sub pukaar-worker-${Stage}
         PUKAAR_REPLAY_ENABLED: !Ref ReplayEnabled
+        PUKAAR_CRITICAL_AUTO_SEND: !Ref CriticalAutoSend
         PUKAAR_SSM_PREFIX: /pukaar
         PUKAAR_DATA_DIR: /var/task/data
         # Read by /health on every function; only the worker may call ApplyGuardrail.
@@ -1077,6 +1085,25 @@ Resources:
       TreatMissingData: notBreaching
       AlarmActions: [!Ref AlarmTopic]
 
+  # The sweep emits NobodyOnDuty (dimension District) when a district has no officer on the duty roster for
+  # the shift running now, in IST (services/roster.py). Approvals then go to the village's fallback list.
+  NobodyOnDutyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-nobody-on-duty
+      AlarmDescription: No officer is rostered for the current shift in a district; fill the duty roster in the console (/roster).
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(NobodyOnDuty) FROM Pukaar"
+          Period: 900
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
   Dashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
@@ -1089,7 +1116,8 @@ Resources:
               "metrics": [[{"expression": "SELECT SUM(SweepCompleted) FROM Pukaar", "id": "s1", "label": "SweepCompleted"}],
                           [{"expression": "SELECT MAX(UnacknowledgedAlerts) FROM Pukaar", "id": "s2", "label": "UnacknowledgedAlerts"}],
                           [{"expression": "SELECT SUM(ApprovalDecision) FROM Pukaar", "id": "s3", "label": "ApprovalDecision"}],
-                          [{"expression": "SELECT SUM(VillageDataStale) FROM Pukaar GROUP BY Village", "id": "s4", "label": "VillageDataStale"}]]}},
+                          [{"expression": "SELECT SUM(VillageDataStale) FROM Pukaar GROUP BY Village", "id": "s4", "label": "VillageDataStale"}],
+                          [{"expression": "SELECT SUM(NobodyOnDuty) FROM Pukaar GROUP BY District", "id": "s5", "label": "NobodyOnDuty"}]]}},
             {"type": "metric", "x": 12, "y": 0, "width": 12, "height": 6, "properties": {
               "title": "Model", "region": "${AWS::Region}", "period": 300,
               "metrics": [[{"expression": "SELECT SUM(ModelError) FROM Pukaar", "id": "m1", "label": "ModelError"}],

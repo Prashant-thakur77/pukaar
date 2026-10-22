@@ -78,6 +78,10 @@ def _audio(ctx: ivr.CallContext) -> str | None:
     return storage.url_for(ctx.alert.call_audio_key, expires=AUDIO_URL_SECONDS) if ctx.alert.call_audio_key else None
 
 
+def _all_clear_text(ctx: ivr.CallContext) -> str:
+    return hi.all_clear_voice(ctx.alert.village_name_hi, bool(ctx.alert.decision_trace.get("drill")))
+
+
 def _menu_audio() -> str | None:
     from Pukaar.voice import polly
 
@@ -94,6 +98,11 @@ def exotel_flow(request: Request, k: str = "", part: str = "greeting", CustomFie
                 CallSid: str = "") -> Response:  # noqa: N803
     _check_key(k)
     ctx = _context(_token(CustomField), CallSid)
+    if ivr.is_all_clear(ctx):  # the all-clear: spoken once; the flow's Gather ends at once, no key acts
+        if part == "menu":
+            return JSONResponse({"gather_prompt": {"text": hi.VOICE_GOODBYE_HI}, "max_input_digits": 1,
+                                 "finish_on_key": "", "input_timeout": 1, "repeat_menu": 0})
+        return PlainTextResponse(_all_clear_text(ctx), media_type="text/plain")
     if part == "menu":
         menu = _menu_audio()
         prompt = {"audio_url": menu} if menu else {"text": hi.VOICE_MENU_HI}
@@ -149,6 +158,8 @@ async def _plivo(request: Request, k: str, c: str) -> tuple[ivr.CallContext, dic
 @router.post("/voice/plivo/answer")
 async def plivo_answer(request: Request, k: str = "", c: str = "") -> Response:
     ctx, _ = await _plivo(request, k, c)
+    if ivr.is_all_clear(ctx):
+        return Response(plivo.end_xml(_all_clear_text(ctx)), media_type=XML)
     ivr.answered(get_repo(), ctx)
     xml = plivo.answer_xml(audio_url=_audio(ctx), text_hi=ctx.alert.text_hi, menu_url=_menu_audio(),
                            digits_url=_public_url(request, "/voice/plivo/digits"))

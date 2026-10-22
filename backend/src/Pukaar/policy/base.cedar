@@ -70,7 +70,7 @@ permit (
 when { context.approved == true };
 
 @id("system-critical-auto-send")
-@desc("The system may send without approval only a critical alert after every officer timed out; it is flagged as unapproved.")
+@desc("The system may send without approval only a critical alert after every officer timed out; it is flagged as unapproved. Configurable (PUKAAR_CRITICAL_AUTO_SEND), and keeping it on needs DDMA sign-off.")
 permit (
   principal is Pukaar::System,
   action in [Pukaar::Action::"auto_send", Pukaar::Action::"deliver"],
@@ -96,10 +96,10 @@ permit (
 );
 
 @id("no-replay-to-phones")
-@desc("Replay alerts never reach real phones, by Telegram or by voice call; they go to the stub channel only.")
+@desc("Replay alerts never reach real phones, by Telegram or by voice call, and neither does their all-clear; they go to the stub channel only.")
 forbid (
   principal,
-  action in [Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe"],
+  action in [Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe", Pukaar::Action::"all_clear"],
   resource
 )
 when { context.replay == true && context.channel != "stub" };
@@ -220,7 +220,8 @@ when { context.village_id != "" && principal.village_ids.contains(context.villag
 
 // The judge accounts' password is published in the README so anyone can try the console. Whatever
 // group they are in, they may act on replay alerts only: nothing they do can reach a real phone,
-// change what a real alert says, or change a live village's shelters, roads or checklist.
+// change what a real alert says, or change a live village's shelters, roads or checklist, or the
+// live duty roster (there is no replay roster, so the roster is never theirs to edit).
 // context.replay comes from the record itself (api/auth.py resource_facts), never from the request.
 @id("public-demo-accounts-replay-only")
 @desc("Public demo account (judge, judge_pradhan; its password is published): it may act on replay alerts only, never on a live alert or a live village.")
@@ -232,7 +233,8 @@ forbid (
     Pukaar::Action::"open_rollcall", Pukaar::Action::"remind_rollcall", Pukaar::Action::"tick_checklist",
     Pukaar::Action::"set_report_state", Pukaar::Action::"set_gauge_thresholds",
     Pukaar::Action::"manage_staff_gauge", Pukaar::Action::"confirm_staff_reading", Pukaar::Action::"dev_link",
-    Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe"
+    Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe",
+    Pukaar::Action::"edit_roster", Pukaar::Action::"take_over_duty"
   ],
   resource
 )
@@ -241,3 +243,19 @@ when {
    Pukaar::Officer::"judge_pradhan", Pukaar::Pradhan::"judge_pradhan"].contains(principal) &&
   context.replay != true
 };
+
+@id("officer-roster")
+@desc("Officers read the district duty roster, edit the week and take over a shift; the handover is written to the audit trail. A pradhan cannot.")
+permit (
+  principal is Pukaar::Officer,
+  action in [Pukaar::Action::"view_roster", Pukaar::Action::"edit_roster", Pukaar::Action::"take_over_duty"],
+  resource is Pukaar::App
+);
+
+@id("system-all-clear")
+@desc("When an alert is stood down (the village is back to normal, or an officer issued the all-clear), the system tells everyone it contacted for that alert, on the same channels.")
+permit (
+  principal is Pukaar::System,
+  action == Pukaar::Action::"all_clear",
+  resource is Pukaar::Alert
+);

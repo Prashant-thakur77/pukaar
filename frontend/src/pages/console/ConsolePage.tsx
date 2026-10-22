@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TimeToEar } from '../../components/TimeToEar';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { ArrowRight, Bell, BellRing, ChevronDown, Cloud, Download, FileText, HeartHandshake, History, Home, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
+import { ArrowRight, Bell, BellRing, CalendarClock, ChevronDown, Cloud, Download, FileText, HeartHandshake, History, Home, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
 import { api, API_BASE, ApiError } from '../../api';
 import { AlertStatusChip, DeliveryChips } from '../../components/Chips';
 import { LevelBadge } from '../../components/Level';
@@ -15,6 +15,7 @@ import { afterActionFilename, hasAfterAction } from '../../lib/afterAction';
 import { auditLinkForAlert } from '../../lib/audit';
 import { capXmlUrl } from '../../lib/cap';
 import { fmtAgo, fmtTime } from '../../lib/format';
+import { relayLabel } from '../../lib/roster';
 import { Skeleton } from '../../components/States';
 import { Headline, StatStrip } from '../../components/PageBand';
 import type { Alert, Village } from '../../types';
@@ -179,9 +180,14 @@ function Console() {
               </span>
             )}
             {officer && (
-              <Link to="/audit" className="btn btn-ghost btn-press">
-                <ScrollText aria-hidden="true" /> {t('console.audit')}
-              </Link>
+              <>
+                <Link to="/roster" className="btn btn-ghost btn-press">
+                  <CalendarClock aria-hidden="true" /> {t('console.roster')}
+                </Link>
+                <Link to="/audit" className="btn btn-ghost btn-press">
+                  <ScrollText aria-hidden="true" /> {t('console.audit')}
+                </Link>
+              </>
             )}
             <Call112 />
           </div>
@@ -433,13 +439,31 @@ function Deliveries({ alertId }: { alertId: string }) {
     {data && <TimeToEar alert={data.alert} deliveries={ds} />}
     <ul className="dl-list">
       {ds.map((d) => (
-        <li key={d.recipient_id}>
+        <li key={`${d.recipient_id}-${d.channel}`} className={d.relay_role ? 'dl-relay' : undefined}>
           <strong>{d.name}</strong>
-          <span className={`chip ${d.channel === 'stub' ? 'chip-muted' : ''}`}>{d.channel === 'stub' ? t('console.channel.stub') : t('console.channel.telegram')}</span>
+          <span className={`chip ${d.channel === 'stub' ? 'chip-muted' : ''}`}>
+            {d.channel === 'stub' ? t('console.channel.stub') : d.channel === 'voice' ? t('console.channel.voice') : t('console.channel.telegram')}
+          </span>
+          {d.relay_role && <span className="dl-relay-word">{t('console.delivery.relay', { r: relayLabel(d.relay_role, lang) })}</span>}
           <span className="small">
             {d.sent_at ? t('console.delivery.sent', { t: fmtTime(d.sent_at, lang) }) : t('console.delivery.notsent')}
             {' · '}
-            {d.acknowledged_at ? <span className="ok-text">✓ {t('console.delivery.acked', { t: fmtTime(d.acknowledged_at, lang) })}</span> : <span className="muted">{t('console.delivery.noack')}</span>}
+            {d.acknowledged_at ? (
+              <span className="ok-text">
+                ✓{' '}
+                {d.relay_role
+                  ? t('console.delivery.relaydone', { t: fmtTime(d.acknowledged_at, lang) })
+                  : t('console.delivery.acked', { t: fmtTime(d.acknowledged_at, lang) })}
+              </span>
+            ) : (
+              <span className="muted">{t('console.delivery.noack')}</span>
+            )}
+            {d.all_clear_status && (
+              <span className={d.all_clear_status === 'failed' ? 'bad-text' : 'muted'}>
+                {' · '}
+                {t(d.all_clear_status === 'failed' ? 'console.delivery.allclear.failed' : 'console.delivery.allclear')}
+              </span>
+            )}
             {d.error && <span className="bad-text"> · {d.error}</span>}
           </span>
         </li>

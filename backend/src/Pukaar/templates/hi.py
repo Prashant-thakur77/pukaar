@@ -116,3 +116,48 @@ def voice_unreachable_pradhan(name: str, village_hi: str, attempts: int, categor
     reason = VOICE_REASON_HI.get(category, "कॉल नहीं लगी")
     return (f"पुकार, {label}{village_hi}: {name} तक चेतावनी की कॉल {attempts} बार कोशिश के बाद भी नहीं पहुँची "
             f"({reason})। कृपया किसी को घर भेजकर बताएँ।")
+
+
+# -- relays: the village's own cascade (Practical Action pattern; delivery/dispatch.py) ------------
+RELAY_ROLE_HI = {"pradhan": "प्रधान", "gauge_reader": "गेज रीडर", "task_force": "टास्क फ़ोर्स"}
+RELAY_ROLE_EN = {"pradhan": "Pradhan", "gauge_reader": "Gauge reader", "task_force": "Task force"}
+# Put before the alert text for a relay: they hear it first and pass it on while other phones still ring.
+RELAY_LINE_HI = "आप गाँव के रिले हैं: सायरन बजाएँ और माइक से सबको बताएँ, फिर 'मिल गया' दबाएँ।"
+RELAY_DONE_EN = "relay done: siren and megaphone"
+
+
+def relay_done_detail(name: str, role: str, channel: str) -> str:
+    """The timeline line for a relay's acknowledgement. A first name only."""
+    first = (name or "").split(" ")[0] or "?"
+    return f"{RELAY_DONE_EN} ({first}, {RELAY_ROLE_EN.get(role, role)}, by {channel})"
+
+
+# -- the all-clear to everyone contacted for an alert (workflow/steps.stand_down) -----------------
+def all_clear_message(village_hi: str, village_en: str, drill: bool = False) -> str:
+    """Short, Hindi first, then English. Sent on the channel the person was warned on."""
+    label_hi = "अभ्यास (DRILL): " if drill else ""
+    label_en = "DRILL: " if drill else ""
+    return (f"पुकार, {label_hi}{village_hi}: बाढ़ का ख़तरा टल गया है। आप घर लौट सकते हैं, "
+            f"पर नदी-नालों से अभी भी दूर रहें। आपात स्थिति में 112।\n"
+            f"Pukaar, {label_en}{village_en}: the flood danger has passed. You can go home, but keep away "
+            f"from streams for now. In an emergency call 112.")
+
+
+def all_clear_voice(village_hi: str, drill: bool = False) -> str:
+    """The all-clear call: spoken once, no menu, no key to press."""
+    label = "यह अभ्यास है। " if drill else ""
+    return (f"{label}पुकार की सूचना। {village_hi} में बाढ़ का ख़तरा टल गया है। आप घर लौट सकते हैं, "
+            f"पर नदी-नालों से अभी भी दूर रहें। आपात स्थिति में 112 पर कॉल करें।")
+
+
+def all_clear_officer(village_hi: str, village_en: str, alert_id: str, reason: str, drill: bool = False) -> str:
+    return f"{all_clear_message(village_hi, village_en, drill)}\n\nAlert {alert_id} stood down: {reason}."
+
+
+# -- the night-friendly nudge, half-way through an officer's approval window ----------------------
+def nudge_officer(village_hi: str, level: str, minutes_left: int, url: str, replay: bool = False) -> str:
+    flag = " [REPLAY]" if replay else ""
+    return (f"पुकार{flag}, याद दिलाना: {village_hi} – {LEVEL_HI.get(level, level)}। आपकी मंज़ूरी बाकी है; "
+            f"{minutes_left} मिनट में अगले अधिकारी से पूछा जाएगा।\n"
+            f"Reminder: still waiting for your decision. The next officer is asked in {minutes_left} min.\n\n"
+            f"Approve / decline: {url}")
