@@ -219,6 +219,9 @@ GET  /alerts/{id}/after-action?fresh=&format=   officer, or pradhan of the alert
                              view_after_action; 403 otherwise): text/html after-action report (the copy stored
                              at close, else built now; fresh=true rebuilds); format=json -> the small summary.
                              No phone numbers or chat ids; first names only
+POST /alerts/{id}/outcome    officer (Cedar set_alert_outcome): {outcome: "real_flood"|"no_flood"|"unknown"}
+                             -> Alert (outcome, outcome_by, outcome_at); "was this real?" after a live alert
+                             closed; 409 while open or for a replay or drill; can be corrected later
 POST /alerts/{id}/approve    officer: {} -> Alert; 409 {detail{code,message_en,message_hi}} when late;
                              503 {detail{code:"retry",reason}} when the workflow was briefly unreachable
 POST /alerts/{id}/decline    officer: {reason?} -> Alert; 409 as above
@@ -229,7 +232,12 @@ GET  /alerts/{id}/audio      {url|null, text_hi}   (presigned S3 URL; never synt
 POST /alerts/{id}/ack        {token} -> {ok, acknowledged_at}
 POST /reports                multipart: village_id, text?, audio?, photo?, lat?, lon?,
                              reporter_name?, offline_created?, staff_gauge_id?, staff_mark? (needs the
-                             photo) -> {report, track_code}
+                             photo), device_id?, session_id? (random ids the report page keeps in
+                             localStorage and sessionStorage) -> {report, track_code}. Never drops a report:
+                             one over the per-source or per-village rate limit is stored with held: true and
+                             hold_reason "source_rate_limit" | "village_surge" (services/report_guard.py).
+                             The IP, network range, device and session are kept only as salted hashes and
+                             never returned
 GET  /reports?village_id=&state=   officer/pradhan: [Report]
 PATCH /reports/{id}/state    officer: {state} -> Report (undo = PATCH back to previous_state)
 GET  /directives?village_id= [Directive]
@@ -276,7 +284,11 @@ Counters  every one counted from stored records, nothing estimated (api/views.py
                                         per sweep), replay rows excluded
           gauge_readings_24h            river-gauge readings received in the last 24 h (as GET /sensors)
           gauge_readings_24h_simulated  how many of those came from the labelled simulator
-GET  /public/pilot-metrics   {counters: Counters, drills: Group, live: Group, backtest|null, as_of}  (api/pilot.py)
+GET  /public/pilot-metrics   {counters: Counters, drills: Group, live: Group, backtest|null, false_alarms, as_of}
+                             (api/pilot.py). false_alarms = {closed_alerts, real_flood, no_flood, unknown,
+                             not_set, false_alarm_rate|null, by_rule: [{rule, alerts, real_flood, no_flood,
+                             unknown, not_set, false_alarm_rate|null}]}: counts of "was this real?" over
+                             closed live alerts, per rule family; no ids, no people
           Group = {alerts, reached, acknowledged, ack_share|null, median_minutes_first_ack|null,
                    median_minutes_to_ack|null}; drills = drill alerts that reached a real phone, live = live
                    alerts that went out. reached counts real-phone deliveries only (never the stub channel).

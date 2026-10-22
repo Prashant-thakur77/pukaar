@@ -55,10 +55,12 @@ If Nova 2 Lite is not available to the account, deploy with
 
 1. In Telegram, talk to **@BotFather**, send `/newbot`, and copy the token.
 2. `make secrets` and paste the token at the prompt (input is hidden). It
-   stores three SSM SecureString parameters:
-   `/pukaar/telegram_token`, `/pukaar/telegram_webhook_secret` (random) and
+   stores four SSM SecureString parameters:
+   `/pukaar/telegram_token`, `/pukaar/telegram_webhook_secret` (random),
    `/pukaar/link_secret` (random HMAC key for approval links; kept on reruns
-   unless `ROTATE_LINK_SECRET=1`).
+   unless `ROTATE_LINK_SECRET=1`) and `/pukaar/report_ip_salt` (random salt for
+   the report-abuse hashes, docs/SECURITY.md; kept unless `ROTATE_REPORT_SALT=1`;
+   without it no villager report can auto-verify).
 3. The webhook needs the API URL, so on the very first run (before the stack
    exists) the script stores the secrets and says so; run `make secrets` again
    after `make deploy` to register the webhook at `<ApiUrl>/telegram/webhook`.
@@ -267,7 +269,7 @@ Things that cost money even when small:
 - Bedrock Nova tokens (per call; no model call at level `normal`).
 - Polly generative voice, Transcribe minutes after the 12-month free tier.
 - ECR storage for the images (two images, roughly 0.5 to 1 GB each).
-- CloudWatch: twelve alarms and one dashboard; the free tier covers ten alarms
+- CloudWatch: thirteen alarms and one dashboard; the free tier covers ten alarms
   and three dashboards, so the eleventh is billed (cents a month). X-Ray
   traces past the free tier.
 - DynamoDB point-in-time recovery is billed per GB stored (tiny here).
@@ -282,7 +284,7 @@ eval "$(scripts/stack_env.sh)"
 make gauge-provision VILLAGE=gohar DELETE=1      # once per provisioned gauge
 aws s3 rm "s3://$STACK_BucketName" --recursive   # the bucket must be empty
 sam delete --stack-name pukaar-dev --region us-east-1
-for p in telegram_token telegram_webhook_secret link_secret vapid_private_key vapid_public_key after_action_to; do
+for p in telegram_token telegram_webhook_secret link_secret report_ip_salt vapid_private_key vapid_public_key after_action_to; do
   aws ssm delete-parameter --name "/pukaar/$p"   # an error for one that was never set is harmless
 done
 ```

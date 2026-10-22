@@ -20,6 +20,7 @@ Keys:
   MODELPROBE  META                   (last Bedrock model-access probe; at most one per 6 hours)
   ROSTER#district  date#shift        (duty roster: primary, backup, escalation officer; TTL 400 days)
   FETCHCACHE#key META                (cached external data: daily river ensemble, official feeds; TTL)
+  RATE#src#hash | RATE#village#id  window   (report rate-limit counters; salted IP hash, never an IP; TTL 1 day)
 Sparse GSI gsi1: gsi1pk = "OPEN#ALERT" / "OPEN#REPORT" while work is open.
 """
 
@@ -174,7 +175,8 @@ class Repo:
         page = self.t.query(IndexName="gsi1", KeyConditionExpression=Key("gsi1pk").eq(gsi1pk))
         return page.get("Items", [])
 
-    def _update(self, pk: str, sk: str, fields: dict[str, Any], *, remove: Iterable[str] = (), condition: Any = None) -> dict:
+    def _update(self, pk: str, sk: str, fields: dict[str, Any], *, remove: Iterable[str] = (), condition: Any = None,
+                add: dict[str, int] | None = None) -> dict:
         names: dict[str, str] = {}
         values: dict[str, Any] = {}
         sets = []
@@ -183,6 +185,13 @@ class Repo:
             values[f":u{i}"] = _to_dynamo(v)
             sets.append(f"#u{i} = :u{i}")
         expr = ("SET " + ", ".join(sets)) if sets else ""
+        if add:
+            adds = []
+            for j, (k, v) in enumerate(add.items()):
+                names[f"#a{j}"] = k
+                values[f":a{j}"] = v
+                adds.append(f"#a{j} :a{j}")
+            expr += " ADD " + ", ".join(adds)
         removes = list(remove)
         if removes:
             for j, k in enumerate(removes):
@@ -389,6 +398,13 @@ class Repo:
     def list_reports(self, village_id: str, limit: int = 100) -> list[Report]:
         items = self._query(f"VILLAGE#{village_id}", "REPORT#", newest_first=True, limit=limit)
         return [_model(Report, i) for i in items]
+
+    def bump_rate(self, scope: str, key: str, window: str, ttl_seconds: int = 86400) -> int:
+        """Add one to a fixed-window counter and return the new count (services/report_guard.py).
+        One atomic ADD per call: two Lambdas never both read the old count."""
+        item = self._update(f"RATE#{scope}#{key}", window, {"ttl": int(clock.now().timestamp()) + ttl_seconds},
+                            add={"n": 1})
+        return int(item.get("n", 0))
 
     # -- recipients ------------------------------------------------------
     def put_recipient(self, r: Recipient) -> None:

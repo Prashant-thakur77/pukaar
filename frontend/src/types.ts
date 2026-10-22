@@ -293,7 +293,13 @@ export interface Alert extends SampleFlag {
   replay: boolean;
   /** Present on the real backend; false when no Polly MP3 exists (local mode). */
   has_audio?: boolean;
+  /** "Was this real?", set by an officer after the alert closed (POST /alerts/{id}/outcome). */
+  outcome?: AlertOutcome | null;
+  outcome_by?: string | null;
+  outcome_at?: string | null;
 }
+
+export type AlertOutcome = 'real_flood' | 'no_flood' | 'unknown';
 
 export interface Delivery {
   alert_id: string;
@@ -406,8 +412,10 @@ export interface Report extends SampleFlag {
   replay: boolean;
   /** What the guardrail said about the words; null on reports from before screening. */
   screen?: ReportScreen | null;
-  /** Held for review: the guardrail stopped the words, so only an officer can verify it. */
+  /** Held for review: the guardrail stopped the words, or it came in over a rate limit; only an officer can verify it. */
   held?: boolean;
+  /** Why it is held when it came in over a rate limit: source_rate_limit or village_surge (backend report_guard.py). */
+  hold_reason?: string | null;
   /** "Compare with the marked rock": the mark the villager chose, and the officer's check. */
   staff_reading?: StaffReading | null;
   /** Public pages get the coarse facts only: no words, GPS or media, just whether they were sent. */
@@ -983,11 +991,28 @@ export interface PilotBacktestScenario {
   }[];
 }
 
+/** "Was this real?" counts over closed live alerts; false_alarm_rate = no_flood / (real_flood + no_flood). */
+export interface OutcomeCounts {
+  real_flood: number;
+  no_flood: number;
+  unknown: number;
+  not_set: number;
+  false_alarm_rate: number | null;
+}
+
+export interface PilotFalseAlarms extends OutcomeCounts {
+  closed_alerts: number;
+  /** Per rule family ("rain_24h", "discharge", "gauge", ...); an alert counts under each rule that fired. */
+  by_rule: (OutcomeCounts & { rule: string; alerts: number })[];
+}
+
 export interface PilotMetrics extends SampleFlag {
   counters: Counters;
   drills: PilotGroup;
   live: PilotGroup;
   backtest: { rules: string | null; scenarios: PilotBacktestScenario[] } | null;
+  /** Absent on an older API. */
+  false_alarms?: PilotFalseAlarms;
   as_of: string;
 }
 

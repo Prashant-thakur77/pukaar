@@ -14,18 +14,25 @@ live        live flood alerts that went out (views.went_out); never replays, nev
   median_minutes_first_ack  per alert: first send to the first acknowledgement; the median over alerts
   median_minutes_to_ack     per person: their send to their acknowledgement; the median over people
 backtest    lead times from data/backtest.json (scripts/backtest.py), per scenario and village
+false_alarms  "was this real?" (an officer's answer after a live alert closed), counted per rule that fired
+  closed_alerts             live alerts the workflow has finished with (never replays, never drills)
+  real_flood / no_flood / unknown / not_set   how many of them got each answer
+  false_alarm_rate          no_flood / (real_flood + no_flood), 0..1 (null until one of the two is recorded)
+  by_rule                   the same counts per rule family ("rain_24h", "discharge", "gauge", ...); an alert
+                            counts once under each rule that fired for it. Rule names only: no ids, no people.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from statistics import median
 from typing import Any
 
 from Pukaar.api import views
 from Pukaar.core import clock
 from Pukaar.core.config import get_settings
-from Pukaar.store.models import Alert, Delivery
+from Pukaar.store.models import ALERT_OUTCOMES, OPEN_ALERT_STATUSES, Alert, Delivery
 from Pukaar.store.repo import Repo
 
 _REACHED = {"sent", "acknowledged"}
@@ -72,6 +79,39 @@ def _group(pairs: list[tuple[Alert, list[Delivery]]]) -> dict[str, Any]:
     }
 
 
+_RULE_FAMILY = re.compile(r"[a-z][a-z0-9_]*")
+
+
+def rule_family(rule: str) -> str | None:
+    """"rain_24h>=115.6mm:warning" -> "rain_24h"; "auto_verified_capped:rpt_1" -> "auto_verified_capped"."""
+    m = _RULE_FAMILY.match(str(rule).strip().lower())
+    return m.group(0) if m and m.group(0) != "drill" else None
+
+
+def _outcome_counts(alerts: list[Alert]) -> dict[str, Any]:
+    out: dict[str, Any] = {k: 0 for k in (*ALERT_OUTCOMES, "not_set")}
+    for a in alerts:
+        out[a.outcome or "not_set"] += 1
+    judged = out["real_flood"] + out["no_flood"]
+    out["false_alarm_rate"] = round(out["no_flood"] / judged, 3) if judged else None
+    return out
+
+
+def false_alarms(alerts: list[Alert]) -> dict[str, Any]:
+    """Counts of "was this real?" over closed live alerts, overall and per rule family."""
+    closed = [a for a in alerts if not views.is_replay(a) and not views.is_drill(a)
+              and a.status not in OPEN_ALERT_STATUSES]
+    by_rule: dict[str, list[Alert]] = {}
+    for a in closed:
+        for fam in sorted({f for f in (rule_family(r) for r in a.decision_trace.get("rules_fired") or []) if f}):
+            by_rule.setdefault(fam, []).append(a)
+    return {
+        "closed_alerts": len(closed),
+        **_outcome_counts(closed),
+        "by_rule": [{"rule": fam, "alerts": len(xs), **_outcome_counts(xs)} for fam, xs in sorted(by_rule.items())],
+    }
+
+
 def backtest_lead_times() -> dict[str, Any] | None:
     path = get_settings().data_dir / "backtest.json"
     try:
@@ -115,5 +155,6 @@ def metrics(repo: Repo) -> dict[str, Any]:
         "drills": _group(drills),
         "live": _group(live),
         "backtest": backtest_lead_times(),
+        "false_alarms": false_alarms(alerts),
         "as_of": clock.iso(clock.now()),
     }

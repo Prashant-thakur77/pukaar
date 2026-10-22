@@ -10,6 +10,7 @@ from Pukaar.api.auth import Allowed
 from Pukaar.core import clock
 from Pukaar.handlers import worker
 from Pukaar.policy.guard import Principal
+from Pukaar.services import report_guard
 from Pukaar.services import reports as svc
 from Pukaar.services import staff_gauge as staff
 from Pukaar.services.decision_engine import recompute_village
@@ -45,6 +46,8 @@ async def create_report(
     offline_created: bool = Form(False),
     staff_gauge_id: str = Form(""),
     staff_mark: float | None = Form(None),
+    device_id: str = Form(""),
+    session_id: str = Form(""),
     audio: UploadFile | None = File(None),
     photo: UploadFile | None = File(None),
 ) -> dict:
@@ -65,9 +68,12 @@ async def create_report(
             staff_reading = staff.reading_for(repo, village.id, staff_gauge_id, staff_mark)
         except staff.StaffGaugeError as exc:
             raise HTTPException(400, {"code": "invalid", "message_en": exc.en, "message_hi": exc.hi}) from None
+    # Who sent it, as salted hashes only (services/report_guard.py); the raw IP is never stored.
+    ip = report_guard.client_ip(request.headers, request.client.host if request.client else None)
+    source = report_guard.make_source(ip, device_id, session_id)
     r = svc.intake(repo, village, text=text, audio=audio_data, photo=photo_data, lat=lat, lon=lon,
                    reporter_name=reporter_name, offline_created=offline_created, replay=False,
-                   staff_reading=staff_reading)
+                   staff_reading=staff_reading, source=source)
     worker.dispatch({"task": "process_report", "report_id": r.id})
     return {"report": views.report(r), "track_code": r.track_code}
 

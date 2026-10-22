@@ -433,3 +433,80 @@ def test_replay_can_be_switched_off_for_a_real_pilot():
     p = T["Parameters"]["ReplayEnabled"]
     assert set(p["AllowedValues"]) == {"true", "false"}
     assert T["Globals"]["Function"]["Environment"]["Variables"]["PUKAAR_REPLAY_ENABLED"] == {"Fn::Ref": "ReplayEnabled"}
+
+
+# -- browser hardening (Amplify custom headers) -------------------------------------------------
+def _amplify_headers() -> dict[str, str]:
+    raw = RES["AmplifyApp"]["Properties"]["CustomHeaders"]
+    text = raw["Fn::Sub"] if isinstance(raw, dict) else raw
+    rules = yaml.safe_load(text)["customHeaders"]
+    everything = [r for r in rules if r["pattern"] == "**"]
+    assert everything, "headers must apply to every path"
+    return {h["key"]: h["value"] for h in everything[0]["headers"]}
+
+
+def _csp() -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for part in _amplify_headers()["Content-Security-Policy"].split(";"):
+        words = part.split()
+        if words:
+            out[words[0]] = words[1:]
+    return out
+
+
+def test_amplify_sends_the_security_headers():
+    h = _amplify_headers()
+    hsts = h["Strict-Transport-Security"]
+    assert int(hsts.split("max-age=")[1].split(";")[0]) >= 31536000
+    assert h["X-Content-Type-Options"] == "nosniff"
+    assert h["X-Frame-Options"] == "DENY"
+    assert h["Referrer-Policy"] in {"strict-origin-when-cross-origin", "no-referrer", "same-origin"}
+    perms = {p.split("=")[0].strip(): p.split("=")[1].strip() for p in h["Permissions-Policy"].split(",")}
+    # The report page records voice notes and reads GPS on its own origin; nothing uses the camera API.
+    assert perms["microphone"] == "(self)" and perms["geolocation"] == "(self)" and perms["camera"] == "()"
+
+
+def test_csp_is_strict_where_it_matters():
+    csp = _csp()
+    assert csp["default-src"] == ["'self'"]
+    assert csp["frame-ancestors"] == ["'none'"] and csp["object-src"] == ["'none'"]
+    assert csp["base-uri"] == ["'self'"] and csp["form-action"] == ["'self'"]
+    assert "'unsafe-inline'" not in csp["script-src"] and "'unsafe-eval'" not in csp["script-src"]
+    # No <style> elements from anywhere but the app; inline style attributes only, for the after-action
+    # report the console opens from a blob: URL (a blob: page inherits this policy).
+    assert csp["style-src"] == ["'self'"] and csp["style-src-attr"] == ["'unsafe-inline'"]
+    for directive, sources in csp.items():
+        assert "*" not in sources and "https:" not in sources and "http:" not in sources, directive
+    connect = " ".join(csp["connect-src"])
+    for host in ("execute-api.${AWS::Region}.amazonaws.com", "https://cognito-idp.${AWS::Region}.amazonaws.com",
+                 "wss://*.appsync-realtime-api.${AWS::Region}.amazonaws.com", "https://tile.openstreetmap.org"):
+        assert host in connect, host
+    assert "blob:" in csp["worker-src"] and "blob:" in csp["media-src"]  # MapLibre workers, recorded voice notes
+
+
+def test_csp_allows_exactly_the_inline_scripts_in_index_html():
+    import base64
+    import hashlib
+    import re
+
+    html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+    inline = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.S)
+    hashes = {"'sha256-" + base64.b64encode(hashlib.sha256(s.encode("utf-8")).digest()).decode() + "'" for s in inline}
+    allowed = {s for s in _csp()["script-src"] if s.startswith("'sha256-")}
+    # Edit the theme snippet in frontend/index.html and this fails until the template's hash matches.
+    assert hashes and hashes == allowed
+
+
+def test_report_route_has_its_own_throttle_and_the_api_reads_the_report_salt():
+    api = RES["HttpApi"]["Properties"]
+    assert api["RouteSettings"]["POST /reports"]["ThrottlingRateLimit"] <= api["DefaultRouteSettings"]["ThrottlingRateLimit"]
+    ssm = [s for name, s in _statements() if name == "ApiFunction" and "ssm:GetParameter" in _as_list(s.get("Action"))]
+    assert ssm, "the API reads /pukaar/report_ip_salt from SSM"
+    assert "report_ip_salt" in (ROOT / "scripts" / "put_secrets.sh").read_text(encoding="utf-8")
+
+
+def test_report_surge_alarm_watches_the_metric_the_report_guard_emits():
+    expr = _alarms()["ReportSurgeAlarm"]["Metrics"][0]["Expression"]
+    assert "ReportSurge" in expr
+    guard = (SRC / "services" / "report_guard.py").read_text(encoding="utf-8")
+    assert guard.count('metric("ReportSurge"') == 2  # one source, one village

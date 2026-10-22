@@ -76,7 +76,8 @@ def public_report(r: Report) -> dict[str, Any]:
 def report(r: Report, *, public: bool = False) -> dict[str, Any]:
     if public:
         return public_report(r)
-    out = r.model_dump(exclude={"photo_key", "audio_key", "masked_text"})
+    # The salted source hashes stay in the table: officers see the flags they produce, never the hashes.
+    out = r.model_dump(exclude={"photo_key", "audio_key", "masked_text", "source"})
     out["photo_url"] = storage.url_for(r.photo_key)
     out["audio_url"] = storage.url_for(r.audio_key)
     out["held"] = r.held

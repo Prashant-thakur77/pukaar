@@ -5,10 +5,16 @@ report is never dropped: a failed transcription or structuring keeps the raw
 audio and a flag. Processing (worker, slow): Transcribe, model structuring,
 photo description, auto-verification, then recompute the village.
 
-Auto-verification (code, never the model): GPS inside the village radius AND
-either a photo whose description agrees with the report type, or a second
-independent report within 500 m and 30 minutes that agrees. Only verified
-reports can raise a level.
+Auto-verification (code, never the model): a second report within 500 m and
+30 minutes that agrees, AND the two are independent (services/report_guard.py):
+a different device and session, not the same IP or network range, and both GPS
+fixes plausible (inside the village radius, not 0,0, not the published village
+point). A photo the model says agrees is flagged for the officer ("photo_agrees")
+but no longer verifies a report on its own: one forged report with a stock photo
+must not raise a public level. Only verified reports can raise a level.
+
+Abuse: every report is counted per source (salted IP hash) and per village. One
+over a limit is kept and held for an officer, never dropped (report_guard.py).
 
 Screening: before any structuring, the words (typed text or transcript) go
 through the guardrail (llm/guardrail.py). A held report is kept and shown to
@@ -26,9 +32,10 @@ from Pukaar.core.ids import new_id, track_code
 from Pukaar.core.log import get_logger, log
 from Pukaar.llm import guardrail
 from Pukaar.llm.bedrock import BedrockLLM
+from Pukaar.services import report_guard as guard
 from Pukaar.services import storage
 from Pukaar.services.report_structuring import structure
-from Pukaar.store.models import AuditRow, Report, ReportScreen, StaffReading, Village
+from Pukaar.store.models import AuditRow, Report, ReportScreen, ReportSource, StaffReading, Village
 from Pukaar.store.repo import Repo
 from Pukaar.voice import transcribe
 
@@ -73,49 +80,80 @@ def find_duplicate(repo: Repo, r: Report) -> Report | None:
     return None
 
 
-def corroborating(repo: Repo, r: Report) -> Report | None:
+def _candidate(r: Report, other: Report, created) -> bool:
+    """Same village window, type and replay flag; not a duplicate, false or held report."""
+    if other.id == r.id or not _has_gps(other) or other.replay != r.replay:
+        return False
+    if other.state in {"duplicate", "false"} or "possible_duplicate" in other.flags or other.held:
+        return False
+    if abs((clock.parse(other.created_at) - created).total_seconds()) > CORROBORATION_MINUTES * 60:
+        return False
+    return other.report_type == r.report_type and other.report_type != "other"
+
+
+def find_corroboration(repo: Repo, r: Report, village: Village) -> tuple[Report | None, list[str]]:
+    """An independent partner for r, and why any nearby agreeing report was not one."""
     if not _has_gps(r):
-        return None
+        return None, []
     created = clock.parse(r.created_at)
+    rejected: list[str] = []
     for other in repo.list_reports(r.village_id, limit=50):
-        if other.id == r.id or not _has_gps(other) or other.replay != r.replay:
-            continue
-        if other.state in {"duplicate", "false"} or "possible_duplicate" in other.flags or other.held:
-            continue
-        if abs((clock.parse(other.created_at) - created).total_seconds()) > CORROBORATION_MINUTES * 60:
-            continue
-        if other.report_type != r.report_type or other.report_type == "other":
+        if not _candidate(r, other, created):
             continue
         d = distance_m(r.lat, r.lon, other.lat, other.lon)  # type: ignore[arg-type]
-        if DUPLICATE_RADIUS_M < d <= CORROBORATION_RADIUS_M or (d <= DUPLICATE_RADIUS_M and other.reporter_name != r.reporter_name and r.reporter_name):
-            return other
-    return None
+        if not (DUPLICATE_RADIUS_M < d <= CORROBORATION_RADIUS_M
+                or (d <= DUPLICATE_RADIUS_M and other.reporter_name != r.reporter_name and r.reporter_name)):
+            continue
+        why = guard.not_independent(r, other) or guard.implausible_gps(other, village, VILLAGE_RADIUS_M)
+        if why is None:
+            return other, rejected
+        if why not in rejected:
+            rejected.append(why)
+    return None, rejected
+
+
+def corroborating(repo: Repo, r: Report) -> Report | None:
+    village = repo.get_village(r.village_id)
+    return find_corroboration(repo, r, village)[0] if village else None
+
+
+def _drop_rejections(flags: list[str]) -> list[str]:
+    return [f for f in flags if not f.startswith("corroboration_rejected:")]
 
 
 def auto_verify(repo: Repo, r: Report, village: Village, photo_agrees: bool | None = None) -> list[Report]:
     """Returns the reports that became verified_auto (this one and/or its partner)."""
-    if r.state != "unverified" or r.held or not inside_village(r, village):
+    if r.state != "unverified" or r.held:
         return []
-    changed: list[Report] = []
-    if photo_agrees:
-        changed.append(repo.update_report(r.id, state="verified_auto", previous_state=r.state,
-                                          verified_by="auto:photo-agrees", flags=r.flags + ["verified_by_photo"]))
-        return changed
-    partner = corroborating(repo, r)
-    if partner is not None and inside_village(partner, village):
-        changed.append(repo.update_report(r.id, state="verified_auto", previous_state=r.state,
-                                          verified_by=f"auto:corroborated-by:{partner.id}", flags=r.flags + ["corroborated"]))
-        if partner.state == "unverified":
-            changed.append(repo.update_report(partner.id, state="verified_auto", previous_state=partner.state,
-                                              verified_by=f"auto:corroborated-by:{r.id}",
-                                              flags=partner.flags + ["corroborated"]))
+    flags = list(r.flags)
+    if photo_agrees and "photo_agrees" not in flags:
+        flags.append("photo_agrees")  # shown to the officer; not enough to verify on its own
+    gps_problem = guard.implausible_gps(r, village, VILLAGE_RADIUS_M)
+    partner, rejected = (None, []) if gps_problem else find_corroboration(repo, r, village)
+    tag = f"gps_implausible:{gps_problem}"
+    if gps_problem and gps_problem not in {"no_gps", "outside_village"} and tag not in flags:
+        flags.append(tag)
+    flags += [f"corroboration_rejected:{why}" for why in rejected if f"corroboration_rejected:{why}" not in flags]
+    if partner is None:
+        if flags != r.flags:
+            repo.update_report(r.id, flags=flags)
+        return []
+    changed = [repo.update_report(r.id, state="verified_auto", previous_state=r.state,
+                                  verified_by=f"auto:corroborated-by:{partner.id}",
+                                  flags=_drop_rejections(flags) + ["corroborated"]
+                                  + (["verified_by_photo"] if photo_agrees else []))]
+    if partner.state == "unverified":
+        changed.append(repo.update_report(partner.id, state="verified_auto", previous_state=partner.state,
+                                          verified_by=f"auto:corroborated-by:{r.id}",
+                                          flags=_drop_rejections(partner.flags) + ["corroborated"]))
     return changed
 
 
 def intake(repo: Repo, village: Village, *, text: str = "", audio: tuple[bytes, str] | None = None,
            photo: tuple[bytes, str] | None = None, lat: float | None = None, lon: float | None = None,
            reporter_name: str | None = None, offline_created: bool = False, replay: bool = False,
-           staff_reading: StaffReading | None = None) -> Report:
+           staff_reading: StaffReading | None = None, source: ReportSource | None = None) -> Report:
+    """Store a report. Never drops one: a report over a rate limit is kept and held for an officer."""
     rid = new_id("rpt")
     now = clock.now()
     flags: list[str] = []
@@ -128,6 +166,13 @@ def intake(repo: Repo, village: Village, *, text: str = "", audio: tuple[bytes, 
         photo_key = storage.put_bytes(f"photos/{rid}.{ext}", photo[0], photo[1])
     if lat is None or lon is None:
         flags.append("no_gps")
+    hold_reason = None
+    if not replay:
+        if source is None or not source.ip:
+            flags.append(guard.FLAG_SOURCE_UNKNOWN)
+        rate = guard.check_rate(repo, village.id, source or ReportSource())
+        hold_reason = rate.hold_reason
+        flags += rate.flags
     structured = structure(text, village.name, None, has_photo=photo is not None)
     needs_transcript = bool(audio_key) and not text.strip()
     report = Report(
@@ -137,15 +182,37 @@ def intake(repo: Repo, village: Village, *, text: str = "", audio: tuple[bytes, 
         state="transcribing" if needs_transcript else "unverified", parser_source=structured.parser_source,
         flags=flags, track_code=track_code(), reporter_name=(reporter_name or None),
         offline_created=offline_created, replay=replay, staff_reading=staff_reading,
+        source=source, hold_reason=hold_reason,
     )
     dup = find_duplicate(repo, report)
     if dup is not None:
         report.flags.append("possible_duplicate")
         report.flags.append(f"duplicate_of:{dup.id}")
+    twin = _same_source_recent(repo, report)
+    if twin is not None:
+        # "Possible duplicate or flood of reports": the officer sees which earlier report shares a source.
+        report.flags.append(guard.FLAG_SAME_SOURCE)
+        report.flags.append(f"same_source_as:{twin.id}")
     repo.put_report(report)
     log(_LOG, "report received", report_id=rid, village_id=village.id, type=report.report_type,
-        severity=report.severity, audio=bool(audio_key), photo=bool(photo_key), gps=lat is not None)
+        severity=report.severity, audio=bool(audio_key), photo=bool(photo_key), gps=lat is not None,
+        held=hold_reason)
     return report
+
+
+def _same_source_recent(repo: Repo, r: Report) -> Report | None:
+    """The newest report in this village in the last hour from the same IP, network range or device."""
+    if r.source is None:
+        return None
+    created = clock.parse(r.created_at)
+    for other in repo.list_reports(r.village_id, limit=50):
+        if other.id == r.id or other.replay != r.replay:
+            continue
+        if abs((clock.parse(other.created_at) - created).total_seconds()) > DUPLICATE_MINUTES * 60:
+            continue
+        if guard.same_source(r.source, other.source):
+            return other
+    return None
 
 
 def process(repo: Repo, report_id: str, llm: BedrockLLM | None, *, workflow=None) -> Report:
@@ -161,7 +228,12 @@ def process(repo: Repo, report_id: str, llm: BedrockLLM | None, *, workflow=None
     fields: dict = {}
     text = r.text
     source = "text"
-    if r.audio_key and not text.strip():
+    # Over a rate limit: no transcription, model or photo description (a script must not run up the
+    # bill). The officer listens to the audio and looks at the photo instead.
+    rate_held = bool(r.hold_reason)
+    if r.audio_key and not text.strip() and rate_held:
+        fields["flags"] = r.flags + ["transcript_skipped_held"]
+    elif r.audio_key and not text.strip():
         transcript = transcribe.transcribe_key(r.audio_key, f"pukaar-{r.id}")
         if transcript:
             fields["transcript"] = transcript
@@ -179,13 +251,13 @@ def process(repo: Repo, report_id: str, llm: BedrockLLM | None, *, workflow=None
         if verdict.masked_text:
             fields["masked_text"] = verdict.masked_text
             text = verdict.masked_text  # no phone number or e-mail reaches the model
-        s = structure(text, village.name, None if held else llm, has_photo=bool(r.photo_key))
+        s = structure(text, village.name, None if (held or rate_held) else llm, has_photo=bool(r.photo_key))
         fields.update(report_type=s.report_type, severity=s.severity, summary_en=s.summary_en, reply_hi=s.reply_hi,
                       parser_source=s.parser_source)
         if held:
             _audit_hold(repo, r, verdict)
     photo_agrees = None
-    if r.photo_key and llm is not None:
+    if r.photo_key and llm is not None and not rate_held:
         try:
             data, ctype = storage.get_bytes(r.photo_key)
             fmt = "png" if "png" in ctype else ("webp" if "webp" in ctype else "jpeg")

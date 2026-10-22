@@ -1,7 +1,9 @@
 // Typed client for every route in docs/CONTRACT.md.
 import { afterActionPath } from './lib/afterAction';
+import { deviceId, sessionId } from './lib/reporter';
 import { useAuth, useNet } from './store';
 import type {
+  AlertOutcome,
   AgentRegistry,
   AgentTrace,
   Alert,
@@ -200,6 +202,9 @@ export interface NewReport {
   /** "Compare with the marked rock": the staff gauge and the mark's value the villager chose. */
   staff_gauge_id?: string | null;
   staff_mark?: number | null;
+  /** Random ids (lib/reporter.ts); filled in when not given. The server keeps salted hashes only. */
+  device_id?: string;
+  session_id?: string;
 }
 
 /** Multipart body for POST /reports, exactly the CONTRACT field names. */
@@ -219,6 +224,9 @@ export function reportForm(r: NewReport): FormData {
     f.append('staff_gauge_id', r.staff_gauge_id);
     f.append('staff_mark', String(r.staff_mark));
   }
+  // Lets the server tell two phones apart, so one phone's two reports never confirm each other.
+  f.append('device_id', r.device_id ?? deviceId());
+  f.append('session_id', r.session_id ?? sessionId());
   return f;
 }
 
@@ -277,6 +285,9 @@ export const api = {
   alert: (id: string) => request<AlertDetail>(`/alerts/${enc(id)}`),
   devApprovalLink: (id: string) => request<DevApprovalLink>(`/dev/approval-link/${enc(id)}`),
   approve: (id: string) => request<Alert>(`/alerts/${enc(id)}/approve`, { method: 'POST', body: {} }),
+  /** "Was this real?" after a live alert closed (officer only, Cedar set_alert_outcome). */
+  setAlertOutcome: (id: string, outcome: AlertOutcome) =>
+    request<Alert>(`/alerts/${enc(id)}/outcome`, { method: 'POST', body: { outcome } }),
   decline: (id: string, reason?: string) =>
     request<Alert>(`/alerts/${enc(id)}/decline`, { method: 'POST', body: reason ? { reason } : {} }),
   afterAction: (id: string) => requestBlob(afterActionPath(id)),

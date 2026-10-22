@@ -11,7 +11,7 @@ import { fmtDate, fmtNumber, fmtTime } from '../lib/format';
 import { DEFAULT_COST_INPUTS, estimatePilotCost, fmtRupees, fmtRupeesShort, type CostInputs, type CostLineKey } from '../lib/pilotCost';
 import { countByStatus, parseReadiness, type Readiness, type ReadinessStatus } from '../lib/pilotReadiness';
 import type { Lang } from '../store';
-import type { PilotGroup, PilotMetrics } from '../types';
+import type { PilotFalseAlarms, PilotGroup, PilotMetrics } from '../types';
 
 type Txt = { hi: string; en: string };
 type Source = { label: string; href: string };
@@ -348,6 +348,44 @@ function share(g: PilotGroup, lang: Lang): ReactNode {
 
 const hours = (h: number, lang: Lang) => `${fmtNumber(h, lang)} ${lang === 'en' ? 'h' : 'घंटे'}`;
 
+const rate = (r: number | null, lang: Lang) => (r == null ? <NotYet /> : `${fmtNumber(r * 100, lang, 0)}%`);
+
+/** "Was this real?" after each closed live alert, counted per rule (api/pilot.py false_alarms). */
+function FalseAlarms({ fa }: { fa: PilotFalseAlarms }) {
+  const { lang } = useT();
+  const en = lang === 'en';
+  return (
+    <>
+      <h3 className="pl-h3">{en ? 'Was it real? False alarms by rule' : 'क्या यह असली था? हर नियम की झूठी चेतावनियाँ'}</h3>
+      <ul className="pl-stats">
+        <Measure value={fmtNumber(fa.closed_alerts, lang)} label={en ? 'Closed live alerts' : 'बंद असली चेतावनियाँ'} />
+        <Measure value={fmtNumber(fa.real_flood, lang)} label={en ? 'Real flood' : 'असली बाढ़'} />
+        <Measure value={fmtNumber(fa.no_flood, lang)} label={en ? 'No flood' : 'बाढ़ नहीं आई'} note={en ? `${fa.unknown} unknown, ${fa.not_set} not answered yet` : `${fa.unknown} पता नहीं, ${fa.not_set} का जवाब बाकी`} />
+        <Measure value={rate(fa.false_alarm_rate, lang)} label={en ? 'False-alarm rate' : 'झूठी चेतावनी दर'} note={en ? 'No flood ÷ (real + no flood)' : 'बाढ़ नहीं ÷ (असली + बाढ़ नहीं)'} />
+      </ul>
+      {fa.by_rule.length > 0 && (
+        <ul className="pl-rows">
+          {fa.by_rule.map((r) => (
+            <li key={r.rule}>
+              <span className="pl-row-k" translate="no">
+                {r.rule}
+              </span>
+              <span>
+                {rate(r.false_alarm_rate, lang)}{' '}
+                <span className="meta-line">
+                  {en
+                    ? `${r.alerts} alerts · ${r.real_flood} real · ${r.no_flood} no flood · ${r.unknown} unknown · ${r.not_set} not answered`
+                    : `${r.alerts} चेतावनियाँ · ${r.real_flood} असली · ${r.no_flood} बाढ़ नहीं · ${r.unknown} पता नहीं · ${r.not_set} बाकी`}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 function MeasuredBody({ m }: { m: PilotMetrics }) {
   const { lang } = useT();
   const en = lang === 'en';
@@ -379,6 +417,8 @@ function MeasuredBody({ m }: { m: PilotMetrics }) {
           label={en ? 'Median, send to first “मिल गया”' : 'मध्य समय, भेजने से पहले “मिल गया” तक'}
         />
       </ul>
+
+      {m.false_alarms && <FalseAlarms fa={m.false_alarms} />}
 
       <h3 className="pl-h3">{en ? 'Back-test: hours of warning before the river’s peak day' : 'बैक-टेस्ट: नदी के सबसे ऊँचे दिन से पहले कितने घंटे की चेतावनी'}</h3>
       {m.backtest && m.backtest.scenarios.length > 0 ? (

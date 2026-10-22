@@ -23,6 +23,10 @@ AlertStatus = Literal[
     "closed",
 ]
 OPEN_ALERT_STATUSES = {"drafting", "pending", "approved", "delivering"}
+# "Was this real?": what an officer records after an alert closed (api/routers/officer.py). It feeds the
+# false-alarm rate per rule on /public/pilot-metrics.
+AlertOutcome = Literal["real_flood", "no_flood", "unknown"]
+ALERT_OUTCOMES: tuple[str, ...] = ("real_flood", "no_flood", "unknown")
 
 ReportState = Literal[
     "received",
@@ -247,6 +251,20 @@ class ReportScreen(BaseModel):
     field: Literal["text", "transcript"] = "text"
 
 
+class ReportSource(BaseModel):
+    """Where a report came from, as salted hashes only (services/report_guard.py). Never a raw IP.
+
+    ip: the client address; net: its /24 (IPv4) or /64 (IPv6); device and session: the random ids the
+    report page keeps in localStorage and sessionStorage. None means it was not sent or the salt was
+    unreadable, and an unknown source can never corroborate another report.
+    """
+
+    ip: str | None = None
+    net: str | None = None
+    device: str | None = None
+    session: str | None = None
+
+
 class StaffPoint(BaseModel):
     """A point on the reference photo, in normalised image coordinates (0..1, origin top left)."""
 
@@ -344,11 +362,16 @@ class Report(BaseModel):
     masked_text: str | None = None  # the screened words with phone numbers and e-mails masked
     # "Compare with the marked rock": the mark the villager chose on a staff gauge (services/staff_gauge.py).
     staff_reading: StaffReading | None = None
+    # Report-abuse protection (services/report_guard.py): salted source hashes (never shown, never public)
+    # and why the report is held for an officer when it came in over a rate limit.
+    source: ReportSource | None = None
+    hold_reason: str | None = None  # "source_rate_limit" | "village_surge"
 
     @property
     def held(self) -> bool:
-        """Held for review: the guardrail stopped the words; only an officer can verify it."""
-        return self.screen is not None and not self.screen.allowed
+        """Held for review: the guardrail stopped the words, or the report came in over a rate limit.
+        Kept and shown to officers; only an officer can verify it."""
+        return (self.screen is not None and not self.screen.allowed) or bool(self.hold_reason)
 
 
 class DraftCheck(BaseModel):
@@ -401,6 +424,10 @@ class Alert(BaseModel):
     all_clear_reason: str | None = None
     all_clear_sent: int = 0
     all_clear_failed: int = 0
+    # "Was this real?", set by an officer after the alert closed; who and when go to the audit trail too.
+    outcome: AlertOutcome | None = None
+    outcome_by: str | None = None
+    outcome_at: str | None = None
 
 
 E164 = re.compile(r"^\+[1-9]\d{7,14}$")

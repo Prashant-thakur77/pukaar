@@ -200,6 +200,14 @@ permit (
   resource is Pukaar::Alert
 );
 
+@id("officer-alert-outcome")
+@desc("After a live alert closes, an officer records whether it was real (real flood, no flood, unknown); it feeds the false-alarm rate per rule. A pradhan or an agent cannot.")
+permit (
+  principal is Pukaar::Officer,
+  action == Pukaar::Action::"set_alert_outcome",
+  resource is Pukaar::Alert
+);
+
 @id("staff-own-push")
 @desc("Officers and pradhans turn on Web Push approval alerts for their own account, remove their own phones and send themselves a test notification.")
 permit (
@@ -234,7 +242,7 @@ forbid (
     Pukaar::Action::"set_report_state", Pukaar::Action::"set_gauge_thresholds",
     Pukaar::Action::"manage_staff_gauge", Pukaar::Action::"confirm_staff_reading", Pukaar::Action::"dev_link",
     Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe",
-    Pukaar::Action::"edit_roster", Pukaar::Action::"take_over_duty"
+    Pukaar::Action::"edit_roster", Pukaar::Action::"take_over_duty", Pukaar::Action::"set_alert_outcome"
   ],
   resource
 )

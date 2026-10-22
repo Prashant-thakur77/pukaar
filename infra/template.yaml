@@ -874,7 +874,10 @@ Resources:
         ThrottlingBurstLimit: 50
         ThrottlingRateLimit: 20
       RouteSettings:
-        "POST /reports": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 5 }
+        # Shared by every client. One script can no longer crowd villagers out at the app layer: each
+        # source (salted IP hash) and each village has its own limit in DynamoDB, and a report over it is
+        # kept and held for an officer (services/report_guard.py). The web app queues a 429 and retries.
+        "POST /reports": { ThrottlingBurstLimit: 20, ThrottlingRateLimit: 10 }
         "POST /sensors/{id}/readings": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 2 }
         "POST /sensors/{id}/backfill": { ThrottlingBurstLimit: 5, ThrottlingRateLimit: 1 }
 
@@ -884,6 +887,27 @@ Resources:
     Properties:
       Name: !Sub pukaar-${Stage}
       Platform: WEB
+      # Browser hardening on every file Amplify serves (docs/SECURITY.md has each CSP source and why;
+      # backend/tests/test_template_safety.py checks them). The API, AppSync and S3 hosts are wildcards in
+      # this region: naming them would make a cycle (the API's CORS names this app). The script hash is
+      # the theme snippet inline in frontend/index.html; change that snippet and the test fails until the
+      # hash here is updated.
+      CustomHeaders: !Sub |
+        customHeaders:
+          - pattern: "**"
+            headers:
+              - key: Strict-Transport-Security
+                value: "max-age=31536000; includeSubDomains"
+              - key: X-Content-Type-Options
+                value: "nosniff"
+              - key: X-Frame-Options
+                value: "DENY"
+              - key: Referrer-Policy
+                value: "strict-origin-when-cross-origin"
+              - key: Permissions-Policy
+                value: "camera=(), geolocation=(self), microphone=(self), payment=(), usb=()"
+              - key: Content-Security-Policy
+                value: "default-src 'self'; script-src 'self' 'sha256-82eyTEtOm5JRVynHL9fPZGB+NZqD9xDebCAJXakDuIA='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://s3.amazonaws.com/elevation-tiles-prod/ https://*.s3.amazonaws.com https://*.s3.${AWS::Region}.amazonaws.com; media-src 'self' blob: https://*.s3.amazonaws.com https://*.s3.${AWS::Region}.amazonaws.com; font-src 'self' data:; connect-src 'self' https://*.execute-api.${AWS::Region}.amazonaws.com https://cognito-idp.${AWS::Region}.amazonaws.com https://*.appsync-api.${AWS::Region}.amazonaws.com wss://*.appsync-realtime-api.${AWS::Region}.amazonaws.com https://tile.openstreetmap.org https://s3.amazonaws.com/elevation-tiles-prod/; worker-src 'self' blob:; child-src 'self' blob:; manifest-src 'self'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
       CustomRules:
         # Single-page app: any path without a file extension serves index.html.
         - Source: "</^[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest|webp|mp3|wav|bin)$)([^.]+$)/>"
@@ -1091,6 +1115,26 @@ Resources:
       TreatMissingData: notBreaching
       AlarmActions: [!Ref AlarmTopic]
 
+  # The report API emits ReportSurge (dimension Kind, and Village for a village surge) when a source or a
+  # village goes over its report rate limit (services/report_guard.py). Every report is kept; the excess is
+  # held for an officer. It means abuse (a script) or a real event with many villagers reporting: look.
+  ReportSurgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-report-surge
+      AlarmDescription: Reports are arriving over a rate limit (one source, or one village); the excess is held for an officer in the console report feed.
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(ReportSurge) FROM Pukaar"
+          Period: 300
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
   # The sweep emits NobodyOnDuty (dimension District) when a district has no officer on the duty roster for
   # the shift running now, in IST (services/roster.py). Approvals then go to the village's fallback list.
   NobodyOnDutyAlarm:
@@ -1133,7 +1177,8 @@ Resources:
               "title": "Delivery", "region": "${AWS::Region}", "period": 300,
               "metrics": [[{"expression": "SELECT SUM(DeliverySent) FROM Pukaar", "id": "d1", "label": "DeliverySent"}],
                           [{"expression": "SELECT SUM(DeliveryFailed) FROM Pukaar", "id": "d2", "label": "DeliveryFailed"}],
-                          [{"expression": "SELECT SUM(RollCallNeedHelp) FROM Pukaar", "id": "d3", "label": "RollCallNeedHelp"}]]}},
+                          [{"expression": "SELECT SUM(RollCallNeedHelp) FROM Pukaar", "id": "d3", "label": "RollCallNeedHelp"}],
+                          [{"expression": "SELECT SUM(ReportSurge) FROM Pukaar", "id": "d4", "label": "ReportSurge"}]]}},
             {"type": "metric", "x": 12, "y": 6, "width": 12, "height": 6, "properties": {
               "title": "Approval workflow", "region": "${AWS::Region}", "stat": "Sum", "period": 300,
               "metrics": [["AWS/States", "ExecutionsStarted", "StateMachineArn", "${ApprovalStateMachine}"],

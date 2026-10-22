@@ -258,7 +258,7 @@ flowchart LR
   API -.-> AS["AppSync Events<br/>live push"] -.-> WEB["Web app<br/>Amplify Hosting"]
   API --> CAP["CAP 1.2 feed"]
   SF --> SES["SES<br/>after-action report"]
-  CW["CloudWatch + X-Ray<br/>12 alarms"] -.- SF
+  CW["CloudWatch + X-Ray<br/>13 alarms"] -.- SF
 ```
 
 <details><summary>Text version</summary>
@@ -307,7 +307,7 @@ Tiles are a public AWS Open Data bucket, and the budget is set on the account.
 | **AWS IoT Core** | River gauges connect over MQTT with mutual TLS and publish their readings | One thing and one X.509 certificate per gauge (`make gauge-provision`, key and certificate PEM in SSM SecureString); policy `pukaar-gauge-dev` allows only `iot:Connect` as the device's own thing name and `iot:Publish` to its own `pukaar/gauge/<village>/<device>/reading` and `.../backfill` topics; topic rule `SELECT *, topic(3) AS village_id, topic(4) AS device_id, topic(5) AS topic_kind` invokes `pukaar-gauge-ingest-dev`, error action to the worker DLQ; the Lambda checks the payload and that the device is the village's gauge, then uses the same ingestion as the HTTPS route | `infra/template.yaml` (`PukaarGaugeRule`, `PukaarGaugePolicy`), `backend/src/Pukaar/handlers/gauge_ingest.py`, `backend/src/Pukaar/scripts/iot_provision.py`, `backend/src/Pukaar/scripts/gauge_sim_mqtt.py`, [sketch](docs/hardware/esp32-gauge-mqtt/esp32-gauge-mqtt.ino) |
 | **AppSync Events** | Live push to the web app: approving in one browser updates every other open console, `/live` and village page within about a second, instead of at the next 15-second poll | Event API `pukaar-events-dev` with two channel namespaces. `public` (levels, alert statuses, delivered and acknowledged counts, roll-call counts) is read with a public, subscribe-only API key built into the web app; `officer` (approval pending, approved, declined; roll-call "need help") needs a Cognito ID token. Publishing is `AWS_IAM` only on both, from the five Lambdas, whose roles allow only `appsync:EventPublish` on the two namespace ARNs (a template test enforces it). Events carry ids, levels, statuses, times and counts, never alert text or names. The browser keeps one WebSocket (keep-alive watchdog, jittered backoff, closed while the tab is hidden), refetches from the API when an event lands, and keeps polling every 60 s as a fallback (15 s whenever push is down); a "Live push" pill says which is happening. A failed publish is logged and counted (`EventPublishFailed`), never raised. Billed per million operations and connection-minutes; nothing hourly | `backend/src/Pukaar/services/events.py`, `frontend/src/lib/live.ts`, `infra/template.yaml` (`PukaarEvents`, `PublicEvents`, `OfficerEvents`) |
 | **SQS** | Dead-letter queues for the sweep and the worker (the gauge-ingest Lambda and the IoT rule's error action share the worker's) | SSE-SQS, 14-day retention, each with an alarm | `infra/template.yaml` |
-| **CloudWatch** | Logs, metrics, twelve alarms, one dashboard | Embedded metric format; alarms for model errors, model failover, API 5xx, failed approvals, both DLQs, a missing sweep heartbeat, a village with no complete forecast for 45 minutes, failed deliveries, unacknowledged alerts, a "need help" answer in a safety roll-call and a district with nobody on the duty roster; SNS topic for alarm e-mail (`ALARM_EMAIL` in `.env.deploy.local`) | dashboard `pukaar-dev` |
+| **CloudWatch** | Logs, metrics, thirteen alarms, one dashboard | Embedded metric format; alarms for model errors, model failover, API 5xx, failed approvals, both DLQs, a missing sweep heartbeat, a village with no complete forecast for 45 minutes, failed deliveries, unacknowledged alerts, a "need help" answer in a safety roll-call, a district with nobody on the duty roster and reports arriving over a rate limit (a report surge); SNS topic for alarm e-mail (`ALARM_EMAIL` in `.env.deploy.local`) | dashboard `pukaar-dev` |
 | **Amplify Hosting** | Serves the web app | Manual deploy of the Vite build with the stack's outputs baked in | `scripts/deploy_web.sh` |
 | **AWS Open Data (Terrain Tiles on S3)** | Real Himalayan relief for the 3D map and the landing-page valley | Terrarium tiles from `s3://elevation-tiles-prod`; the landing heightmap is baked once from them | `frontend/src/components/VillageMap.tsx`, `backend/src/Pukaar/scripts/story.py`, `scripts/build_hero_dem.py` |
 | **AWS Budgets** | Keeps the account's spend in check | Monthly cost budget with e-mail alerts at 80% actual and 100% forecast | account level |
@@ -534,6 +534,8 @@ Deploy to AWS: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 - [DEMO.md](DEMO.md): a click-by-click walk through the whole loop, with a fallback for each step.
 - [docs/RESILIENCE.md](docs/RESILIENCE.md): what happens when each part fails.
+- [docs/RUNBOOK.md](docs/RUNBOOK.md): what to do when each alarm fires; drills, number hygiene, consent, secret rotation and the pre-monsoon checklist.
+- [docs/SECURITY.md](docs/SECURITY.md): report-abuse protection and the browser security headers.
 - [docs/CONTRACT.md](docs/CONTRACT.md): API routes and shapes.
 - [docs/SCORING.md](docs/SCORING.md): the back-test scoring method and results.
 - [docs/hardware/README.md](docs/hardware/README.md): the river gauge design.

@@ -91,6 +91,11 @@ class Settings:
     official_timeout_seconds: float = 5.0
     flood_hub_enabled: bool = False
     bipad_enabled: bool = False
+    # Report-abuse protection (services/report_guard.py): reports per source (salted IP hash) and per
+    # village in one window. A report over either limit is kept and held for an officer, never dropped.
+    report_window_minutes: int = 10
+    report_limit_per_source: int = 5
+    report_limit_per_village: int = 30
 
     @property
     def guardrail_enabled(self) -> bool:
@@ -158,6 +163,9 @@ def get_settings() -> Settings:
         official_timeout_seconds=float(os.environ.get("PUKAAR_OFFICIAL_TIMEOUT_SECONDS", "5")),
         flood_hub_enabled=_bool("PUKAAR_FLOOD_HUB", False),
         bipad_enabled=_bool("PUKAAR_BIPAD", False),
+        report_window_minutes=max(1, int(os.environ.get("PUKAAR_REPORT_WINDOW_MINUTES", "10"))),
+        report_limit_per_source=max(1, int(os.environ.get("PUKAAR_REPORT_LIMIT_PER_SOURCE", "5"))),
+        report_limit_per_village=max(1, int(os.environ.get("PUKAAR_REPORT_LIMIT_PER_VILLAGE", "30"))),
     )
 
 

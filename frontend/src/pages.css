@@ -329,6 +329,12 @@
 .aar-links { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin: 0; }
 .aar-links .link-btn { color: var(--accent-text); }
 .aar-links .link-btn:hover:not(:disabled) { color: var(--gold); }
+/* "Was this real?" under a closed live alert (officers) */
+.aar-outcome { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 6px 0 0; padding: 0; border: 0; min-width: 0; }
+.aar-outcome legend { float: left; margin-right: 6px; padding: 0; color: var(--ink-2); }
+.aar-outcome [role='group'] { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+/* Report feed: possible duplicate or flood of reports */
+.rf-flood { display: flex; gap: 6px; align-items: flex-start; margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid var(--gold); background: var(--surface-2, transparent); }
 
 /* ask */
 .console .ask-form textarea, .console textarea, .console input:not([type='checkbox']):not([type='radio']) { border-radius: 14px; }

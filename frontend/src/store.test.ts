@@ -100,6 +100,7 @@ describe('offline queue flush', () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { report: { id: 'r3' }, track_code: 'PK3' }));
     await flushQueue();
     const form = fetchMock.mock.calls[0][1]?.body as FormData;
-    expect([...form.keys()].sort()).toEqual(['offline_created', 'village_id']);
+    // device_id and session_id always go (random ids; the server keeps salted hashes only).
+    expect([...form.keys()].sort()).toEqual(['device_id', 'offline_created', 'session_id', 'village_id']);
   });
 });

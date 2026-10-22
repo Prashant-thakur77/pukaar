@@ -9,7 +9,7 @@ import { DeniedNote, EmptyState, ErrorState, SkeletonCards } from '../../compone
 import type { PollState } from '../../hooks/usePoll';
 import { enumLabels, useT } from '../../i18n';
 import { fmtAgo } from '../../lib/format';
-import { heldLabel, humanizeFlag, humanizeSummary, maskedNotes } from '../../lib/humanize';
+import { floodCount, heldLabel, humanizeFlag, humanizeSummary, maskedNotes } from '../../lib/humanize';
 import type { Report, ReportState, Village } from '../../types';
 
 const ACTIONS: { state: ReportState; icon: typeof ShieldCheck }[] = [
@@ -63,9 +63,16 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
     return v ? (lang === 'hi' ? v.name_hi : v.name) : id;
   };
 
+  const flood = floodCount(list);
+
   return (
     <>
       {err && (err.isDenied ? <DeniedNote error={err} /> : <ErrorState error={err} compact />)}
+      {flood > 0 && (
+        <p className="rc-held rf-flood" role="note">
+          <ShieldAlert aria-hidden="true" className="inline-icon" /> {t('console.reports.surge', { n: flood })}
+        </p>
+      )}
       {list.length === 0 ? (
         <EmptyState word={lang === 'hi' ? 'कोई सूचना नहीं' : 'No word yet'} title={t('console.reports.empty')} body={lang === 'hi' ? 'गाँव से आई आवाज़, फ़ोटो और संदेश यहाँ दिखेंगे।' : 'Voice notes, photos and texts from villages show up here.'} action={<Link to="/report" className="btn btn-ghost btn-sm">{lang === 'hi' ? 'सूचना भेजें' : 'Send a report'} →</Link>} />
       ) : (
@@ -73,7 +80,7 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
           {[...list]
             .sort((a, b) => b.created_at.localeCompare(a.created_at))
             .map((r) => {
-              const held = heldLabel(r.screen, lang);
+              const held = heldLabel(r.screen, lang, r.hold_reason);
               const masked = maskedNotes(r.screen, lang);
               return (
               <li key={r.id} id={`report-${r.id}`} className={`report-card lv-${SEV_LEVEL[r.severity] ?? 'normal'}${held ? ' is-held' : ''}`}>

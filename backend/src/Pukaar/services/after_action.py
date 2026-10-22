@@ -75,6 +75,7 @@ STEP_LABELS: dict[str, tuple[str, str]] = {
     "rollcall_opened": ("सुरक्षा रोल-कॉल शुरू", "Safety roll-call opened"),
     "start_failed": ("वर्कफ़्लो शुरू नहीं हुआ", "Workflow failed to start"),
     "closed": ("बंद", "Closed"),
+    "outcome": ("क्या यह असली था? दर्ज किया", "Was this real? recorded"),
 }
 OUTCOME_LABELS: dict[str, tuple[str, str]] = {
     "delivered": ("मंज़ूरी के बाद भेजा गया", "Delivered after approval"),
@@ -83,6 +84,13 @@ OUTCOME_LABELS: dict[str, tuple[str, str]] = {
     "auto_sent_unapproved": ("बिना मंज़ूरी भेजा गया (गंभीर)", "Sent unapproved (critical, every officer timed out)"),
     "failsafe": ("सुरक्षा टेम्पलेट से भेजा गया", "Sent with the failsafe template"),
     "closed": ("बंद", "Closed"),
+}
+# "Was this real?" (Alert.outcome), set by an officer after the alert closed.
+REAL_LABELS: dict[str | None, tuple[str, str]] = {
+    "real_flood": ("हाँ, असली बाढ़ आई", "Yes, a real flood"),
+    "no_flood": ("नहीं, बाढ़ नहीं आई (झूठी चेतावनी)", "No flood (false alarm)"),
+    "unknown": ("पता नहीं", "Unknown"),
+    None: ("अभी तय नहीं", "Not set yet"),
 }
 
 
@@ -324,6 +332,9 @@ def collect(repo: Repo, alert: Alert) -> dict[str, Any]:
         "deliveries": _deliveries(deliveries, timeline),
         "rollcall": _rollcall(repo, alert),
         "audit": _audit(repo, alert, closed.at if closed else None),
+        # Officers' usernames are already in this report (decided_by); the outcome is one word.
+        "was_real": {"outcome": alert.outcome, "set_by": scrub(alert.outcome_by) if alert.outcome_by else None,
+                     "set_at": alert.outcome_at},
         "text_hi": scrub(alert.text_hi),
         "text_en": scrub(alert.text_en),
         "timeline": [{"at": t.at, "step": t.step, "detail": scrub(t.detail)} for t in timeline],
@@ -351,6 +362,7 @@ def summary_json(data: dict[str, Any]) -> dict[str, Any]:
         "deliveries": d["totals"], "deliveries_by_channel": d["by_channel"],
         "rollcall": data["rollcall"],
         "audit": {"allow": data["audit"]["allow"], "deny": data["audit"]["deny"]},
+        "was_real": data["was_real"]["outcome"],
     }
 
 
@@ -485,6 +497,17 @@ def render_html(data: dict[str, Any]) -> str:
             [[ist(x["at"]), f"{x['actor']} ({x['role']})", x["action"], x["reason"]] for x in au["denies"]])
     sections.append(_section("नीति ऑडिट (Cedar)", "Audit decisions (Cedar)", body))
 
+    # Was this real?
+    wr = data["was_real"]
+    real_hi, real_en = REAL_LABELS.get(wr["outcome"], REAL_LABELS[None])
+    body = _p(f"{real_en} / {real_hi}")
+    if wr["outcome"]:
+        body += _p(f"Recorded by {wr['set_by'] or '—'} at {ist(wr['set_at'])}", muted=True)
+    else:
+        body += _p("An officer records this in the console after the alert closes; it feeds the false-alarm rate "
+                   "per rule. / चेतावनी बंद होने के बाद अधिकारी कंसोल में दर्ज करते हैं।", muted=True)
+    sections.append(_section("क्या यह असली था?", "Was this real?", body))
+
     # Text sent
     body = (f'<div lang="hi" style="background:{BG};border-left:4px solid {RIVER};padding:10px 12px;font-size:16px;'
             f'line-height:1.6;color:{INK};{_FONT}">{_e(data["text_hi"] or "—")}</div>'
@@ -608,6 +631,11 @@ def render_text(data: dict[str, Any]) -> str:
     lines += ["", "AUDIT (Cedar) / नीति ऑडिट", f"  {au['allow']} allowed, {au['deny']} denied"]
     for x in au["denies"]:
         lines.append(f"  DENY {ist(x['at'])} {x['actor']} ({x['role']}) {x['action']}: {x['reason']}")
+
+    wr = data["was_real"]
+    real_hi, real_en = REAL_LABELS.get(wr["outcome"], REAL_LABELS[None])
+    lines += ["", "WAS THIS REAL? / क्या यह असली था?", f"  {real_en} / {real_hi}"
+              + (f" (recorded by {wr['set_by'] or '—'} at {ist(wr['set_at'])})" if wr["outcome"] else "")]
 
     lines += ["", "TEXT SENT / भेजा गया संदेश", f"  {data['text_hi'] or '—'}", f"  {data['text_en'] or '—'}",
               "", f"Generated {ist(data['generated_at'])}. No phone numbers or chat ids; first names only."]

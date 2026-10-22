@@ -31,6 +31,9 @@ handle. Each line names the code or test that shows it.
 | Audit table write fails | The decision becomes a deny: nothing happens without an audit row | `authorize`, `test_no_audit_means_no_permission` |
 | Village keeps rising during approval | The pending alert is escalated in place, not duplicated | `test_rise_while_pending_escalates_the_same_alert` |
 | Phone offline when reporting | The report waits in IndexedDB and is sent when the connection returns | `frontend/src/lib/idb.ts` |
+| A script floods the report page | Every report is kept; over 5 from one source or 30 from one village in 10 minutes they are held for an officer, never auto-verified or sent to a model, and `ReportSurge` is alarmed | `services/report_guard.py`, `tests/test_report_abuse.py` |
+| Two forged reports from one phone or network | They never verify each other; each says why ("same network"), and an officer decides | `report_guard.not_independent`, `test_forged_pair_from_one_ip_does_not_verify_or_raise_the_level` |
+| The report salt cannot be read | Sources are left unknown and no report auto-verifies (fail closed); `ReportSaltMissing` is counted | `report_guard.make_source`, `test_missing_salt_fails_closed` |
 
 ## Deliberately not handled
 
@@ -48,8 +51,12 @@ handle. Each line names the code or test that shows it.
   archived forecasts and river discharge never crossed for four of five
   villages. Pukaar does not claim to predict such events; verified villager
   reports are the path that raises a level then.
-- **Report spam.** Anonymous reports are rate limited only by API Gateway
-  throttling; unverified reports never raise a level, which limits the harm.
+- **Report spam beyond the app's limits.** Each source (a salted IP hash) and
+  each village has its own report limit, the excess is held for an officer, and
+  two reports verify each other only from different phones on different
+  networks with plausible GPS (docs/SECURITY.md). The shared API Gateway
+  throttle on `POST /reports` can still be filled by a large botnet; per-client
+  limits at the edge need AWS WAF in front of the API.
 - **Officer impersonation through a forwarded link.** A one-tap link works
   for whoever holds it for 30 minutes, once. The console path needs a Cognito
   sign-in.

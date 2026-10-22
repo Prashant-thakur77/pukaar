@@ -18,7 +18,7 @@ import { fmtAgo, fmtTime } from '../../lib/format';
 import { relayLabel } from '../../lib/roster';
 import { Skeleton } from '../../components/States';
 import { Headline, StatStrip } from '../../components/PageBand';
-import type { Alert, Village } from '../../types';
+import type { Alert, AlertOutcome, Village } from '../../types';
 import { useAuth } from '../../store';
 import { Approvals } from './Approvals';
 import { Ask } from './Ask';
@@ -354,6 +354,7 @@ function RecentAlert({ alert: a, showAudit }: { alert: Alert; showAudit: boolean
         )}
       </p>
       {hasAfterAction(a) && <AfterActionLinks alert={a} />}
+      {hasAfterAction(a) && showAudit && !a.replay && !a.decision_trace?.drill && <OutcomePicker alert={a} />}
       {sent && (
         <>
           <button type="button" className="trace-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
@@ -421,6 +422,59 @@ function AfterActionLinks({ alert: a }: { alert: Alert }) {
         </span>
       )}
     </p>
+  );
+}
+
+const OUTCOMES: AlertOutcome[] = ['real_flood', 'no_flood', 'unknown'];
+
+/** "Was this real?" for a closed live alert (POST /alerts/{id}/outcome); it can be corrected later. */
+function OutcomePicker({ alert: a }: { alert: Alert }) {
+  const { t, lang } = useT();
+  const [value, setValue] = useState<AlertOutcome | null>(a.outcome ?? null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const save = async (o: AlertOutcome) => {
+    setErr(null);
+    setBusy(true);
+    try {
+      const updated = await api.setAlertOutcome(a.id, o);
+      setValue(updated.outcome ?? o);
+    } catch (e) {
+      setErr(e instanceof ApiError ? (lang === 'hi' && e.messageHi) || e.messageEn : t('console.aar.error'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <fieldset className="aar-outcome">
+      <legend className="small">{t('console.outcome.q')}</legend>
+      <span role="group" aria-label={t('console.outcome.q')}>
+        {OUTCOMES.map((o) => (
+          <button
+            key={o}
+            type="button"
+            className={`btn btn-sm btn-state${value === o ? ' is-current' : ''}`}
+            aria-pressed={value === o}
+            disabled={busy}
+            onClick={() => void save(o)}
+          >
+            {t(`console.outcome.${o}`)}
+          </button>
+        ))}
+      </span>
+      <span className="small muted" role="status">
+        {' '}
+        {value ? t('console.outcome.saved', { o: t(`console.outcome.${value}`) }) : t('console.outcome.hint')}
+      </span>
+      {err && (
+        <span className="bad-text small" role="alert">
+          {' '}
+          {err}
+        </span>
+      )}
+    </fieldset>
   );
 }
 

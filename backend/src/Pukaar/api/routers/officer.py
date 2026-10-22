@@ -16,7 +16,9 @@ from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.policy.guard import Principal, authorize
 from Pukaar.services import after_action, analyst, checklist, roster, safe_places
 from Pukaar.services import replay as replay_svc
-from Pukaar.store.models import RELAY_ROLES, SHELTER_STATES, AuditRow, Directive, ShelterStatus
+from Pukaar.store.models import (
+    ALERT_OUTCOMES, OPEN_ALERT_STATUSES, RELAY_ROLES, SHELTER_STATES, AuditRow, Directive, ShelterStatus,
+)
 from Pukaar.store.repo import ConflictError, get_repo
 from Pukaar.templates import hi
 from Pukaar.workflow.client import RetryLater, decide, get_workflow
@@ -128,6 +130,41 @@ def get_after_action(alert_id: str, fresh: bool = False, format: str = "html",
     return Response(body, media_type="text/html; charset=utf-8", headers={
         "Content-Disposition": f'inline; filename="pukaar-after-action-{a.id}.html"',
         "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": _REPORT_CSP})
+
+
+class OutcomeBody(BaseModel):
+    outcome: str
+
+
+@router.post("/alerts/{alert_id}/outcome")
+def set_outcome(alert_id: str, body: OutcomeBody,
+                principal: Principal = Depends(Allowed("set_alert_outcome", "alert", "alert_id"))) -> dict:
+    """"Was this real?": real_flood, no_flood or unknown, set by an officer after a live alert closed.
+    It can be corrected later (a flood found next morning); each change is on the alert's timeline and
+    in the Cedar audit trail. The stored after-action report is rebuilt so it shows the answer."""
+    if body.outcome not in ALERT_OUTCOMES:
+        raise HTTPException(400, f"outcome must be one of {', '.join(ALERT_OUTCOMES)}")
+    repo = get_repo()
+    a = repo.get_alert(alert_id)
+    if a is None:
+        raise HTTPException(404, "Alert not found")
+    if views.is_replay(a) or views.is_drill(a):
+        raise HTTPException(409, {"code": "not_live", "message_en": "Replays and drills are not real events.",
+                                  "message_hi": "रीप्ले और अभ्यास असली घटनाएँ नहीं हैं।"})
+    if a.status in OPEN_ALERT_STATUSES:
+        raise HTTPException(409, {"code": "open", "message_en": "Record this after the alert closes.",
+                                  "message_hi": "चेतावनी बंद होने के बाद दर्ज करें।"})
+    now = clock.iso(clock.now())
+    updated = repo.update_alert(a.id, outcome=body.outcome, outcome_by=principal.username, outcome_at=now)
+    repo.add_timeline(a.id, "outcome", f"{body.outcome} by {principal.username}"
+                      + (f" (was {a.outcome})" if a.outcome and a.outcome != body.outcome else ""))
+    try:
+        after_action.store(after_action.build(repo, updated))
+    except Exception as exc:  # the answer is stored either way; a fresh report shows it too
+        from Pukaar.core.log import get_logger, log
+
+        log(get_logger("officer"), "after-action rebuild failed", 30, alert_id=a.id, error=str(exc)[:200])
+    return views.alert(updated)
 
 
 class DeclineBody(BaseModel):

@@ -28,6 +28,14 @@ for var in ("PUKAAR_TELEGRAM_TOKEN", "PUKAAR_TELEGRAM_WEBHOOK_SECRET"):
 NOW = datetime(2026, 7, 1, 2, 0, tzinfo=timezone.utc)
 
 
+def source_for(name: str, *, ip: str | None = None, device: str | None = None, session: str | None = None):
+    """A report source as the API would make it: each name its own phone, network and session."""
+    from Pukaar.services import report_guard
+
+    n = sum(name.encode()) % 200 + 1
+    return report_guard.make_source(ip or f"10.{n}.{len(name)}.7", device or f"device-{name}", session or f"session-{name}")
+
+
 @pytest.fixture()
 def repo():
     """A fresh moto table and bucket, seeded with the real village file."""

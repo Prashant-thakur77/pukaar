@@ -5,6 +5,8 @@ import pytest
 from Pukaar.services import reports as svc
 from Pukaar.services.report_structuring import keyword_parse, structure
 
+from conftest import source_for
+
 # Hindi report set: Devanagari and Roman script (needs native-speaker review).
 HINDI_SET = [
     ("नाले में पानी बहुत तेज़ी से बढ़ रहा है", "water_rising", "high"),
@@ -38,6 +40,8 @@ def test_model_result_merges_and_more_severe_wins():
 
 
 def _intake(repo, text="sadak band", lat=31.5600, lon=77.1650, name="a", **kw):
+    """A genuine report: each reporter name is its own phone on its own network."""
+    kw.setdefault("source", source_for(name))
     return svc.intake(repo, repo.get_village("thunag"), text=text, lat=lat, lon=lon, reporter_name=name, **kw)
 
 
