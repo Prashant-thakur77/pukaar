@@ -7,6 +7,7 @@ Keys:
               | STAFFGAUGE#id (virtual staff gauge: reference photo key, scale, marks)
               | ROADBLOCK#id (a blocked road on a baked route; TTL 7 days unless renewed)
   ALERT#id    META | DELIVERY#recipient (Telegram or stub) | DELIVERY#recipient#voice | TIMELINE#iso#n
+              | OFFICERCALL#officer (the wake-up call to an officer) | TGFILE (Telegram file id of the audio)
   VOICEKEY#call_id  digit             (a key press already acted on; idempotency, TTL 7 days)
   ROLLCALL#id META | ASKED#recipient | RESP#recipient   (safety roll-call; TTL 30 days)
   SAFESHARE#id META                   (family link pointer; TTL 7 days)
@@ -17,6 +18,7 @@ Keys:
   AUDIT#date  iso#id                  (append only; no update or delete path)
   REPLAY      META | VILLAGE#id (the replay's own copy of a village: level, hysteresis, open alert)
   OFFICER#username META (Telegram chat) | PUSH#id (Web Push subscription; TTL 180 days) | PUSHTEST (rate limit)
+              | PHONE (E.164, for the wake-up call; never logged, never on a route)
   MODELPROBE  META                   (last Bedrock model-access probe; at most one per 6 hours)
   ROSTER#district  date#shift        (duty roster: primary, backup, escalation officer; TTL 400 days)
   FETCHCACHE#key META                (cached external data: daily river ensemble, official feeds; TTL)
@@ -44,7 +46,9 @@ from Pukaar.store.models import (
     AuditRow,
     ChecklistItem,
     Delivery,
+    E164,
     Directive,
+    OfficerCall,
     delivery_key,
     PastEvent,
     PushSubscription,
@@ -434,6 +438,18 @@ class Repo:
     def list_recipients(self, village_id: str) -> list[Recipient]:
         return [_model(Recipient, i) for i in self._query(f"VILLAGE#{village_id}", "RECIPIENT#")]
 
+    def list_recipients_between(self, village_id: str, first: str, last: str) -> list[Recipient]:
+        """The recipients whose ids sort from first to last (inclusive): one delivery batch, read alone."""
+        kwargs: dict[str, Any] = {"KeyConditionExpression": Key("pk").eq(f"VILLAGE#{village_id}")
+                                  & Key("sk").between(f"RECIPIENT#{first}", f"RECIPIENT#{last}")}
+        items: list[dict] = []
+        while True:
+            page = self.t.query(**kwargs)
+            items.extend(page.get("Items", []))
+            if "LastEvaluatedKey" not in page:
+                return [_model(Recipient, i) for i in items]
+            kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
     def get_recipient(self, village_id: str, recipient_id: str) -> Recipient | None:
         item = self._get(f"VILLAGE#{village_id}", f"RECIPIENT#{recipient_id}")
         return _model(Recipient, item) if item else None
@@ -691,6 +707,99 @@ class Repo:
         cond = Attr("pk").exists() if condition is None else (Attr("pk").exists() & condition)
         return _model(Delivery, self._update(f"ALERT#{alert_id}", f"DELIVERY#{delivery_key(recipient_id, channel)}",
                                              fields, condition=cond))
+
+    def get_deliveries(self, alert_id: str, recipient_ids: Iterable[str]) -> list[Delivery]:
+        """The rows of these people only (both channels), by BatchGetItem: a batch worker reads its own
+        few hundred rows, never every row of the alert."""
+        pk = f"ALERT#{alert_id}"
+        keys = [{"pk": pk, "sk": f"DELIVERY#{delivery_key(rid, ch)}"}
+                for rid in dict.fromkeys(recipient_ids) for ch in ("", "voice")]
+        client, name, items = self.t.meta.client, self.t.name, []
+        for i in range(0, len(keys), 100):
+            request: dict | None = {name: {"Keys": keys[i:i + 100], "ConsistentRead": True}}
+            for _ in range(10):
+                if not request:
+                    break
+                resp = client.batch_get_item(RequestItems=request)
+                items.extend(resp.get("Responses", {}).get(name, []))
+                request = resp.get("UnprocessedKeys") or None
+        return [_model(Delivery, i) for i in items]
+
+    def claim_delivery(self, alert_id: str, recipient_id: str, channel: str, *, name: str,
+                       expected_attempts: int | None, send_round: int) -> Delivery:
+        """Take one send of one row for one round, before anything is sent: a compare-and-set on attempts.
+
+        expected_attempts None: the row must not exist yet (it is made "pending", attempt 1). Otherwise the
+        row must still have that many attempts and must not have been claimed in this round already (a
+        row put back unsent, deferred, may be claimed again). ConflictError: another batch worker, or an
+        earlier try of this one, has it; the caller sends nothing."""
+        pk, sk = f"ALERT#{alert_id}", f"DELIVERY#{delivery_key(recipient_id, channel)}"
+        if expected_attempts is None:
+            d = Delivery(alert_id=alert_id, recipient_id=recipient_id, name=name, channel=channel, status="pending",
+                         attempts=1, send_round=send_round)
+            self._put({"pk": pk, "sk": sk, **d.model_dump()}, condition=Attr("pk").not_exists())
+            return d
+        fresh = Attr("send_round").not_exists() | Attr("send_round").ne(send_round) | Attr("deferred").eq(True)
+        cond = Attr("pk").exists() & Attr("attempts").eq(expected_attempts) & fresh
+        return _model(Delivery, self._update(pk, sk, {"attempts": expected_attempts + 1, "send_round": send_round,
+                                                      "deferred": False}, condition=cond))
+
+    def release_delivery(self, alert_id: str, recipient_id: str, channel: str, *, claimed_attempts: int,
+                         **fields: Any) -> Delivery | None:
+        """Put a claimed row back unsent (a Telegram 429, or out of time): the attempt is not counted and
+        the row is marked deferred, so the next pass claims it again. None if the row moved on meanwhile."""
+        try:
+            return _model(Delivery, self._update(
+                f"ALERT#{alert_id}", f"DELIVERY#{delivery_key(recipient_id, channel)}",
+                {"attempts": claimed_attempts - 1, "deferred": True, **fields},
+                condition=Attr("pk").exists() & Attr("attempts").eq(claimed_attempts)))
+        except ConflictError:
+            return None
+
+    def get_telegram_file(self, alert_id: str) -> str | None:
+        item = self._get(f"ALERT#{alert_id}", "TGFILE")
+        return str(item["file_id"]) if item else None
+
+    def put_telegram_file(self, alert_id: str, file_id: str) -> str:
+        """The first upload wins; returns the file id every later send uses."""
+        try:
+            self._put({"pk": f"ALERT#{alert_id}", "sk": "TGFILE", "file_id": file_id},
+                      condition=Attr("pk").not_exists())
+            return file_id
+        except ConflictError:
+            return self.get_telegram_file(alert_id) or file_id
+
+    # -- the officer's wake-up call (delivery/officer_call.py) ---------------
+    def put_officer_phone(self, username: str, phone: str) -> None:
+        phone = phone.strip().replace(" ", "").replace("-", "")
+        if not E164.match(phone):
+            raise ValueError("phone must be in E.164 form, e.g. +919812345678")
+        self._put({"pk": f"OFFICER#{username}", "sk": "PHONE", "phone": phone})
+
+    def get_officer_phone(self, username: str) -> str | None:
+        item = self._get(f"OFFICER#{username}", "PHONE")
+        return str(item["phone"]) if item and item.get("phone") else None
+
+    def delete_officer_phone(self, username: str) -> None:
+        self.t.delete_item(Key={"pk": f"OFFICER#{username}", "sk": "PHONE"})
+
+    def put_officer_call(self, c: OfficerCall) -> None:
+        """Once per officer per alert: a retried nudge step never calls twice (ConflictError)."""
+        self._put({"pk": f"ALERT#{c.alert_id}", "sk": f"OFFICERCALL#{c.officer}", **c.model_dump()},
+                  condition=Attr("pk").not_exists())
+
+    def get_officer_call(self, alert_id: str, officer: str) -> OfficerCall | None:
+        item = self._get(f"ALERT#{alert_id}", f"OFFICERCALL#{officer}")
+        return _model(OfficerCall, item) if item else None
+
+    def update_officer_call(self, alert_id: str, officer: str, *, condition: Any = None,
+                            **fields: Any) -> OfficerCall:
+        cond = Attr("pk").exists() if condition is None else (Attr("pk").exists() & condition)
+        return _model(OfficerCall, self._update(f"ALERT#{alert_id}", f"OFFICERCALL#{officer}", fields,
+                                                condition=cond))
+
+    def list_officer_calls(self, alert_id: str) -> list[OfficerCall]:
+        return [_model(OfficerCall, i) for i in self._query(f"ALERT#{alert_id}", "OFFICERCALL#")]
 
     def claim_voice_key(self, call_id: str, digit: str, ttl_seconds: int = 7 * 86400) -> bool:
         """True the first time this key press on this call is acted on; a retried webhook gets False."""

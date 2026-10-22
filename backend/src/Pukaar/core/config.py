@@ -112,6 +112,24 @@ class Settings:
     # (DynamoDB TTL), with their photo and voice note (S3 lifecycle, same parameter RetentionDays).
     # 0 keeps them until deleted by hand.
     report_retention_days: int = 0
+    # -- approval windows and the duty officer's wake-up call (workflow/steps.py) --
+    # A critical alert's window per officer: shorter than approval_timeout_seconds, so a critical is not
+    # held 20 to 30 minutes by a chain of three. Never longer than the general window.
+    approval_timeout_critical_seconds: int = 300
+    # The nudge (and the wake-up call to the duty officer, delivery/officer_call.py) comes this long into
+    # an officer's window, or half-way through it if the window is shorter. 0 = half-way.
+    officer_wake_seconds: int = 180
+    # -- delivery at scale (delivery/dispatch.py, the Map state in infra/approval.asl.json) --
+    delivery_batch_size: int = 250  # recipients per batch; the first batch is sent by the deliver step itself
+    delivery_concurrency: int = 4  # batches at once (the Map's MaxConcurrency); each takes 1/n of the rate
+    delivery_threads: int = 8  # sends in flight inside one batch
+    delivery_budget_seconds: float = 200.0  # one step stops sending after this long; the rest is queued
+    delivery_max_passes: int = 4  # a batch with queued sends is run again at most this many times in all
+    telegram_rate_per_second: float = 25.0  # all chats together (Telegram allows about 30)
+    telegram_chat_interval_seconds: float = 1.0  # one message per chat per second
+    voice_calls_per_second: float = 2.0  # call requests to the voice provider, all batches together
+    # -- the 15-minute sweep (services/decision_engine.sweep_all): villages evaluated at once --
+    sweep_concurrency: int = 16
 
     @property
     def guardrail_enabled(self) -> bool:
@@ -189,6 +207,18 @@ def get_settings() -> Settings:
         cap_sender_name=os.environ.get("PUKAAR_CAP_SENDER_NAME", "").strip(),
         cap_sender_name_hi=os.environ.get("PUKAAR_CAP_SENDER_NAME_HI", "").strip(),
         report_retention_days=max(0, int(os.environ.get("PUKAAR_REPORT_RETENTION_DAYS", "0") or "0")),
+        approval_timeout_critical_seconds=max(
+            2, int(os.environ.get("PUKAAR_CRITICAL_APPROVAL_TIMEOUT_SECONDS", "300"))),
+        officer_wake_seconds=max(0, int(os.environ.get("PUKAAR_OFFICER_WAKE_SECONDS", "180"))),
+        delivery_batch_size=max(1, int(os.environ.get("PUKAAR_DELIVERY_BATCH_SIZE", "250"))),
+        delivery_concurrency=max(1, min(40, int(os.environ.get("PUKAAR_DELIVERY_CONCURRENCY", "4")))),
+        delivery_threads=max(1, min(64, int(os.environ.get("PUKAAR_DELIVERY_THREADS", "8")))),
+        delivery_budget_seconds=max(1.0, float(os.environ.get("PUKAAR_DELIVERY_BUDGET_SECONDS", "200"))),
+        delivery_max_passes=max(1, min(10, int(os.environ.get("PUKAAR_DELIVERY_MAX_PASSES", "4")))),
+        telegram_rate_per_second=max(0.1, float(os.environ.get("PUKAAR_TELEGRAM_RATE_PER_SECOND", "25"))),
+        telegram_chat_interval_seconds=max(0.0, float(os.environ.get("PUKAAR_TELEGRAM_CHAT_INTERVAL_SECONDS", "1"))),
+        voice_calls_per_second=max(0.1, float(os.environ.get("PUKAAR_VOICE_CALLS_PER_SECOND", "2"))),
+        sweep_concurrency=max(1, min(64, int(os.environ.get("PUKAAR_SWEEP_CONCURRENCY", "16")))),
     )
 
 

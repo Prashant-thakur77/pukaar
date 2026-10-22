@@ -345,6 +345,28 @@ after-action report):
 Afterwards, ask five or six households what they heard and whether the Hindi was clear, and whether
 anyone pressed a key by mistake. Remove the numbers of anyone who asks (`make voice-remove`).
 
+## The duty officer's wake-up call
+
+Web Push and Telegram stay silent on a phone in silent mode, so the approval nudge also phones the
+officer (`delivery/officer_call.py`). `OfficerWakeSeconds` (3 minutes) into an officer's approval
+window, if they have not opened the one-tap link, Pukaar calls the number set with
+`make officer-phone OFFICER=<username> PHONE=+91...`, through the same provider and webhooks as the
+alert calls:
+
+> पुकार: थुनाग को अभी आपकी मंज़ूरी चाहिए, गंभीर ख़तरा। Pukaar: Thunag needs your approval now, Critical.
+> मंज़ूरी का लिंक टेलीग्राम पर पाने के लिए 1 दबाएँ। Press 1 to get your approval link on Telegram.
+
+Pressing 1 sends the same one-tap approval link again to the officer's Telegram and Web Push, and
+the call says so ("Opening your approval link ..."; on Exotel the Passthru answers 302, so the
+Greeting speaks the confirmation before the closing Greeting). No key approves or declines: for
+liability, the decision stays a deliberate tap in the app with the alert in front of the officer.
+The call is placed once per officer per alert, at the same moment as the Web Push and Telegram
+reminders. The record (`OfficerCall`, on the alert timeline) says `placed`, then `answered`,
+`completed`, `not_connected` or `link_sent`; with voice off, no number on file, or a replay, it says
+the call was `not_possible` and why, and the reminders still go. The provider's own text-to-speech
+speaks the words (no Polly audio is made for it). The call token names the person
+`o_<username, base64url>` and attempt -1, so it can never act on an alert call's counters.
+
 ## Known limits
 
 - The safety roll-call is not asked by call yet. A voice-only person is recorded as asked with the

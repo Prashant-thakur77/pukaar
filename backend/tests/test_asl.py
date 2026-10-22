@@ -66,14 +66,21 @@ def test_targets_exist_and_all_states_reachable(definition):
 
 
 def test_every_task_catches_all_into_failsafe(definition):
-    for name, state in definition["States"].items():
-        if state["Type"] != "Task" or name in UNCAUGHT_TASKS:
+    """Every task, and the delivery Map, ends in the failsafe on any error. The delivery's own states go
+    through DeliveryBroken, which sends the failsafe's own delivery to close instead (no loop)."""
+    states = definition["States"]
+    for name, state in states.items():
+        if state["Type"] not in {"Task", "Map"} or name in UNCAUGHT_TASKS:
             continue
         catch_all = [
             c for c in state.get("Catch", []) if "States.ALL" in c["ErrorEquals"]
         ]
-        assert catch_all and catch_all[-1]["Next"] == "Failsafe", name
+        assert catch_all and catch_all[-1]["Next"] in {"Failsafe", "DeliveryBroken"}, name
         assert state["Catch"][-1] is catch_all[-1], f"{name}: States.ALL must be last"
+    broken = states["DeliveryBroken"]
+    assert broken["Default"] == "Failsafe"
+    assert [c["Next"] for c in broken["Choices"]] == ["OutcomeFailsafe"]
+    assert states["FailsafeBatches"]["Default"] == "OutcomeFailsafe"
 
 
 def test_timeout_path_and_execution_limit(definition):
@@ -83,18 +90,53 @@ def test_timeout_path_and_execution_limit(definition):
     assert ask["Resource"].endswith(":lambda:invoke.waitForTaskToken")
     assert ask["Parameters"]["Payload"]["task_token.$"] == "$$.Task.Token"
     # The window is split in two: ask, then (no decision) remind the same officer, then time out.
-    assert ask["TimeoutSecondsPath"] == "$.draft.result.nudge_after_seconds"
+    assert ask["TimeoutSecondsPath"] == "$.timers.nudge_after_seconds"
     first = ask["Catch"][0]
     assert first["ErrorEquals"] == ["States.Timeout"] and first["Next"] == "NudgeOfficer"
     nudge = states["NudgeOfficer"]
     assert nudge["Resource"].endswith(":lambda:invoke.waitForTaskToken")
     assert nudge["Parameters"]["Payload"]["task_token.$"] == "$$.Task.Token"
-    assert nudge["TimeoutSecondsPath"] == "$.draft.result.nudge_wait_seconds"
+    assert nudge["TimeoutSecondsPath"] == "$.timers.nudge_wait_seconds"
     assert nudge["Catch"][0]["ErrorEquals"] == ["States.Timeout"]
     assert states[nudge["Catch"][0]["Next"]]["Result"] == {"decision": "timeout"}
     assert nudge["Next"] == ask["Next"] == "RouteDecision"
     assert states["WaitForAcks"]["SecondsPath"] == "$.config.ack_wait_seconds"
     assert states["WaitBeforeRecall"]["SecondsPath"] == "$.config.voice_retry_seconds"
+    # The timers come from draft, and for every later officer from next_officer (the level may have risen).
+    assert states["DraftAlert"]["Next"] == "SetTimers" and states["SetTimers"]["ResultPath"] == "$.timers"
+    assert states["UseNextOfficer"]["Next"] == "UseNextTimers" and states["UseNextTimers"]["Next"] == "AskOfficer"
+    assert states["UseNextTimers"]["Parameters"]["nudge_after_seconds.$"] == "$.next.result.nudge_after_seconds"
+
+
+def test_delivery_fans_out_in_a_bounded_map(definition):
+    states = definition["States"]
+    m = states["DeliverBatches"]
+    assert m["Type"] == "Map" and m["ItemProcessor"]["ProcessorConfig"]["Mode"] == "INLINE"
+    assert m["ItemsPath"] == "$.delivery.result.batches"
+    # A fixed number, the same as the workers' share of the rate assumes (PUKAAR_DELIVERY_CONCURRENCY in the
+    # template and the code's default): more workers than that would together go over Telegram's limit.
+    from Pukaar.core.config import Settings
+
+    from test_template_safety import RES
+
+    env = RES["WorkflowFunction"]["Properties"]["Environment"]["Variables"]
+    assert m["MaxConcurrency"] == int(env["PUKAAR_DELIVERY_CONCURRENCY"]) == Settings.delivery_concurrency == 4
+    inner = m["ItemProcessor"]["States"]
+    assert inner["DeliverBatch"]["Parameters"]["Payload"]["step"] == "deliver_batch"
+    # A batch that fails is reported unfinished; it never fails the whole delivery.
+    assert inner["DeliverBatch"]["Catch"][-1]["Next"] == "BatchUnfinished"
+    assert inner["BatchUnfinished"]["Parameters"] == {"spec.$": "$.item", "unfinished": True}
+    payload = inner["DeliverBatch"]["Parameters"]["Payload"]
+    assert payload["first.$"] == "$.item.first" and payload["last.$"] == "$.item.last"
+    for name in ("Deliver", "Recall", "DeliverDone", "Failsafe"):
+        assert states[name]["ResultPath"] == "$.delivery", name
+    assert states["Deliver"]["Next"] == states["Recall"]["Next"] == "RunBatches"
+    assert states["DeliverDone"]["Next"] == "RunBatches"
+    # Every run of the Map first waits out the retry_after Telegram asked for (0 when none).
+    assert [c["Next"] for c in states["RunBatches"]["Choices"]] == ["WaitBeforeBatches"]
+    assert [c["Next"] for c in states["FailsafeBatches"]["Choices"]] == ["WaitBeforeBatches"]
+    assert states["WaitBeforeBatches"]["SecondsPath"] == "$.delivery.result.wait_seconds"
+    assert states["WaitBeforeBatches"]["Next"] == "DeliverBatches"
 
 
 def test_every_task_names_a_contract_step(definition):
@@ -111,11 +153,12 @@ def test_every_task_names_a_contract_step(definition):
         "close",
         "failsafe",
     }
-    used = {
-        s["Parameters"]["Payload"]["step"]
-        for s in definition["States"].values()
-        if s["Type"] == "Task"
-    }
+    steps |= {"deliver_done", "deliver_batch"}
+    every = list(definition["States"].values())
+    for s in list(every):
+        if s["Type"] == "Map":
+            every += list(s["ItemProcessor"]["States"].values())
+    used = {s["Parameters"]["Payload"]["step"] for s in every if s["Type"] == "Task"}
     assert used == steps
 
 
@@ -230,6 +273,11 @@ def run(definition: dict, execution_input: dict, fake) -> tuple[list[str], dict]
                 data, state.get("ResultPath", "$"), json.loads(json.dumps(effective))
             )
         elif kind == "Task":
+            if "TimeoutSecondsPath" in state:
+                timeout = _must(data, state["TimeoutSecondsPath"], {})
+                assert isinstance(timeout, int) and timeout > 0
+                if hasattr(fake, "timeouts"):
+                    fake.timeouts.append((name, timeout))
             context = {"Task": {"Token": f"token-{len(steps)}"}}
             params = _resolve(state["Parameters"], data, context)
             payload = params["Payload"]
@@ -262,6 +310,29 @@ def run(definition: dict, execution_input: dict, fake) -> tuple[list[str], dict]
                 if "ResultSelector" in state:
                     response = _resolve(state["ResultSelector"], response, {})
             data = _put(data, state.get("ResultPath", "$"), response)
+        elif kind == "Map":
+            items = _must(data, state["ItemsPath"], {})
+            limit = state["MaxConcurrency"]
+            assert isinstance(items, list) and isinstance(limit, int) and limit >= 1
+            outputs, failed = [], None
+            for i, item in enumerate(items):
+                context = {"Map": {"Item": {"Value": item, "Index": i}}}
+                sub_input = _resolve(state["ItemSelector"], data, context)
+                sub_steps, sub = run(state["ItemProcessor"], sub_input, fake)
+                steps.extend(sub_steps)
+                if sub["status"] != "SUCCEEDED":
+                    failed = sub.get("error", "States.TaskFailed")
+                    break
+                outputs.append(sub["data"])
+            if failed is not None:
+                handler = next((c for c in state.get("Catch", [])
+                                if failed in c["ErrorEquals"] or "States.ALL" in c["ErrorEquals"]), None)
+                if handler is None:
+                    return steps, {"status": "FAILED", "error": failed}
+                data = _put(data, handler.get("ResultPath", "$"), {"Error": failed, "Cause": "map"})
+                name = handler["Next"]
+                continue
+            data = _put(data, state.get("ResultPath", "$"), json.loads(json.dumps(outputs)))
         elif kind == "Choice":
             name = (
                 next((c["Next"] for c in state["Choices"] if _choice(c, data)), None)
@@ -282,14 +353,42 @@ def run(definition: dict, execution_input: dict, fake) -> tuple[list[str], dict]
 
 
 class FakeWorkflow:
-    """Fake workflow Lambda. `decisions` answers ask_officer per call."""
+    """Fake workflow Lambda. `decisions` answers ask_officer per call.
 
-    def __init__(self, level="warning", officers=2, decisions=(), fail_step=None, voice_rounds=0, auto_off=False):
+    Delivery: `batches` extra batches after the deliver step's own (also for recall), and
+    `failsafe_batches` for the failsafe; `defer` maps a batch to how many passes it reports sends
+    still queued; `broken` batches always fail.
+    """
+
+    def __init__(self, level="warning", officers=2, decisions=(), fail_step=None, voice_rounds=0, auto_off=False,
+                 batches=0, defer=None, broken=(), max_passes=4, next_level=None, failsafe_batches=0):
         self.level, self.officers, self.fail_step = level, officers, fail_step
         self.auto_off = auto_off  # PUKAAR_CRITICAL_AUTO_SEND=false
         self.decisions = list(decisions)
         self.voice_rounds = voice_rounds  # how many recall results say "again" (another voice round)
+        self.batches, self.defer, self.broken = batches, dict(defer or {}), set(broken)
+        self.max_passes, self.next_level, self.failsafe_batches = max_passes, next_level, failsafe_batches
         self.calls: list[dict] = []
+        self.timeouts: list[tuple[str, int]] = []
+
+    @staticmethod
+    def _timers(level):
+        if level == "critical":
+            return {"nudge_after_seconds": 150, "nudge_wait_seconds": 150}
+        return {"nudge_after_seconds": 180, "nudge_wait_seconds": 420}
+
+    def _again(self):
+        again = bool(self.voice_rounds)
+        if again:
+            self.voice_rounds -= 1
+        return again
+
+    @staticmethod
+    def _round(alert_id, mode, n):
+        return {"alert_id": alert_id, "mode": mode, "more": True, "pass": 1, "counts": {"sent": 3, "failed": 0},
+                "batches": [{"batch": b, "first": f"{b}a", "last": f"{b}z", "mode": mode, "share": min(4, n)}
+                            for b in range(1, n + 1)],
+                "concurrency": min(4, n), "wait_seconds": 5}
 
     def __call__(self, payload: dict):
         self.calls.append(payload)
@@ -297,14 +396,8 @@ class FakeWorkflow:
         if step == self.fail_step:
             raise TaskFailed("RuntimeError", f"forced failure in {step}")
         if step == "draft":
-            return {
-                "alert_id": alert_id,
-                "level": self.level,
-                "officer_count": self.officers,
-                "recipients_count": 3,
-                "nudge_after_seconds": 300,
-                "nudge_wait_seconds": 300,
-            }
+            return {"alert_id": alert_id, "level": self.level, "officer_count": self.officers,
+                    "recipients_count": 3, **self._timers(self.level)}
         if step in {"ask_officer", "nudge_officer"}:
             assert payload["task_token"].startswith("token-")
             # "timeout": no answer in either half; "nudged:<d>": no answer, then <d> after the reminder.
@@ -323,18 +416,49 @@ class FakeWorkflow:
         if step == "next_officer":
             nxt = payload["officer_index"] + 1
             has_next = nxt < self.officers
-            return {
-                "has_next": has_next,
-                "officer_index": nxt if has_next else payload["officer_index"],
-                "level": self.level,
-            }
+            level = self.next_level or self.level
+            return {"has_next": has_next, "officer_index": nxt if has_next else payload["officer_index"],
+                    "level": level, **self._timers(level)}
         if step == "close":
             return {"alert_id": alert_id, "status": payload["outcome"]}
         if step == "auto_send":
             return {"alert_id": alert_id, "mode": "off" if self.auto_off else "auto"}
-        if step == "recall" and self.voice_rounds:
-            self.voice_rounds -= 1
-            return {"alert_id": alert_id, "resent": 1, "again": True}
+        if step == "deliver":
+            if self.batches:
+                return self._round(alert_id, "deliver", self.batches)
+            return {"alert_id": alert_id, "mode": "deliver", "more": False, "sent": 3, "failed": 0}
+        if step == "failsafe":
+            if self.failsafe_batches:
+                return {**self._round(alert_id, "failsafe", self.failsafe_batches), "sent": 3}
+            return {"alert_id": alert_id, "mode": "failsafe", "more": False, "sent": 3}
+        if step == "recall":
+            if self.batches:
+                return self._round(alert_id, "recall", self.batches)
+            return {"alert_id": alert_id, "mode": "recall", "more": False, "resent": 1, "again": self._again()}
+        if step == "deliver_batch":
+            b = payload["batch"]
+            assert payload["mode"] in {"deliver", "recall", "failsafe"} and payload["share"] >= 1
+            assert (payload["first"], payload["last"]) == (f"{b}a", f"{b}z")
+            if b in self.broken:
+                raise TaskFailed("Lambda.Unknown", "the worker stopped")
+            deferred = 0
+            if self.defer.get(b):
+                self.defer[b] -= 1
+                deferred = 2
+            spec = {"batch": b, "first": payload["first"], "last": payload["last"]}
+            return {"spec": spec, "sent": 10 - deferred, "failed": 0, "deferred": deferred, "retry_after": 7}
+        if step == "deliver_done":
+            todo = [r["spec"] for r in payload["results"] if r.get("unfinished") or r.get("deferred")]
+            if todo and payload["pass"] < self.max_passes:
+                return {"alert_id": alert_id, "mode": payload["mode"], "more": True, "pass": payload["pass"] + 1,
+                        "counts": payload["counts"],
+                        "batches": [{"batch": sp["batch"], "first": sp["first"], "last": sp["last"],
+                                     "mode": payload["mode"], "share": 1} for sp in todo],
+                        "concurrency": 1, "wait_seconds": 7}
+            out = {"alert_id": alert_id, "mode": payload["mode"], "more": False}
+            if payload["mode"] == "recall":
+                out["again"] = self._again()
+            return out
         return {"alert_id": alert_id, "step": step}
 
 
@@ -453,11 +577,104 @@ def test_voice_recall_rounds_loop_then_close(definition):
 
 
 def test_recall_without_again_goes_straight_to_close(definition):
-    """An old or Telegram-only recall result (no "again") ends the run as before."""
+    """A Telegram-only recall result (again false or absent) ends the run."""
     states = definition["States"]
-    assert states["Recall"]["Next"] == "MoreVoiceRounds"
-    assert states["MoreVoiceRounds"]["Default"] == "Close"
+    assert states["Recall"]["Next"] == "RunBatches"
+    after = states["AfterDelivery"]
+    to_close = [c for c in after["Choices"] if c["Next"] == "Close"]
+    assert len(to_close) == 1 and after["Default"] == "OutcomeFailsafe"
     assert definition["States"]["Init"]["Parameters"]["config"]["voice_retry_seconds.$"] == "States.StringToJson('600')"
+    fake = FakeWorkflow(decisions=["approved"])
+    steps, result = _run(definition, fake)
+    assert steps[-2:] == ["recall", "close"] and fake.calls[-1]["outcome"] == "delivered"
+
+
+# --- delivery at scale --------------------------------------------------------
+
+
+def test_many_recipients_fan_out_in_batches_then_wait_for_acks(definition):
+    """Deliver sends the first batch and returns the rest; the Map runs each once; deliver_done finishes."""
+    fake = FakeWorkflow(decisions=["approved"], batches=5)
+    steps, result = _run(definition, fake)
+    assert steps[:3] == ["draft", "ask_officer", "deliver"]
+    first_done = steps.index("deliver_done")
+    assert steps[3:first_done] == ["deliver_batch"] * 5
+    batches = [c["batch"] for c in fake.calls if c["step"] == "deliver_batch"][:5]
+    assert batches == [1, 2, 3, 4, 5]
+    done = next(c for c in fake.calls if c["step"] == "deliver_done")
+    assert done["mode"] == "deliver" and done["pass"] == 1 and done["counts"] == {"sent": 3, "failed": 0}
+    assert [r["spec"]["batch"] for r in done["results"]] == [1, 2, 3, 4, 5]
+    # then WaitForAcks and the recall, itself batched, then close
+    assert steps[first_done + 1] == "recall" and steps[-1] == "close"
+    assert result["status"] == "SUCCEEDED" and fake.calls[-1]["outcome"] == "delivered"
+
+
+def test_a_batch_with_queued_sends_goes_round_again_and_is_never_lost(definition):
+    """A Telegram 429 (deferred sends) re-queues that batch only, after wait_seconds."""
+    fake = FakeWorkflow(decisions=["approved"], batches=3, defer={2: 2})
+    steps, result = _run(definition, fake)
+    deliver_part = steps[:steps.index("recall")]
+    runs = [c for c in fake.calls if c["step"] == "deliver_batch"]
+    assert [c["batch"] for c in runs[:5]] == [1, 2, 3, 2, 2]  # batch 2 twice more, alone
+    assert deliver_part.count("deliver_done") == 3
+    assert result["status"] == "SUCCEEDED" and fake.calls[-1]["outcome"] == "delivered"
+
+
+def test_a_stopped_batch_is_unfinished_not_a_failed_execution(definition):
+    """A worker that dies is reported unfinished and run again; after the last pass the round finishes
+    (deliver_done records who was never reached), and the run does not go to the failsafe."""
+    fake = FakeWorkflow(decisions=["approved"], batches=2, broken={1}, max_passes=3)
+    steps, result = _run(definition, fake)
+    assert "failsafe" not in steps
+    dones = [c for c in fake.calls if c["step"] == "deliver_done" and c["mode"] == "deliver"]
+    assert [d["pass"] for d in dones] == [1, 2, 3]
+    assert dones[0]["results"][0]["unfinished"] is True and dones[0]["results"][0]["spec"]["batch"] == 1
+    assert result["status"] == "SUCCEEDED" and fake.calls[-1]["outcome"] == "delivered"
+
+
+def test_recall_rounds_are_batched_and_still_loop_for_voice(definition):
+    fake = FakeWorkflow(decisions=["approved"], batches=2, voice_rounds=1)
+    steps, result = _run(definition, fake)
+    recall_dones = [c for c in fake.calls if c["step"] == "deliver_done" and c["mode"] == "recall"]
+    assert steps.count("recall") == 2 and len(recall_dones) == 2
+    assert result["status"] == "SUCCEEDED" and fake.calls[-1]["outcome"] == "delivered"
+
+
+def test_failsafe_delivery_is_batched_and_cannot_loop(definition):
+    """The failsafe's own batches run through the same Map; if that delivery breaks, the run closes."""
+    fake = FakeWorkflow(decisions=["approved"], fail_step="deliver", failsafe_batches=2)
+    steps, result = _run(definition, fake)
+    assert steps[-5:] == ["failsafe", "deliver_batch", "deliver_batch", "deliver_done", "close"]
+    assert fake.calls[-1]["outcome"] == "failsafe" and result["status"] == "SUCCEEDED"
+
+    broken = FakeWorkflow(decisions=["approved"], fail_step="deliver_done", failsafe_batches=1, batches=1)
+    steps, result = _run(definition, broken)
+    assert steps.count("failsafe") == 1  # deliver_done broke in the failsafe's delivery too: no second failsafe
+    assert broken.calls[-1]["outcome"] == "failsafe" and result["status"] == "SUCCEEDED"
+
+
+def test_failsafe_for_an_unknown_alert_closes(definition):
+    """failsafe answers {alert_id, sent: 0} for an alert it cannot find: that must close, not deliver."""
+    states = definition["States"]
+    data = {"delivery": {"result": {"alert_id": "missing", "sent": 0}}}
+    assert next((c["Next"] for c in states["FailsafeBatches"]["Choices"] if _choice(c, data)), None) is None
+    assert states["FailsafeBatches"]["Default"] == "OutcomeFailsafe"
+
+
+# --- approval windows ------------------------------------------------------------
+
+
+def test_critical_windows_are_shorter_and_follow_an_escalation(definition):
+    critical = FakeWorkflow(level="critical", decisions=["timeout", "timeout"])
+    _run(definition, critical, level="critical")
+    assert critical.timeouts == [("AskOfficer", 150), ("NudgeOfficer", 150)] * 2
+    warning = FakeWorkflow(decisions=["timeout", "approved"])
+    _run(definition, warning)
+    assert warning.timeouts[:2] == [("AskOfficer", 180), ("NudgeOfficer", 420)]
+    # Raised to critical while the first officer waited: the next officer gets the critical window.
+    raised = FakeWorkflow(decisions=["timeout", "approved"], next_level="critical")
+    _run(definition, raised)
+    assert raised.timeouts == [("AskOfficer", 180), ("NudgeOfficer", 420), ("AskOfficer", 150)]
 
 
 def test_reminded_officer_approves_in_the_second_half(definition):

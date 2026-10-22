@@ -44,7 +44,7 @@ DEPLOY_EXTRA   = $(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL)) \
                  $(if $(CAP_SENDER_NAME_HI),'CapSenderNameHi="$(CAP_SENDER_NAME_HI)"')
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo drill voice-add voice-list voice-remove voice-urls gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke
+        seed reset-demo drill voice-add voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -115,6 +115,10 @@ voice-remove: ## Stop calls to one recipient (VILLAGE= ID=v_...)
 
 voice-urls: ## Print the three URLs for the Exotel flow (contain the webhook key: treat as secret)
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.voice urls "$$STACK_ApiUrl"
+
+officer-phone: ## The duty officer's phone for the wake-up call (OFFICER=officer1 PHONE=+91..|remove|show)
+	@test -n "$(OFFICER)" -a -n "$(PHONE)" || { echo 'usage: make officer-phone OFFICER=officer1 PHONE=+919812345678'; exit 2; }
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.voice officer "$(OFFICER)" "$(PHONE)"
 
 gauge-sim: ## Send a SIMULATED rising river gauge to the deployed stack (VILLAGE=gohar, FAST=1 for five readings at once)
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.gauge_sim $(or $(VILLAGE),gohar) $(if $(FAST),--fast,)

@@ -420,6 +420,11 @@ class Alert(BaseModel):
     officer_chain_roles: list[str] = Field(default_factory=list)
     officers_asked: list[str] = Field(default_factory=list)  # everyone asked or reminded, for the all-clear
     nudges: int = 0  # reminders sent half-way through an officer's approval window
+    # The asked officer opened the one-tap approval link (api/routers/public.approval_view) for this
+    # token_version: the wake-up call at the nudge is not placed (delivery/officer_call.py).
+    approval_opened_by: str | None = None
+    approval_opened_at: str | None = None
+    approval_opened_version: int | None = None
     # The all-clear (workflow/steps.stand_down): when the alert was stood down, by whom and why, and how
     # many people and officers it reached or failed to reach. Set once.
     all_clear_at: str | None = None
@@ -527,6 +532,11 @@ class Delivery(BaseModel):
     all_clear_at: str | None = None
     all_clear_error: str | None = None
     all_clear_call_id: str | None = None  # voice: the all-clear call; it has no menu and moves no counter
+    # -- delivery at scale (dispatch.py): which send round claimed this row last (0 the first delivery,
+    # 1.. the re-sends, -1 the failsafe), so one row is sent at most once per round however many batch
+    # workers or retries touch it; deferred: put back unsent (Telegram 429 or out of time), sent next pass.
+    send_round: int | None = None
+    deferred: bool = False
 
     @property
     def row_key(self) -> str:
@@ -536,6 +546,32 @@ class Delivery(BaseModel):
 def delivery_key(recipient_id: str, channel: str) -> str:
     """The sort-key suffix: voice rows sit beside the person's Telegram row."""
     return f"{recipient_id}#voice" if channel == "voice" else recipient_id
+
+
+class OfficerCall(BaseModel):
+    """The wake-up call to an officer who has not opened an approval (delivery/officer_call.py).
+
+    One per officer per alert. It never approves: "1" only sends the one-tap approval link again
+    to the officer's Telegram and Web Push; the approval itself stays a deliberate tap in the app.
+    status: placed (the provider took the call), not_possible (voice off, no phone, a replay),
+    failed (the provider refused it), answered, completed, not_connected, link_sent.
+    """
+
+    alert_id: str
+    officer: str
+    officer_index: int = 0
+    level: str = ""
+    status: Literal["placing", "placed", "not_possible", "failed", "answered", "completed", "not_connected",
+                    "link_sent"] = "placing"
+    reason: str | None = None
+    provider: str | None = None
+    call_id: str | None = None
+    call_status: str | None = None
+    placed_at: str | None = None
+    answered_at: str | None = None
+    digit: str | None = None
+    link_sent_at: str | None = None
+    link_channels: list[str] = Field(default_factory=list)
 
 
 class ChecklistItem(BaseModel):

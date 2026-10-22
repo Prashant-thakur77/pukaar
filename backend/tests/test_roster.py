@@ -89,7 +89,8 @@ def test_escalation_order_is_primary_then_backup_then_adm(repo, frozen):
     s = steps(repo)
     a = make_alert(repo, "critical")
     out = s.handle({"step": "draft", "alert_id": a.id})
-    assert out["officer_count"] == 3 and out["nudge_after_seconds"] + out["nudge_wait_seconds"] == 600
+    # A critical: 5 minutes per officer (PUKAAR_CRITICAL_APPROVAL_TIMEOUT_SECONDS), not the general 10.
+    assert out["officer_count"] == 3 and out["nudge_after_seconds"] + out["nudge_wait_seconds"] == 300
     asked = []
     index = 0
     while True:
@@ -438,7 +439,8 @@ def test_the_primary_is_nudged_on_every_channel_before_escalating(repo, frozen, 
     assert out["officer"] == "officer1" and out["telegram"] is True and out["push"] == 1
     reminder = tg.sent()[0]
     assert reminder["chat_id"] == "9990001" and reminder["text"].startswith("पुकार, याद दिलाना")
-    assert "next officer is asked in 5 min" in reminder["text"]
+    assert "next officer is asked in 7 min" in reminder["text"]  # the nudge comes 3 min into the 10-min window
+    assert out["call"] == "not_possible"  # voice is off in the tests: the call is recorded as not possible
     p = push.received[0][1]
     assert p["title"].startswith("याद दिलाना · Reminder") and p["kind"] == "approval"
     nudged = repo.get_alert(a.id)

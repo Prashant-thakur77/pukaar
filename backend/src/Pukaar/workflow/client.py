@@ -51,7 +51,8 @@ class LocalWorkflow:
         s = get_settings()
         self.repo_factory = repo_factory
         self.steps_factory = steps_factory
-        self.approval_timeout = approval_timeout if approval_timeout is not None else s.approval_timeout_seconds
+        # None: each officer's window comes from the step (shorter for a critical, nudge at the wake time).
+        self.approval_timeout = approval_timeout
         self.ack_wait = ack_wait if ack_wait is not None else s.ack_wait_seconds
         self._waiting: dict[str, tuple[threading.Event, dict]] = {}
         self._lock = threading.Lock()
@@ -71,10 +72,13 @@ class LocalWorkflow:
         entry[1].update(output)
         entry[0].set()
 
-    def _wait_for_decision(self, steps, alert_id: str, index: int) -> dict | None:
-        """Ask, wait half the window, remind the same officer (nudge_officer), wait the other half."""
-        first = max(0.0, self.approval_timeout / 2)
-        for step, wait in (("ask_officer", first), ("nudge_officer", max(0.0, self.approval_timeout - first))):
+    def _wait_for_decision(self, steps, alert_id: str, index: int, timers: dict) -> dict | None:
+        """Ask, wait until the nudge, remind (and phone) the same officer (nudge_officer), wait the rest."""
+        if self.approval_timeout is not None:
+            first, rest = self.approval_timeout / 2, self.approval_timeout / 2
+        else:
+            first, rest = float(timers["nudge_after_seconds"]), float(timers["nudge_wait_seconds"])
+        for step, wait in (("ask_officer", max(0.0, first)), ("nudge_officer", max(0.0, rest))):
             token = f"local:{alert_id}:{index}:{step}:{time.monotonic_ns()}"
             event, holder = threading.Event(), {}
             with self._lock:
@@ -89,34 +93,40 @@ class LocalWorkflow:
         return None
 
     def _run(self, alert_id: str) -> None:
+        from Pukaar.workflow.steps import drive_delivery
+
         steps = self.steps_factory(self.repo_factory())
+
+        def send(step: str) -> dict:  # deliver, recall or failsafe, then its batches as the Map state would
+            return drive_delivery(steps.handle, steps.handle({"step": step, "alert_id": alert_id}))
+
         outcome = "failsafe"
         try:
             draft = steps.handle({"step": "draft", "alert_id": alert_id})
-            index, level, decision = 0, draft["level"], None
+            index, level, decision, timers = 0, draft["level"], None, draft
             if draft["officer_count"] > 0:
                 while True:
-                    decision = self._wait_for_decision(steps, alert_id, index)
+                    decision = self._wait_for_decision(steps, alert_id, index, timers)
                     if decision is not None:
                         break
                     nxt = steps.handle({"step": "next_officer", "alert_id": alert_id, "officer_index": index})
-                    level = nxt["level"]
+                    level, timers = nxt["level"], {**timers, **nxt}
                     if not nxt["has_next"]:
                         break
                     index = nxt["officer_index"]
             if decision is not None and decision.get("decision") == "declined":
                 outcome = "declined"
             elif decision is not None and decision.get("decision") == "approved":
-                steps.handle({"step": "deliver", "alert_id": alert_id})
+                send("deliver")
                 time.sleep(self.ack_wait)
-                steps.handle({"step": "recall", "alert_id": alert_id})
+                send("recall")
                 outcome = "delivered"
             elif level == "critical":
                 auto = steps.handle({"step": "auto_send", "alert_id": alert_id})
                 if auto.get("mode") == "auto":
-                    steps.handle({"step": "deliver", "alert_id": alert_id})
+                    send("deliver")
                     time.sleep(self.ack_wait)
-                    steps.handle({"step": "recall", "alert_id": alert_id})
+                    send("recall")
                     outcome = "auto_sent_unapproved"
                 else:  # critical auto-send is off (needs DDMA sign-off): nothing was sent
                     outcome = "expired"
@@ -125,7 +135,12 @@ class LocalWorkflow:
                 outcome = "expired"
         except Exception as exc:
             log(_LOG, "local workflow error -> failsafe", 40, alert_id=alert_id, error=str(exc)[:300])
-            steps.handle({"step": "failsafe", "alert_id": alert_id, "error": {"Error": type(exc).__name__, "Cause": str(exc)[:500]}})
+            first = steps.handle({"step": "failsafe", "alert_id": alert_id,
+                                  "error": {"Error": type(exc).__name__, "Cause": str(exc)[:500]}})
+            try:
+                drive_delivery(steps.handle, first)
+            except Exception as inner:
+                log(_LOG, "local failsafe delivery error", 40, alert_id=alert_id, error=str(inner)[:300])
             outcome = "failsafe"
         steps.handle({"step": "close", "alert_id": alert_id, "outcome": outcome})
 

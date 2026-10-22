@@ -22,11 +22,26 @@ are contacted before everyone else, and their Telegram message asks them to soun
 the megaphone. A relay's acknowledgement is recorded as "relay done: siren and megaphone" on the
 alert timeline. This is the "cascade" of Practical Action's community early-warning work in Nepal:
 the alert reaches a few trusted people first, and they carry it the last mile by siren and voice.
+
+At scale (docs/CONTRACT.md, "Delivery at scale"): the recipients, relays first, are cut into batches
+of PUKAAR_DELIVERY_BATCH_SIZE. The deliver step sends the first batch itself (the relays one by one,
+and the single upload of the alert audio to Telegram); the Map state in infra/approval.asl.json sends
+the other batches, PUKAAR_DELIVERY_CONCURRENCY at a time, each worker at 1/n of the overall rate
+(delivery/ratelimit.py) with PUKAAR_DELIVERY_THREADS sends in flight. Every send is claimed first by a
+conditional write on its row (Repo.claim_delivery: a compare-and-set on attempts, once per round), so a
+retried or overlapping batch never sends twice. A Telegram 429 pauses the worker for retry_after and
+the message is tried again; past the step's time budget it is put back unsent (deferred) and the next
+pass sends it. A deferred send is never recorded as sent.
 """
 
 from __future__ import annotations
 
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from datetime import timedelta
+from typing import Any
 
 from boto3.dynamodb.conditions import Attr
 
@@ -34,6 +49,7 @@ from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.core.log import get_logger, log, metric
 from Pukaar.delivery import telegram, voice
+from Pukaar.delivery.ratelimit import RateLimiter
 from Pukaar.policy.guard import SYSTEM, authorize
 from Pukaar.services import storage
 from Pukaar.services.action_guard import check_send
@@ -45,6 +61,9 @@ from Pukaar.workflow import tokens
 _LOG = get_logger("dispatch")
 TELEGRAM_MAX_ATTEMPTS = 2  # the first send and one re-send
 REACHED = {"sent", "acknowledged"}
+ROUND_DELIVER = 0  # Delivery.send_round of the first delivery; re-sends count 1, 2, ...; the failsafe -1
+ROUND_FAILSAFE = -1
+RATE_LIMIT_TRIES = 3  # 429 answers waited out for one message before it is put back for the next pass
 
 
 def _channels(recipient: Recipient, alert: Alert) -> list[str]:
@@ -65,17 +84,66 @@ def _channels(recipient: Recipient, alert: Alert) -> list[str]:
     return out
 
 
-def _send_telegram(alert: Alert, recipient: Recipient, audio: bytes | None) -> None:
+def _slot(channel: str) -> str:
+    return "voice" if channel == "voice" else "other"
+
+
+def _send_telegram(alert: Alert, recipient: Recipient, audio: bytes | str | None) -> Any:
     if not telegram.configured():
         raise telegram.TelegramError("Telegram token unavailable (not configured, or SSM could not be read)")
     text = f"{hi.RELAY_LINE_HI}\n\n{alert.text_hi}" if recipient.is_relay else alert.text_hi
-    telegram.send_alert(recipient.id, alert.id, text, audio)
+    return telegram.send_alert(recipient.id, alert.id, text, audio)
 
 
 def relays_first(recipients: list[Recipient]) -> list[Recipient]:
     """The Practical Action cascade: relays (pradhan, gauge reader, task force) before everyone else.
     Stable, so the order within each group is the stored order."""
     return sorted(recipients, key=lambda r: 0 if r.is_relay else 1)
+
+
+def ordered_recipients(repo: Repo, alert: Alert) -> list[Recipient]:
+    """Everyone the alert goes to, in sending order; batch n is the n-th slice of this list."""
+    return relays_first(repo.list_recipients(alert.village_id))
+
+
+def batch_count(total: int, size: int | None = None) -> int:
+    size = size or get_settings().delivery_batch_size
+    return max(1, -(-total // size))
+
+
+def batch_specs(people: list[Recipient], size: int | None = None) -> list[dict[str, Any]]:
+    """What each batch covers, small enough for the state machine to carry: batch 0 is the relays and the
+    first others (sent by the deliver step itself); every later batch is a range of ids (first..last) of
+    people who are not relays, at most `size` of them, so its worker reads only those rows. With more
+    relays than one batch holds, every batch is named by its position instead."""
+    s = get_settings()
+    size = size or s.delivery_batch_size
+    rest = people[size:]
+    if any(r.is_relay for r in rest):  # more relays than one batch: every batch by position
+        return [{"batch": b} for b in range(batch_count(len(people), size))]
+    specs: list[dict[str, Any]] = [{"batch": 0}]
+    if not rest:
+        return specs
+    # The others in equal batches, a multiple of the workers running at once, so no worker idles at the
+    # end while one finishes a full batch alone (each worker sends at 1/n of the rate).
+    n = batch_count(len(rest), size)
+    n = min(len(rest), -(-n // s.delivery_concurrency) * s.delivery_concurrency)
+    per = -(-len(rest) // n)
+    for b in range(1, -(-len(rest) // per) + 1):
+        chunk = rest[(b - 1) * per:b * per]
+        specs.append({"batch": b, "first": chunk[0].id, "last": chunk[-1].id})
+    return specs
+
+
+def batch_people(repo: Repo, alert: Alert, spec: dict[str, Any]) -> list[Recipient]:
+    """The recipients of one batch: a range read (relays skipped: they went first, in batch 0), or the
+    slice of the whole ordered list when the batch is named by position."""
+    if spec.get("first") and spec.get("last"):
+        return [r for r in repo.list_recipients_between(alert.village_id, spec["first"], spec["last"])
+                if not r.is_relay]
+    size = get_settings().delivery_batch_size
+    b = int(spec.get("batch") or 0)
+    return ordered_recipients(repo, alert)[b * size:(b + 1) * size]
 
 
 def _call_audio(repo: Repo, alert: Alert) -> Alert:
@@ -94,8 +162,56 @@ def _call_audio(repo: Repo, alert: Alert) -> Alert:
     return alert
 
 
-def _person_acked(rows: dict[tuple[str, str], Delivery], recipient_id: str) -> bool:
-    return any(d.acknowledged_at for (rid, _), d in rows.items() if rid == recipient_id)
+def prepare(repo: Repo, alert: Alert, people: list[Recipient]) -> Alert:
+    """Once per alert, before any batch: the call audio, if anyone takes calls. Batch workers reuse it."""
+    if any("voice" in _channels(r, alert) for r in people):
+        return _call_audio(repo, alert)
+    return alert
+
+
+def _telegram_audio(repo: Repo, alert: Alert) -> bytes | str | None:
+    """The alert audio for Telegram: the file id of the first upload when there is one, else the MP3."""
+    if not alert.audio_key:
+        return None
+    file_id = repo.get_telegram_file(alert.id)
+    if file_id:
+        return file_id
+    try:
+        data, _ = storage.get_bytes(alert.audio_key)
+        return data
+    except Exception as exc:
+        log(_LOG, "audio unavailable; sending text", 30, alert_id=alert.id, error=str(exc)[:200])
+        return None
+
+
+class _Audio:
+    """The MP3 until Telegram has it once, then the file id it gave back: one upload per alert."""
+
+    def __init__(self, repo: Repo, alert_id: str, value: bytes | str | None) -> None:
+        self.repo, self.alert_id, self.value = repo, alert_id, value
+        self._lock = threading.Lock()
+
+    @property
+    def needs_upload(self) -> bool:
+        return isinstance(self.value, (bytes, bytearray))
+
+    def learn(self, message: Any) -> None:
+        file_id = telegram.audio_file_id(message)
+        if file_id and self.needs_upload:
+            with self._lock:
+                if self.needs_upload:
+                    self.value = self.repo.put_telegram_file(self.alert_id, file_id)
+
+
+def round_limiters(share: int) -> tuple[RateLimiter, RateLimiter]:
+    """(Telegram, voice) limiters for one round: 1/share of the overall rates, share being the number of
+    batches running at once. Each batch worker is its own Lambda, so the shares add up to the limit."""
+    s = get_settings()
+    share = max(1, share)
+    # No burst: n workers starting together must not send n bursts in the same second.
+    return (RateLimiter(s.telegram_rate_per_second / share, burst=1,
+                        per_key_interval=s.telegram_chat_interval_seconds),
+            RateLimiter(s.voice_calls_per_second / share, burst=1))
 
 
 def _voice_due(prior: Delivery, now) -> tuple[bool, dict]:
@@ -114,34 +230,109 @@ def _voice_due(prior: Delivery, now) -> tuple[bool, dict]:
     return True, {"not_connected": prior.not_connected + 1, "error_category": "no_status"}
 
 
+@dataclass
+class RoundResult:
+    """One delivery round over some recipients, in people (a voice call counts once the provider took it)."""
+
+    sent: set[str] = field(default_factory=set)
+    failed: set[str] = field(default_factory=set)
+    deferred: int = 0  # sends put back unsent: Telegram said 429, or the step ran out of time
+    retry_after: float = 0.0  # the longest wait Telegram asked for
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"sent": len(self.sent), "failed": len(self.failed - self.sent), "deferred": self.deferred,
+                "retry_after": self.retry_after}
+
+
+@dataclass
+class _Item:
+    recipient: Recipient
+    channel: str
+    prior: Delivery | None
+    carry: dict
+
+
+@dataclass
+class _Round:
+    repo: Repo
+    alert: Alert
+    send_round: int
+    deadline: float | None
+    audio: _Audio | None
+    result: RoundResult
+    tg_slots: RateLimiter
+    voice_slots: RateLimiter
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+    def out_of_time(self, wait: float = 0.0) -> bool:
+        return self.deadline is not None and time.monotonic() + wait > self.deadline
+
+    def record(self, person: str, outcome: str, retry_after: float) -> None:
+        with self.lock:
+            if outcome == "sent":
+                self.result.sent.add(person)
+            elif outcome == "failed":
+                self.result.failed.add(person)
+            elif outcome == "deferred":
+                self.result.deferred += 1
+            self.result.retry_after = max(self.result.retry_after, retry_after)
+
+
+def round_for(alert: Alert, action: str, recall: bool) -> int:
+    if recall:
+        return max(1, alert.recall_rounds)
+    return ROUND_FAILSAFE if action == "failsafe" else ROUND_DELIVER
+
+
 def deliver(repo: Repo, alert: Alert, *, action: str = "deliver", recall: bool = False) -> tuple[int, int]:
-    """Returns (sent, failed), counted in people. action is deliver, auto_send or failsafe.
+    """Everyone, in this process (a small village, the tests, the local runner). Returns (sent, failed),
+    counted in people. action is deliver, auto_send or failsafe.
 
     A voice call counts as sent here once the provider accepted it; the delivery row says "sent"
     only when the call is answered (delivery/ivr.py).
     """
-    recipients = relays_first(repo.list_recipients(alert.village_id))
-    existing = {(d.recipient_id, "voice" if d.channel == "voice" else "other"): d for d in repo.list_deliveries(alert.id)}
-    audio = None
-    if alert.audio_key:
-        try:
-            audio, _ = storage.get_bytes(alert.audio_key)
-        except Exception as exc:
-            log(_LOG, "audio unavailable; sending text", 30, alert_id=alert.id, error=str(exc)[:200])
+    res = deliver_round(repo, alert, action=action, recall=recall)
+    return len(res.sent), len(res.failed - res.sent)
+
+
+def deliver_round(repo: Repo, alert: Alert, *, action: str = "deliver", recall: bool = False,
+                  batch: int | None = None, recipients: list[Recipient] | None = None,
+                  spec: dict[str, Any] | None = None, deadline: float | None = None, share: int = 1) -> RoundResult:
+    """One round of sends over everyone (batch None) or one batch: spec (batch_specs) names it, or batch
+    is its position in the ordered recipients (given, or read).
+
+    deadline (time.monotonic): sends not started by then are put back unsent, for the next pass.
+    share: how many batch workers run at once; this one takes 1/share of the overall rates.
+    """
+    s = get_settings()
+    send_round = round_for(alert, action, recall)
+    if spec is not None:
+        batch = int(spec.get("batch") or 0)
+        people = batch_people(repo, alert, spec)
+    else:
+        people = recipients if recipients is not None else ordered_recipients(repo, alert)
+        if batch is not None:
+            people = people[batch * s.delivery_batch_size:(batch + 1) * s.delivery_batch_size]
+    result = RoundResult()
+    if not people:
+        return result
+    if batch is None:
+        alert = prepare(repo, alert, people)
+    rows_list = repo.get_deliveries(alert.id, [r.id for r in people]) if batch is not None \
+        else repo.list_deliveries(alert.id)
+    rows = {(d.recipient_id, _slot(d.channel)): d for d in rows_list}
+    acked = {d.recipient_id for d in rows_list if d.acknowledged_at}
 
     now = clock.now()
-    if any("voice" in _channels(r, alert) for r in recipients):
-        alert = _call_audio(repo, alert)  # once per round, before the first call
-    reached: set[str] = set()
-    failed_people: set[str] = set()
-    decisions: dict[str, object] = {}  # one policy decision (and audit row) per channel per round
-    for r in recipients:
+    work: list[_Item] = []
+    for r in people:
         for channel in _channels(r, alert):
-            slot = (r.id, "voice" if channel == "voice" else "other")
-            prior = existing.get(slot)
+            prior = rows.get((r.id, _slot(channel)))
+            if prior is not None and prior.send_round == send_round and not prior.deferred:
+                continue  # done in this round already (an earlier pass, or a retried batch)
             carry: dict = {}
             if recall:
-                if prior is None or _person_acked(existing, r.id):
+                if prior is None or r.id in acked:
                     continue
                 if channel == "voice":
                     due, carry = _voice_due(prior, now)
@@ -151,93 +342,190 @@ def deliver(repo: Repo, alert: Alert, *, action: str = "deliver", recall: bool =
                     continue
             elif prior is not None and prior.status in REACHED | {"pending"}:
                 continue  # idempotent: never send the same alert twice to one person
-            ctx = {"approved": alert.approved, "level": alert.level, "replay": alert.replay, "channel": channel,
+            work.append(_Item(r, channel, prior, carry))
+    if not work:
+        return result
+
+    # One policy decision (and audit row) per channel per round; the per-village guard once per round.
+    decisions: dict[str, Any] = {}
+    guard = None
+    ready: list[_Item] = []
+    for item in work:
+        ch = item.channel
+        if ch not in decisions:
+            ctx = {"approved": alert.approved, "level": alert.level, "replay": alert.replay, "channel": ch,
                    "all_officers_timed_out": alert.status == "auto_sent_unapproved"}
-            if channel not in decisions:
-                decisions[channel] = authorize(SYSTEM, action, "alert", alert.id, ctx, repo=repo)
-            decision = decisions[channel]
-            guard = check_send(alert.village_id, alert.level, alert.id) if decision.allowed else None
-            attempts = (prior.attempts if prior else 0) + 1
-            if not decision.allowed or (guard is not None and not guard.accepted):
-                reason = decision.reason if not decision.allowed else guard.reason  # type: ignore[union-attr]
-                repo.put_delivery(Delivery(alert_id=alert.id, recipient_id=r.id, name=r.name, channel=channel,
-                                           status="failed", attempts=attempts, error=f"blocked: {reason}",
-                                           error_category="blocked" if channel == "voice" else None))
-                failed_people.add(r.id)
-                metric("DeliveryFailed", 1, Channel=channel)
-                continue
-            if channel == "voice":
-                ok = _place_call(repo, alert, r, prior, attempts, carry)
-            else:
-                ok = _send_other(repo, alert, r, channel, prior, attempts, audio)
-            (reached if ok else failed_people).add(r.id)
-    failed_people -= reached
-    log(_LOG, "delivery round", alert_id=alert.id, sent=len(reached), failed=len(failed_people), recall=recall)
-    return len(reached), len(failed_people)
+            decisions[ch] = authorize(SYSTEM, action, "alert", alert.id, ctx, repo=repo)
+        decision = decisions[ch]
+        if decision.allowed and guard is None:
+            guard = check_send(alert.village_id, alert.level, alert.id)
+        if decision.allowed and guard is not None and guard.accepted:
+            ready.append(item)
+            continue
+        reason = decision.reason if not decision.allowed else guard.reason  # type: ignore[union-attr]
+        repo.put_delivery(Delivery(alert_id=alert.id, recipient_id=item.recipient.id, name=item.recipient.name,
+                                   channel=ch, status="failed", attempts=(item.prior.attempts if item.prior else 0) + 1,
+                                   error=f"blocked: {reason}", send_round=send_round,
+                                   error_category="blocked" if ch == "voice" else None))
+        result.failed.add(item.recipient.id)
+        metric("DeliveryFailed", 1, Channel=ch)
+
+    audio = None
+    if any(i.channel == "telegram" for i in ready):
+        telegram.configured()  # read the token once here, before any thread needs it
+        audio = _Audio(repo, alert.id, _telegram_audio(repo, alert))
+    rd = _Round(repo, alert, send_round, deadline, audio, result, *round_limiters(share))
+    relays = [i for i in ready if i.recipient.is_relay]
+    rest = [i for i in ready if not i.recipient.is_relay]
+    for item in relays:  # the cascade: the relays first, in order
+        _attempt(rd, item)
+    uploads = 0  # until Telegram has the audio once, one Telegram send at a time
+    while audio is not None and audio.needs_upload and uploads < 3:
+        nxt = next((i for i in rest if i.channel == "telegram"), None)
+        if nxt is None:
+            break
+        rest.remove(nxt)
+        _attempt(rd, nxt)
+        uploads += 1
+    threads = min(s.delivery_threads, len(rest))
+    if threads > 1:
+        with ThreadPoolExecutor(max_workers=threads, thread_name_prefix=f"send-{alert.id[-6:]}") as pool:
+            list(pool.map(lambda i: _attempt(rd, i), rest))
+    else:
+        for item in rest:
+            _attempt(rd, item)
+    log(_LOG, "delivery round", alert_id=alert.id, batch=batch, round=send_round, sent=len(result.sent),
+        failed=len(result.failed - result.sent), deferred=result.deferred, recall=recall)
+    return result
 
 
-def _send_other(repo: Repo, alert: Alert, r: Recipient, channel: str, prior: Delivery | None, attempts: int,
-                audio: bytes | None) -> bool:
-    """Telegram, or the stub. A replay's voice recipient goes through the stub voice provider, which says so."""
+def _attempt(rd: _Round, item: _Item) -> None:
+    token = telegram.send_deadline.set(rd.deadline)
+    slots = telegram.send_limiter.set(rd.tg_slots)
     try:
-        provider = None
-        if channel == "telegram":
-            _send_telegram(alert, r, audio)
+        if item.channel == "voice":
+            outcome, retry = _place_call(rd, item)
         else:
-            if r.takes_voice:
-                provider = voice.place_call(r, alert, None, attempt=attempts).provider  # replay: the stub, no dialling
-            log(_LOG, "stub delivery", alert_id=alert.id, recipient=r.id, replay=alert.replay)
-        # a re-send keeps the first send time: "when did the voice first reach this phone" must not move
-        first = prior.sent_at if prior is not None and prior.sent_at else clock.iso(clock.now())
-        repo.put_delivery(Delivery(alert_id=alert.id, recipient_id=r.id, name=r.name, channel=channel,
-                                   status="sent", sent_at=first, attempts=attempts, provider=provider,
-                                   call_status="simulated" if provider == "stub" else None))
-        metric("DeliverySent", 1, Channel=channel)
-        return True
-    except Exception as exc:
-        repo.put_delivery(Delivery(alert_id=alert.id, recipient_id=r.id, name=r.name, channel=channel,
-                                   status="failed", attempts=attempts, error=voice.mask(str(exc))[:200]))
-        metric("DeliveryFailed", 1, Channel=channel)
-        return False
+            outcome, retry = _send_other(rd, item)
+    except Exception as exc:  # never lose the rest of the batch to one row
+        log(_LOG, "send error", 40, alert_id=rd.alert.id, channel=item.channel, error=voice.mask(str(exc))[:200])
+        outcome, retry = "failed", 0.0
+    finally:
+        telegram.send_deadline.reset(token)
+        telegram.send_limiter.reset(slots)
+    rd.record(item.recipient.id, outcome, retry)
 
 
-def _place_call(repo: Repo, alert: Alert, r: Recipient, prior: Delivery | None, attempts: int, carry: dict) -> bool:
-    base = prior.model_dump() if prior else {"alert_id": alert.id, "recipient_id": r.id, "channel": "voice"}
-    base.update(name=r.name, attempts=attempts, last_attempt_at=clock.iso(clock.now()), digit=None, repeats=0,
-                reprompts=0, **carry)
+def _claim(rd: _Round, item: _Item) -> Delivery | None:
     try:
-        attempt = voice.place_call(r, alert, None, attempt=attempts)
+        return rd.repo.claim_delivery(rd.alert.id, item.recipient.id, item.channel, name=item.recipient.name,
+                                      expected_attempts=item.prior.attempts if item.prior else None,
+                                      send_round=rd.send_round)
+    except ConflictError:
+        log(_LOG, "send already claimed", alert_id=rd.alert.id, channel=item.channel)
+        return None
+
+
+def _write(rd: _Round, item: _Item, **fields: Any) -> Delivery:
+    """Record the outcome without undoing an acknowledgement that arrived while the send was in flight."""
+    repo, alert_id, rid, ch = rd.repo, rd.alert.id, item.recipient.id, item.channel
+    try:
+        return repo.update_delivery(alert_id, rid, channel=ch, condition=Attr("acknowledged_at").not_exists(), **fields)
+    except ConflictError:
+        fields.pop("status", None)
+        return repo.update_delivery(alert_id, rid, channel=ch, **fields)
+
+
+def _defer(rd: _Round, item: _Item, claimed: Delivery, reason: str) -> str:
+    """Put the send back unsent: the next pass sends it. Never "sent"."""
+    status = "failed" if claimed.status == "pending" and item.prior is None else claimed.status
+    rd.repo.release_delivery(rd.alert.id, item.recipient.id, item.channel, claimed_attempts=claimed.attempts,
+                             status=status, error=f"queued, not sent: {reason}"[:200])
+    metric("DeliveryDeferred", 1, Channel=item.channel)
+    return "deferred"
+
+
+def _send_other(rd: _Round, item: _Item) -> tuple[str, float]:
+    """Telegram, or the stub. A replay's voice recipient goes through the stub voice provider, which says so."""
+    alert, r, channel = rd.alert, item.recipient, item.channel
+    claimed = _claim(rd, item)
+    if claimed is None:
+        return "skipped", 0.0
+    if rd.out_of_time():
+        return _defer(rd, item, claimed, "out of time in this step"), 0.0
+    provider, retry = None, 0.0
+    for tries in range(1, RATE_LIMIT_TRIES + 1):
+        try:
+            if channel == "telegram":
+                message = _send_telegram(alert, r, rd.audio.value if rd.audio else None)
+                if rd.audio is not None:
+                    rd.audio.learn(message)
+            else:
+                if r.takes_voice:
+                    provider = voice.place_call(r, alert, None, attempt=claimed.attempts).provider  # replay: the stub
+                log(_LOG, "stub delivery", alert_id=alert.id, recipient=r.id, replay=alert.replay)
+            break
+        except telegram.TelegramRateLimited as exc:
+            retry = max(retry, exc.retry_after)
+            if tries < RATE_LIMIT_TRIES and not rd.out_of_time(exc.retry_after):
+                continue  # the limiter holds every sender of this process for retry_after, then this one tries again
+            return _defer(rd, item, claimed, str(exc)), retry
+        except telegram.TelegramDeferred:
+            return _defer(rd, item, claimed, "out of time in this step"), retry
+        except Exception as exc:
+            # A person reached by an earlier send stays reached; the error is kept on the row.
+            _write(rd, item, status="failed" if not claimed.sent_at else claimed.status,
+                   error=voice.mask(str(exc))[:200], deferred=False)
+            metric("DeliveryFailed", 1, Channel=channel)
+            return "failed", retry
+    # a re-send keeps the first send time: "when did the alert first reach this phone" must not move
+    _write(rd, item, status="sent", sent_at=claimed.sent_at or clock.iso(clock.now()), provider=provider,
+           call_status="simulated" if provider == "stub" else claimed.call_status, error=None, deferred=False)
+    metric("DeliverySent", 1, Channel=channel)
+    return "sent", retry
+
+
+def _place_call(rd: _Round, item: _Item) -> tuple[str, float]:
+    alert, r = rd.alert, item.recipient
+    claimed = _claim(rd, item)
+    if claimed is None:
+        return "skipped", 0.0
+    if not alert.replay and not rd.voice_slots.acquire(deadline=rd.deadline):
+        return _defer(rd, item, claimed, "out of time in this step"), 0.0
+    fields: dict[str, Any] = dict(last_attempt_at=clock.iso(clock.now()), digit=None, repeats=0, reprompts=0,
+                                  **item.carry)
+    try:
+        attempt = voice.place_call(r, alert, None, attempt=claimed.attempts)
     except voice.VoiceError as exc:
-        base.update(status="failed", error=str(exc)[:200], error_category=exc.category, call_status=None)
-        d = Delivery.model_validate(base)
-        repo.put_delivery(d)
+        d = _write(rd, item, **{**fields, "status": "failed", "error": str(exc)[:200], "error_category": exc.category,
+                                "call_status": None, "deferred": False})
         log(_LOG, "call not placed", 30, alert_id=alert.id, recipient=r.id, category=exc.category, error=str(exc)[:200])
         if exc.category in voice.NOT_CONNECTED:
             metric("VoiceNotConnected", 1, Category=exc.category)
         else:
             metric("DeliveryFailed", 1, Channel="voice")
         if exc.category == "invalid_number":
-            flag_unreachable(repo, alert, d)
-        return False
+            flag_unreachable(rd.repo, alert, d)
+        return "failed", 0.0
     # Answered on an earlier attempt (no key pressed): still reached; otherwise ringing.
-    base.update(status="sent" if base.get("sent_at") or attempt.simulated else "pending", provider=attempt.provider,
-                call_ids=list(base.get("call_ids") or []) + ([attempt.call_id] if attempt.call_id else []),
-                call_status=attempt.status, error=None)  # error_category keeps the last call's outcome
-    repo.put_delivery(Delivery.model_validate(base))
-    log(_LOG, "call placed", alert_id=alert.id, recipient=r.id, provider=attempt.provider, attempt=attempts)
+    _write(rd, item, status="sent" if claimed.sent_at or attempt.simulated else "pending", provider=attempt.provider,
+           call_ids=list(claimed.call_ids) + ([attempt.call_id] if attempt.call_id else []),
+           call_status=attempt.status, error=None, deferred=False, **fields)  # error_category keeps the last outcome
+    log(_LOG, "call placed", alert_id=alert.id, recipient=r.id, provider=attempt.provider, attempt=claimed.attempts)
     metric("VoiceCallPlaced", 1, Provider=attempt.provider)
-    return True
+    return "sent", 0.0
 
 
 def voice_retry_due(repo: Repo, alert: Alert) -> bool:
     """Is any voice call still worth another round? (the workflow loops on this, bounded by recall_rounds)"""
     if alert.replay:
         return False
-    rows = {(d.recipient_id, "voice" if d.channel == "voice" else "other"): d for d in repo.list_deliveries(alert.id)}
+    rows = repo.list_deliveries(alert.id)
+    acked = {d.recipient_id for d in rows if d.acknowledged_at}
     s = get_settings()
-    return any(d.channel == "voice" and not _person_acked(rows, d.recipient_id) and not d.unreachable
+    return any(d.channel == "voice" and d.recipient_id not in acked and not d.unreachable
                and d.attempts < s.voice_max_attempts and d.error_category not in voice.TERMINAL
-               for d in rows.values())
+               for d in rows)
 
 
 def recount(repo: Repo, alert_id: str) -> Alert | None:

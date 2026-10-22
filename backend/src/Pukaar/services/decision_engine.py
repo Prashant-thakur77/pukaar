@@ -10,6 +10,7 @@ alert that went unsent (declined or expired) is asked again while the level hold
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Callable, Protocol
@@ -412,16 +413,26 @@ def sweep_all(repo: Repo, *, now: datetime | None = None, fetch=None, workflow: 
     clear_if_finished(repo, now)  # removes a finished replay's own items only
     if workflow is not None:
         restart_stuck(repo, workflow, now)
-    for village in repo.list_villages():
+    fetcher = fetch or (lambda v, t: fetch_live(v, t))
+
+    def one(village: Village) -> SweepResult:
         try:
-            results.append(recompute_village(repo, village, now=now, fetch=fetch or (lambda v, t: fetch_live(v, t)),
-                                             workflow=workflow, window_prefix="live"))
+            return recompute_village(repo, village, now=now, fetch=fetcher, workflow=workflow, window_prefix="live")
         except Exception as exc:  # one bad village never stops the sweep
             log(_LOG, "village sweep failed", 40, village_id=village.id, error=str(exc)[:300])
-            try:
+            try:  # the level is held, never lowered, and the village says its data is stale or unavailable
                 note_fetch_failure(repo, repo.get_village(village.id) or village, now, f"{type(exc).__name__}: {exc}")
             except Exception as inner:
                 log(_LOG, "data status update failed", 40, village_id=village.id, error=str(inner)[:200])
-            results.append(SweepResult(village.id, skipped=True, level=village.level,
-                                       note=f"error: {type(exc).__name__}"))
+            return SweepResult(village.id, skipped=True, level=village.level, note=f"error: {type(exc).__name__}")
+
+    # Villages are independent (each reads and writes only its own items, and claims its own sweep
+    # window), so they are evaluated at once on a bounded pool: the time is set by the slowest
+    # forecast fetch, not the sum of them. The table client is made before the pool starts.
+    villages = repo.list_villages()
+    workers = max(1, min(get_settings().sweep_concurrency, len(villages)))
+    if workers == 1:
+        return results + [one(v) for v in villages]
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="sweep") as pool:
+        results.extend(pool.map(one, villages))  # in village order
     return results

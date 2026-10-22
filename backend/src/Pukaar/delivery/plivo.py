@@ -161,12 +161,14 @@ def _say(audio_url: str | None, text: str) -> str:
     return f'<Speak language="hi-IN" voice="Polly.Aditi">{escape(text)}</Speak>'
 
 
-def answer_xml(*, audio_url: str | None, text_hi: str, menu_url: str | None, digits_url: str) -> str:
-    """The alert, then "press 1, 2 or 3": silence or a wrong key is asked again once (retries=1)."""
+def answer_xml(*, audio_url: str | None, text_hi: str, menu_url: str | None, digits_url: str,
+               menu_text: str = hi.VOICE_MENU_HI, valid_digits: str = "123") -> str:
+    """The alert, then "press 1, 2 or 3": silence or a wrong key is asked again once (retries=1).
+    The officer's wake-up call (delivery/officer_call.py) passes its own menu and only "1"."""
     return ('<?xml version="1.0" encoding="UTF-8"?><Response>'
             f'<GetDigits action={quoteattr(digits_url)} method="POST" numDigits="1" timeout="8" retries="1" '
-            f'validDigits="123" playBeep="false" redirect="true">'
-            f"{_say(audio_url, text_hi)}{_say(menu_url, hi.VOICE_MENU_HI)}</GetDigits>"
+            f'validDigits={quoteattr(valid_digits)} playBeep="false" redirect="true">'
+            f"{_say(audio_url, text_hi)}{_say(menu_url, menu_text)}</GetDigits>"
             f"{_say(None, hi.VOICE_GOODBYE_HI)}<Hangup/></Response>")
 
 

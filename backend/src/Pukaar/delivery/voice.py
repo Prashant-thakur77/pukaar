@@ -54,6 +54,9 @@ EXOTEL_CUSTOMFIELD_MAX = 128
 # The all-clear call (workflow/steps.stand_down) is signed as attempt 0: alert calls count from 1. It
 # speaks the all-clear once with no menu, and its webhooks never move an alert call's counters.
 ALL_CLEAR_ATTEMPT = 0
+# The wake-up call to an officer who has not opened an approval (delivery/officer_call.py) is signed as
+# attempt -1, for the person "o_<username, base64url>": its webhooks only ever send the approval link again.
+OFFICER_WAKE_ATTEMPT = -1
 
 
 class VoiceError(RuntimeError):

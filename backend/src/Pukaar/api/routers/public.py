@@ -224,7 +224,23 @@ def approval_view(token: str) -> dict:
     if a is None:
         raise HTTPException(404, "Alert not found")
     valid = a.status == "pending" and a.token_version == t.version
+    if valid and not (a.approval_opened_by == t.subject and a.approval_opened_version == t.version):
+        _opened(a, t.subject, t.version)
     return {"alert": views.alert(a), "expires_at": t.expires, "valid": valid, "officer": t.subject}
+
+
+def _opened(a, officer: str, version: int) -> None:
+    """The asked officer has the approval in front of them: the wake-up call at the nudge is not placed
+    (delivery/officer_call.py). Best effort; never stops the page from opening."""
+    from boto3.dynamodb.conditions import Attr
+
+    from Pukaar.core import clock
+
+    try:
+        get_repo().update_alert(a.id, condition=Attr("token_version").eq(version), approval_opened_by=officer,
+                                approval_opened_at=clock.iso(clock.now()), approval_opened_version=version)
+    except Exception:
+        pass
 
 
 class LinkDecision(BaseModel):

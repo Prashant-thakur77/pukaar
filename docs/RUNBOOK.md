@@ -40,6 +40,14 @@ Fill this in before the pilot starts and print it for the DEOC wall. Never commi
 | AWS support | account's support plan | console, "Create case" |
 | Exotel support | account manager | support e-mail, dashboard ticket |
 
+**Waking the duty officer.** Three minutes into an officer's approval window (`OfficerWakeSeconds`),
+an officer who has not opened the link is reminded on Web Push and Telegram and phoned, if voice is on
+and their number is set: `make officer-phone OFFICER=<username> PHONE=+91...` (`PHONE=show` prints it
+masked, `PHONE=remove` stops the calls). Pressing 1 on the call sends the approval link again; the
+call never approves. Set a phone for everyone on the roster before the monsoon; the alert timeline
+says "call=not possible (no phone number on file ...)" otherwise. A critical alert waits 5 minutes
+per officer (`CriticalApprovalTimeoutSeconds`), not 10.
+
 "Tell the DDMA" below means the DEOC duty officer or the DDMO, by phone, in the same hour. Anything
 that could mean a village is not being watched, or a warning did not reach people, is their business,
 not only ours.
@@ -222,8 +230,11 @@ instead.
 3. `SecretReadFailed` on the dashboard (SSM throttled or down).
 
 **Fix.** Token unreadable: check SSM `/pukaar/telegram_token` exists and the function can read it.
-Blocked by the user: nothing to fix; remove them at the next number review. 429: the recall step
-retries; for large lists, see "Delivery does not scale" in the scorecard. Voice provider errors: check
+Blocked by the user: nothing to fix; remove them at the next number review. 429: the worker waits
+out Telegram's `retry_after`; sends it could not fit in the step are rows with "queued, not sent" and
+`deferred`, and the next pass sends them (`DeliveryDeferred`, timeline "delivery pass"). A row still
+"not sent: the delivery stopped before this person" after the last pass is retried by the recall.
+Two villages alerting at once share Telegram's 30 a second, so some 429s are expected then. Voice provider errors: check
 the Exotel dashboard (balance, KYC, caller id). Then re-send from the console if the alert is still
 relevant.
 

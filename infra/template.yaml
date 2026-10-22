@@ -16,6 +16,22 @@ Parameters:
     MinValue: 30
     MaxValue: 3600
     Description: Wait per officer before the next one is asked. Use 60 for filming.
+  CriticalApprovalTimeoutSeconds:
+    Type: Number
+    Default: 300
+    MinValue: 30
+    MaxValue: 3600
+    Description: >
+      Wait per officer for a critical alert (never longer than ApprovalTimeoutSeconds), so a chain of three
+      holds a critical for at most 15 minutes before it is auto-sent or expires, not 30.
+  OfficerWakeSeconds:
+    Type: Number
+    Default: 180
+    MinValue: 0
+    MaxValue: 1800
+    Description: >
+      Into each officer's window, the reminder on Web Push and Telegram and a voice call to an officer who has not
+      opened the link (half-way through a shorter window; 0 = always half-way). The call never approves.
   AckWaitSeconds:
     Type: Number
     Default: 300
@@ -165,6 +181,8 @@ Globals:
         PUKAAR_BEDROCK_MODEL_ID: !Ref BedrockModelId
         PUKAAR_BEDROCK_FALLBACK_REGION: !Ref BedrockFallbackRegion
         PUKAAR_APPROVAL_TIMEOUT_SECONDS: !Ref ApprovalTimeoutSeconds
+        PUKAAR_CRITICAL_APPROVAL_TIMEOUT_SECONDS: !Ref CriticalApprovalTimeoutSeconds
+        PUKAAR_OFFICER_WAKE_SECONDS: !Ref OfficerWakeSeconds
         PUKAAR_ACK_WAIT_SECONDS: !Ref AckWaitSeconds
         PUKAAR_WEB_URL: !If [HasWebOrigin, !Ref WebOrigin, !Sub "https://main.${AmplifyApp.DefaultDomain}"]
         PUKAAR_WORKER_FUNCTION: !Sub pukaar-worker-${Stage}
@@ -471,12 +489,16 @@ Resources:
       PackageType: Image
       FunctionName: !Sub pukaar-sweep-${Stage}
       MemorySize: 1024
-      Timeout: 120
+      # Villages are evaluated 16 at a time (decision_engine.sweep_all); a slow forecast or official feed
+      # (timeouts of 5 to 12 s each) holds one thread, not the sweep. 300 s leaves room at a few hundred
+      # villages, well inside the 15-minute schedule.
+      Timeout: 300
       ImageConfig: { Command: [Pukaar.handlers.sweep.handler] }
       LoggingConfig: { LogGroup: !Ref SweepLogGroup }
       Environment:
         Variables:
           PUKAAR_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+          PUKAAR_SWEEP_CONCURRENCY: "16"
       EventInvokeConfig:
         MaximumRetryAttempts: 0
         DestinationConfig:
@@ -520,14 +542,22 @@ Resources:
       PackageType: Image
       FunctionName: !Sub pukaar-workflow-${Stage}
       MemorySize: 1024
-      # Drafting has a 60 s model budget plus Polly; 120 s keeps a slow model
-      # from timing out the step (a timeout would route to Failsafe).
-      Timeout: 120
+      # Drafting has a 60 s model budget plus Polly. The delivery steps (deliver, deliver_batch, recall,
+      # failsafe) stop starting sends after PUKAAR_DELIVERY_BUDGET_SECONDS and put the rest back for the next
+      # pass, so 300 s leaves 100 s for the sends in flight and the writes; a timeout would lose nothing sent
+      # (every send is claimed first) but would route to Failsafe.
+      Timeout: 300
       ImageConfig: { Command: [Pukaar.handlers.workflow.handler] }
       LoggingConfig: { LogGroup: !Ref WorkflowLogGroup }
       Environment:
         Variables:
           PUKAAR_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+          # Delivery at scale (delivery/dispatch.py, the DeliverBatches Map in approval.asl.json): 250 recipients
+          # a batch, 4 batches at once, each at a quarter of 25 Telegram messages a second (Telegram allows ~30).
+          PUKAAR_DELIVERY_BUDGET_SECONDS: "200"
+          PUKAAR_DELIVERY_BATCH_SIZE: "250"
+          PUKAAR_DELIVERY_CONCURRENCY: "4"
+          PUKAAR_TELEGRAM_RATE_PER_SECOND: "25"
           # After-action report e-mail from the close step (services/after_action.py); unset = no e-mail.
           PUKAAR_SES_FROM: !If [HasAfterActionFrom, !Ref AfterActionFrom, !Ref AWS::NoValue]
       Policies:

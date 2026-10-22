@@ -4,6 +4,7 @@
     python -m Pukaar.scripts.voice list <village>
     python -m Pukaar.scripts.voice remove <village> <recipient id>
     python -m Pukaar.scripts.voice urls <api url>
+    python -m Pukaar.scripts.voice officer <username> <+91XXXXXXXXXX | remove | show>
 
 add: a new voice-only recipient (id v_<ulid>); with a Telegram chat id, that existing Telegram
 recipient takes calls too (channel "both"). Consent is required: how and when the household
@@ -12,6 +13,10 @@ chat id (DynamoDB, encrypted at rest) and is printed masked; it never appears on
 
 urls: the three URLs to paste into the Exotel flow, with the webhook key from SSM. Treat the
 output as a secret.
+
+officer: the duty officer's phone for the wake-up call (delivery/officer_call.py): when an approval
+waits and the officer has not opened the link, they are phoned at the nudge. The call only sends the
+link again; it never approves. Printed masked; kept in the table like a recipient's number.
 """
 
 from __future__ import annotations
@@ -75,6 +80,20 @@ def urls(api_url: str) -> None:
     print(f"Passthru URL:            {base}/voice/exotel/gather?k={key}")
 
 
+def officer(username: str, phone: str) -> None:
+    repo = get_repo()
+    if phone == "remove":
+        repo.delete_officer_phone(username)
+        print(f"{username}: no wake-up calls")
+        return
+    if phone != "show":
+        try:
+            repo.put_officer_phone(username, phone)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from None
+    print(f"{username}  {voice.mask_phone(repo.get_officer_phone(username))}")
+
+
 def main(argv: list[str]) -> None:
     if not argv:
         raise SystemExit(__doc__)
@@ -87,6 +106,8 @@ def main(argv: list[str]) -> None:
         remove(*args)
     elif cmd == "urls" and len(args) == 1:
         urls(args[0])
+    elif cmd == "officer" and len(args) == 2:
+        officer(*args)
     else:
         raise SystemExit(__doc__)
 

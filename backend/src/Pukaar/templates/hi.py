@@ -155,6 +155,25 @@ def all_clear_officer(village_hi: str, village_en: str, alert_id: str, reason: s
 
 
 # -- the night-friendly nudge, half-way through an officer's approval window ----------------------
+# -- the wake-up call to the duty officer (delivery/officer_call.py). It never approves: "1" sends the
+# one-tap approval link again; the decision stays a deliberate tap in the app.
+OFFICER_WAKE_MENU_HI = ("मंज़ूरी का लिंक टेलीग्राम पर पाने के लिए 1 दबाएँ। "
+                        "Press 1 to get your approval link on Telegram.")
+OFFICER_LINK_SENT_HI = ("आपकी मंज़ूरी का लिंक टेलीग्राम और ऐप सूचना पर भेज दिया है; ऐप में खोलकर फ़ैसला करें। "
+                        "Opening your approval link: sent to your Telegram and app notifications. "
+                        "Decide in the app.")
+OFFICER_LINK_NONE_HI = ("आपके टेलीग्राम या ऐप सूचना पर लिंक नहीं भेजा जा सका; पुकार कंसोल खोलें। "
+                        "Your link could not be sent to Telegram or app notifications; open the Pukaar console.")
+OFFICER_DECIDED_HI = "इस चेतावनी पर फ़ैसला हो चुका है। धन्यवाद। This alert has already been decided. Thank you."
+
+
+def officer_wake_voice(village_hi: str, village_en: str, level: str, drill: bool = False) -> str:
+    """Spoken by the provider's own voice, Hindi then English, and short: the officer may have just woken up."""
+    flag_hi, flag_en = ("अभ्यास: ", "Drill: ") if drill else ("", "")
+    return (f"{flag_hi}पुकार: {village_hi} को अभी आपकी मंज़ूरी चाहिए, {LEVEL_HI.get(level, level)}। "
+            f"{flag_en}Pukaar: {village_en} needs your approval now, {LEVEL_EN.get(level, level)}.")
+
+
 def nudge_officer(village_hi: str, level: str, minutes_left: int, url: str, replay: bool = False) -> str:
     flag = " [REPLAY]" if replay else ""
     return (f"पुकार{flag}, याद दिलाना: {village_hi} – {LEVEL_HI.get(level, level)}। आपकी मंज़ूरी बाकी है; "

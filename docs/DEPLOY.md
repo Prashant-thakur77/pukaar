@@ -112,6 +112,8 @@ Parameters (override with
 |---|---|---|
 | `Stage` | `dev` | Suffix of every resource name |
 | `ApprovalTimeoutSeconds` | `600` | Per officer. Use `60` for a demo and for `make it` |
+| `CriticalApprovalTimeoutSeconds` | `300` | Per officer for a critical alert, never longer than `ApprovalTimeoutSeconds`: a chain of three holds a critical 15 minutes at most, not 30 |
+| `OfficerWakeSeconds` | `180` | Into each officer's window: the reminder on Web Push and Telegram, and a voice call to an officer who has not opened the link (half-way through a shorter window; `0` = always half-way). Needs `VoiceProvider` on and the officer's phone (`make officer-phone`); the call never approves ([CONTRACT.md](CONTRACT.md), "Approval windows") |
 | `AckWaitSeconds` | `300` | Before the one re-send (and the first voice re-call). Use `30` for `make it`, `600` for a voice pilot |
 | `VoiceRetrySeconds` | `600` | Between later voice re-calls (three attempts in all) |
 | `VoiceProvider` | `off` | `exotel` or `plivo` turns on voice calls with "press 1" ([VOICE.md](VOICE.md)); off records voice deliveries as failed |

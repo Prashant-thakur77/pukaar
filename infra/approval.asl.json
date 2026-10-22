@@ -54,6 +54,16 @@
           "Next": "Failsafe"
         }
       ],
+      "Next": "SetTimers"
+    },
+    "SetTimers": {
+      "Type": "Pass",
+      "Comment": "Each officer's window in two parts: until the nudge (and the wake-up call to an officer who has not opened the link), then the rest. Shorter for a critical (PUKAAR_CRITICAL_APPROVAL_TIMEOUT_SECONDS).",
+      "Parameters": {
+        "nudge_after_seconds.$": "$.draft.result.nudge_after_seconds",
+        "nudge_wait_seconds.$": "$.draft.result.nudge_wait_seconds"
+      },
+      "ResultPath": "$.timers",
       "Next": "HasOfficers"
     },
     "HasOfficers": {
@@ -79,7 +89,7 @@
     "AskOfficer": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
-      "Comment": "The handler stores task_token on the alert and notifies the officer; the API answers with SendTaskSuccess {decision, by}. The first half of the window: draft computes both halves from PUKAAR_APPROVAL_TIMEOUT_SECONDS (the same ApprovalTimeoutSeconds parameter).",
+      "Comment": "The handler stores task_token on the alert and notifies the officer; the API answers with SendTaskSuccess {decision, by}. The first part of the window, until the nudge ($.timers, from draft or next_officer).",
       "Parameters": {
         "FunctionName": "${WorkflowFunctionArn}",
         "Payload": {
@@ -89,7 +99,7 @@
           "task_token.$": "$$.Task.Token"
         }
       },
-      "TimeoutSecondsPath": "$.draft.result.nudge_after_seconds",
+      "TimeoutSecondsPath": "$.timers.nudge_after_seconds",
       "ResultPath": "$.approval",
       "Retry": [
         {
@@ -124,7 +134,7 @@
     "NudgeOfficer": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
-      "Comment": "Night-friendly: half the window passed with no decision, so the same officer is reminded on every channel they have (Web Push and Telegram) and gets the second half before the next officer is asked. The first link still works.",
+      "Comment": "Night-friendly: no decision by the nudge (PUKAAR_OFFICER_WAKE_SECONDS, 3 minutes, or half a shorter window), so the same officer is reminded on Web Push and Telegram and, if they have not opened the link, phoned (the call can only send the link again; it never approves). The rest of the window follows; the first link still works.",
       "Parameters": {
         "FunctionName": "${WorkflowFunctionArn}",
         "Payload": {
@@ -134,7 +144,7 @@
           "task_token.$": "$$.Task.Token"
         }
       },
-      "TimeoutSecondsPath": "$.draft.result.nudge_wait_seconds",
+      "TimeoutSecondsPath": "$.timers.nudge_wait_seconds",
       "ResultPath": "$.approval",
       "Retry": [
         {
@@ -293,6 +303,16 @@
       "Type": "Pass",
       "InputPath": "$.next.result.officer_index",
       "ResultPath": "$.officer_index",
+      "Next": "UseNextTimers"
+    },
+    "UseNextTimers": {
+      "Type": "Pass",
+      "Comment": "The next officer's window follows the alert's level now (an alert raised to critical meanwhile gets the critical window).",
+      "Parameters": {
+        "nudge_after_seconds.$": "$.next.result.nudge_after_seconds",
+        "nudge_wait_seconds.$": "$.next.result.nudge_wait_seconds"
+      },
+      "ResultPath": "$.timers",
       "Next": "AskOfficer"
     },
     "IsCritical": {
@@ -407,6 +427,7 @@
     "Deliver": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Sends the first batch (the relays, then the one upload of the audio) and returns the other batches (delivery/dispatch.py). Everyone in one batch: the round is finished here and more is false.",
       "Parameters": {
         "FunctionName": "${WorkflowFunctionArn}",
         "Payload": {
@@ -439,7 +460,232 @@
           "Next": "Failsafe"
         }
       ],
-      "Next": "WaitForAcks"
+      "Next": "RunBatches"
+    },
+    "RunBatches": {
+      "Type": "Choice",
+      "Comment": "Recipients left (more than one batch, or sends put back): wait out any retry_after Telegram asked for (wait_seconds, 0 when none), then the Map sends them.",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.delivery.result.more",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.delivery.result.more",
+              "BooleanEquals": true
+            }
+          ],
+          "Next": "WaitBeforeBatches"
+        }
+      ],
+      "Default": "AfterDelivery"
+    },
+    "DeliverBatches": {
+      "Type": "Map",
+      "Comment": "Batches of PUKAAR_DELIVERY_BATCH_SIZE recipients (each a range of ids, read alone), 4 at once (MaxConcurrency, the same as PUKAAR_DELIVERY_CONCURRENCY: tests/test_asl.py checks); each worker takes 1/n of the Telegram rate. Every send is claimed by a conditional write first, so a retried batch never sends twice. A batch that stops is reported unfinished and sent again by the next pass.",
+      "ItemsPath": "$.delivery.result.batches",
+      "MaxConcurrency": 4,
+      "ItemSelector": {
+        "alert_id.$": "$.alert_id",
+        "item.$": "$$.Map.Item.Value"
+      },
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "DeliverBatch",
+        "States": {
+          "DeliverBatch": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "${WorkflowFunctionArn}",
+              "Payload": {
+                "step": "deliver_batch",
+                "alert_id.$": "$.alert_id",
+                "batch.$": "$.item.batch",
+                "first.$": "$.item.first",
+                "last.$": "$.item.last",
+                "mode.$": "$.item.mode",
+                "share.$": "$.item.share"
+              }
+            },
+            "ResultSelector": {
+              "spec.$": "$.Payload.spec",
+              "sent.$": "$.Payload.sent",
+              "failed.$": "$.Payload.failed",
+              "deferred.$": "$.Payload.deferred",
+              "retry_after.$": "$.Payload.retry_after"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 2,
+                "BackoffRate": 2
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": [
+                  "States.ALL"
+                ],
+                "ResultPath": "$.error",
+                "Next": "BatchUnfinished"
+              }
+            ],
+            "End": true
+          },
+          "BatchUnfinished": {
+            "Type": "Pass",
+            "Comment": "Never fails the whole delivery: deliver_done runs this batch again.",
+            "Parameters": {
+              "spec.$": "$.item",
+              "unfinished": true
+            },
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.batch_results",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "DeliveryBroken"
+        }
+      ],
+      "Next": "DeliverDone"
+    },
+    "DeliverDone": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Batches with sends still queued (a Telegram 429, out of time) or that stopped go round again after wait_seconds, at most PUKAAR_DELIVERY_MAX_PASSES passes; then the round is finished and recorded.",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "deliver_done",
+          "alert_id.$": "$.alert_id",
+          "mode.$": "$.delivery.result.mode",
+          "pass.$": "$.delivery.result.pass",
+          "counts.$": "$.delivery.result.counts",
+          "results.$": "$.batch_results"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.delivery",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "DeliveryBroken"
+        }
+      ],
+      "Next": "RunBatches"
+    },
+    "WaitBeforeBatches": {
+      "Type": "Wait",
+      "Comment": "The longest retry_after Telegram asked for (0 to 60 s).",
+      "SecondsPath": "$.delivery.result.wait_seconds",
+      "Next": "DeliverBatches"
+    },
+    "AfterDelivery": {
+      "Type": "Choice",
+      "Comment": "Where a finished round goes: the first delivery waits for acknowledgements; a recall loops for voice or closes; the failsafe closes.",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.delivery.result.mode",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.delivery.result.mode",
+              "StringEquals": "deliver"
+            }
+          ],
+          "Next": "WaitForAcks"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.delivery.result.mode",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.delivery.result.mode",
+              "StringEquals": "recall"
+            },
+            {
+              "Variable": "$.delivery.result.again",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.delivery.result.again",
+              "BooleanEquals": true
+            }
+          ],
+          "Next": "WaitBeforeRecall"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.delivery.result.mode",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.delivery.result.mode",
+              "StringEquals": "recall"
+            }
+          ],
+          "Next": "Close"
+        }
+      ],
+      "Default": "OutcomeFailsafe"
+    },
+    "DeliveryBroken": {
+      "Type": "Choice",
+      "Comment": "A delivery that broke goes to the failsafe, except the failsafe's own delivery, which closes (no loop).",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.delivery.result.mode",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.delivery.result.mode",
+              "StringEquals": "failsafe"
+            }
+          ],
+          "Next": "OutcomeFailsafe"
+        }
+      ],
+      "Default": "Failsafe"
     },
     "WaitForAcks": {
       "Type": "Wait",
@@ -449,6 +695,7 @@
     "Recall": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Re-sends to people without an acknowledgement (Telegram once, voice up to PUKAAR_VOICE_MAX_ATTEMPTS), batched like the first delivery; again=true asks for another voice round after VoiceRetrySeconds.",
       "Parameters": {
         "FunctionName": "${WorkflowFunctionArn}",
         "Payload": {
@@ -459,7 +706,7 @@
       "ResultSelector": {
         "result.$": "$.Payload"
       },
-      "ResultPath": "$.recall",
+      "ResultPath": "$.delivery",
       "Retry": [
         {
           "ErrorEquals": [
@@ -481,27 +728,7 @@
           "Next": "Failsafe"
         }
       ],
-      "Next": "MoreVoiceRounds"
-    },
-    "MoreVoiceRounds": {
-      "Type": "Choice",
-      "Comment": "Voice calls get up to three attempts (PUKAAR_VOICE_MAX_ATTEMPTS): recall says again=true while a call is still worth another round; the step's recall_rounds bounds the loop.",
-      "Choices": [
-        {
-          "And": [
-            {
-              "Variable": "$.recall.result.again",
-              "IsPresent": true
-            },
-            {
-              "Variable": "$.recall.result.again",
-              "BooleanEquals": true
-            }
-          ],
-          "Next": "WaitBeforeRecall"
-        }
-      ],
-      "Default": "Close"
+      "Next": "RunBatches"
     },
     "WaitBeforeRecall": {
       "Type": "Wait",
@@ -561,7 +788,7 @@
     "Failsafe": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
-      "Comment": "Any failure: send the fixed template to all recipients, notify all officers, status failsafe. Not caught: if this fails the execution fails and the ExecutionsFailed alarm fires.",
+      "Comment": "Any failure: the fixed template to all recipients (critical or approved; the first batch here, the rest in the Map), notify all officers, status failsafe. Not caught: if this fails the execution fails and the ExecutionsFailed alarm fires.",
       "Parameters": {
         "FunctionName": "${WorkflowFunctionArn}",
         "Payload": {
@@ -573,7 +800,7 @@
       "ResultSelector": {
         "result.$": "$.Payload"
       },
-      "ResultPath": "$.failsafe",
+      "ResultPath": "$.delivery",
       "Retry": [
         {
           "ErrorEquals": [
@@ -586,7 +813,34 @@
           "BackoffRate": 2
         }
       ],
-      "Next": "OutcomeFailsafe"
+      "Next": "FailsafeBatches"
+    },
+    "FailsafeBatches": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.delivery.result.more",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.delivery.result.more",
+              "BooleanEquals": true
+            },
+            {
+              "Variable": "$.delivery.result.mode",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.delivery.result.mode",
+              "StringEquals": "failsafe"
+            }
+          ],
+          "Next": "WaitBeforeBatches"
+        }
+      ],
+      "Default": "OutcomeFailsafe"
     },
     "OutcomeFailsafe": {
       "Type": "Pass",

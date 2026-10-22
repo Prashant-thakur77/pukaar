@@ -355,12 +355,13 @@ GET  /villages/{id} and /public/overview villages[] also carry
 | Cognito | user pool, groups `officer`, `pradhan`, attribute `custom:village_ids`, app client without secret, `USER_PASSWORD_AUTH` |
 | HTTP API | JWT authorizer on `$default`, public routes above, CORS to the web origin, throttling |
 | SSM | SecureString `/pukaar/telegram_token`, `/pukaar/telegram_webhook_secret`, `/pukaar/link_secret`, `/pukaar/vapid_private_key`, `/pukaar/after_action_to`, `/pukaar/gauge/<device>/key` and `/cert`, and for voice calls `/pukaar/voice_webhook_key`, `/pukaar/exotel_sid`, `/pukaar/exotel_api_key` (optional), `/pukaar/exotel_token`, `/pukaar/exotel_caller_id`, `/pukaar/exotel_app_id`, `/pukaar/plivo_auth_id`, `/pukaar/plivo_auth_token`, `/pukaar/plivo_caller_id`; String `/pukaar/vapid_public_key` |
-| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision`, `RollCallNeedHelp`, `GaugeReading`, `GaugeRejected`, `GaugeBadReading`, `GaugeBackfill`, `GaugeUnhealthy`, `ReportScreened`, `GuardrailFallback`, `PushSent`, `PushFailed`, `EventPublishFailed`, `AfterActionSent`, `AfterActionFailed`, `VoiceCallPlaced`, `VoiceNotConnected`, `VoiceNoKey`, `VoiceUnreachable`, `VoiceNeedHelp` |
+| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision`, `RollCallNeedHelp`, `GaugeReading`, `GaugeRejected`, `GaugeBadReading`, `GaugeBackfill`, `GaugeUnhealthy`, `ReportScreened`, `GuardrailFallback`, `PushSent`, `PushFailed`, `EventPublishFailed`, `AfterActionSent`, `AfterActionFailed`, `VoiceCallPlaced`, `VoiceNotConnected`, `VoiceNoKey`, `VoiceUnreachable`, `VoiceNeedHelp`, `DeliveryDeferred`, `OfficerNudged`, `OfficerWakeCall` (dimension `Status`), `OfficerWakeLinkSent`, `SweepSeconds` |
 
 Environment variables of every function: `PUKAAR_MODE=aws`,
 `PUKAAR_TABLE_NAME`, `PUKAAR_BUCKET`, `PUKAAR_STATE_MACHINE_ARN`,
 `PUKAAR_AWS_REGION`, `PUKAAR_BEDROCK_MODEL_ID`, `PUKAAR_BEDROCK_FALLBACK_REGION`,
-`PUKAAR_APPROVAL_TIMEOUT_SECONDS`, `PUKAAR_ACK_WAIT_SECONDS`,
+`PUKAAR_APPROVAL_TIMEOUT_SECONDS`, `PUKAAR_CRITICAL_APPROVAL_TIMEOUT_SECONDS`,
+`PUKAAR_OFFICER_WAKE_SECONDS`, `PUKAAR_ACK_WAIT_SECONDS`,
 `PUKAAR_WEB_URL`, `PUKAAR_API_URL`, `PUKAAR_WORKER_FUNCTION`,
 `PUKAAR_REPLAY_ENABLED`, `PUKAAR_SSM_PREFIX=/pukaar`, `PUKAAR_STAGE`,
 `PUKAAR_DATA_DIR`, `PUKAAR_GUARDRAIL_ID`, `PUKAAR_GUARDRAIL_VERSION`,
@@ -373,16 +374,78 @@ Event `{"step": <name>, ...}`; returns a dict. Execution input:
 
 | Step | Input | Output |
 |---|---|---|
-| `draft` | `alert_id` | `{alert_id, level, officer_count, recipients_count, nudge_after_seconds, nudge_wait_seconds}` (freezes the duty-roster chain on the alert) |
+| `draft` | `alert_id` | `{alert_id, level, officer_count, recipients_count, nudge_after_seconds, nudge_wait_seconds}` (freezes the duty-roster chain on the alert; the two parts of each officer's window, see "Approval windows") |
 | `ask_officer` | `alert_id, officer_index, task_token` | (callback) task success output `{decision: "approved"\|"declined", by}` |
-| `nudge_officer` | `alert_id, officer_index, task_token` | half-way reminder to the same officer (Telegram, Web Push), then the same callback as `ask_officer` |
-| `next_officer` | `alert_id, officer_index` | `{has_next, officer_index, level}` |
+| `nudge_officer` | `alert_id, officer_index, task_token` | `{alert_id, officer, telegram, push, call}`: the reminder to the same officer (Telegram, Web Push) and, if they have not opened the link, the wake-up call (`call`: `placed`, `not_possible`, `failed` or `not_needed`), then the same callback as `ask_officer` |
+| `next_officer` | `alert_id, officer_index` | `{has_next, officer_index, level, nudge_after_seconds, nudge_wait_seconds}` (the next officer's window follows the level now) |
 | `auto_send` | `alert_id` | `{alert_id, mode: "auto"}` (marks `auto_sent_unapproved` after Cedar allows `System`), or `{alert_id, mode: "off"}` when `PUKAAR_CRITICAL_AUTO_SEND=false` (needs DDMA sign-off; the alert expires unsent) |
 | `expire` | `alert_id` | `{alert_id, outcome: "expired"}` |
-| `deliver` | `alert_id` | `{alert_id, sent, failed}` |
-| `recall` | `alert_id` | `{alert_id, resent}` |
+| `deliver` | `alert_id` | Everyone in one batch: `{alert_id, sent, failed, mode: "deliver", more: false}`. Otherwise batch 0 is sent and the rest returned: `{alert_id, mode, more: true, pass, counts, batches: [{batch, first, last, mode, share}], concurrency, wait_seconds}` |
+| `deliver_batch` | `alert_id, batch, first, last, mode, share` | `{spec: {batch, first, last}, sent, failed, deferred, retry_after}` (one Map iteration) |
+| `deliver_done` | `alert_id, mode, pass, counts, results` | the batches still to run (`more: true`, as `deliver`), or the finished round as `deliver`, `recall` or `failsafe` returns it |
+| `recall` | `alert_id` | `{alert_id, resent, again, round, mode: "recall", more: false}`, or batches as `deliver` |
 | `close` | `alert_id, outcome` | `{alert_id, status}` |
-| `failsafe` | `alert_id, error` | `{alert_id, sent}` |
+| `failsafe` | `alert_id, error` | `{alert_id, sent, mode: "failsafe", more}` (with batches when the fixed template goes to more than one batch) |
+
+### Approval windows
+
+Each officer in the chain has `ApprovalTimeoutSeconds` (600) to decide, or
+`CriticalApprovalTimeoutSeconds` (300, never longer than the general window) for a critical alert,
+so a chain of three holds a critical for at most 15 minutes before it is sent automatically (or
+expires, with critical auto-send off), not 30. The window has two parts: until the nudge,
+`OfficerWakeSeconds` in (180), or half-way through a window shorter than twice that, then the rest.
+`draft` returns the parts for the first officer and `next_officer` for each later one, so an alert
+raised to critical while it waits gives the next officer the critical window.
+
+At the nudge the officer is reminded on Web Push and Telegram and, if they have not opened the one-tap
+link (`GET /approval/{token}` records `approval_opened_by` and `approval_opened_version`), phoned
+(`delivery/officer_call.py`): "पुकार: <village> को अभी आपकी मंज़ूरी चाहिए, <level>। Pukaar: <village>
+needs your approval now, <level>." Pressing 1 sends the same one-tap link again to their Telegram and
+Web Push and says so. No key approves or declines: the decision stays a deliberate tap in the app. One
+call per officer per alert (`OfficerCall`, `ALERT#id / OFFICERCALL#officer`), on the alert timeline;
+with voice off, no phone on file (`make officer-phone`) or a replay, the record says the call was not
+possible and why. The call's webhooks are the `/voice/*` routes with a token for attempt -1.
+
+### Delivery at scale
+
+`deliver`, `recall` and `failsafe` read the recipients once (relays first), send batch 0 themselves
+(the relays one by one, then the one upload of the alert audio to Telegram; later sends use its file
+id), and hand the other batches to the `DeliverBatches` Map: `PUKAAR_DELIVERY_BATCH_SIZE` (250)
+recipients a batch, each a range of ids its worker reads alone, `PUKAAR_DELIVERY_CONCURRENCY` (4) at
+once, `PUKAAR_DELIVERY_THREADS` (8) sends in flight in each. Each worker takes 1/n of
+`PUKAAR_TELEGRAM_RATE_PER_SECOND` (25; Telegram allows about 30 a second) and of
+`PUKAAR_VOICE_CALLS_PER_SECOND` (2), and sends one message per chat per second.
+
+Every send is claimed first with a conditional write on its delivery row (`claim_delivery`: a
+compare-and-set on `attempts`, once per `send_round`: 0 the first delivery, 1.. the re-sends, -1 the
+failsafe), so a batch that runs twice, or overlaps its own retry, sends nothing twice. A Telegram 429
+pauses the worker for `retry_after` and the message is tried again (three times); a send that cannot
+go out within the step's budget (`PUKAAR_DELIVERY_BUDGET_SECONDS`, 200, under the 300 s timeout) is
+put back unsent: `status` failed, `deferred` true, `error` "queued, not sent: ...". It is never
+recorded as sent. `deliver_done` runs the batches with sends put back, or that stopped, again after
+the longest `retry_after` (`WaitBeforeBatches`), at most `PUKAAR_DELIVERY_MAX_PASSES` (4) passes;
+whoever is still not reached is recorded as failed with the reason, and the recall tries them again.
+A batch that fails is reported unfinished; it never fails the run. The failsafe's own delivery uses
+the same Map, and if that breaks the run closes instead of looping.
+
+Load test (`tests/test_delivery_scale.py`): one alert to 5,000 Telegram recipients through `deliver`,
+the Map and `deliver_done`, against a fake Telegram that enforces 30 messages a second and one a second
+per chat and answers 429 with `retry_after`. Each person got exactly one message, the audio was
+uploaded once, and no row was marked sent that Telegram had not accepted. Measured on a laptop, 22
+October 2026:
+
+| Run | 5,000 recipients took | Rate | 429s | Memory |
+|---|---|---|---|---|
+| Real limits, delivery rows in moto (`PUKAAR_LOADTEST_MOTO=1`) | 208.5 s (sending 202 s) | 24.0 a second | 0 | peak RSS of the whole test process 240 MB; Python heap peak 88 MB with tracemalloc, the moto copy of the table included |
+| The default test run: clock 10 times faster, rows in memory at 8 ms a call | 236 to 250 s projected (the interpreter's own work is not sped up, so this overstates) | 20 to 21 a second | 0 | |
+
+The target was 5,000 within 5 minutes; the earlier one-at-a-time loop fitted 150 to 400 before its
+120 s timeout. The floor is Telegram's own limit: at 25 a second, 5,000 take 200 s, so 10,000 would take
+about 7 minutes whatever the batching. One Lambda worker holds 250 recipients, so 1024 MB is ample.
+
+The sweep evaluates villages 16 at a time (`PUKAAR_SWEEP_CONCURRENCY`) on a bounded thread pool; each
+village claims its own window and its error stays its own. With 0.6 s of mocked forecast I/O per
+village, 200 villages took 9 to 10 s (120 s one at a time; `tests/test_sweep_concurrency.py`).
 
 Worker Lambda (`Pukaar.handlers.worker.handler`) events:
 `{"task": "transcribe_report", "report_id", "village_id"}`,

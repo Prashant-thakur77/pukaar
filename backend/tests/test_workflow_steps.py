@@ -57,7 +57,7 @@ def test_approve_then_deliver_then_recall_once(repo, frozen, workflow):
     decide(repo, workflow, a.id, "approved", "officer1")
     assert workflow.successes[0] == ("TOKEN-1", {"decision": "approved", "by": "officer1"})
     out = s.handle({"step": "deliver", "alert_id": a.id})
-    assert out == {"alert_id": a.id, "sent": 2, "failed": 0}
+    assert out == {"alert_id": a.id, "sent": 2, "failed": 0, "mode": "deliver", "more": False}
     assert s.handle({"step": "recall", "alert_id": a.id})["resent"] == 2
     assert s.handle({"step": "recall", "alert_id": a.id})["resent"] == 0  # only one automatic re-send
     s.handle({"step": "close", "alert_id": a.id, "outcome": "delivered"})
@@ -93,7 +93,8 @@ def test_link_from_a_timed_out_officer_is_rejected(repo, frozen, workflow):
     s, a, _ = drafted_and_asked(repo)
     old_version = repo.get_alert(a.id).token_version
     nxt = s.handle({"step": "next_officer", "alert_id": a.id, "officer_index": 0})
-    assert nxt == {"has_next": True, "officer_index": 1, "level": "warning"}
+    assert nxt == {"has_next": True, "officer_index": 1, "level": "warning",
+                   "nudge_after_seconds": 180, "nudge_wait_seconds": 420}
     s.handle({"step": "ask_officer", "alert_id": a.id, "officer_index": 1, "task_token": "TOKEN-2"})
     with pytest.raises(ConflictError):
         decide(repo, workflow, a.id, "approved", "officer1", token_version=old_version)
