@@ -1091,9 +1091,16 @@ export function translate(lang: Lang, key: Key, vars?: Record<string, string | n
   return format(dict[key][lang], vars);
 }
 
-/** Villager pages default to Hindi; everything else defaults to English. */
+/** The officer tools: the console, audit, roster, sign-in and the one-tap approval link. */
+const STAFF_PATH = /^\/(console|audit|roster|login)(\/|$)|^\/a\//;
+
+/**
+ * Which remembered language a page uses: villager pages (report, tracking) default to Hindi, the officer
+ * tools to English, and the public pages to the browser's language (store.ts).
+ */
 export function scopeFor(pathname: string): LangScope {
-  return pathname.startsWith('/report') || pathname.startsWith('/t/') || pathname === '/t' ? 'villager' : 'staff';
+  if (pathname.startsWith('/report') || pathname.startsWith('/t/') || pathname === '/t') return 'villager';
+  return STAFF_PATH.test(pathname) ? 'staff' : 'public';
 }
 
 export function useT() {

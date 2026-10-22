@@ -63,7 +63,8 @@ export const useAuth = create<AuthState>((set) => ({
 /* ---------- preferences: language per area, theme ---------- */
 
 export type Lang = 'hi' | 'en';
-export type LangScope = 'villager' | 'staff';
+/** villager: /report and /t; public: the open pages; staff: the officer tools. */
+export type LangScope = 'villager' | 'public' | 'staff';
 export type ThemePref = 'system' | 'light' | 'dark';
 
 interface PrefState {
@@ -76,6 +77,13 @@ interface PrefState {
 function initialLang(scope: LangScope, fallback: Lang): Lang {
   const v = readLS(`pukaar.lang.${scope}`);
   return v === 'hi' || v === 'en' ? v : fallback;
+}
+
+/** The browser's first language: any Hindi locale (hi, hi-IN, hi-Latn) reads Hindi, everything else English. */
+export function browserLang(): Lang {
+  if (typeof navigator === 'undefined') return 'en';
+  const first = navigator.languages?.[0] ?? navigator.language ?? '';
+  return /^hi(-|$)/i.test(first) ? 'hi' : 'en';
 }
 
 function initialTheme(): ThemePref {
@@ -91,8 +99,9 @@ export function applyTheme(theme: ThemePref) {
 }
 
 export const usePrefs = create<PrefState>((set, get) => ({
-  // Hindi first for villagers; English first in the officer tools.
-  lang: { villager: initialLang('villager', 'hi'), staff: initialLang('staff', 'en') },
+  // Each area remembers its own choice. Without one: Hindi for villagers (report, tracking), the browser's
+  // language on the public pages, English in the officer tools.
+  lang: { villager: initialLang('villager', 'hi'), public: initialLang('public', browserLang()), staff: initialLang('staff', 'en') },
   theme: initialTheme(),
   setLang: (scope, lang) => {
     writeLS(`pukaar.lang.${scope}`, lang);

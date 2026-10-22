@@ -14,9 +14,26 @@
         if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
       } catch (e) {}
     </script>
+    <noscript><link rel="stylesheet" href="/noscript.css" /></noscript>
   </head>
   <body>
-    <noscript>Pukaar needs JavaScript. In an emergency call 112. आपातकाल में 112 पर कॉल करें।</noscript>
+    <!-- Without JavaScript (every page, /report included): the emergency number first, then what still works.
+         No report form here: the CSP's form-action 'self' blocks a post to the API host, and the API answers in JSON. -->
+    <noscript>
+      <main class="nojs" lang="hi">
+        <p class="nojs-brand">पुकार <span lang="en">Pukaar</span></p>
+        <h1>बाढ़ या कोई ख़तरा? अभी 112 पर कॉल करें।</h1>
+        <p lang="en">Flood or any danger? Call 112 now.</p>
+        <a class="nojs-call" href="tel:112">112 पर कॉल करें · <span lang="en">Call 112</span></a>
+        <h2>सूचना भेजने का फ़ॉर्म JavaScript के बिना नहीं चलता <span lang="en">· The report form needs JavaScript</span></h2>
+        <p>ब्राउज़र में JavaScript चालू करके पेज फिर खोलें, या कोई दूसरा ब्राउज़र आज़माएँ।</p>
+        <p lang="en">Turn JavaScript on and reload, or open this page in another browser.</p>
+        <h2>Telegram पर चेतावनी पाएँ <span lang="en">· Alerts on Telegram</span></h2>
+        <p>@PukaarRescuebot को <code lang="en">/start</code> और अपने गाँव का नाम भेजें, जैसे <code lang="en">/start thunag</code>।</p>
+        <p lang="en">Send <code>/start</code> and your village to @PukaarRescuebot, for example <code>/start thunag</code>.</p>
+        <a class="nojs-tg" href="https://t.me/PukaarRescuebot">Telegram: @PukaarRescuebot</a>
+      </main>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

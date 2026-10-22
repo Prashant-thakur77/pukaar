@@ -61,6 +61,8 @@
 .rs-none { margin: 0; color: var(--ink-3); font-weight: 600; }
 .rs-cell.is-now .rs-none { color: var(--lv-warning-ink); font-weight: 700; }
 .rs-cell-foot { margin: 0; display: flex; align-items: center; gap: 12px; }
+/* "Edit" keeps a 44 px hit area without making the week taller: the negative margin gives the extra back. */
+.rs-cell-foot .link-btn { margin-block: -6px; }
 .rs-now-word { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-text); }
 :root[lang='hi'] .rs-now-word { letter-spacing: 0; text-transform: none; font-size: 0.82rem; }
 

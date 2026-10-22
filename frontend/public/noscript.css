@@ -1,0 +1,26 @@
+/* Shown only when JavaScript is off (index.html <noscript>). No script, no inline style block: CSP-safe. */
+:root { color-scheme: light dark; }
+body { margin: 0; background: #f6f3ec; color: #0b1f33; font: 17px/1.55 system-ui, -apple-system, 'Segoe UI', 'Noto Sans Devanagari', sans-serif; }
+.nojs { max-width: 34rem; margin: 0 auto; padding: 24px 16px 48px; }
+.nojs-brand { margin: 0 0 20px; font-weight: 800; font-size: 1.25rem; }
+.nojs-brand span { font-weight: 600; color: #3b5068; }
+.nojs h1 { margin: 0; font-size: 1.6rem; line-height: 1.3; }
+.nojs h2 { margin: 32px 0 6px; font-size: 1.1rem; line-height: 1.35; }
+.nojs p { margin: 4px 0; }
+.nojs [lang='en'] { color: #3b5068; }
+.nojs a [lang] { color: inherit; }
+.nojs a { box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 0.3em; min-height: 56px; margin: 16px 0 0; padding: 10px 20px;
+  border-radius: 999px; font-weight: 800; text-decoration: none; text-align: center; }
+.nojs-call { background: #b3261e; color: #fff; font-size: 1.25rem; }
+.nojs-tg { border: 2px solid #0f5c9e; color: #0f5c9e; }
+.nojs a:focus-visible { outline: 3px solid #0f5c9e; outline-offset: 3px; }
+.nojs code { font-size: 0.95em; padding: 1px 6px; border-radius: 6px; background: rgb(11 31 51 / 0.08); }
+@media (prefers-color-scheme: dark) {
+  body { background: #0b1026; color: #eaf4fb; }
+  .nojs-brand span, .nojs [lang='en'] { color: #b8cbe0; }
+  .nojs a [lang] { color: inherit; }
+  .nojs-call { background: #e5534b; color: #1a0503; }
+  .nojs-tg { border-color: #8ad0ff; color: #8ad0ff; }
+  .nojs a:focus-visible { outline-color: #8ad0ff; }
+  .nojs code { background: rgb(234 244 251 / 0.12); }
+}

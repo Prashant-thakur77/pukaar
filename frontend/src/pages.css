@@ -97,7 +97,7 @@
 }
 :is(.live, .console, .village-page, .audit, .impact, .track) .chip:lang(hi),
 :is(.live, .console, .village-page, .audit, .impact, .track) .chip [lang='hi'] { letter-spacing: 0; text-transform: none; font-size: 0.8rem; }
-:is(.live, .console, .village-page, .audit, .impact, .track) .chip-btn { font-size: 0.78rem; letter-spacing: 0.02em; text-transform: none; min-height: 40px; }
+:is(.live, .console, .village-page, .audit, .impact, .track) .chip-btn { font-size: 0.78rem; letter-spacing: 0.02em; text-transform: none; min-height: var(--tap); }
 
 /* Section headings on app pages: display face, uppercase */
 :is(.live, .console, .village-page, .impact, .audit, .report) :is(.h-sec, .panel-title) {
@@ -281,7 +281,7 @@
 .tk-id { letter-spacing: 0.04em; text-transform: none; color: var(--ink-3); }
 .tk-ago { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-3); letter-spacing: 0.06em; }
 .ticket .pc-village { margin-top: 10px; margin-bottom: 14px; font-size: inherit; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
-.ticket .pc-village a { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; color: var(--ink); text-decoration: none; }
+.ticket .pc-village a { display: inline-flex; flex-wrap: wrap; align-items: baseline; align-content: center; min-height: var(--tap); gap: 4px 14px; color: var(--ink); text-decoration: none; }
 .ticket .pc-village [lang='hi'] { font-size: clamp(1.9rem, 3.4vw, 2.6rem); font-weight: 800; line-height: 1.15; }
 .tk-en { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: clamp(2rem, 3.6vw, 2.8rem); line-height: 0.95; letter-spacing: 0.01em; color: var(--ink-2); }
 .ticket .pc-village a:hover .tk-en { color: var(--accent-text); }
@@ -322,7 +322,8 @@
 /* recent alerts + deliveries */
 .recent-alerts { gap: 10px; }
 .ra-row { border-radius: 14px; border-left-width: 3px; padding: 14px 16px; }
-.ra-name { font-weight: 800; text-decoration: none; }
+/* A 44 px hit area that keeps the row's ledger height: the negative margin gives the extra back. */
+.ra-name { display: inline-flex; align-items: center; min-height: var(--tap); min-width: var(--tap); margin-block: -10px; font-weight: 800; text-decoration: none; }
 .dl-list li { border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-size: 0.86rem; }
 .trace-toggle { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; }
 /* after-action report: open in a new tab or download */

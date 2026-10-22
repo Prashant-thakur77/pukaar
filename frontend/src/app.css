@@ -126,7 +126,7 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 .btn:hover:not(:disabled) { border-color: var(--ink-3); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-press:active:not(:disabled), .btn:active:not(:disabled) { transform: scale(0.97); }
-.btn-sm { min-height: 40px; padding: 6px 14px; font-size: var(--fs-sm); gap: 6px; }
+.btn-sm { min-height: var(--tap); padding: 6px 14px; font-size: var(--fs-sm); gap: 6px; }
 .btn-lg { min-height: 54px; padding: 12px 26px; font-size: var(--fs-lg); }
 .btn-xl { min-height: 64px; padding: 14px 28px; font-size: 1.2rem; }
 .btn-block { width: 100%; }
@@ -167,7 +167,7 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 .chip-pending { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
 .chip-muted { color: var(--ink-3); }
 .chip-replay { background: transparent; border: 1.5px dashed var(--ink-3); color: var(--ink-2); }
-.chip-btn { cursor: pointer; min-height: 40px; padding: 8px 14px; text-align: left; }
+.chip-btn { cursor: pointer; min-height: var(--tap); padding: 8px 14px; text-align: left; }
 .chip-btn:hover { border-color: var(--accent); color: var(--ink); }
 .chip-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 99px; background: var(--lv-critical); color: #fff; font-size: 12px; font-weight: 800; }
@@ -326,9 +326,9 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 .ftr-inner { max-width: var(--maxw); margin: 0 auto; padding: var(--s-9) var(--gutter) var(--s-7); display: grid; gap: var(--s-7); grid-template-columns: 1.6fr 1fr 1fr 1fr; }
 .ftr-script { font-family: var(--font-script); font-weight: 700; font-size: clamp(1.9rem, 3.4vw, 2.8rem); line-height: 1.2; color: var(--gold); margin: 0 0 var(--s-3); transform: rotate(-2deg); transform-origin: left; }
 .ftr-lead { max-width: 36ch; margin: 0 0 var(--s-5); color: var(--night-ink-2); line-height: 1.6; }
-.ftr-col { display: grid; gap: 4px; align-content: start; }
+.ftr-col { display: grid; gap: 0; align-content: start; }
 .ftr-h { font: 800 11px/1 var(--font-body); letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: var(--s-3); }
-.ftr-col a, .ftr-signout { color: var(--night-ink); text-decoration: none; font-weight: 600; font-size: 0.95rem; min-height: 40px; display: inline-flex; align-items: center; gap: 6px; transition: color 150ms var(--ease-out), transform 150ms var(--ease-out); }
+.ftr-col a, .ftr-signout { color: var(--night-ink); text-decoration: none; font-weight: 600; font-size: 0.95rem; min-height: var(--tap); display: inline-flex; align-items: center; gap: 6px; transition: color 150ms var(--ease-out), transform 150ms var(--ease-out); }
 .ftr-col a:hover, .ftr-signout:hover { color: var(--gold-2); transform: translateX(3px); }
 .ftr-signout { background: none; border: 0; padding: 0; font-family: inherit; cursor: pointer; justify-self: start; }
 .ftr-signout svg { width: 16px; height: 16px; }
@@ -548,6 +548,10 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 /* Dark mode darkens the base raster only, in VillageMap (applyBaseTheme), so the route glow keeps its colour. */
 .maplibregl-ctrl-group button { width: 44px !important; height: 44px !important; }
 .maplibregl-ctrl-attrib { font-size: 11px; }
+/* The compact attribution toggle is a tap target too: 44 px, not maplibre's 24. */
+.maplibregl-ctrl-attrib.maplibregl-compact { min-height: 40px; padding-right: 44px; border-radius: 22px; }
+.maplibregl-ctrl-attrib.maplibregl-compact-show { padding: 2px 48px 2px 12px; line-height: 40px; }
+.maplibregl-ctrl-attrib-button { width: 44px !important; height: 44px !important; border-radius: 22px !important; background-position: center; background-repeat: no-repeat; }
 .mk-host { z-index: 1; }
 .mk {
   position: relative; display: block; width: 44px; height: 44px; padding: 2px; border: 0; background: none; cursor: pointer;
@@ -1196,10 +1200,12 @@ button.map-key-item:hover { background: var(--surface-2); }
 .mk-key-lv { width: 26px; height: 26px; justify-content: center; border-radius: 50%; background: var(--lv); color: #fff; }
 .mk-key-lv.lv-watch { color: #2b2000; }
 .map-key-item > span[lang] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.map-wrap.is-narrow .mk { width: 36px; height: 36px; }
+/* Narrow maps draw a smaller dot but keep a 44 px button around it. */
+.map-wrap.is-narrow .mk { width: 44px; height: 44px; padding: 6px; }
+.map-wrap.is-narrow .mk > .mk-num { right: -2px; top: -2px; }
 .map-wrap.is-narrow .mk-dot { width: 32px; height: 32px; border-width: 2px; }
 .map-wrap.is-narrow .mk-dot svg.lucide { width: 16px; height: 16px; }
-.map-wrap.is-narrow .mk-pulse { width: 32px; height: 32px; margin-top: -16px; }
+.map-wrap.is-narrow .mk-pulse { left: 6px; width: 32px; height: 32px; margin-top: -16px; }
 .map-wrap.is-narrow .mk-label { left: 38px; }
 .switch input[type='checkbox'] { appearance: auto; -webkit-appearance: checkbox; width: 20px; height: 20px; min-height: 0; min-width: 0; padding: 0; margin: 0; flex: none; border: 0; box-shadow: none; background: none; }
 .switch > span { white-space: nowrap; }
@@ -1223,7 +1229,7 @@ button.map-key-item:hover { background: var(--surface-2); }
 /* Pradhan view: the approve button is shown but disabled; "Try anyway" asks the server, which says no. */
 .pc-officers-only { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .pc-officers-only .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.link-btn { background: none; border: 0; padding: 4px 2px; min-height: 32px; color: var(--accent-text); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.link-btn { background: none; border: 0; padding: 4px 2px; min-height: var(--tap); min-width: var(--tap); color: var(--accent-text); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .link-btn:disabled { opacity: 0.6; cursor: progress; }
 .link-btn svg { width: 14px; height: 14px; }
 .pradhan-note { max-width: 60ch; margin-top: 4px; }

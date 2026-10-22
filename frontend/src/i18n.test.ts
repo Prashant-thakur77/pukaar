@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { dict, enumLabels, format, scopeFor } from './i18n';
 
 describe('i18n', () => {
@@ -36,5 +36,53 @@ describe('i18n', () => {
     expect(scopeFor('/report')).toBe('villager');
     expect(scopeFor('/t/PK42')).toBe('villager');
     expect(scopeFor('/console')).toBe('staff');
+  });
+
+  it('splits pages into villager, public and staff language scopes', () => {
+    for (const p of ['/report', '/t/PK42', '/t']) expect(scopeFor(p), p).toBe('villager');
+    for (const p of ['/console', '/audit', '/roster', '/login', '/a/tok123']) expect(scopeFor(p), p).toBe('staff');
+    for (const p of ['/', '/live', '/village/thunag', '/pilot', '/how', '/safe/x', '/agents', '/consoles', '/auditor', '/nope'])
+      expect(scopeFor(p), p).toBe('public');
+  });
+});
+
+describe('default language', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetModules();
+    localStorage.clear();
+  });
+
+  async function freshPrefs(languages: string[]) {
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(languages);
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue(languages[0] ?? '');
+    vi.resetModules();
+    return (await import('./store')).usePrefs.getState();
+  }
+
+  it('follows the browser on public pages: any hi-* locale reads Hindi, anything else English', async () => {
+    const { browserLang } = await import('./store');
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['hi-IN', 'en']);
+    expect(browserLang()).toBe('hi');
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['hi']);
+    expect(browserLang()).toBe('hi');
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-IN', 'hi']);
+    expect(browserLang()).toBe('en');
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['hil-PH']);
+    expect(browserLang()).toBe('en');
+  });
+
+  it('starts villager pages in Hindi, public pages in the browser language and staff pages in English', async () => {
+    expect((await freshPrefs(['en-US'])).lang).toEqual({ villager: 'hi', public: 'en', staff: 'en' });
+    expect((await freshPrefs(['hi-IN'])).lang).toEqual({ villager: 'hi', public: 'hi', staff: 'en' });
+  });
+
+  it('remembers a choice per scope over the default', async () => {
+    localStorage.setItem('pukaar.lang.villager', 'en');
+    localStorage.setItem('pukaar.lang.public', 'hi');
+    expect((await freshPrefs(['en-US'])).lang).toEqual({ villager: 'en', public: 'hi', staff: 'en' });
+    const prefs = await freshPrefs(['en-US']);
+    prefs.setLang('public', 'en');
+    expect(localStorage.getItem('pukaar.lang.public')).toBe('en');
   });
 });

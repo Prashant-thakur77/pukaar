@@ -14,7 +14,8 @@
     "mock": "node scripts/mock-api.mjs",
     "screens": "NODE_USE_ENV_PROXY=1 node scripts/screens.mjs",
     "check:loops": "node scripts/check-loops.mjs",
-    "check:csp": "node scripts/csp-check.mjs"
+    "check:csp": "node scripts/csp-check.mjs",
+    "check:taps": "node scripts/tap-targets.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
