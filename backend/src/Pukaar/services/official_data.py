@@ -159,7 +159,8 @@ def cwc_item(feed: dict[str, Any], village: Village) -> dict[str, Any]:
     detail = (f"{n} CWC station(s) above warning level in India; {m} on this village's river"
               + ("" if village_config(village.id).get("cwc_stations") else " (no station codes mapped to this village yet)"))
     return _item("cwc", name, "ok", level=result["level"], detail=detail, fetched_at=feed.get("fetched_at"),
-                 matched=result["matched"], regional=result["regional"], url=CWC_URL)
+                 matched=result["matched"], regional=result["regional"], url=CWC_URL,
+                 stations_above_warning=n, mapped=bool(village_config(village.id).get("cwc_stations")))
 
 
 # -- IMD --------------------------------------------------------------------------

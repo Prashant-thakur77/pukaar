@@ -857,6 +857,8 @@
 .ready-state strong { font-size: 1.05rem; }
 .ready-banner.is-ready { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); border-left-color: var(--accent); background: var(--accent-soft); }
 .ready-banner.is-ready > svg.lucide { color: var(--accent-text); }
+.ready-banner.is-ready .muted { color: var(--ink-2); }
+.ready-banner .ready-high { font-size: 1.15rem; font-weight: 650; color: var(--ink); }
 .ready-banner.is-ready .ready-state strong {
   font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: 1.7rem; line-height: 1; color: var(--accent-text);
 }

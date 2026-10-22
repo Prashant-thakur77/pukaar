@@ -3,7 +3,7 @@
 //   1. signs in as the demo officer (Cognito, USER_PASSWORD_AUTH; the password stays in .env.demo.local),
 //   2. resets the demo state and starts the July 2023 replay on AWS (real sweeps, real Step Functions executions;
 //      replay alerts are labelled and only ever reach the stub test phones),
-//   3. waits until Gohar's alert is pending at Critical with its Polly audio drafted,
+//   3. waits until Gohar's alert is pending at its highest replay level (Warning since risk-rules-v2) with its Polly audio drafted,
 //   4. copies that real Polly MP3 to video/.out/polly-gohar.mp3 for the soundtrack.
 // The approval wait is 10 minutes per officer, so record within about 15 minutes of this finishing.
 //   node video/live.mjs [--speed 1.5]
@@ -59,12 +59,12 @@ let gohar = null;
 for (let i = 0; i < 160; i++) {
   await sleep(5000);
   const pending = await api("/alerts?status=pending&village_id=gohar");
-  gohar = pending.find((a) => a.level === "critical" && a.has_audio) ?? null;
+  gohar = pending.find((a) => (a.level === "warning" || a.level === "critical") && a.has_audio) ?? null;
   const all = await api("/alerts");
   log(`  ${i * 5 + 5} s: ${all.length} alerts; gohar ${pending.map((a) => a.level).join(",") || "-"}`);
   if (gohar) break;
 }
-if (!gohar) throw new Error("no pending critical Gohar alert with audio");
+if (!gohar) throw new Error("no pending warning or critical Gohar alert with audio");
 
 // a village pradhan tries to approve: Cedar refuses, and the refusal is in the audit log (a real deny row)
 const ptoken = aws("cognito-idp", "initiate-auth", "--client-id", clientId, "--auth-flow", "USER_PASSWORD_AUTH",
@@ -83,4 +83,4 @@ const bucket = aws("cloudformation", "describe-stack-resources", "--stack-name",
 mkdirSync(join(ROOT, "video/.out"), { recursive: true });
 execFileSync("aws", ["s3", "cp", `s3://${bucket}/audio/alerts/${gohar.id}.mp3`, join(ROOT, "video/.out/polly-gohar.mp3"), "--region", REGION]);
 writeFileSync(join(ROOT, "video/.out/live.json"), JSON.stringify({ goharAlert: gohar.id, at: new Date().toISOString() }, null, 1));
-log(`ready: ${gohar.id} pending at critical; Polly MP3 saved. Record now: node video/record.mjs demo`);
+log(`ready: ${gohar.id} pending at ${gohar.level}; Polly MP3 saved. Record now: node video/record.mjs demo`);

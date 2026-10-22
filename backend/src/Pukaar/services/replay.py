@@ -18,7 +18,7 @@ from datetime import datetime
 
 from Pukaar.core import clock
 from Pukaar.core.log import get_logger, log
-from Pukaar.services import external_data, risk_rules
+from Pukaar.services import external_data, readiness, risk_rules
 from Pukaar.services.decision_engine import recompute_village
 from Pukaar.store.models import ReplayState, Village, level_rank
 from Pukaar.store.repo import Repo
@@ -145,16 +145,30 @@ def run(repo: Repo, *, speed_seconds_per_hour: float = 2.0, workflow=None) -> Re
     return final
 
 
+def _hours_before(day: str | None, at: str | None) -> float | None:
+    """Hours from `at` to 00:00 UTC of `day` (negative when `at` is later)."""
+    if not day or not at:
+        return None
+    t = clock.parse(at)
+    return round((datetime.fromisoformat(day).replace(tzinfo=t.tzinfo) - t).total_seconds() / 3600, 1)
+
+
 def backtest(scenario: str, villages, soil_modifier: bool | None = None) -> list[dict]:
-    """Pure rules over the archived data, no store: first time each level is
-    reached, time of peak forecast discharge, and the lead time between them."""
+    """Pure rules over the archived data, no store: first time each level is reached, the first
+    get-ready outlook (services/readiness.py: evidence only, never a level), the day of peak
+    forecast discharge, and the lead times to it. A first time equal to the first archived hour
+    is flagged (`*_from_first_hour`): the lead is then a lower bound."""
     rows = []
     hours = external_data.replay_hours(scenario)
     sc = external_data.load_scenario(scenario)
+    first_hour = clock.iso(hours[0]) if hours else None
     for v in villages:
         first: dict[str, str | None] = {"watch": None, "warning": None, "critical": None}
         level, calm = "normal", 0
         max_rain = 0.0
+        first_ready: str | None = None
+        trigger: dict | None = None
+        ready_hours = 0
         for at in hours:
             reading = external_data.replay_reading(scenario, v, at)
             if reading is None:
@@ -165,19 +179,31 @@ def backtest(scenario: str, villages, soil_modifier: bool | None = None) -> list
             for lvl in first:
                 if first[lvl] is None and level_rank(level) >= level_rank(lvl):
                     first[lvl] = clock.iso(at)
+            out = readiness.outlook(reading, v.thresholds)
+            ready_hours += out["state"] == "get_ready"
+            if first_ready is None and out["state"] == "get_ready":
+                first_ready = clock.iso(at)
+                over = next(d for d in out["days"] if d["over"])
+                trigger = {"line": out["line"], "line_cms": out["early"] if out["line"] == "early" else out["watch"],
+                           "first_day_over": over["date"], "first_day_over_cms": over["value"],
+                           "days_ahead": over["days_ahead"], "basis": out["basis"],
+                           "peak_day": out["peak_day"], "peak_cms": out["peak_discharge"]}
         series = sc["villages"].get(v.id, {}).get("daily", {})
         window = [(d, q) for d, q in zip(series.get("time", []), series.get("river_discharge", []))
                   if q is not None and hours[0].date().isoformat() <= d <= hours[-1].date().isoformat()]
         peak_day, peak_q = max(window, key=lambda x: x[1]) if window else (None, None)
-        lead = None
-        if first["watch"] and peak_day:
-            peak_at = datetime.fromisoformat(peak_day).replace(tzinfo=clock.parse(first["watch"]).tzinfo)
-            lead = round((peak_at - clock.parse(first["watch"])).total_seconds() / 3600, 1)
         rows.append({
             "village_id": v.id, "village": v.name, "first_watch": first["watch"], "first_warning": first["warning"],
             "first_critical": first["critical"], "peak_discharge_day": peak_day, "peak_discharge": peak_q,
             "thresholds": v.thresholds.model_dump() if v.thresholds else None, "max_rain_24h_mm": round(max_rain, 1),
-            "lead_hours_watch_to_peak_day": lead,
+            "lead_hours_watch_to_peak_day": _hours_before(peak_day, first["watch"]),
+            "watch_from_first_hour": first["watch"] is not None and first["watch"] == first_hour,
+            # The soft outlook: the river forecast for day 1-7 at or over the early line. Never an alert.
+            "first_get_ready": first_ready,
+            "get_ready_from_first_hour": first_ready is not None and first_ready == first_hour,
+            "lead_hours_get_ready_to_peak_day": _hours_before(peak_day, first_ready),
+            "get_ready_trigger": trigger,
+            "get_ready_hours": ready_hours,
             "outcome": "never crossed" if first["watch"] is None
             else "reached " + max((k for k, t in first.items() if t), key=level_rank),
         })

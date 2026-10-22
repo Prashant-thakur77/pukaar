@@ -26,7 +26,10 @@ function reached(v: BacktestVillage): Level {
 function Scenario({ sc, i }: { sc: BacktestScenario; i: number }) {
   const { t, lang } = useT();
   const crit = sc.villages.filter((v) => v.first_critical).length;
-  const when = (iso: string | null) => (iso ? fmtTime(iso, lang) : <span className="muted">{t('impact.bt.never')}</span>);
+  const when = (iso: string | null | undefined) => (iso ? fmtTime(iso, lang) : <span className="muted">{t('impact.bt.never')}</span>);
+  const hours = (h: number | null | undefined, lowerBound?: boolean) =>
+    // Non-breaking spaces: "≥ 96 h" never splits across lines.
+    h == null ? '—' : `${lowerBound ? '≥\u00a0' : ''}${fmtNumber(h, lang)}\u00a0${lang === 'hi' ? 'घंटे' : 'h'}`;
   return (
     <Reveal className="scenario card" delay={i * 100}>
       <header className="sc-head">
@@ -59,12 +62,12 @@ function Scenario({ sc, i }: { sc: BacktestScenario; i: number }) {
             <tr>
               <th scope="col">{t('impact.bt.village')}</th>
               <th scope="col">{t('impact.bt.reached')}</th>
-              <th scope="col">{t('impact.bt.first', { l: t('level.watch') })}</th>
+              <th scope="col">{t('impact.bt.ready')}</th>
+              <th scope="col">{t('impact.bt.lead')}</th>
               <th scope="col">{t('impact.bt.first', { l: t('level.warning') })}</th>
               <th scope="col">{t('impact.bt.first', { l: t('level.critical') })}</th>
               <th scope="col">{t('impact.bt.peak')}</th>
               <th scope="col">{t('impact.bt.rain')}</th>
-              <th scope="col">{t('impact.bt.lead')}</th>
             </tr>
           </thead>
           <tbody>
@@ -74,16 +77,28 @@ function Scenario({ sc, i }: { sc: BacktestScenario; i: number }) {
                 <td data-label={t('impact.bt.reached')}>
                   <LevelBadge level={reached(v)} size="sm" plain={reached(v) !== 'critical'} />
                 </td>
-                <td className="nowrap" data-label={t('impact.bt.first', { l: t('level.watch') })}>{when(v.first_watch)}</td>
+                <td data-label={t('impact.bt.ready')}>
+                  <span>
+                    {when(v.first_get_ready)}
+                    {v.lead_hours_get_ready_to_peak_day != null && <span className="small muted"> · {hours(v.lead_hours_get_ready_to_peak_day, v.get_ready_from_first_hour)}</span>}
+                  </span>
+                </td>
+                <td data-label={t('impact.bt.lead')}>
+                  <span>
+                    {when(v.first_watch)}
+                    {v.lead_hours_watch_to_peak_day != null && <span className="small muted"> · {hours(v.lead_hours_watch_to_peak_day, v.watch_from_first_hour)}</span>}
+                  </span>
+                </td>
                 <td className="nowrap" data-label={t('impact.bt.first', { l: t('level.warning') })}>{when(v.first_warning)}</td>
                 <td className="nowrap" data-label={t('impact.bt.first', { l: t('level.critical') })}>{when(v.first_critical)}</td>
                 <td className="nowrap" data-label={t('impact.bt.peak')}>
-                  {fmtNumber(v.peak_discharge, lang, 2)} m³/s
-                  {v.thresholds && <span className="small muted"> / {fmtNumber(v.thresholds.critical, lang, 2)}</span>}
-                  {v.peak_discharge_day && <span className="small muted"> · {fmtDate(v.peak_discharge_day, lang)}</span>}
+                  <span>
+                    {fmtNumber(v.peak_discharge, lang, 2)} m³/s
+                    {v.thresholds && <span className="small muted"> / {fmtNumber(v.thresholds.critical, lang, 2)}</span>}
+                    {v.peak_discharge_day && <span className="small muted"> · {fmtDate(v.peak_discharge_day, lang)}</span>}
+                  </span>
                 </td>
                 <td className="nowrap" data-label={t('impact.bt.rain')}>{fmtNumber(v.max_rain_24h_mm, lang, 1)} mm</td>
-                <td className="nowrap" data-label={t('impact.bt.lead')}>{v.lead_hours_watch_to_peak_day == null ? '—' : `${fmtNumber(v.lead_hours_watch_to_peak_day, lang)} h`}</td>
               </tr>
             ))}
           </tbody>
@@ -177,6 +192,7 @@ export default function Impact() {
               {bt.scenarios.map((sc, i) => (
                 <Scenario key={sc.name} sc={sc} i={i} />
               ))}
+              <p className="small">{t('impact.bt.ready.note')}</p>
               <p className="caveat">{t('impact.bt.caveat')}</p>
               {bt.rules && <p className="small muted">Rules: <code>{bt.rules}</code></p>}
             </div>

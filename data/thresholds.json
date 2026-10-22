@@ -3,6 +3,8 @@
     "watch": 1.43,
     "warning": 1.967,
     "critical": 2.664,
+    "early_cms": 1.14,
+    "early_line": "Get-ready line: the 90th percentile of daily discharge at the river cell (the statistic the earlier Watch line used). Only the readiness outlook reads it; it never sets a level, never creates an alert and never sends.",
     "method": "return_period",
     "return_period_years": {
       "watch": 2,
@@ -240,6 +242,8 @@
     "watch": 1.284,
     "warning": 1.758,
     "critical": 2.373,
+    "early_cms": 1.03,
+    "early_line": "Get-ready line: the 90th percentile of daily discharge at the river cell (the statistic the earlier Watch line used). Only the readiness outlook reads it; it never sets a level, never creates an alert and never sends.",
     "method": "return_period",
     "return_period_years": {
       "watch": 2,
@@ -477,6 +481,8 @@
     "watch": 1.409,
     "warning": 2.211,
     "critical": 3.252,
+    "early_cms": 0.94,
+    "early_line": "Get-ready line: the 90th percentile of daily discharge at the river cell (the statistic the earlier Watch line used). Only the readiness outlook reads it; it never sets a level, never creates an alert and never sends.",
     "method": "return_period",
     "return_period_years": {
       "watch": 2,
@@ -714,6 +720,8 @@
     "watch": 366.488,
     "warning": 444.65,
     "critical": 546.041,
+    "early_cms": 300.58,
+    "early_line": "Get-ready line: the 90th percentile of daily discharge at the river cell (the statistic the earlier Watch line used). Only the readiness outlook reads it; it never sets a level, never creates an alert and never sends.",
     "method": "return_period",
     "return_period_years": {
       "watch": 2,
@@ -951,6 +959,8 @@
     "watch": 633.278,
     "warning": 830.241,
     "critical": 1085.736,
+    "early_cms": 479.84,
+    "early_line": "Get-ready line: the 90th percentile of daily discharge at the river cell (the statistic the earlier Watch line used). Only the readiness outlook reads it; it never sets a level, never creates an alert and never sends.",
     "method": "return_period",
     "return_period_years": {
       "watch": 2,

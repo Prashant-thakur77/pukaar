@@ -50,7 +50,7 @@ def gohar_chart(story: dict) -> str:
     ymax = 140.0
     x = lambda i: L + i / (n - 1) * (W - L - R)
     y = lambda mm: T + (1 - min(mm, ymax) / ymax) * (H - T - B)
-    body = header("Gohar, Mandi · July 2023 · replayed through the real rules", "Everything needed was already in the forecast", W)
+    body = header("Gohar, Mandi · July 2023 · replayed through the real rules", "A get-ready outlook, then the alert", W)
     for mm in (0, 50, 100):
         body += f'<line x1="{L}" x2="{W - R}" y1="{y(mm):.1f}" y2="{y(mm):.1f}" stroke="{LINE}" stroke-width="1"/>'
         body += text(L - 10, y(mm) + 4, mm, 11, INK3, 600, "end")
@@ -68,8 +68,16 @@ def gohar_chart(story: dict) -> str:
     for i, p in enumerate(pts[:-1]):
         body += f'<rect x="{x(i):.1f}" y="{rb}" width="{seg_w + 0.6:.1f}" height="14" fill="{LEVEL[p["level"]]}"/>'
     body += text(L - 10, rb + 11, "level", 10, INK3, 700, "end")
+    # get-ready strip: the outlook (never an alert) each hour, above the level ribbon
+    gr = rb - 10
+    for i, p in enumerate(pts[:-1]):
+        if p.get("get_ready"):
+            body += f'<rect x="{x(i):.1f}" y="{gr}" width="{seg_w + 0.6:.1f}" height="5" fill="{KHAKI}"/>'
+    body += text(L - 10, gr + 5, "get ready", 10, INK3, 700, "end")
     idx = {p["at"]: i for i, p in enumerate(pts)}
-    for k, (key, label) in enumerate((("watch", "Watch"), ("warning", "Warning"), ("critical", "Critical"))):
+    flags = [(key, label) for key, label in (("watch", "Watch"), ("warning", "Warning"), ("critical", "Critical"))
+             if story["first"].get(key)]
+    for k, (key, label) in enumerate(flags):
         at = story["first"][key]
         i = idx[at]
         when = datetime.fromisoformat(at.replace("Z", "+00:00")).astimezone(IST).strftime("%-d Jul %-I:%M %p IST")
@@ -81,8 +89,11 @@ def gohar_chart(story: dict) -> str:
         if p["at"].endswith("T00:00:00Z"):
             d = datetime.fromisoformat(p["at"].replace("Z", "+00:00")).strftime("%-d Jul")
             body += text(x(i), H - B + 56, d, 11, INK3, 700, "middle")
-    body += text(L, H - 14, f"Forecast rain for the next 24 h, hour by hour, as the 15-minute sweep would read it (mm). "
-                 f"First Watch came {story['lead_hours_watch_to_peak_day']:.0f} h before the river's peak day.", 11.5, INK3, 600)
+    ready = story.get("lead_hours_get_ready_to_peak_day")
+    ready_txt = (f"Get-ready outlook {'≥ ' if story.get('get_ready_from_first_hour') else ''}{ready:.0f} h, "
+                 if ready is not None else "")
+    body += text(L, H - 14, f"Forecast rain for the next 24 h as the 15-minute sweep would read it (mm). Before the river's "
+                 f"highest day: {ready_txt}first Watch (rain) {story['lead_hours_watch_to_peak_day']:.0f} h.", 11.5, INK3, 600)
     return svg(W, H, body, "Gohar July 2023 back-test: rain forecast against IMD bands, with levels")
 
 
@@ -90,22 +101,33 @@ def lead_chart(bt: dict) -> str:
     sc = next(s for s in bt["scenarios"] if s["name"] == "himachal_2023_07")
     vs = sc["villages"]
     W, H = 960, 380
-    L, R, T = 150, 60, 120
+    L, R, T = 150, 60, 136
     row = 44
-    vmax = max(v["lead_hours_watch_to_peak_day"] or 0 for v in vs) or 1
-    body = header("Back-test · 7-11 July 2023 · archived forecasts", "Hours of warning before the river's peak day", W)
+    vmax = max(max(v["lead_hours_watch_to_peak_day"] or 0, v.get("lead_hours_get_ready_to_peak_day") or 0) for v in vs) or 1
+    H = T + row * len(vs) + 50
+    body = header("Back-test · 7-11 July 2023 · archived forecasts", "Hours before the river's peak day", W)
+    body += f'<rect x="{L}" y="{T - 22}" width="12" height="6" fill="{KHAKI}"/>' + text(L + 18, T - 16, "get-ready outlook (never an alert)", 11, INK3, 700)
+    body += f'<rect x="{L + 250}" y="{T - 24}" width="12" height="10" rx="3" fill="{GOLD}"/>' + text(L + 268, T - 16, "alert: first Watch", 11, INK3, 700)
+    span = W - L - R - 200
     for k, v in enumerate(vs):
         yy = T + k * row
-        lead = v["lead_hours_watch_to_peak_day"] or 0
-        top = "critical" if v["first_critical"] else "warning" if v["first_warning"] else "watch"
-        w = (W - L - R - 200) * lead / vmax
+        lead = v["lead_hours_watch_to_peak_day"]
+        ready = v.get("lead_hours_get_ready_to_peak_day")
+        top = "critical" if v["first_critical"] else "warning" if v["first_warning"] else "watch" if v["first_watch"] else None
         body += text(L - 14, yy + 21, v["village"], 15, INK, 800, "end")
         body += f'<rect x="{L}" y="{yy + 6}" width="{W - L - R - 80}" height="22" rx="11" fill="{LINE}" fill-opacity="0.45"/>'
+        if ready:
+            body += f'<rect x="{L}" y="{yy}" width="{span * ready / vmax:.1f}" height="5" fill="{KHAKI}"/>'
+        w = span * (lead or 0) / vmax
         if w > 0:
             body += f'<rect x="{L}" y="{yy + 6}" width="{w:.1f}" height="22" rx="11" fill="{GOLD if top != "critical" else CRIMSON}"/>'
-        body += text(L + max(w, 0) + 10, yy + 22, f"{lead:.0f} h", 15, INK, 800)
-        body += text(W - R, yy + 22, f"reached {top}", 11.5, LEVEL[top] if top != "watch" else "#8a6a00", 800, "end")
-    body += text(L, H - 18, "From the first Watch to the day of peak river flow. Archived forecasts are later reanalyses, so read these as an upper bound.", 11.5, INK3, 600)
+        label = "never" if lead is None else f"{'≥ ' if v.get('watch_from_first_hour') else ''}{lead:.0f} h"
+        if ready is not None:
+            label += f" · get ready {'≥ ' if v.get('get_ready_from_first_hour') else ''}{ready:.0f} h"
+        body += text(L + max(w, 0) + 10, yy + 22, label, 14, INK, 800)
+        body += text(W - R, yy + 22, f"reached {top}" if top else "no alert", 11.5,
+                     (LEVEL[top] if top != "watch" else "#8a6a00") if top else INK3, 800, "end")
+    body += text(L, H - 18, "To the river's peak day in the window. ≥ = on from the first archived hour. Archived forecasts are reanalyses: an upper bound.", 11.5, INK3, 600)
     return svg(W, H, body, "Back-test lead time per village, July 2023")
 
 

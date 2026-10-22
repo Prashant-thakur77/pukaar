@@ -1385,6 +1385,8 @@ button.map-key-item:hover { background: var(--surface-2); }
 .story-clip-rect { transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
 .rain-dot { fill: var(--marigold); stroke: #06111f; stroke-width: 2; transition: cx 0.6s cubic-bezier(0.16, 1, 0.3, 1), cy 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
 .rb { fill: var(--lv-normal); }
+.rb-ready { fill: #8a6a1c; }
+.sr-ready { font-family: var(--font-body); font-weight: 800; font-size: var(--fs-xs); color: #6b4f0f; }
 .rb.lv-watch { fill: var(--lv-watch); }
 .rb.lv-warning { fill: var(--lv-warning); }
 .rb.lv-critical { fill: var(--lv-critical); }

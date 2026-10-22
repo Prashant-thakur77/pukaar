@@ -211,15 +211,9 @@ export function scenes(f, live) {
       screen: "The live landing page: the 3D Beas valley (heightmap from AWS Open Data Terrain Tiles) with the water rising as the page scrolls, then 'the night the river rose': Gohar, July 2023, replayed through the real rules, the chart drawing itself step by step.",
       lines: [
         L("Here's Gohar, in Mandi, | July 2023, | replayed through Pukaar's real rules."),
-        L(
-          `The river forecast passes its own 90th percentile: | Watch.`,
-          `The river forecast passes its own ninetieth percentile: | Watch.`,
-        ),
-        L(
-          `Rain passes ${imd.watch} millimetres | with the river high: | Warning.`,
-          `Rain passes ${sayDec(imd.watch)} millimetres | with the river high: | Warning.`,
-        ),
-        L(`Then ${imd.warning}: | Critical.`, `Then ${sayDec(imd.warning)}: | Critical.`),
+        L("Days out, the river forecast runs high: | get ready. | An outlook, | not an alert."),
+        L(`Rain passes ${imd.watch} millimetres: | Watch.`, `Rain passes ${sayDec(imd.watch)} millimetres: | Watch.`),
+        L(`Then ${imd.warning}: | Warning.`, `Then ${sayDec(imd.warning)}: | Warning.`),
         L(`${f.leadHours} hours | before the river's peak day.`, `${sayInt(f.leadHours)} hours | before the river's peak day.`, { pre: 0.45 }),
       ],
       keepSticky: true,
@@ -271,7 +265,7 @@ export function scenes(f, live) {
       id: "approve",
       chapter: "The officer approves",
       tag: "Officer console",
-      screen: "The officer console signed in as a demo officer (Cognito): the pending Gohar critical alert with its Hindi draft and its recipients, then Approve and the confirmation.",
+      screen: "The officer console signed in as a demo officer (Cognito): the pending Gohar alert with its Hindi draft and its recipients, then Approve and the confirmation.",
       lines: [
         L("The officer on duty sees the Hindi draft. | Step Functions has paused, | waiting for one tap."),
         L("The model only fills a fixed template, | and a checker rejects any number | not in the decision trace."),

@@ -22,6 +22,8 @@ import { useT, type Key } from '../i18n';
 import { levelRank } from '../lib/levels';
 import { readSession, writeSession } from '../lib/session';
 import { useTour } from '../lib/tour';
+// The alert lead from the story data (scripts/story.py), never typed by hand.
+import { lead_hours_watch_to_peak_day as GOHAR_ALERT_LEAD_H } from '../data/story-gohar-2023.json';
 
 // The 3D valley is optional: if its chunk cannot load (e.g. an old build in the cache), the flat valley stays.
 const HeroScene = lazy<ComponentType<{ onReady: () => void }>>(() =>
@@ -229,15 +231,18 @@ export default function Landing() {
           </div>
           <div className="hero-float" aria-hidden="true">
             <div className="hf-card hf-gold">
-              <span className="hf-num">72<small>h</small></span>
-              <span className="hf-cap">{lang === 'hi' ? 'नदी के सबसे ऊँचे दिन से पहले · गोहर 2023' : "ahead of the river's peak day · Gohar 2023"}</span>
+              <span className="hf-num">
+                {GOHAR_ALERT_LEAD_H}
+                <small>h</small>
+              </span>
+              <span className="hf-cap">{lang === 'hi' ? 'नदी के सबसे ऊँचे दिन से पहले चेतावनी · गोहर 2023' : "of alert before the river's highest day · Gohar 2023"}</span>
             </div>
             <div className="hf-card hf-ticket">
               <span className="hf-eyebrow">
                 <i className="live-dot" /> {lang === 'hi' ? 'टेलीग्राम पर आवाज़ के साथ' : 'On Telegram, with voice'}
               </span>
               <span className="hf-hi" lang="hi">
-                पुकार: गोहर के लिए गंभीर ख़तरा। तुरंत नदी-नालों और ढलानों से दूर ऊँची, सुरक्षित जगह पर जाएँ।
+                पुकार: गोहर के लिए चेतावनी। नदी-नालों और ढलानों से दूर रहें। ज़रूरी सामान तैयार रखें।
               </span>
               <span className="hf-row">
                 <span className="hf-play">▶ 0:13</span>

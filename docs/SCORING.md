@@ -9,7 +9,9 @@ The river trigger was rebuilt on 22 October 2026 (rules `risk-rules-v2`): a rive
 for each village, return-period thresholds, the GloFAS ensemble probability, and official data
 as corroboration. [The river trigger](#the-river-trigger) explains each part, and
 [Results](#results) gives the scores before and after. In short: Watch days a year fell by
-half to three quarters, and the one hit we had lost most of its lead time.
+half to three quarters, and the one hit we had lost most of its lead time as an alert. The early
+heads-up comes back as a [get-ready outlook](#5-the-get-ready-outlook-never-an-alert), which is
+shown but never alerts.
 
 ![Hits, misses and false alarms per configuration](charts/scores.svg)
 
@@ -121,6 +123,9 @@ cached for the UTC day (`services/fetch_cache.py`: in memory, and on AWS one Dyn
 a cold start does not fetch again). Rain and the deterministic discharge are still fetched
 every 15 minutes.
 
+The request asks for 8 days; days 1-7 are kept, days 1-3 set the level and days 1-7 give the
+[get-ready outlook](#5-the-get-ready-outlook-never-an-alert) its median.
+
 For lead days 1-3 and each threshold, P is the share of members at or above it
 (`risk_rules.exceedance_probabilities`). A level is raised when P ≥ 0.3 on any lead day, the
 ECMWF reporting-point convention. `PUKAAR_RIVER_ENSEMBLE_P_MIN` changes the cut-off. The river
@@ -167,6 +172,29 @@ off), and they never count as a second source for "two sources agree". Every cal
 The CWC and IMD parsers are tested on saved responses (`backend/tests/data/`, see
 `official_samples.NOTICE.txt`).
 
+### 5. The get-ready outlook, never an alert
+
+The 2-year Watch line costs the early heads-up the old percentile line gave. It comes back as an
+outlook (`services/readiness.py`), the soft stage of anticipatory action: **"Get ready: the river is
+forecast to run high"** when the river flow for any day 1 to 7 days ahead reaches the village's
+early line.
+
+- **The early line** is `early_cms` in `data/thresholds.json`: the 90th percentile of daily
+  discharge at the village's river cell, the same statistic the old Watch line used, now at the
+  cell the sweep reads. Thunag 1.14, Janjehli 1.03, Gohar 0.94, Pandoh 300.58 and Sujanpur
+  479.84 m³/s. For Pandoh this is not the old line (282.14 m³/s): that one was fitted at the old
+  cell, which carries about 10 m³/s less than the new one, so it would sit too low against the
+  flow the sweep now reads. For Sujanpur the old line (1.7 m³/s) belonged to a hillside cell.
+- **The flow** for each day is the ensemble median when the day's ensemble is available, else the
+  single deterministic forecast. The outlook says which (`basis`), and the page says "single
+  forecast" when it is one.
+- **It never alerts.** It never sets a level, never creates an alert and never sends. Officers and
+  pradhans see it on the village page and the console with the early-action checklist, the public
+  village page shows it, and the decision trace keeps it as an `outlook` evidence item. By
+  definition the river runs over its line one day in ten, about 36 days a year, and with a 7-day
+  look-ahead the outlook is on for longer than that: weeks in most monsoons. That is why it is an
+  outlook and nothing more.
+
 ## Ground truth
 
 Only what public reporting says, checked on 2026-10-11. Where we found no village-specific
@@ -201,8 +229,38 @@ rain and the same ground truth.
 
 False alarms are n/a in both: no village is verified as quiet.
 
+**Get-ready outlook against the alert** (`data/backtest.json`, `python -m Pukaar.scripts.backtest`).
+Lead hours run to the river's highest day in the replay window, or for Pandoh 2023 to the event
+day (also 9 July). ≥ means the outlook or Watch was already on at the first archived hour, so the
+lead is a lower bound. Times are UTC.
+
+| Scenario | Village | Get-ready outlook: first, lead | What lit it | Alert (first Watch): first, lead |
+| --- | --- | --- | --- | --- |
+| Himachal 2023 | Thunag | 7 Jul 00:00, ≥ 96 h | 13 Jul forecast 1.19 over 1.14 | 8 Jul 04:00 (rain), 68 h |
+| | Janjehli | 7 Jul 00:00, ≥ 96 h | 14 Jul forecast 1.03, at the line | never |
+| | Gohar | 7 Jul 00:00, ≥ 96 h | 11 Jul forecast 0.97 over 0.94 | 8 Jul 05:00 (rain), 67 h |
+| | **Pandoh (event 9 Jul)** | **7 Jul 00:00, ≥ 48 h** | 14 Jul forecast 301.0 over 300.58 | **8 Jul 05:00 (rain), 19 h** |
+| | Sujanpur | 7 Jul 00:00, ≥ 48 h | 9 Jul forecast 795 over 480 | 7 Jul 00:00 (river), ≥ 48 h |
+| Mandi 2025 | Thunag, Janjehli, Gohar (events 30 Jun) | never | | never |
+| | Pandoh | never | | never |
+| | Sujanpur | never | | 30 Jun 06:00 (rain), 42 h |
+
+**Pandoh, July 2023, read plainly.** The get-ready outlook was on from the first archived hour,
+at least 48 hours before the flood, and the alert came 19 hours before it, from rain. The outlook
+comes back, but thinly. On 7 July it was lit by the forecast for 14 July (day 7), which edges
+over the early line by 0.4 m³/s. The 9 July peak itself (298.23 m³/s) stays 0.8% under it. The
+old Watch caught 9 July at the old cell by a similar hair (286.08 against 282.14, 1.4% over). In
+GloFAS the 2023 Beas at Pandoh ran right at its 90th-percentile day for a week. Whichever of
+those days crosses the line is luck, so the honest claim is "the river was forecast to run high
+that week", not "the model saw the flood".
+
+The outlook was on for all 97 hours at every village in July 2023, and off at every village in
+the 2025 cloudburst, including the three that were hit. It tells a district that the season is
+running high. It does not tell which night.
+
 **Read plainly, the scored result got worse.** Pandoh, our one hit, is still a hit, but now
-only through the rain forecast, 19 hours ahead instead of 48 or more. In the GloFAS reanalysis
+only through the rain forecast: the alert comes 19 hours ahead instead of 48 or more. The early
+heads-up survives only as the get-ready outlook above, which is not an alert. In the GloFAS reanalysis
 the July 2023 Beas flood peaks at 298 m³/s at Pandoh's river cell. That is about a 1.2-year flow,
 something this cell reaches almost every year, and below the 2-year Watch threshold of 366
 m³/s. The old 90th percentile (282 m³/s) caught it because it was crossed most monsoons. That
@@ -337,7 +395,8 @@ hour, which is closer to an analysis than to what a live forecast would have sho
   assembled later; a live system would have seen noisier inputs, so the hit and lead
   numbers are optimistic.
 - **No archived ensemble.** The replay cannot score the P ≥ 0.3 rule itself; it scores the
-  thresholds with a perfect forecast.
+  thresholds with a perfect forecast. The get-ready outlook in the replay reads the single
+  forecast for the same reason; live it reads the ensemble median.
 - **28 years of annual maxima.** A 20-year discharge fitted on 28 years carries wide
   uncertainty; Critical in particular should be read as "rare at this cell", not as an exact
   return period.

@@ -1,5 +1,7 @@
 # Demo video script (2:44)
 
+> Note: this video predates the river-trigger change of 22 October 2026. Gohar now reaches Warning, not Critical, from rain, after a get-ready outlook; see [docs/SCORING.md](../SCORING.md).
+
 The narration of [docs/media/pukaar-demo.mp4](../media/pukaar-demo.mp4) (164.4 s, 1920×1080), rendered by `node video/record.mjs demo` from [video/demo.mjs](../../video/demo.mjs); this file is written by the same run, so the times and words below are the video's own. Timed captions: [pukaar-demo.srt](../media/pukaar-demo.srt).
 
 Every number is read at render time: the Mandi 2025 figures and the 3G load time from README.md, the Gohar story from frontend/src/data/story-gohar-2023.json (built by the real rules), the alarm and execution counts from the AWS account, and the proof scene's output straight from the AWS CLI. The live scenes are the deployed site during a labelled replay on AWS; replay alerts go to test phones only. The voice is Chatterbox TTS (open source) with its own built-in synthetic voice; the Hindi alert is the real Amazon Polly (Kajal, hi-IN) MP3. 449 words in 164 s (164 words a minute).

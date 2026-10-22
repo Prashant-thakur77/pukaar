@@ -21,7 +21,8 @@ return-period thresholds:
 
 Watch = 2-year, Warning = 5-year, Critical = 20-year. The earlier percentile thresholds (90th,
 97th and 99.5th of all daily flows at the village-point cell) are kept in `percentile` for
-comparison. Writes data/thresholds.json.
+comparison. The 90th percentile at the chosen cell is also written as `early_cms`: the get-ready
+line the readiness outlook reads (services/readiness.py), never a level. Writes data/thresholds.json.
 
 Days at Watch (`--watch-days`): for 2019-2024, the days each year on which the sweep would have
 held Watch or above with a perfect river forecast (the peak of today and the next
@@ -59,6 +60,8 @@ from Pukaar.services import soil
 from Pukaar.services.external_data import DISCHARGE_LOOKAHEAD_DAYS, FLOOD_URL
 
 PERCENTILES = {"watch": 0.90, "warning": 0.97, "critical": 0.995}
+EARLY_LINE = ("Get-ready line: the 90th percentile of daily discharge at the river cell (the statistic the earlier Watch line used). "
+              "Only the readiness outlook reads it; it never sets a level, never creates an alert and never sends.")
 RETURN_PERIODS = {"watch": 2, "warning": 5, "critical": 20}
 HISTORY = ("1984-01-01", "2024-12-31")
 RANK_WINDOW = ("2015-01-01", "2024-12-31")
@@ -273,19 +276,21 @@ def calibrate_rivers(client: httpx.Client, villages: list[dict], cells: dict, pa
         pairs, cell = fetch_series(client, chosen["lat"], chosen["lon"], *HISTORY)
         maxima = annual_maxima(pairs)
         rp = return_period_thresholds([q for _, q in maxima])
+        at_cell = thresholds_for([q for _, q in pairs])
         old = current.get(v["id"], {})
         percentile_old = old.get("percentile") or {
             **{k: old[k] for k in ("watch", "warning", "critical") if k in old},
             "river_cell": old.get("river_cell"), "source": old.get("source")}
         current[v["id"]] = {
             "watch": rp["watch"], "warning": rp["warning"], "critical": rp["critical"],
+            "early_cms": at_cell["watch"], "early_line": EARLY_LINE,
             "method": "return_period",
             "return_period_years": rp["return_period_years"],
             "gumbel": rp["gumbel"],
             "annual_maxima": {str(y): round(q, 2) for y, q in maxima},
             "mean_daily_discharge": round(sum(q for _, q in pairs) / len(pairs), 3),
             "percentile": percentile_old,
-            "percentile_at_river_cell": thresholds_for([q for _, q in pairs]),
+            "percentile_at_river_cell": at_cell,
             "river_cell": cell,
             "river": chosen.get("river"),
             "cell_verified": bool(chosen.get("cell_verified", False)),

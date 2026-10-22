@@ -26,6 +26,7 @@ import {
 import { api } from '../api';
 import { CountUp } from '../components/CountUp';
 import { Gauge } from '../components/Gauge';
+import { GaugeLedger } from '../components/GaugeHealth';
 import { LevelBadge } from '../components/Level';
 import { PageBand, StatStrip } from '../components/PageBand';
 import { Reveal } from '../components/Reveal';
@@ -221,6 +222,17 @@ function GaugeTile({ v, i }: { v: SensorVillage; i: number }) {
           <dd>{fmtNumber(v.readings_24h, lang)}</dd>
         </div>
       </dl>
+
+      <GaugeLedger
+        health={v.health}
+        quality={latest?.quality}
+        qualityReasons={latest?.quality_reasons}
+        counted={v.fresh ? v.gauge_level : null}
+        measured={v.fresh ? v.measured_level : null}
+        rising={v.rising_fast}
+        riseCm={latest?.rise_cm}
+        withVitals={false}
+      />
 
       {v.series.length > 1 && (
         <div className="trend-card c-gauge sn-spark">

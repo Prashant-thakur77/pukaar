@@ -38,8 +38,8 @@ const LOOP: Step[] = [
   {
     title: { en: 'Code sets the level, per village', hi: 'स्तर कोड तय करता है, हर गाँव का अलग' },
     what: {
-      en: "Each village's river return periods (2, 5 and 20 years, with the forecast ensemble's odds) plus IMD rain bands decide watch, warning or critical.",
-      hi: 'हर गाँव की नदी के 2, 5 और 20 साल वाले बहाव (पूर्वानुमान की संभावना के साथ) और IMD बारिश की सीमाएँ स्तर तय करती हैं।',
+      en: "Each village's river return periods (2, 5 and 20 years, with the forecast ensemble's odds) plus IMD rain bands decide watch, warning or critical. Up to a week out, a get-ready outlook helps the village prepare; it never alerts.",
+      hi: 'हर गाँव की नदी के 2, 5 और 20 साल वाले बहाव (पूर्वानुमान की संभावना के साथ) और IMD बारिश की सीमाएँ स्तर तय करती हैं। एक हफ़्ते पहले तक "तैयार रहें" का आउटलुक गाँव को तैयारी में मदद करता है; यह कभी चेतावनी नहीं बनता।',
     },
     aws: 'Lambda · DynamoDB',
     why: {

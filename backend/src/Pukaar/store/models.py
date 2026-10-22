@@ -57,6 +57,10 @@ class Thresholds(BaseModel):
     Gumbel fit to annual maxima. cell_lat/cell_lon: the GloFAS cell the live sweep asks for (the
     village's own coordinates when unset); cell_verified is False until the cell is checked to be
     on the stream that floods the village (data/river_cells.json).
+
+    early: the "get ready" line (`early_cms` in data/thresholds.json), the 90th percentile of daily
+    discharge at the same cell, i.e. the old Watch line. Only the readiness outlook reads it
+    (services/readiness.py); it never sets a level, never creates an alert and never sends.
     """
 
     watch: float
@@ -69,6 +73,7 @@ class Thresholds(BaseModel):
     cell_lon: float | None = None
     river: str | None = None
     cell_verified: bool = False
+    early: float | None = None
 
     @classmethod
     def from_file(cls, entry: dict[str, Any]) -> "Thresholds":
@@ -78,7 +83,7 @@ class Thresholds(BaseModel):
                    source=entry.get("source", ""), method=entry.get("method", "percentile"),
                    return_period_years=entry.get("return_period_years"),
                    cell_lat=cell.get("lat"), cell_lon=cell.get("lon"), river=entry.get("river"),
-                   cell_verified=bool(entry.get("cell_verified", False)))
+                   cell_verified=bool(entry.get("cell_verified", False)), early=entry.get("early_cms"))
 
 
 class SoilRange(BaseModel):

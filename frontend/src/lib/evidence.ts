@@ -1,13 +1,14 @@
 import { levelWord } from '../i18n';
 import type { Lang } from '../store';
 import { enumLabels } from '../i18n';
-import type { DecisionTrace, Level, TraceEvidence } from '../types';
+import type { DecisionTrace, EnsembleDay, Level, OfficialItem, Readiness, Thresholds, TraceEvidence } from '../types';
 import { isLevel, levelRank } from './levels';
+import { ensembleLines, ensembleNote, officialRows, outlookLine } from './riverEvidence';
 
 export interface EvidenceLine {
   text: string;
   /** Which signal this line is about (for an icon). */
-  kind: 'river' | 'rain' | 'gauge' | 'reports' | 'agree' | 'impact' | 'disagree' | 'hold' | 'none';
+  kind: 'river' | 'rain' | 'gauge' | 'reports' | 'agree' | 'impact' | 'disagree' | 'hold' | 'none' | 'outlook' | 'official';
   level?: Level;
 }
 
@@ -25,18 +26,30 @@ function riverLine(r: TraceEvidence, lang: Lang): EvidenceLine | null {
   if (!th) return { kind: 'river', level: lv, text: hi ? `नदी का अधिकतम बहाव ${n(peak, lang)} m³/s (सीमा तय नहीं)` : `River peak ${n(peak, lang)} m³/s (no thresholds set)` };
   if (lv !== 'normal') {
     const limit = th[lv];
+    const years = th.return_period_years?.[lv];
     return {
       kind: 'river',
       level: lv,
-      text: hi
-        ? `नदी का अधिकतम बहाव ${n(peak, lang)} m³/s ≥ ${levelWord(lv, lang)} सीमा ${n(limit, lang)} m³/s`
-        : `River peak ${n(peak, lang)} m³/s ≥ ${levelWord(lv, lang).toLowerCase()} threshold ${n(limit, lang)} m³/s`,
+      text: years
+        ? hi
+          ? `नदी का अधिकतम बहाव ${n(peak, lang)} m³/s ≥ ${n(years, lang)} साल वाला बाढ़-स्तर ${n(limit, lang)} m³/s (${levelWord(lv, lang)})`
+          : `River peak ${n(peak, lang)} m³/s ≥ its ${years}-year flood level ${n(limit, lang)} m³/s (${levelWord(lv, lang)})`
+        : hi
+          ? `नदी का अधिकतम बहाव ${n(peak, lang)} m³/s ≥ ${levelWord(lv, lang)} सीमा ${n(limit, lang)} m³/s`
+          : `River peak ${n(peak, lang)} m³/s ≥ ${levelWord(lv, lang).toLowerCase()} threshold ${n(limit, lang)} m³/s`,
     };
   }
+  const y = th.return_period_years?.watch;
   return {
     kind: 'river',
     level: 'normal',
-    text: hi ? `नदी का अधिकतम बहाव ${n(peak, lang)} m³/s, सतर्क सीमा ${n(th.watch, lang)} से कम` : `River peak ${n(peak, lang)} m³/s, below the watch threshold ${n(th.watch, lang)} m³/s`,
+    text: y
+      ? hi
+        ? `नदी का अधिकतम बहाव ${n(peak, lang)} m³/s, ${n(y, lang)} साल वाले बाढ़-स्तर ${n(th.watch, lang)} से कम`
+        : `River peak ${n(peak, lang)} m³/s, below its ${y}-year flood level ${n(th.watch, lang)} m³/s`
+      : hi
+        ? `नदी का अधिकतम बहाव ${n(peak, lang)} m³/s, सतर्क सीमा ${n(th.watch, lang)} से कम`
+        : `River peak ${n(peak, lang)} m³/s, below the watch threshold ${n(th.watch, lang)} m³/s`,
   };
 }
 
@@ -89,6 +102,41 @@ export function evidenceLines(trace: DecisionTrace | null | undefined, lang: Lan
   } else if (rules.includes('no_reading')) {
     out.push({ kind: 'none', text: hi ? 'कोई माप नहीं मिला' : 'No river or rain reading available' });
   }
+
+  // The ensemble's odds: how many forecast runs reach each return-period line.
+  const river = ev.find((e) => e.kind === 'river');
+  if (river) {
+    const th = (reading?.thresholds ?? null) as Thresholds | null;
+    const ens = {
+      mode: river.mode as string | undefined,
+      ensemble_status: river.ensemble_status as string | null | undefined,
+      members: river.members as number | null | undefined,
+      p_min: river.p_min as number | undefined,
+      lead_days: river.lead_days as EnsembleDay[] | undefined,
+      replay: Boolean(trace.replay ?? reading?.replay),
+    };
+    const lines = ensembleLines(ens, th, lang);
+    for (const l of lines.slice(-2).reverse()) out.push({ kind: 'river', level: l.raises ? l.level : undefined, text: l.text });
+    const note = ensembleNote(ens, th, lang);
+    if (note) out.push({ kind: 'river', text: note });
+  }
+
+  // The get-ready outlook: evidence only, never a level.
+  const outlook = ev.find((e) => e.kind === 'outlook') as Partial<Readiness> | undefined;
+  const ol = outlookLine(outlook ?? (trace.readiness as Partial<Readiness> | undefined), lang);
+  if (ol) out.push({ kind: 'outlook', text: ol });
+
+  // Official sources, as corroboration; "unavailable" says nothing.
+  const official = ev.find((e) => e.kind === 'official');
+  const rows = officialRows((official?.items ?? []) as OfficialItem[], lang);
+  for (const row of rows.filter((r) => r.status === 'ok')) {
+    out.push({ kind: 'official', level: row.level, text: `${row.label}: ${row.text}` });
+  }
+  // Sources that said nothing go on one line each: unavailable, then switched off.
+  const down = rows.filter((r) => r.status === 'unavailable').map((r) => r.label);
+  if (down.length) out.push({ kind: 'official', text: hi ? `उपलब्ध नहीं (कुछ नहीं कहते): ${down.join(', ')}` : `Unavailable, so saying nothing: ${down.join(', ')}` });
+  const off = rows.filter((r) => r.status === 'off').map((r) => r.label);
+  if (off.length) out.push({ kind: 'official', text: hi ? `बंद: ${off.join(', ')}` : `Switched off: ${off.join(', ')}` });
 
   const gauge = ev.find((e) => e.kind === 'gauge');
   if (gauge && typeof gauge.water_level_cm === 'number') {

@@ -3,8 +3,9 @@
 Live:   forecast API hourly precipitation (next 24 h) and root-zone soil
         moisture (the same request), every sweep; flood API daily river discharge
         for the village's river cell (past 2 days, today and the next 7 days), every
-        sweep; the flood API's 51-member ensemble for lead days 1-3, once a day per
-        cell (cached); and official data as evidence (services/official_data.py).
+        sweep; the flood API's 51-member ensemble for lead days 1-7, once a day per
+        cell (cached: days 1-3 for the level, 1-7 for the get-ready outlook's median);
+        and official data as evidence (services/official_data.py).
 Replay: files written by scripts/fetch_replay.py. Rain is the archived
         forecast (historical-forecast API); discharge is the flood API's
         archived daily series, which stands in for a perfect discharge
@@ -32,7 +33,7 @@ from Pukaar.store.models import Reading, Village
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 FLOOD_URL = "https://flood-api.open-meteo.com/v1/flood"
 DISCHARGE_LOOKAHEAD_DAYS = 3
-OUTLOOK_DAYS = 7  # the "get ready" outlook reads days 2..7 (services/readiness.py)
+OUTLOOK_DAYS = 7  # the "get ready" outlook reads days 1..7 (services/readiness.py)
 _LOG = get_logger("external_data")
 
 
@@ -87,10 +88,13 @@ def river_point(village: Village) -> tuple[float, float]:
 # fetch is retried after ENSEMBLE_RETRY_MINUTES, never on every sweep.
 ENSEMBLE_RETRY_MINUTES = 60
 ENSEMBLE_CACHE_HOURS = 26
+# Lead days kept from the ensemble: 1-3 set a level (risk_rules.ENSEMBLE_LEAD_DAYS); 1-7 give the
+# get-ready outlook its median (services/readiness.py). Same single request, 8 days instead of 4.
+ENSEMBLE_KEEP_DAYS = tuple(range(1, OUTLOOK_DAYS + 1))
 
 
 def parse_ensemble(body: dict[str, Any], today: str) -> dict[str, Any]:
-    """Sorted member discharges per lead day (1..3) from an ensemble=true flood API response."""
+    """Sorted member discharges per lead day (1..7) from an ensemble=true flood API response."""
     daily = body.get("daily") or {}
     keys = [k for k in daily if k.startswith("river_discharge_member")]
     if not keys:
@@ -102,13 +106,13 @@ def parse_ensemble(body: dict[str, Any], today: str) -> dict[str, Any]:
         raise ValueError(f"the ensemble does not start by {today}")
     t0 = times.index(today)
     days = []
-    for lead in risk_rules.ENSEMBLE_LEAD_DAYS:
+    for lead in ENSEMBLE_KEEP_DAYS:
         i = t0 + lead
         if i >= len(times):
             break
         values = sorted(round(float(daily[k][i]), 3) for k in keys if i < len(daily[k]) and daily[k][i] is not None)
         days.append({"date": times[i], "lead": lead, "values": values})
-    if not any(d["values"] for d in days):
+    if not any(d["values"] for d in days if d["lead"] in risk_rules.ENSEMBLE_LEAD_DAYS):
         raise ValueError("no member values for lead days 1-3")
     return {"status": "ok", "members": len(keys), "run_date": times[0], "days": days}
 
@@ -119,7 +123,7 @@ def fetch_ensemble(client: httpx.Client, lat: float, lon: float, at: datetime) -
     def _fetch() -> dict[str, Any]:
         try:
             r = client.get(FLOOD_URL, params={"latitude": lat, "longitude": lon, "daily": "river_discharge",
-                                              "ensemble": "true", "forecast_days": max(risk_rules.ENSEMBLE_LEAD_DAYS) + 1})
+                                              "ensemble": "true", "forecast_days": max(ENSEMBLE_KEEP_DAYS) + 1})
             r.raise_for_status()
             out = parse_ensemble(r.json(), today)
         except Exception as exc:

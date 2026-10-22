@@ -10,6 +10,8 @@ import { canManageStaffGauge, staffEvidenceLine } from '../lib/staffGauge';
 import { LevelBadge } from '../components/Level';
 import { ListenButton } from '../components/ListenButton';
 import { ReadinessCard, SoilCard } from '../components/Readiness';
+import { RiverOdds } from '../components/RiverEvidence';
+import { GaugeLedger } from '../components/GaugeHealth';
 import { Reveal } from '../components/Reveal';
 import { Sparkline } from '../components/Sparkline';
 import { TimeToEar } from '../components/TimeToEar';
@@ -28,7 +30,7 @@ import { auditLinkForAlert } from '../lib/audit';
 import { holdLine } from '../lib/evidence';
 import { humanizeSummary } from '../lib/humanize';
 import { useAuth } from '../store';
-import type { Alert, DecisionTrace, GaugeView, Level, PublicRollCall, SoilView, TraceEvidence, Village } from '../types';
+import type { Alert, DecisionTrace, GaugeView, Level, PublicRollCall, RiverView, SoilView, TraceEvidence, Village } from '../types';
 import { Kicker, ValleyLine } from '../components/Art';
 
 function AlertDetails({ alert }: { alert: Alert }) {
@@ -217,6 +219,17 @@ function GaugeCard({ gauge, villageId, onChanged }: { gauge: GaugeView | null | 
           </div>
         </div>
       )}
+      {gauge && (latest || gauge.health) && (
+        <GaugeLedger
+          health={gauge.health}
+          quality={latest?.quality}
+          qualityReasons={latest?.quality_reasons}
+          counted={gauge.fresh ? gauge.level : null}
+          measured={gauge.fresh ? gauge.measured_level : null}
+          rising={gauge.rising_fast}
+          riseCm={latest?.rise_cm}
+        />
+      )}
       {latest?.simulated && <p className="small muted">{t('gauge.sim.note')}</p>}
       {cfg && !cfg.installed && !empty && <p className="small muted">{t('gauge.illustrative')}</p>}
       {cfg?.thresholds_set_by && (
@@ -227,7 +240,7 @@ function GaugeCard({ gauge, villageId, onChanged }: { gauge: GaugeView | null | 
   );
 }
 
-function Evidence({ village, trace, traceReplay, gauge, soil, onChanged }: { village: Village; trace: DecisionTrace | null; traceReplay: boolean; gauge?: GaugeView | null; soil?: SoilView | null; onChanged: () => void }) {
+function Evidence({ village, trace, traceReplay, gauge, soil, river, onChanged }: { village: Village; trace: DecisionTrace | null; traceReplay: boolean; gauge?: GaugeView | null; soil?: SoilView | null; river?: RiverView | null; onChanged: () => void }) {
   const { t, lang, pick } = useT();
   const traceReading = trace?.evidence?.find((e) => e.kind === 'reading') ?? null;
   const reports = (trace?.evidence ?? []).filter((e): e is TraceEvidence => e.kind === 'report');
@@ -296,6 +309,7 @@ function Evidence({ village, trace, traceReplay, gauge, soil, onChanged }: { vil
         )}
         {sweepLabel && <p className="ev-sweep small">{sweepLabel}</p>}
       </Reveal>
+      {(river || lr?.official?.length) && <RiverOdds river={river} official={lr?.official} />}
       <GaugeCard gauge={gauge} villageId={village.id} onChanged={onChanged} />
       <SoilCard soil={soil} />
       {showRules && trace?.rules_fired && trace.rules_fired.length > 0 && (
@@ -499,7 +513,7 @@ export default function VillagePage() {
             <GaugeIcon aria-hidden="true" /> {t('village.why')}
           </h2>
           <p className="muted">{t('village.why.lead')}</p>
-          <Evidence village={v} trace={trace} traceReplay={Boolean(latestAlert?.replay)} gauge={data.gauge} soil={data.soil} onChanged={refresh} />
+          <Evidence village={v} trace={trace} traceReplay={Boolean(latestAlert?.replay)} gauge={data.gauge} soil={data.soil} river={data.river} onChanged={refresh} />
         </section>
 
         {(data.staff_gauges?.gauges.length || canManageStaffGauge(user, v.id)) && (
@@ -540,7 +554,7 @@ export default function VillagePage() {
                   label={t('village.trend.discharge')}
                   marks={v.thresholds ? (['watch', 'warning', 'critical'] as const).map((l) => ({ value: v.thresholds![l], className: `lv-${l}`, label: l })) : []}
                 />
-                <p className="small muted">{v.thresholds ? 'Lines: Watch / Warning / Critical thresholds' : t('village.no.thresholds')}</p>
+                <p className="small muted">{v.thresholds ? t('village.trend.lines') : t('village.no.thresholds')}</p>
               </div>
             </div>
           </section>

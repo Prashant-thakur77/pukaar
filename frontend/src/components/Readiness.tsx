@@ -4,6 +4,7 @@ import { api, ApiError } from '../api';
 import { useT } from '../i18n';
 import { fmtDate, fmtNumber, fmtTime } from '../lib/format';
 import { canTickChecklist, isGetReady, pct, withItem } from '../lib/readiness';
+import { cms } from '../lib/riverEvidence';
 import { useAuth } from '../store';
 import type { Checklist, Readiness, SoilView } from '../types';
 import { Reveal } from './Reveal';
@@ -28,26 +29,33 @@ export function ProgressRing({ done, total, label }: { done: number; total: numb
 function ReadinessBanner({ readiness }: { readiness: Readiness | null | undefined }) {
   const { t, lang } = useT();
   const ready = isGetReady(readiness);
-  const ratio = readiness?.peak_vs_watch_ratio;
+  // Against the early (get-ready) line when the village has one, else the 2-year Watch line.
+  const line = readiness?.line === 'watch' ? readiness?.watch : (readiness?.early ?? readiness?.watch);
+  const ratio = readiness?.line === 'early' ? readiness?.peak_vs_early_ratio : readiness?.peak_vs_watch_ratio;
+  const basis = readiness?.basis;
   return (
     <div className={`ready-banner${ready ? ' is-ready' : ''}`} role={ready ? 'status' : undefined}>
       <CalendarClock aria-hidden="true" />
       <div>
         <p className="ready-state">
           <strong>{ready ? t('ready.get') : readiness?.available === false || !readiness ? t('ready.unavailable') : t('ready.none')}</strong>
-          {readiness?.replay && <span className="chip chip-muted">{t('ready.replay')}</span>}
+          {readiness?.replay && <span className="replay-tag">{t('ready.replay')}</span>}
         </p>
+        {ready && <p className="ready-high">{t('ready.get.high')}</p>}
         {ready && readiness ? (
           <p>
-            {t('ready.get.lead', {
+            {t(readiness.horizon_days === 1 ? 'ready.get.lead.one' : 'ready.get.lead', {
               d: fmtNumber(readiness.horizon_days ?? 0, lang),
+              line: line != null ? cms(line, lang) : '—',
               day: fmtDate(readiness.peak_day, lang),
-              r: fmtNumber(ratio ?? 0, lang, 2),
+              peak: readiness.peak_discharge != null ? cms(readiness.peak_discharge, lang) : '—',
             })}
+            {readiness.reaches_watch && readiness.watch != null && readiness.line === 'early' && <> {t('ready.get.watch', { w: cms(readiness.watch, lang) })}</>}
           </p>
         ) : (
           ratio != null && <p className="small muted">{t('ready.none.lead', { r: fmtNumber(ratio, lang, 2) })}</p>
         )}
+        {basis && <p className="small">{t(`ready.basis.${basis}` as 'ready.basis.mixed')}</p>}
         <p className="small muted">{t('ready.soft')}</p>
         {readiness?.source && <p className="small muted">{readiness.source}</p>}
       </div>

@@ -124,19 +124,46 @@ def _days(values, start="2026-07-01"):
     return [{"date": (d0 + timedelta(days=i)).isoformat(), "value": q} for i, q in enumerate(values)]
 
 
-def test_readiness_get_ready_when_days_2_to_7_reach_watch():
+TH_EARLY = Thresholds(watch=10.0, warning=20.0, critical=30.0, early=8.0)
+
+
+def test_readiness_get_ready_when_days_1_to_7_reach_watch_without_an_early_line():
     out = readiness.outlook(reading(outlook=_days([5, 6, 7, 12, 15, 9, 8, 7])), TH)
-    assert out["state"] == "get_ready" and out["available"]
+    assert out["state"] == "get_ready" and out["available"] and out["line"] == "watch"
     assert out["horizon_days"] == 3 and out["peak_day"] == "2026-07-05"
-    assert out["peak_vs_watch_ratio"] == 1.5
+    assert out["peak_vs_watch_ratio"] == 1.5 and out["reaches_watch"]
+    assert out["basis"] == "single_forecast" and out["never_sets_level"]
     assert out["source"].startswith("Open-Meteo flood API")
 
 
-def test_readiness_ignores_days_0_and_1_and_beyond_7():
-    # Today and tomorrow belong to the 24-hour levels; day 8 is beyond the outlook.
-    out = readiness.outlook(reading(outlook=_days([50, 40, 5, 5, 5, 5, 5, 5, 99])), TH)
+def test_readiness_reads_the_early_line_from_day_1():
+    # Day 1 at 8.5 is over the early line (8) and under Watch (10): get ready, nothing more.
+    out = readiness.outlook(reading(outlook=_days([5, 8.5, 6, 6, 6, 6, 6, 6])), TH_EARLY)
+    assert out["state"] == "get_ready" and out["line"] == "early" and out["early"] == 8.0
+    assert out["horizon_days"] == 1 and out["first_day_over"] == "2026-07-02" and out["days_over"] == 1
+    assert not out["reaches_watch"] and out["peak_vs_early_ratio"] == 1.06
+
+
+def test_readiness_ignores_day_0_and_beyond_7():
+    # Today belongs to the levels; day 8 is beyond the outlook.
+    out = readiness.outlook(reading(outlook=_days([50, 5, 5, 5, 5, 5, 5, 5, 99])), TH_EARLY)
     assert out["state"] == "none" and out["peak_vs_watch_ratio"] == 0.5
-    assert all(2 <= d["days_ahead"] <= 7 for d in out["days"])
+    assert all(1 <= d["days_ahead"] <= 7 for d in out["days"])
+
+
+def test_readiness_uses_the_ensemble_median_when_there_is_one():
+    r = reading(outlook=_days([5, 9, 9, 5, 5, 5, 5, 5]))
+    # The single forecast says 9 on days 1 and 2 (over 8); the members' median says 6 and 7.
+    r.discharge_ensemble = {"status": "ok", "days": [
+        {"date": "2026-07-02", "lead": 1, "values": [2, 4, 6, 9, 12]},
+        {"date": "2026-07-03", "lead": 2, "values": [5, 6, 7, 8, 30]}]}
+    out = readiness.outlook(r, TH_EARLY)
+    assert out["state"] == "none" and out["basis"] == "mixed"
+    assert [(d["value"], d["basis"]) for d in out["days"][:3]] == [
+        (6.0, "ensemble_median"), (7.0, "ensemble_median"), (5.0, "single_forecast")]
+    r.discharge_ensemble = {"status": "unavailable"}
+    assert readiness.outlook(r, TH_EARLY)["state"] == "get_ready"
+    assert readiness.outlook(r, TH_EARLY)["basis"] == "single_forecast"
 
 
 def test_readiness_none_without_data():
@@ -154,6 +181,26 @@ def test_readiness_never_changes_the_level(repo, frozen, workflow):
                 discharge_outlook=_days([th.watch * 0.5] * 3 + [th.critical * 2] * 5))
     res = recompute_village(repo, v, now=NOW, reading=r, workflow=workflow)
     assert res.level == "normal" and res.alert_id is None and workflow.started == []
+
+
+def test_the_early_line_alone_never_alerts_and_shows_in_the_trace(repo, frozen, workflow):
+    from Pukaar.services.decision_engine import build_trace, recompute_village
+
+    v = repo.get_village("pandoh")
+    th = v.thresholds
+    assert th.early is not None and th.early < th.watch
+    # Every outlook day between the early line and Watch: get ready, and still normal.
+    q = (th.early + th.watch) / 2
+    r = Reading(village_id="pandoh", at="2026-07-01T02:00:00Z", rain_24h_mm=0.0, discharge=q * 0.5,
+                discharge_peak=th.early * 0.9, discharge_outlook=_days([q * 0.5] + [q] * 7))
+    res = recompute_village(repo, v, now=NOW, reading=r, workflow=workflow)
+    assert res.level == "normal" and res.alert_id is None and workflow.started == []
+    a = rr.assess(r, th, [], NOW)
+    assert a.level == "normal" and not any("outlook" in rule or "early" in rule for rule in a.rules_fired)
+    trace = build_trace(v, r, a, "normal", "normal", 0, NOW)
+    item = next(e for e in trace["evidence"] if e["kind"] == "outlook")
+    assert item["state"] == "get_ready" and item["never_sets_level"] and item["line"] == "early"
+    assert trace["readiness"]["state"] == "get_ready" and trace["level"] == "normal"
 
 
 # -- checklist storage ------------------------------------------------------------
@@ -209,7 +256,8 @@ def test_checklist_auth(client):
 def test_views_include_soil_readiness_and_checklist(client):
     detail = client.get("/villages/thunag").json()
     assert detail["checklist"]["total"] == 7
-    assert {"state", "horizon_days", "peak_day", "peak_vs_watch_ratio", "source"} <= set(detail["village"]["readiness"])
+    assert {"state", "horizon_days", "peak_day", "peak_vs_watch_ratio", "source", "early", "basis",
+            "line"} <= set(detail["village"]["readiness"])
     assert detail["village"]["soil"]["dry"] < detail["village"]["soil"]["wet"]
     s = detail["soil"]
     assert {"moisture_root", "saturation", "factor", "enabled", "applied", "state", "dry", "wet"} <= set(s)

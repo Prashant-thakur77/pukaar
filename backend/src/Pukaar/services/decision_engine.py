@@ -65,6 +65,8 @@ def _recent_reports(repo: Repo, village_id: str, now: datetime, include_replay: 
 
 def build_trace(village: Village, reading: Reading | None, assessment: risk_rules.Assessment,
                 previous: str, new_level: str, calm: int, now: datetime) -> dict:
+    # Soft trigger only: shown beside the level and kept as outlook evidence, never used to set it.
+    outlook = readiness.outlook(reading, village.thresholds)
     return {
         "schema": risk_rules.RULES_VERSION,
         "generated_at": clock.iso(now),
@@ -81,14 +83,13 @@ def build_trace(village: Village, reading: Reading | None, assessment: risk_rule
         "contradictions": assessment.contradictions,
         "data_disagrees": bool(assessment.contradictions),
         "hysteresis": {"calm_sweeps": calm, "needed_to_drop": risk_rules.HYSTERESIS_SWEEPS},
-        "evidence": assessment.evidence,
+        "evidence": [*assessment.evidence, readiness.trace_item(outlook)],
         "forecast_snapshot": {
             "rain_24h_mm": reading.rain_24h_mm if reading else None,
             "discharge_forecast": reading.discharge_forecast if reading else [],
         },
         "nowcast": nowcast(reading, village.thresholds, new_level),
-        # Soft trigger only: shown beside the level, never used to set it.
-        "readiness": readiness.outlook(reading, village.thresholds),
+        "readiness": outlook,
         "replay": bool(reading.replay) if reading else False,
     }
 

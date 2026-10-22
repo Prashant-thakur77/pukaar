@@ -396,7 +396,11 @@ function MeasuredBody({ m }: { m: PilotMetrics }) {
                 <span className="meta-line">
                   {s.villages.map((v) => (
                     <span key={v.village_id}>
-                      {v.village} {v.lead_hours == null ? (en ? 'never crossed' : 'सीमा पार नहीं') : hours(v.lead_hours, lang)}
+                      {v.village} {v.lead_hours == null ? (en ? 'no alert' : 'चेतावनी नहीं') : `${v.lead_is_lower_bound ? '≥ ' : ''}${hours(v.lead_hours, lang)}`}
+                      {v.get_ready_lead_hours != null &&
+                        (en
+                          ? ` (get ready ${v.get_ready_is_lower_bound ? '≥ ' : ''}${hours(v.get_ready_lead_hours, lang)})`
+                          : ` (तैयार रहें ${v.get_ready_is_lower_bound ? '≥ ' : ''}${hours(v.get_ready_lead_hours, lang)})`)}
                     </span>
                   ))}
                 </span>
@@ -411,8 +415,8 @@ function MeasuredBody({ m }: { m: PilotMetrics }) {
       )}
       <p className="pl-caveat">
         {en
-          ? 'Back-test lead times are on archived forecasts, from the first Watch to the river’s peak day; they are not a live season. In 2025 the global forecasts missed the Mandi cloudburst. '
-          : 'बैक-टेस्ट पुराने पूर्वानुमानों पर है, पहले “सतर्क” से नदी के सबसे ऊँचे दिन तक; यह असली मानसून नहीं। 2025 में वैश्विक पूर्वानुमान मंडी का बादल-फटना नहीं पकड़ पाए। '}
+          ? 'Back-test lead times are on archived forecasts, from the first Watch (the alert) to the river’s peak day; they are not a live season. In brackets, the get-ready outlook, which the officer and pradhan see but which never alerts; ≥ means it was on from the first archived hour. In 2025 the global forecasts missed the Mandi cloudburst. '
+          : 'बैक-टेस्ट पुराने पूर्वानुमानों पर है, पहले “सतर्क” (चेतावनी) से नदी के सबसे ऊँचे दिन तक; यह असली मानसून नहीं। कोष्ठक में “तैयार रहें” आउटलुक है, जो अधिकारी और प्रधान को दिखता है पर कभी चेतावनी नहीं बनता; ≥ का मतलब पहले रिकॉर्ड घंटे से चालू। 2025 में वैश्विक पूर्वानुमान मंडी का बादल-फटना नहीं पकड़ पाए। '}
         <Link to="/impact">{en ? 'The full back-test' : 'पूरा बैक-टेस्ट'} →</Link>
       </p>
       <p className="pl-asof">

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   Bot,
+  CalendarClock,
   Check,
   ChevronDown,
   CircleCheck,
@@ -11,6 +12,7 @@ import {
   ExternalLink,
   FileText,
   Hourglass,
+  Landmark,
   LoaderCircle,
   Lock,
   RadioTower,
@@ -48,6 +50,8 @@ const EV_ICON: Record<EvidenceLine['kind'], LucideIcon> = {
   disagree: Scale,
   hold: Hourglass,
   none: CircleX,
+  outlook: CalendarClock,
+  official: Landmark,
 };
 
 type DraftKind = 'passed' | 'template' | 'escalated' | 'rejected';

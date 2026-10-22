@@ -7,7 +7,7 @@ from typing import Any
 
 from Pukaar.core import clock
 from Pukaar.core.config import get_settings
-from Pukaar.services import checklist, gauge, readiness, rollcall, soil, staff_gauge, storage
+from Pukaar.services import checklist, gauge, readiness, risk_rules, rollcall, soil, staff_gauge, storage
 from Pukaar.services.nowcast import nowcast
 from Pukaar.store.models import Alert, Report, Village
 from Pukaar.store.repo import Repo
@@ -29,6 +29,23 @@ def village(repo: Repo, v: Village, shown: dict[str, Any] | None = None) -> dict
     # The soft "get ready" outlook: never changes the level (services/readiness.py).
     out["readiness"] = readiness.outlook(latest[0] if latest else None, v.thresholds)
     return out
+
+
+def river_view(v: Village, latest) -> dict[str, Any] | None:
+    """River evidence for the village page: the 2-, 5- and 20-year lines, the early (get-ready) line,
+    and the ensemble's exceedance probability per level and lead day (shares only, never the member
+    values). mode "deterministic" when there was no ensemble to read (unavailable, off, or a replay)."""
+    if v.thresholds is None:
+        return None
+    info = risk_rules.river_assessment(latest, v.thresholds)
+    return {
+        "level": info["level"], "mode": info["mode"], "p_min": info["p_min"],
+        "ensemble_status": info["ensemble_status"], "p_max": info.get("p_max"), "members": info.get("members"),
+        "lead_days": info.get("days", []), "run_date": info.get("run_date"),
+        "today": latest.discharge if latest else None, "peak": latest.discharge_peak if latest else None,
+        "thresholds": v.thresholds.model_dump(),
+        "at": latest.at if latest else None, "replay": bool(latest.replay) if latest else False,
+    }
 
 
 def soil_view(v: Village, latest) -> dict[str, Any]:
@@ -82,6 +99,8 @@ def village_detail(repo: Repo, v: Village) -> dict[str, Any]:
         "nowcast": nowcast(readings[0] if readings else None, v.thresholds, v.level),
         "gauge": gauge.view(repo, v),
         "soil": soil_view(v, readings[0] if readings else None),
+        # ensemble P, the return-period lines and the early line (risk_rules.river_assessment)
+        "river": river_view(v, readings[0] if readings else None),
         "checklist": checklist.view(repo, v.id),
         # an open safety roll-call: counts only, never names (services/rollcall.py)
         "rollcall": rollcall.public_for_village(repo, v.id),

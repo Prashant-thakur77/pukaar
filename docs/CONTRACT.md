@@ -66,13 +66,20 @@ Reading   {village_id, at, rain_24h_mm|null, rain_hourly[{t,mm}], discharge|null
            rain_level, river_level, source: "open-meteo"|"replay", replay,
            missing["rain"|"discharge"] (unknown, never read as 0), carried_from|null,
            discharge_ensemble{status: "ok"|"unavailable"|"off", members, run_date,
-             days[{date,lead,values[]}], fetched_at}|null (GloFAS ensemble at the river cell, once a day),
+             days[{date,lead,values[]}] (lead 1-7: days 1-3 set a level, 1-7 give the outlook its
+             median), fetched_at}|null (GloFAS ensemble at the river cell, once a day),
            official[{source: "cwc"|"imd"|"flood_hub"|"bipad", name, status: "ok"|"unavailable"|"off",
              level|null, detail, ...}] (evidence; never lowers a level)}
-Readiness {state: "none"|"get_ready", available, horizon_days|null, peak_day|null,
-           peak_vs_watch_ratio|null, peak_discharge|null, watch|null, source,
-           window_days[2,7], days[{date,days_ahead,value}], from_reading|null, replay}
-           (soft trigger: never sends an alert, never changes the level)
+Readiness {state: "none"|"get_ready", available, line: "early"|"watch", early|null, watch|null,
+           basis: "ensemble_median"|"single_forecast"|"mixed"|null, horizon_days|null,
+           first_day_over|null, days_over, reaches_watch, peak_day|null, peak_discharge|null,
+           peak_vs_watch_ratio|null, peak_vs_early_ratio|null, source, window_days[1,7],
+           days[{date,days_ahead,value,basis,single_forecast,over}], never_sets_level: true,
+           from_reading|null, replay}
+           (soft trigger, "Get ready: the river is forecast to run high": a day 1-7 flow, the ensemble
+           median when there is one, at or over `early` = the 90th percentile of daily flow at the
+           river cell. Never sends, never creates an alert, never changes the level; the decision
+           trace carries it as evidence {kind: "outlook", ...})
 Soil      {moisture_root|null, saturation|null, dry, wet, range_source, calibrated, factor,
            factor_if_on, enabled, applied, state: "no_reading"|"off"|"applied"|"below_threshold",
            saturated_at, layers[], at|null, replay}
@@ -116,7 +123,10 @@ GET  /dev/approval-link/{id} local mode only, officer: {url, token, officer} (de
 GET  /media/{key}            local mode only: a stored file (AWS mode uses presigned S3 URLs; 404 here)
 GET  /agents                 public: agent registry, model and guardrail status (services/agents.py)
 GET  /agents/traces?limit=5  public: round-by-round traces of recent alert drafts (limit 1-10)
-GET  /sensors                public: gauge board, latest readings, 24 h series and sensor findings
+GET  /sensors                public: gauge board, latest readings (with quality, quality_reasons,
+                             measured_level, confirmed_level, rising_fast, rise_cm), counted gauge_level,
+                             measured_level, rising_fast, health (as on GET /villages/{id}), 24 h series
+                             and sensor findings
 POST /sensors/{id}/readings  public, HMAC-signed body, payload v1 or v2 (docs/hardware/README.md) -> 202
                              {status, kind, gauge_level, quality, confirmed_level, effective_level, rising_fast, ...}
 POST /sensors/{id}/backfill  public, HMAC-signed {device_id, readings[<=60]} buffered readings, each stored once
@@ -146,8 +156,23 @@ POST /auth/dev-login         local only: {username} -> {token, username, role}
 GET  /villages               [Village]
 GET  /villages/{id}          {village, readings[<=96], alerts[], reports[], past_events[PastEvent],
                               directives[<=5 Directive], nowcast|null, gauge|null, soil: Soil,
-                              checklist: Checklist, staff_gauges: {gauges[StaffGauge], readings[<=10]}}
-                             nowcast = {likely_level, hours, text_en, text_hi}
+                              river: River|null, checklist: Checklist,
+                              staff_gauges: {gauges[StaffGauge], readings[<=10]}}
+                             nowcast = {likely_level, hours, source: "rain"|"river",
+                               basis: "ensemble"|"single_forecast", p|null, members|null, agree|null,
+                               text_en, text_hi, from_reading, replay}  (a river line from the
+                               ensemble only when P >= p_min; otherwise labelled "single forecast")
+                             River = {level, mode: "ensemble"|"deterministic"|"none", p_min,
+                               ensemble_status|null, p_max{watch,warning,critical}|null, members|null,
+                               lead_days[{date, lead, members, p{watch,warning,critical}}], run_date|null,
+                               today|null, peak|null, thresholds (watch/warning/critical = 2/5/20-year,
+                               early, return_period_years, river, cell_*), at|null, replay}
+                             gauge = {config, latest: SensorReading|null, fresh, fresh_minutes,
+                               level|null (counted: 2 of the last 3 good readings, +1 rising fast),
+                               measured_level|null (newest reading alone), rising_fast,
+                               health{status, unhealthy, reasons["silent"|"low_battery"|"bad_quality"],
+                               last_seen, minutes_since, battery_v, battery_low, readings_24h, bad_24h,
+                               bad_share_24h, by_quality, backfilled_24h, ...}, series[{at, cm, q?, backfill?}]}
 GET  /villages/{id}/gauge/proposal  officer (any) or pradhan (own village), Cedar view_gauge_proposal:
                              {status: "ready"|"insufficient", basis{readings, days, used, excluded, simulated},
                               current, proposed{watch_cm, warning_cm, critical_cm}, raw, percentiles,
@@ -257,8 +282,12 @@ GET  /public/pilot-metrics   {counters: Counters, drills: Group, live: Group, ba
                    alerts that went out. reached counts real-phone deliveries only (never the stub channel).
                    Null means not measured yet; nothing is estimated.
           backtest = {rules, scenarios[{name, title, title_hi, villages_scored, villages_alerted,
-                     median_lead_hours|null, max_lead_hours|null, villages[{village_id, village, outcome,
-                     lead_hours|null}]}]}  from data/backtest.json
+                     median_lead_hours|null, max_lead_hours|null, villages_get_ready,
+                     median_get_ready_lead_hours|null, villages[{village_id, village, outcome,
+                     lead_hours|null, lead_is_lower_bound, get_ready_lead_hours|null,
+                     get_ready_is_lower_bound}]}]}  from data/backtest.json; lead_hours = the alert
+                     (first Watch) to the river's peak day, get_ready_lead_hours = the get-ready
+                     outlook (never an alert) to the same day
 GET  /track/{code}           {code, village_name, village_name_hi, created_at, report_type, state,
                               steps[{key:"received"|"verified"|"acted_on", done, at|null}]}
 POST /telegram/webhook       Telegram update; header X-Telegram-Bot-Api-Secret-Token

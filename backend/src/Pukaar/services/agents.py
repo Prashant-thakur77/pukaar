@@ -544,12 +544,19 @@ def _gauge_village(v: Village, readings, latest, findings, now) -> dict[str, Any
         "latest": None if latest is None else {
             "at": latest.at, "water_level_cm": latest.water_level_cm, "battery_v": latest.battery_v,
             "rssi": latest.rssi, "simulated": latest.simulated, "transport": latest.transport,
-            "received_at": latest.received_at,
+            "received_at": latest.received_at, "origin": latest.origin,
+            # Reading quality (services/gauge.py): only "good" readings count toward a level.
+            "quality": latest.quality, "quality_reasons": list(latest.quality_reasons),
+            "measured_level": latest.measured_level, "confirmed_level": latest.confirmed_level,
+            "rising_fast": latest.rising_fast, "rise_cm": latest.rise_cm,
         },
         "age_minutes": age,
         "fresh": fresh,
         # What the rules count (2 of the last 3 good readings, one step up when rising fast).
         "gauge_level": risk_rules.gauge_counted_level(latest, g) if latest and fresh else None,
+        # The stage band of the newest reading on its own, before the 2-of-3 rule.
+        "measured_level": risk_rules.gauge_level(latest.water_level_cm, g) if latest and fresh else None,
+        "rising_fast": bool(latest and fresh and latest.rising_fast),
         "health": gauge.health(g, readings, now, None if readings else latest),
         "readings_24h": len(readings),
         "simulated": bool(latest.simulated) if latest else g.device_id.endswith("-sim"),

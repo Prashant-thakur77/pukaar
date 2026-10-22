@@ -54,7 +54,7 @@ About 15 minutes, on the live site, with nothing to install. Sign in as `judge` 
 | 1 | Open the [landing page](https://main.d15r7ktz99l46x.amplifyapp.com) | Live counters from AWS: villages watched, forecast checks in the last 24 h, real flood alerts sent, drill alerts delivered, replay alerts approved, villager reports | Real alerts, drills and replays are counted separately; a 0 for real alerts means no village has needed one |
 | 2 | Open [Live](https://main.d15r7ktz99l46x.amplifyapp.com/live) | Five villages on the map with their level; safe places and walking routes; switch to 3D | The 15-minute sweep sets every level from forecasts |
 | 3 | Open [Gohar](https://main.d15r7ktz99l46x.amplifyapp.com/village/gohar) | Level, the evidence behind it (rain against IMD bands, river against Gohar's own record), past alerts, safe places | Code sets the level, never a model |
-| 4 | Sign in as **`judge`**, open the [console](https://main.d15r7ktz99l46x.amplifyapp.com/console), press **Start replay** | A REPLAY banner on every page. The July 2023 Beas floods replay at about 4 s per hour of data (97 hours, 6 to 7 minutes). Sujanpur reaches Critical within seconds; Pandoh and Gohar follow | Archived real forecasts drive the same live loop on AWS; one replay runs at a time, so if one is already running, watch it |
+| 4 | Sign in as **`judge`**, open the [console](https://main.d15r7ktz99l46x.amplifyapp.com/console), press **Start replay** | A REPLAY banner on every page. The July 2023 Beas floods replay at about 4 s per hour of data (97 hours, 6 to 7 minutes). Sujanpur reaches Watch at once and Critical about 37 replay hours in; Pandoh and Gohar reach Warning | Archived real forecasts drive the same live loop on AWS; one replay runs at a time, so if one is already running, watch it |
 | 5 | Open a pending alert | The Hindi and English draft, the draft check, the decision trace with values against thresholds. Until Bedrock model access is granted, an amber chip reads "Rule fallback" | The warning never depends on the model |
 | 6 | Press **Listen**, then **Approve** | Amazon Polly reads the Hindi alert. Step Functions moves the alert to delivered; the recipient list shows `stub (no phone)` | Replay alerts never reach real phones |
 | 7 | Sign in as **`judge_pradhan`** in a private window and press **Try anyway** under Approve | Refused, with the policy's reason | Cedar: only district officers approve |
@@ -402,7 +402,7 @@ sign-in; the demo user names are in [DEMO.md](DEMO.md#sign-in).
 | Replay and back-test on archived data | Live: labelled replays of archived floods run on AWS (July 2023 in the demo video); back-test in [data/backtest.json](data/backtest.json) |
 | Satellite before and after of the July 2023 Beas flood (Sentinel-2 L2A from AWS Open Data; true colour and MNDWI water index) | Live: a split slider on /impact. Before 3 June 2023 (0% cloud over the crop); after 23 July 2023 (16.7% cloud, 12 days after the peak) and 6 September 2023 (0%). Scenes picked by measured cloud over the crop, not by the tile figure; images baked once and committed, so the page makes no imagery requests. Not Sentinel-1 radar: optical was usable |
 | Antecedent soil moisture (root-zone saturation lowers the IMD rain bands by up to 30%) | Built and back-tested; **off by default**: it changed no scored outcome and its only new Warning is at a village we could not verify ([docs/SCORING.md](docs/SCORING.md#soil-moisture-modifier)) |
-| Two-stage readiness: a "get ready" outlook from the 7-day river forecast (never an alert, never a level) and a per-village early-action checklist ticked by the pradhan or an officer (Cedar-checked, audited) | Deployed; tested offline |
+| Two-stage readiness: a "get ready" outlook when the 7-day river forecast (ensemble median, else the single forecast) passes the river's 1-in-10-days line, the 90th percentile of daily flow at the river cell (never an alert, never a level; in the decision trace as evidence), and a per-village early-action checklist ticked by the pradhan or an officer (Cedar-checked, audited) | Deployed; the early line and the ensemble median are in the code but not yet on the stack; tested offline |
 | Web app: landing, live map, officer console, village, report, track, approve, impact, agents, sensors | Live on Amplify (see `frontend/`) |
 | Deployed stack on AWS | **Live** since 11 Oct 2026: stack `pukaar-dev`, web app on Amplify. Checked live: Cognito sign-in, a replay on AWS starting real Step Functions approval executions, an officer approval moving an alert to delivered, and Polly writing the Hindi MP3 to S3. Steps: [docs/DEPLOY.md](docs/DEPLOY.md) |
 | Bedrock on the live stack | **Pending.** Account model access has not been granted yet (AWS support case filed). Until it is, every live draft is the fixed Hindi template, labelled `rule-fallback` in the console and the audit trail, and Ask Pukaar uses its keyword router. Bedrock Guardrails do not wait on this: `ApplyGuardrail` works without model access. The sweep checks model access at most every 6 hours with one 1-token Converse call and caches the answer, so /agents says "Pending model access" with the reason, and turns "Live" by itself when access lands (the page never calls a model) |
@@ -423,16 +423,16 @@ sign-in; the demo user names are in [DEMO.md](DEMO.md#sign-in).
 
 ## What the back-test shows (and what it does not)
 
-![Gohar, July 2023: the 24-hour rain forecast against IMD's bands, with the level Pukaar's rules set each hour](docs/charts/gohar-2023.svg)
+![Gohar, July 2023: the 24-hour rain forecast against IMD's bands, the get-ready outlook and the level Pukaar's rules set each hour](docs/charts/gohar-2023.svg)
 
-| ![Hours of warning before the river's peak day, per village, July 2023](docs/charts/backtest-lead.svg) | ![Peak forecast rain per village, July 2023 against 30 June 2025](docs/charts/two-monsoons.svg) |
+| ![Hours before the river's peak day per village, July 2023: the get-ready outlook and the alert](docs/charts/backtest-lead.svg) | ![Peak forecast rain per village, July 2023 against 30 June 2025](docs/charts/two-monsoons.svg) |
 |---|---|
 
 **How often was it right?** Scored against a small, sourced ground truth ([data/ground_truth.json](data/ground_truth.json); method and limits in [docs/SCORING.md](docs/SCORING.md)), with an ablation of the evidence sources:
 
 ![Hits and misses per configuration: rain only, river only, both](docs/charts/scores.svg)
 
-Only 4 village-events could be verified from published reporting, so read this as a method, not a verdict: the July 2023 Pandoh flood was caught by all three configurations (rain alone gave about 19 h; the river record gave at least 48 h), and the June 2025 cloudburst villages were missed by all three, which is why a verified villager report, and a river gauge, can raise a level on their own.
+Only 4 village-events could be verified from published reporting, so read this as a method, not a verdict. The July 2023 Pandoh flood is caught as an alert by rain alone, 19 h ahead; the river alone misses it, because in GloFAS its peak is about a 1.2-year flow, under the 2-year Watch line. The get-ready outlook (river forecast over its 90th-percentile day within 7 days; shown to the officer and pradhan, never an alert) was on at least 48 h ahead, but only by a hair ([docs/SCORING.md](docs/SCORING.md#results)). The June 2025 cloudburst villages were missed by every configuration and got no get-ready outlook either, which is why a verified villager report, and a river gauge, can raise a level on their own.
 
 The three charts are built from [data/backtest.json](data/backtest.json) and the Gohar replay by [scripts/build_charts.py](scripts/build_charts.py); no number in them is typed by hand.
 
@@ -446,7 +446,8 @@ GloFAS series from the Open-Meteo flood API.
 
 - **7-11 July 2023:** Sujanpur reaches critical, Gohar and Pandoh reach
   warning, Thunag reaches watch and Janjehli stays normal (return-period river
-  thresholds; [docs/SCORING.md](docs/SCORING.md)).
+  thresholds; [docs/SCORING.md](docs/SCORING.md)). The get-ready outlook is on
+  at all five from the first archived hour; it never alerts.
 - **30 June to 1 July 2025, Mandi:** the archived forecasts gave at most
   14.5-33.4 mm in 24 hours at four of the five villages, and river discharge
   stayed below its 2-year flow at all five. **The global models

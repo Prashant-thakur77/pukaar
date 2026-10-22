@@ -50,6 +50,59 @@ export interface Thresholds {
   warning: number;
   critical: number;
   source?: string;
+  /** "return_period": watch, warning, critical are the 2-, 5- and 20-year discharges. */
+  method?: string;
+  return_period_years?: { watch: number; warning: number; critical: number } | null;
+  /** Get-ready line: the 90th percentile of daily flow at the river cell. Never a level. */
+  early?: number | null;
+  river?: string | null;
+  cell_verified?: boolean;
+  cell_lat?: number | null;
+  cell_lon?: number | null;
+}
+
+/** One official source beside the level (services/official_data.py). Evidence only. */
+export interface OfficialItem {
+  source: 'cwc' | 'imd' | 'flood_hub' | 'bipad' | string;
+  name: string;
+  status: 'ok' | 'unavailable' | 'off';
+  level?: Level | null;
+  detail?: string;
+  error?: string;
+  /** CWC: stations above warning level in India, and whether this village has codes mapped. */
+  stations_above_warning?: number;
+  matched?: unknown[];
+  mapped?: boolean;
+  /** IMD: the district colour for today and tomorrow. */
+  colour?: 'none' | 'green' | 'yellow' | 'orange' | 'red' | string;
+  issued?: string;
+  gauges?: unknown[];
+  readings?: unknown[];
+}
+
+/** Share of ensemble members at or above each threshold, one lead day. */
+export interface EnsembleDay {
+  date: string;
+  lead: number;
+  members: number;
+  p: { watch: number; warning: number; critical: number };
+}
+
+/** GET /villages/{id} river: the return-period lines, the early line and the ensemble's odds. */
+export interface RiverView {
+  level: Level;
+  mode: 'ensemble' | 'deterministic' | 'none';
+  p_min: number;
+  ensemble_status: 'ok' | 'unavailable' | 'off' | null;
+  p_max?: { watch: number; warning: number; critical: number } | null;
+  members?: number | null;
+  lead_days: EnsembleDay[];
+  run_date?: string | null;
+  today?: number | null;
+  peak?: number | null;
+  thresholds: Thresholds;
+  at: string | null;
+  replay?: boolean;
 }
 
 export interface Reading {
@@ -68,6 +121,9 @@ export interface Reading {
   river_level: Level;
   source: 'open-meteo' | 'replay';
   replay: boolean;
+  /** Official sources (CWC, IMD, Flood Hub, BIPAD): evidence, never lowers a level. */
+  official?: OfficialItem[];
+  discharge_ensemble?: { status: string; members?: number; run_date?: string } | null;
 }
 
 export interface SoilRange {
@@ -76,18 +132,27 @@ export interface SoilRange {
   source?: string;
 }
 
-/** Soft "get ready" trigger from the river outlook, days 2-7. Never changes the level. */
+/** Soft "get ready" outlook: the river flow for day 1-7 at or over the early line. Never changes the level. */
 export interface Readiness {
   state: 'none' | 'get_ready';
   available?: boolean;
   horizon_days: number | null;
   peak_day: string | null;
   peak_vs_watch_ratio: number | null;
+  peak_vs_early_ratio?: number | null;
   peak_discharge?: number | null;
   watch?: number | null;
+  /** The early line (m³/s): 90th percentile of daily flow at the river cell. */
+  early?: number | null;
+  line?: 'early' | 'watch';
+  basis?: 'ensemble_median' | 'single_forecast' | 'mixed' | null;
+  first_day_over?: string | null;
+  days_over?: number;
+  reaches_watch?: boolean;
   source: string;
   window_days?: [number, number];
-  days?: { date: string; days_ahead: number; value: number }[];
+  days?: { date: string; days_ahead: number; value: number; basis?: string; over?: boolean }[];
+  never_sets_level?: boolean;
   from_reading?: string | null;
   replay?: boolean;
 }
@@ -422,6 +487,12 @@ export interface Nowcast {
   hours: number;
   text_en: string;
   text_hi: string;
+  source?: 'rain' | 'river';
+  /** "ensemble": a share of the GloFAS members agrees; "single_forecast": one forecast, no ensemble. */
+  basis?: 'ensemble' | 'single_forecast';
+  p?: number | null;
+  members?: number | null;
+  agree?: number | null;
 }
 
 /** past_events shape is not pinned in CONTRACT.md; render what is present. */
@@ -596,6 +667,35 @@ export interface SensorReading {
   /** True for the labelled simulator; never real hardware. */
   simulated: boolean;
   received_at?: string | null;
+  origin?: 'live' | 'backfill';
+  /** Set at ingest: only "good" readings count toward a level. */
+  quality?: GaugeQuality;
+  quality_reasons?: string[];
+  /** This reading's stage band on its own. */
+  measured_level?: Level | null;
+  /** 2 of the last 3 good live readings at or above. */
+  confirmed_level?: Level | null;
+  rising_fast?: boolean;
+  rise_cm?: number | null;
+}
+
+export type GaugeQuality = 'good' | 'suspect' | 'spike' | 'out_of_range';
+
+/** Gauge health from its last 24 h (services/gauge.py health). */
+export interface GaugeHealth {
+  status: 'ok' | 'gauge_unhealthy';
+  unhealthy: boolean;
+  reasons: ('silent' | 'low_battery' | 'bad_quality' | string)[];
+  last_seen: string | null;
+  minutes_since: number | null;
+  silent_after_minutes?: number;
+  battery_v: number | null;
+  battery_low: boolean;
+  readings_24h: number;
+  bad_24h: number;
+  bad_share_24h: number | null;
+  by_quality?: Record<string, number>;
+  backfilled_24h?: number;
 }
 
 export interface GaugeView {
@@ -604,8 +704,13 @@ export interface GaugeView {
   /** Latest reading is recent enough (fresh_minutes) to count in the rules. */
   fresh: boolean;
   fresh_minutes: number;
+  /** The level the rules count: 2 of the last 3 good readings, one step up when rising fast. */
   level: Level | null;
-  series: { at: string; cm: number }[];
+  /** The newest reading's band on its own. */
+  measured_level?: Level | null;
+  rising_fast?: boolean;
+  health?: GaugeHealth | null;
+  series: { at: string; cm: number; q?: string; backfill?: boolean }[];
 }
 
 export interface VillageDetail extends SampleFlag {
@@ -618,6 +723,7 @@ export interface VillageDetail extends SampleFlag {
   directives?: Directive[];
   gauge?: GaugeView | null;
   soil?: SoilView | null;
+  river?: RiverView | null;
   checklist?: Checklist | null;
   /** An open safety roll-call: counts only, never names. */
   rollcall?: PublicRollCall | null;
@@ -862,7 +968,19 @@ export interface PilotBacktestScenario {
   villages_alerted: number;
   median_lead_hours: number | null;
   max_lead_hours: number | null;
-  villages: { village_id: string; village: string; outcome: string; lead_hours: number | null }[];
+  villages_get_ready?: number;
+  median_get_ready_lead_hours?: number | null;
+  villages: {
+    village_id: string;
+    village: string;
+    outcome: string;
+    /** The alert: first Watch to the river's peak day. */
+    lead_hours: number | null;
+    lead_is_lower_bound?: boolean;
+    /** The get-ready outlook (never an alert) to the same day. */
+    get_ready_lead_hours?: number | null;
+    get_ready_is_lower_bound?: boolean;
+  }[];
 }
 
 export interface PilotMetrics extends SampleFlag {
@@ -902,6 +1020,10 @@ export interface BacktestVillage {
   thresholds: Thresholds | null;
   max_rain_24h_mm: number | null;
   lead_hours_watch_to_peak_day: number | null;
+  watch_from_first_hour?: boolean;
+  first_get_ready?: string | null;
+  get_ready_from_first_hour?: boolean;
+  lead_hours_get_ready_to_peak_day?: number | null;
   outcome: string;
 }
 
@@ -1035,6 +1157,13 @@ export interface SensorReadingView {
   simulated: boolean;
   transport: string | null;
   received_at: string | null;
+  origin?: 'live' | 'backfill';
+  quality?: GaugeQuality;
+  quality_reasons?: string[];
+  measured_level?: Level | null;
+  confirmed_level?: Level | null;
+  rising_fast?: boolean;
+  rise_cm?: number | null;
 }
 
 export interface SensorVillage {
@@ -1047,6 +1176,9 @@ export interface SensorVillage {
   age_minutes: number | null;
   fresh: boolean;
   gauge_level: Level | null;
+  measured_level?: Level | null;
+  rising_fast?: boolean;
+  health?: GaugeHealth | null;
   readings_24h: number;
   simulated: boolean;
   series: { at: string; cm: number }[];

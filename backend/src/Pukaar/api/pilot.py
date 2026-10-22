@@ -80,12 +80,19 @@ def backtest_lead_times() -> dict[str, Any] | None:
         return None
     scenarios = []
     for sc in bt.get("scenarios", []):
+        # lead_hours: the alert (first Watch) to the river's peak day. get_ready_lead_hours: the get-ready
+        # outlook (never an alert) to the same day. *_lower_bound: already on at the first archived hour.
         rows = [{"village_id": v.get("village_id"), "village": v.get("village"), "outcome": v.get("outcome"),
-                 "lead_hours": v.get("lead_hours_watch_to_peak_day")} for v in sc.get("villages", [])]
+                 "lead_hours": v.get("lead_hours_watch_to_peak_day"),
+                 "lead_is_lower_bound": bool(v.get("watch_from_first_hour")),
+                 "get_ready_lead_hours": v.get("lead_hours_get_ready_to_peak_day"),
+                 "get_ready_is_lower_bound": bool(v.get("get_ready_from_first_hour"))} for v in sc.get("villages", [])]
         leads = [r["lead_hours"] for r in rows if isinstance(r["lead_hours"], (int, float))]
+        ready = [r["get_ready_lead_hours"] for r in rows if isinstance(r["get_ready_lead_hours"], (int, float))]
         scenarios.append({"name": sc.get("name"), "title": sc.get("title"), "title_hi": sc.get("title_hi"),
                           "villages_scored": len(rows), "villages_alerted": len(leads),
                           "median_lead_hours": _median(leads), "max_lead_hours": max(leads) if leads else None,
+                          "villages_get_ready": len(ready), "median_get_ready_lead_hours": _median(ready),
                           "villages": rows})
     return {"rules": bt.get("rules"), "scenarios": scenarios}
 

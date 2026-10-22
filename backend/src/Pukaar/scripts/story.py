@@ -3,7 +3,8 @@
 Steps through the himachal_2023_07 replay for one village exactly as the
 back-test does (same readings, same risk rules, same hysteresis) and records,
 hour by hour, the rain the sweep would read, the river discharge it would read,
-the levels of each source and the final level. Writes
+the levels of each source, the final level, and whether the get-ready outlook
+was on (services/readiness.py: a heads-up, never an alert). Writes
 frontend/src/data/story-gohar-2023.json, so the chart can never disagree with
 data/backtest.json.
 
@@ -17,7 +18,7 @@ from pathlib import Path
 
 from Pukaar.core import clock
 from Pukaar.scripts.backtest import villages_from_files
-from Pukaar.services import external_data, replay, risk_rules
+from Pukaar.services import external_data, readiness, replay, risk_rules
 
 SCENARIO, VILLAGE = "himachal_2023_07", "gohar"
 OUT = Path(__file__).resolve().parents[4] / "frontend" / "src" / "data" / "story-gohar-2023.json"
@@ -34,6 +35,7 @@ def main() -> None:
             continue
         a = risk_rules.assess(reading, village.thresholds, [], at)
         level, calm, _ = risk_rules.apply_hysteresis(level, calm, a.level)
+        outlook = readiness.outlook(reading, village.thresholds)
         points.append({
             "at": clock.iso(at),
             "rain_24h_mm": reading.rain_24h_mm,
@@ -43,6 +45,7 @@ def main() -> None:
             "river_level": a.river_level,
             "level": level,
             "rules": a.rules_fired,
+            "get_ready": outlook["state"] == "get_ready",
         })
     row = next(r for r in replay.backtest(SCENARIO, [village]) if r["village_id"] == VILLAGE)
     out = {
@@ -55,8 +58,14 @@ def main() -> None:
         "imd_bands_mm": {"watch": 64.5, "warning": 115.6, "critical": 204.5},
         "discharge_thresholds": village.thresholds.model_dump() if village.thresholds else None,
         "points": points,
-        "first": {"watch": row["first_watch"], "warning": row["first_warning"], "critical": row["first_critical"]},
+        "rules_version": risk_rules.RULES_VERSION,
+        "first": {"get_ready": row["first_get_ready"], "watch": row["first_watch"], "warning": row["first_warning"],
+                  "critical": row["first_critical"]},
+        "get_ready_trigger": row["get_ready_trigger"],
+        "get_ready_from_first_hour": row["get_ready_from_first_hour"],
         "peak_discharge_day": row["peak_discharge_day"],
+        "peak_discharge": row["peak_discharge"],
+        "lead_hours_get_ready_to_peak_day": row["lead_hours_get_ready_to_peak_day"],
         "lead_hours_watch_to_peak_day": row["lead_hours_watch_to_peak_day"],
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)

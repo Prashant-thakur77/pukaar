@@ -1045,3 +1045,44 @@ main:has(> .landing) + .site-footer { margin-top: 0; }
   .pl-table td .how-cite { margin-right: 0; }
   .pl-table.table-wrap td[data-label] { flex-wrap: wrap; }
 }
+
+/* =====================================================================================================
+   19. River and gauge evidence as a ledger: the forecast runs in sentences, the flood lines and the
+   official sources on hairlines, gauge health as rows. A level shows as a rule in its ink, never a pill.
+   ===================================================================================================== */
+.rv-card { gap: var(--s-4); }
+.rv-sec { display: grid; gap: 8px; min-width: 0; }
+.rv-sec + .rv-sec { padding-top: var(--s-3); border-top: 1px solid var(--hair); }
+.rv-k { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.72rem; font-weight: 750; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+.rv-k:lang(hi), :lang(hi) .rv-k { letter-spacing: 0; text-transform: none; font-size: 0.86rem; }
+.rv-k svg.lucide { width: 14px; height: 14px; }
+.rv-odds { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hair); }
+.rv-odds li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; padding: 10px 2px 10px 12px; border-bottom: 1px solid var(--hair); border-left: 3px solid var(--hair); line-height: 1.45; color: var(--ink); }
+.rv-odds li.is-raising { border-left-color: var(--lv); }
+.rv-flag { font-size: 0.78rem; font-weight: 750; color: var(--lv-ink, var(--ink-2)); }
+.rv-note { margin: 0; color: var(--ink-2); line-height: 1.5; }
+.rv-lines, .rv-ledger { margin: 0; border-top: 1px solid var(--hair); }
+.rv-lines > div, .rv-ledger > div { display: grid; grid-template-columns: minmax(96px, 150px) minmax(0, 1fr); gap: 2px 14px; align-items: baseline; padding: 9px 2px; border-bottom: 1px solid var(--hair); }
+.rv-lines dt, .rv-ledger dt { font-size: 0.86rem; font-weight: 700; color: var(--ink-2); }
+.rv-lines dd, .rv-ledger dd { margin: 0; min-width: 0; color: var(--ink); line-height: 1.45; overflow-wrap: anywhere; }
+.rv-lines > div[class^='lv-'] dt { color: var(--lv-ink); }
+.rv-lines dd { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; }
+.rv-what { color: var(--ink-2); }
+.rv-val { font-variant-numeric: lining-nums tabular-nums; font-weight: 700; white-space: nowrap; }
+.rv-early dt { color: var(--ink-2); font-style: italic; }
+.rv-ledger > div.is-quiet dd { color: var(--ink-3); }
+.rv-ledger > div { border-left: 3px solid transparent; padding-left: 10px; }
+.rv-ledger > div[class^='lv-'] { border-left-color: var(--lv); }
+.rv-ledger > div.is-bad dd { color: var(--bad); font-weight: 650; }
+.rv-now { margin: 2px 0 0; }
+.gl { display: grid; gap: 8px; }
+.gl-rise { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 750; color: var(--lv-warning-ink); }
+.gl-rise svg.lucide { width: 16px; height: 16px; flex: none; }
+.gl-code { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-3); }
+.sn-card .gl { margin-top: 2px; }
+.sn-card .rv-ledger > div { grid-template-columns: minmax(84px, 120px) minmax(0, 1fr); padding: 7px 2px; }
+.sn-card .rv-ledger dt { font-size: 0.8rem; }
+.sn-card .rv-ledger dd { font-size: 0.9rem; }
+@media (max-width: 560px) {
+  .rv-lines > div, .rv-ledger > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}

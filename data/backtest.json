@@ -1,5 +1,6 @@
 {
   "rules": "risk-rules-v2",
+  "outlook": "get-ready: river forecast (ensemble median, else the single forecast) for day 1-7 at or over early_cms, the 90th percentile of daily discharge at the river cell; never an alert",
   "scenarios": [
     {
       "name": "himachal_2023_07",
@@ -34,11 +35,31 @@
             "cell_lat": 31.575005,
             "cell_lon": 77.17502,
             "river": "Bakhli Khad (with Deola Nal), as modelled by GloFAS",
-            "cell_verified": false
+            "cell_verified": false,
+            "early": 1.14
           },
           "max_rain_24h_mm": 96.6,
           "lead_hours_watch_to_peak_day": 68.0,
-          "outcome": "reached watch"
+          "watch_from_first_hour": false,
+          "first_get_ready": "2023-07-07T00:00:00Z",
+          "get_ready_from_first_hour": true,
+          "lead_hours_get_ready_to_peak_day": 96.0,
+          "get_ready_trigger": {
+            "line": "early",
+            "line_cms": 1.14,
+            "first_day_over": "2023-07-13",
+            "first_day_over_cms": 1.19,
+            "days_ahead": 6,
+            "basis": "single_forecast",
+            "peak_day": "2023-07-13",
+            "peak_cms": 1.19
+          },
+          "get_ready_hours": 97,
+          "outcome": "reached watch",
+          "truth": "uncertain",
+          "event_day": null,
+          "lead_hours_get_ready_to_event": null,
+          "lead_hours_watch_to_event": null
         },
         {
           "village_id": "janjehli",
@@ -62,11 +83,31 @@
             "cell_lat": 31.525002,
             "cell_lon": 77.225006,
             "river": "Bakhli Khad headwaters (Chimti Khad, Bhekhli Nala)",
-            "cell_verified": false
+            "cell_verified": false,
+            "early": 1.03
           },
           "max_rain_24h_mm": 60.1,
           "lead_hours_watch_to_peak_day": null,
-          "outcome": "never crossed"
+          "watch_from_first_hour": false,
+          "first_get_ready": "2023-07-07T00:00:00Z",
+          "get_ready_from_first_hour": true,
+          "lead_hours_get_ready_to_peak_day": 96.0,
+          "get_ready_trigger": {
+            "line": "early",
+            "line_cms": 1.03,
+            "first_day_over": "2023-07-14",
+            "first_day_over_cms": 1.03,
+            "days_ahead": 7,
+            "basis": "single_forecast",
+            "peak_day": "2023-07-14",
+            "peak_cms": 1.03
+          },
+          "get_ready_hours": 97,
+          "outcome": "never crossed",
+          "truth": "uncertain",
+          "event_day": null,
+          "lead_hours_get_ready_to_event": null,
+          "lead_hours_watch_to_event": null
         },
         {
           "village_id": "gohar",
@@ -90,11 +131,31 @@
             "cell_lat": 31.575005,
             "cell_lon": 77.025024,
             "river": "Jhuni Khad (with Bhurni Nala)",
-            "cell_verified": false
+            "cell_verified": false,
+            "early": 0.94
           },
           "max_rain_24h_mm": 126.8,
           "lead_hours_watch_to_peak_day": 67.0,
-          "outcome": "reached warning"
+          "watch_from_first_hour": false,
+          "first_get_ready": "2023-07-07T00:00:00Z",
+          "get_ready_from_first_hour": true,
+          "lead_hours_get_ready_to_peak_day": 96.0,
+          "get_ready_trigger": {
+            "line": "early",
+            "line_cms": 0.94,
+            "first_day_over": "2023-07-11",
+            "first_day_over_cms": 0.97,
+            "days_ahead": 4,
+            "basis": "single_forecast",
+            "peak_day": "2023-07-13",
+            "peak_cms": 1.14
+          },
+          "get_ready_hours": 97,
+          "outcome": "reached warning",
+          "truth": "uncertain",
+          "event_day": null,
+          "lead_hours_get_ready_to_event": null,
+          "lead_hours_watch_to_event": null
         },
         {
           "village_id": "pandoh",
@@ -118,11 +179,31 @@
             "cell_lat": 31.675003,
             "cell_lon": 77.025024,
             "river": "Beas (below the Bakhli Khad and Jhuni Khad confluences)",
-            "cell_verified": true
+            "cell_verified": true,
+            "early": 300.58
           },
           "max_rain_24h_mm": 126.8,
           "lead_hours_watch_to_peak_day": 19.0,
-          "outcome": "reached warning"
+          "watch_from_first_hour": false,
+          "first_get_ready": "2023-07-07T00:00:00Z",
+          "get_ready_from_first_hour": true,
+          "lead_hours_get_ready_to_peak_day": 48.0,
+          "get_ready_trigger": {
+            "line": "early",
+            "line_cms": 300.58,
+            "first_day_over": "2023-07-14",
+            "first_day_over_cms": 301.0,
+            "days_ahead": 7,
+            "basis": "single_forecast",
+            "peak_day": "2023-07-14",
+            "peak_cms": 301.0
+          },
+          "get_ready_hours": 97,
+          "outcome": "reached warning",
+          "truth": "event",
+          "event_day": "2023-07-09",
+          "lead_hours_get_ready_to_event": 48.0,
+          "lead_hours_watch_to_event": 19.0
         },
         {
           "village_id": "sujanpur",
@@ -146,11 +227,31 @@
             "cell_lat": 31.825005,
             "cell_lon": 76.475006,
             "river": "Beas (at Sujanpur Tira, with Nyugal Khad)",
-            "cell_verified": true
+            "cell_verified": true,
+            "early": 479.84
           },
           "max_rain_24h_mm": 116.5,
           "lead_hours_watch_to_peak_day": 48.0,
-          "outcome": "reached critical"
+          "watch_from_first_hour": true,
+          "first_get_ready": "2023-07-07T00:00:00Z",
+          "get_ready_from_first_hour": true,
+          "lead_hours_get_ready_to_peak_day": 48.0,
+          "get_ready_trigger": {
+            "line": "early",
+            "line_cms": 479.84,
+            "first_day_over": "2023-07-09",
+            "first_day_over_cms": 795.16,
+            "days_ahead": 2,
+            "basis": "single_forecast",
+            "peak_day": "2023-07-09",
+            "peak_cms": 795.16
+          },
+          "get_ready_hours": 97,
+          "outcome": "reached critical",
+          "truth": "uncertain",
+          "event_day": null,
+          "lead_hours_get_ready_to_event": null,
+          "lead_hours_watch_to_event": null
         }
       ]
     },
@@ -187,11 +288,22 @@
             "cell_lat": 31.575005,
             "cell_lon": 77.17502,
             "river": "Bakhli Khad (with Deola Nal), as modelled by GloFAS",
-            "cell_verified": false
+            "cell_verified": false,
+            "early": 1.14
           },
           "max_rain_24h_mm": 30.8,
           "lead_hours_watch_to_peak_day": null,
-          "outcome": "never crossed"
+          "watch_from_first_hour": false,
+          "first_get_ready": null,
+          "get_ready_from_first_hour": false,
+          "lead_hours_get_ready_to_peak_day": null,
+          "get_ready_trigger": null,
+          "get_ready_hours": 0,
+          "outcome": "never crossed",
+          "truth": "event",
+          "event_day": "2025-06-30",
+          "lead_hours_get_ready_to_event": null,
+          "lead_hours_watch_to_event": null
         },
         {
           "village_id": "janjehli",
@@ -215,11 +327,22 @@
             "cell_lat": 31.525002,
             "cell_lon": 77.225006,
             "river": "Bakhli Khad headwaters (Chimti Khad, Bhekhli Nala)",
-            "cell_verified": false
+            "cell_verified": false,
+            "early": 1.03
           },
           "max_rain_24h_mm": 33.4,
           "lead_hours_watch_to_peak_day": null,
-          "outcome": "never crossed"
+          "watch_from_first_hour": false,
+          "first_get_ready": null,
+          "get_ready_from_first_hour": false,
+          "lead_hours_get_ready_to_peak_day": null,
+          "get_ready_trigger": null,
+          "get_ready_hours": 0,
+          "outcome": "never crossed",
+          "truth": "event",
+          "event_day": "2025-06-30",
+          "lead_hours_get_ready_to_event": null,
+          "lead_hours_watch_to_event": null
         },
         {
           "village_id": "gohar",
@@ -243,11 +366,22 @@
             "cell_lat": 31.575005,
             "cell_lon": 77.025024,
             "river": "Jhuni Khad (with Bhurni Nala)",
-            "cell_verified": false
+            "cell_verified": false,
+            "early": 0.94
           },
           "max_rain_24h_mm": 14.5,
           "lead_hours_watch_to_peak_day": null,
-          "outcome": "never crossed"
+          "watch_from_first_hour": false,
+          "first_get_ready": null,
+          "get_ready_from_first_hour": false,
+          "lead_hours_get_ready_to_peak_day": null,
+          "get_ready_trigger": null,
+          "get_ready_hours": 0,
+          "outcome": "never crossed",
+          "truth": "event",
+          "event_day": "2025-06-30",
+          "lead_hours_get_ready_to_event": null,
+          "lead_hours_watch_to_event": null
         },
         {
           "village_id": "pandoh",
@@ -271,11 +405,22 @@
             "cell_lat": 31.675003,
             "cell_lon": 77.025024,
             "river": "Beas (below the Bakhli Khad and Jhuni Khad confluences)",
-            "cell_verified": true
+            "cell_verified": true,
+            "early": 300.58
           },
           "max_rain_24h_mm": 14.5,
           "lead_hours_watch_to_peak_day": null,
-          "outcome": "never crossed"
+          "watch_from_first_hour": false,
+          "first_get_ready": null,
+          "get_ready_from_first_hour": false,
+          "lead_hours_get_ready_to_peak_day": null,
+          "get_ready_trigger": null,
+          "get_ready_hours": 0,
+          "outcome": "never crossed",
+          "truth": "uncertain",
+          "event_day": null,
+          "lead_hours_get_ready_to_event": null,
+          "lead_hours_watch_to_event": null
         },
         {
           "village_id": "sujanpur",
@@ -299,11 +444,22 @@
             "cell_lat": 31.825005,
             "cell_lon": 76.475006,
             "river": "Beas (at Sujanpur Tira, with Nyugal Khad)",
-            "cell_verified": true
+            "cell_verified": true,
+            "early": 479.84
           },
           "max_rain_24h_mm": 67.7,
           "lead_hours_watch_to_peak_day": 42.0,
-          "outcome": "reached watch"
+          "watch_from_first_hour": false,
+          "first_get_ready": null,
+          "get_ready_from_first_hour": false,
+          "lead_hours_get_ready_to_peak_day": null,
+          "get_ready_trigger": null,
+          "get_ready_hours": 0,
+          "outcome": "reached watch",
+          "truth": "uncertain",
+          "event_day": null,
+          "lead_hours_get_ready_to_event": null,
+          "lead_hours_watch_to_event": null
         }
       ]
     }
