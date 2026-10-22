@@ -1,5 +1,5 @@
 {
-  "rules": "risk-rules-v2",
+  "rules": "risk-rules-v3",
   "ground_truth": "data/ground_truth.json",
   "scenarios": [
     {
@@ -198,7 +198,7 @@
             "result": "uncertain",
             "lead_hours": null,
             "first_watch": "2023-07-07T16:00:00Z",
-            "first_warning": "2023-07-08T13:00:00Z",
+            "first_warning": "2023-07-08T00:00:00Z",
             "watch_at_window_start": false
           },
           "river": {
@@ -335,22 +335,566 @@
           "both": {
             "first_watch": "2023-07-07T00:00:00Z",
             "first_warning": "2023-07-07T16:00:00Z",
-            "first_critical": "2023-07-08T13:00:00Z",
+            "first_critical": "2023-07-08T00:00:00Z",
             "hours_watch_or_above": 97,
-            "hours_warning_or_above": 43,
-            "hours_critical_or_above": 3
+            "hours_warning_or_above": 45,
+            "hours_critical_or_above": 28
           },
           "both_soil": {
             "first_watch": "2023-07-07T00:00:00Z",
             "first_warning": "2023-07-07T16:00:00Z",
-            "first_critical": "2023-07-08T13:00:00Z",
+            "first_critical": "2023-07-08T00:00:00Z",
             "hours_watch_or_above": 97,
-            "hours_warning_or_above": 43,
-            "hours_critical_or_above": 3
+            "hours_warning_or_above": 45,
+            "hours_critical_or_above": 28
           },
           "changed": false
         }
-      ]
+      ],
+      "burst": {
+        "configs": [
+          {
+            "key": "rain_24h",
+            "label": "24 h rain only (before)",
+            "hits": 1,
+            "misses": 0,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 1,
+            "median_lead_hours": 19.0,
+            "lead_is_lower_bound": false
+          },
+          {
+            "key": "burst",
+            "label": "heavy burst only (3 models, max)",
+            "hits": 0,
+            "misses": 1,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 1,
+            "median_lead_hours": null,
+            "lead_is_lower_bound": false
+          },
+          {
+            "key": "both_before",
+            "label": "both, without the burst rule (before)",
+            "hits": 1,
+            "misses": 0,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 1,
+            "median_lead_hours": 19.0,
+            "lead_is_lower_bound": false
+          },
+          {
+            "key": "both_best_match",
+            "label": "both, burst on best_match alone",
+            "hits": 1,
+            "misses": 0,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 1,
+            "median_lead_hours": 19.0,
+            "lead_is_lower_bound": false
+          },
+          {
+            "key": "both",
+            "label": "both (Pukaar): burst on 3 models, max",
+            "hits": 1,
+            "misses": 0,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 1,
+            "median_lead_hours": 19.0,
+            "lead_is_lower_bound": false
+          },
+          {
+            "key": "both_models_mean",
+            "label": "both, burst on 3 models, mean",
+            "hits": 1,
+            "misses": 0,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 1,
+            "median_lead_hours": 19.0,
+            "lead_is_lower_bound": false
+          }
+        ],
+        "villages": [
+          {
+            "village_id": "thunag",
+            "village": "Thunag",
+            "truth": "uncertain",
+            "event_day": null,
+            "forecast_peaks_mm": {
+              "best_match": {
+                "1": {
+                  "mm": 10.9,
+                  "forecast_at": "2023-07-07T00:00:00Z"
+                },
+                "3": {
+                  "mm": 19.5,
+                  "forecast_at": "2023-07-08T15:00:00Z"
+                },
+                "6": {
+                  "mm": 34.1,
+                  "forecast_at": "2023-07-08T15:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "1": {
+                  "mm": 4.3,
+                  "forecast_at": "2023-07-07T00:00:00Z"
+                },
+                "3": {
+                  "mm": 10.8,
+                  "forecast_at": "2023-07-07T00:00:00Z"
+                },
+                "6": {
+                  "mm": 18.1,
+                  "forecast_at": "2023-07-07T00:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "1": {
+                  "mm": 9.2,
+                  "forecast_at": "2023-07-07T22:00:00Z"
+                },
+                "3": {
+                  "mm": 24.5,
+                  "forecast_at": "2023-07-07T22:00:00Z"
+                },
+                "6": {
+                  "mm": 41.7,
+                  "forecast_at": "2023-07-08T01:00:00Z"
+                }
+              }
+            },
+            "forecast_peaks_by_event_end_mm": null,
+            "rain_24h": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-08T04:00:00Z",
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "burst": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_before": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-08T04:00:00Z",
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_best_match": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-08T04:00:00Z",
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-08T04:00:00Z",
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_models_mean": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-08T04:00:00Z",
+              "first_warning": null,
+              "watch_at_window_start": false
+            }
+          },
+          {
+            "village_id": "janjehli",
+            "village": "Janjehli",
+            "truth": "uncertain",
+            "event_day": null,
+            "forecast_peaks_mm": {
+              "best_match": {
+                "1": {
+                  "mm": 5.8,
+                  "forecast_at": "2023-07-08T14:00:00Z"
+                },
+                "3": {
+                  "mm": 14.0,
+                  "forecast_at": "2023-07-08T10:00:00Z"
+                },
+                "6": {
+                  "mm": 22.4,
+                  "forecast_at": "2023-07-08T12:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "1": {
+                  "mm": 5.6,
+                  "forecast_at": "2023-07-07T00:00:00Z"
+                },
+                "3": {
+                  "mm": 16.0,
+                  "forecast_at": "2023-07-07T00:00:00Z"
+                },
+                "6": {
+                  "mm": 27.6,
+                  "forecast_at": "2023-07-08T14:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "1": {
+                  "mm": 10.5,
+                  "forecast_at": "2023-07-07T20:00:00Z"
+                },
+                "3": {
+                  "mm": 25.6,
+                  "forecast_at": "2023-07-07T22:00:00Z"
+                },
+                "6": {
+                  "mm": 42.6,
+                  "forecast_at": "2023-07-08T00:00:00Z"
+                }
+              }
+            },
+            "forecast_peaks_by_event_end_mm": null,
+            "rain_24h": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "burst": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_before": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_best_match": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_models_mean": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            }
+          },
+          {
+            "village_id": "gohar",
+            "village": "Gohar",
+            "truth": "uncertain",
+            "event_day": null,
+            "forecast_peaks_mm": {
+              "best_match": {
+                "1": {
+                  "mm": 19.6,
+                  "forecast_at": "2023-07-07T00:00:00Z"
+                },
+                "3": {
+                  "mm": 27.2,
+                  "forecast_at": "2023-07-07T00:00:00Z"
+                },
+                "6": {
+                  "mm": 43.3,
+                  "forecast_at": "2023-07-09T05:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "1": {
+                  "mm": 3.4,
+                  "forecast_at": "2023-07-07T11:00:00Z"
+                },
+                "3": {
+                  "mm": 7.2,
+                  "forecast_at": "2023-07-07T12:00:00Z"
+                },
+                "6": {
+                  "mm": 12.8,
+                  "forecast_at": "2023-07-07T11:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "1": {
+                  "mm": 9.1,
+                  "forecast_at": "2023-07-08T00:00:00Z"
+                },
+                "3": {
+                  "mm": 21.6,
+                  "forecast_at": "2023-07-08T01:00:00Z"
+                },
+                "6": {
+                  "mm": 39.0,
+                  "forecast_at": "2023-07-08T01:00:00Z"
+                }
+              }
+            },
+            "forecast_peaks_by_event_end_mm": null,
+            "rain_24h": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-08T05:00:00Z",
+              "first_warning": "2023-07-09T02:00:00Z",
+              "watch_at_window_start": false
+            },
+            "burst": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_before": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-08T05:00:00Z",
+              "first_warning": "2023-07-09T02:00:00Z",
+              "watch_at_window_start": false
+            },
+            "both_best_match": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-08T05:00:00Z",
+              "first_warning": "2023-07-09T02:00:00Z",
+              "watch_at_window_start": false
+            },
+            "both": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-08T05:00:00Z",
+              "first_warning": "2023-07-09T02:00:00Z",
+              "watch_at_window_start": false
+            },
+            "both_models_mean": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-08T05:00:00Z",
+              "first_warning": "2023-07-09T02:00:00Z",
+              "watch_at_window_start": false
+            }
+          },
+          {
+            "village_id": "pandoh",
+            "village": "Pandoh",
+            "truth": "event",
+            "event_day": "2023-07-09",
+            "forecast_peaks_mm": {
+              "best_match": {
+                "3": {
+                  "mm": 27.2,
+                  "forecast_at": "2023-07-07T00:00:00Z"
+                },
+                "6": {
+                  "mm": 43.3,
+                  "forecast_at": "2023-07-09T05:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "3": {
+                  "mm": 7.2,
+                  "forecast_at": "2023-07-07T12:00:00Z"
+                },
+                "6": {
+                  "mm": 12.8,
+                  "forecast_at": "2023-07-07T11:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "3": {
+                  "mm": 20.9,
+                  "forecast_at": "2023-07-08T02:00:00Z"
+                },
+                "6": {
+                  "mm": 35.0,
+                  "forecast_at": "2023-07-08T02:00:00Z"
+                }
+              }
+            },
+            "forecast_peaks_by_event_end_mm": {
+              "best_match": {
+                "3": {
+                  "mm": 27.2,
+                  "forecast_at": "2023-07-07T00:00:00Z"
+                },
+                "6": {
+                  "mm": 43.3,
+                  "forecast_at": "2023-07-09T05:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "3": {
+                  "mm": 7.2,
+                  "forecast_at": "2023-07-07T12:00:00Z"
+                },
+                "6": {
+                  "mm": 12.8,
+                  "forecast_at": "2023-07-07T11:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "3": {
+                  "mm": 20.9,
+                  "forecast_at": "2023-07-08T02:00:00Z"
+                },
+                "6": {
+                  "mm": 35.0,
+                  "forecast_at": "2023-07-08T02:00:00Z"
+                }
+              }
+            },
+            "rain_24h": {
+              "result": "hit",
+              "lead_hours": 19.0,
+              "first_watch": "2023-07-08T05:00:00Z",
+              "first_warning": "2023-07-09T02:00:00Z",
+              "watch_at_window_start": false
+            },
+            "burst": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_before": {
+              "result": "hit",
+              "lead_hours": 19.0,
+              "first_watch": "2023-07-08T05:00:00Z",
+              "first_warning": "2023-07-09T02:00:00Z",
+              "watch_at_window_start": false
+            },
+            "both_best_match": {
+              "result": "hit",
+              "lead_hours": 19.0,
+              "first_watch": "2023-07-08T05:00:00Z",
+              "first_warning": "2023-07-09T02:00:00Z",
+              "watch_at_window_start": false
+            },
+            "both": {
+              "result": "hit",
+              "lead_hours": 19.0,
+              "first_watch": "2023-07-08T05:00:00Z",
+              "first_warning": "2023-07-09T02:00:00Z",
+              "watch_at_window_start": false
+            },
+            "both_models_mean": {
+              "result": "hit",
+              "lead_hours": 19.0,
+              "first_watch": "2023-07-08T05:00:00Z",
+              "first_warning": "2023-07-09T02:00:00Z",
+              "watch_at_window_start": false
+            }
+          },
+          {
+            "village_id": "sujanpur",
+            "village": "Sujanpur",
+            "truth": "uncertain",
+            "event_day": null,
+            "forecast_peaks_mm": {
+              "best_match": {
+                "3": {
+                  "mm": 29.7,
+                  "forecast_at": "2023-07-07T01:00:00Z"
+                },
+                "6": {
+                  "mm": 34.3,
+                  "forecast_at": "2023-07-08T06:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "3": {
+                  "mm": 24.2,
+                  "forecast_at": "2023-07-08T12:00:00Z"
+                },
+                "6": {
+                  "mm": 43.4,
+                  "forecast_at": "2023-07-08T13:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "3": {
+                  "mm": 49.5,
+                  "forecast_at": "2023-07-08T01:00:00Z"
+                },
+                "6": {
+                  "mm": 87.2,
+                  "forecast_at": "2023-07-08T04:00:00Z"
+                }
+              }
+            },
+            "forecast_peaks_by_event_end_mm": null,
+            "rain_24h": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-07T16:00:00Z",
+              "first_warning": "2023-07-08T13:00:00Z",
+              "watch_at_window_start": false
+            },
+            "burst": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-08T00:00:00Z",
+              "first_warning": "2023-07-08T00:00:00Z",
+              "watch_at_window_start": false
+            },
+            "both_before": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-07T00:00:00Z",
+              "first_warning": "2023-07-07T16:00:00Z",
+              "watch_at_window_start": true
+            },
+            "both_best_match": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-07T00:00:00Z",
+              "first_warning": "2023-07-07T16:00:00Z",
+              "watch_at_window_start": true
+            },
+            "both": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-07T00:00:00Z",
+              "first_warning": "2023-07-07T16:00:00Z",
+              "watch_at_window_start": true
+            },
+            "both_models_mean": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2023-07-07T00:00:00Z",
+              "first_warning": "2023-07-07T16:00:00Z",
+              "watch_at_window_start": true
+            }
+          }
+        ]
+      }
     },
     {
       "name": "mandi_2025",
@@ -700,7 +1244,2887 @@
           },
           "changed": false
         }
-      ]
+      ],
+      "burst": {
+        "configs": [
+          {
+            "key": "rain_24h",
+            "label": "24 h rain only (before)",
+            "hits": 0,
+            "misses": 3,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 3,
+            "median_lead_hours": null,
+            "lead_is_lower_bound": false
+          },
+          {
+            "key": "burst",
+            "label": "heavy burst only (3 models, max)",
+            "hits": 0,
+            "misses": 3,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 3,
+            "median_lead_hours": null,
+            "lead_is_lower_bound": false
+          },
+          {
+            "key": "both_before",
+            "label": "both, without the burst rule (before)",
+            "hits": 0,
+            "misses": 3,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 3,
+            "median_lead_hours": null,
+            "lead_is_lower_bound": false
+          },
+          {
+            "key": "both_best_match",
+            "label": "both, burst on best_match alone",
+            "hits": 0,
+            "misses": 3,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 3,
+            "median_lead_hours": null,
+            "lead_is_lower_bound": false
+          },
+          {
+            "key": "both",
+            "label": "both (Pukaar): burst on 3 models, max",
+            "hits": 0,
+            "misses": 3,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 3,
+            "median_lead_hours": null,
+            "lead_is_lower_bound": false
+          },
+          {
+            "key": "both_models_mean",
+            "label": "both, burst on 3 models, mean",
+            "hits": 0,
+            "misses": 3,
+            "false_alarms": 0,
+            "correct_quiet": 0,
+            "scored": 3,
+            "median_lead_hours": null,
+            "lead_is_lower_bound": false
+          }
+        ],
+        "villages": [
+          {
+            "village_id": "thunag",
+            "village": "Thunag",
+            "truth": "event",
+            "event_day": "2025-06-30",
+            "forecast_peaks_mm": {
+              "best_match": {
+                "1": {
+                  "mm": 6.6,
+                  "forecast_at": "2025-06-30T06:00:00Z"
+                },
+                "3": {
+                  "mm": 9.9,
+                  "forecast_at": "2025-06-30T06:00:00Z"
+                },
+                "6": {
+                  "mm": 13.7,
+                  "forecast_at": "2025-06-30T11:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "1": {
+                  "mm": 2.4,
+                  "forecast_at": "2025-06-30T10:00:00Z"
+                },
+                "3": {
+                  "mm": 5.6,
+                  "forecast_at": "2025-06-29T11:00:00Z"
+                },
+                "6": {
+                  "mm": 9.5,
+                  "forecast_at": "2025-06-29T12:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "1": {
+                  "mm": 2.4,
+                  "forecast_at": "2025-06-30T09:00:00Z"
+                },
+                "3": {
+                  "mm": 6.6,
+                  "forecast_at": "2025-06-30T10:00:00Z"
+                },
+                "6": {
+                  "mm": 11.0,
+                  "forecast_at": "2025-06-30T11:00:00Z"
+                }
+              }
+            },
+            "forecast_peaks_by_event_end_mm": {
+              "best_match": {
+                "1": {
+                  "mm": 6.6,
+                  "forecast_at": "2025-06-30T06:00:00Z"
+                },
+                "3": {
+                  "mm": 9.9,
+                  "forecast_at": "2025-06-30T06:00:00Z"
+                },
+                "6": {
+                  "mm": 13.7,
+                  "forecast_at": "2025-06-30T11:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "1": {
+                  "mm": 2.4,
+                  "forecast_at": "2025-06-30T10:00:00Z"
+                },
+                "3": {
+                  "mm": 5.6,
+                  "forecast_at": "2025-06-29T11:00:00Z"
+                },
+                "6": {
+                  "mm": 9.5,
+                  "forecast_at": "2025-06-29T12:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "1": {
+                  "mm": 2.4,
+                  "forecast_at": "2025-06-30T09:00:00Z"
+                },
+                "3": {
+                  "mm": 6.6,
+                  "forecast_at": "2025-06-30T10:00:00Z"
+                },
+                "6": {
+                  "mm": 11.0,
+                  "forecast_at": "2025-06-30T11:00:00Z"
+                }
+              }
+            },
+            "rain_24h": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "burst": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_before": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_best_match": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_models_mean": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            }
+          },
+          {
+            "village_id": "janjehli",
+            "village": "Janjehli",
+            "truth": "event",
+            "event_day": "2025-06-30",
+            "forecast_peaks_mm": {
+              "best_match": {
+                "1": {
+                  "mm": 8.5,
+                  "forecast_at": "2025-06-29T00:00:00Z"
+                },
+                "3": {
+                  "mm": 12.7,
+                  "forecast_at": "2025-06-29T20:00:00Z"
+                },
+                "6": {
+                  "mm": 17.7,
+                  "forecast_at": "2025-06-29T21:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "1": {
+                  "mm": 2.4,
+                  "forecast_at": "2025-06-30T10:00:00Z"
+                },
+                "3": {
+                  "mm": 5.6,
+                  "forecast_at": "2025-06-29T11:00:00Z"
+                },
+                "6": {
+                  "mm": 9.5,
+                  "forecast_at": "2025-06-29T12:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "1": {
+                  "mm": 2.8,
+                  "forecast_at": "2025-06-30T09:00:00Z"
+                },
+                "3": {
+                  "mm": 8.0,
+                  "forecast_at": "2025-06-30T10:00:00Z"
+                },
+                "6": {
+                  "mm": 13.9,
+                  "forecast_at": "2025-06-30T11:00:00Z"
+                }
+              }
+            },
+            "forecast_peaks_by_event_end_mm": {
+              "best_match": {
+                "1": {
+                  "mm": 8.5,
+                  "forecast_at": "2025-06-29T00:00:00Z"
+                },
+                "3": {
+                  "mm": 12.7,
+                  "forecast_at": "2025-06-29T20:00:00Z"
+                },
+                "6": {
+                  "mm": 17.7,
+                  "forecast_at": "2025-06-29T21:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "1": {
+                  "mm": 2.4,
+                  "forecast_at": "2025-06-30T10:00:00Z"
+                },
+                "3": {
+                  "mm": 5.6,
+                  "forecast_at": "2025-06-29T11:00:00Z"
+                },
+                "6": {
+                  "mm": 9.5,
+                  "forecast_at": "2025-06-29T12:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "1": {
+                  "mm": 2.8,
+                  "forecast_at": "2025-06-30T09:00:00Z"
+                },
+                "3": {
+                  "mm": 8.0,
+                  "forecast_at": "2025-06-30T10:00:00Z"
+                },
+                "6": {
+                  "mm": 13.9,
+                  "forecast_at": "2025-06-30T11:00:00Z"
+                }
+              }
+            },
+            "rain_24h": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "burst": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_before": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_best_match": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_models_mean": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            }
+          },
+          {
+            "village_id": "gohar",
+            "village": "Gohar",
+            "truth": "event",
+            "event_day": "2025-06-30",
+            "forecast_peaks_mm": {
+              "best_match": {
+                "1": {
+                  "mm": 2.9,
+                  "forecast_at": "2025-06-29T15:00:00Z"
+                },
+                "3": {
+                  "mm": 6.8,
+                  "forecast_at": "2025-06-29T16:00:00Z"
+                },
+                "6": {
+                  "mm": 9.0,
+                  "forecast_at": "2025-06-29T17:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "1": {
+                  "mm": 1.7,
+                  "forecast_at": "2025-06-29T02:00:00Z"
+                },
+                "3": {
+                  "mm": 4.0,
+                  "forecast_at": "2025-06-29T08:00:00Z"
+                },
+                "6": {
+                  "mm": 7.6,
+                  "forecast_at": "2025-06-29T11:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "1": {
+                  "mm": 2.1,
+                  "forecast_at": "2025-06-29T06:00:00Z"
+                },
+                "3": {
+                  "mm": 5.9,
+                  "forecast_at": "2025-06-29T11:00:00Z"
+                },
+                "6": {
+                  "mm": 11.1,
+                  "forecast_at": "2025-06-29T11:00:00Z"
+                }
+              }
+            },
+            "forecast_peaks_by_event_end_mm": {
+              "best_match": {
+                "1": {
+                  "mm": 2.9,
+                  "forecast_at": "2025-06-29T15:00:00Z"
+                },
+                "3": {
+                  "mm": 6.8,
+                  "forecast_at": "2025-06-29T16:00:00Z"
+                },
+                "6": {
+                  "mm": 9.0,
+                  "forecast_at": "2025-06-29T17:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "1": {
+                  "mm": 1.7,
+                  "forecast_at": "2025-06-29T02:00:00Z"
+                },
+                "3": {
+                  "mm": 4.0,
+                  "forecast_at": "2025-06-29T08:00:00Z"
+                },
+                "6": {
+                  "mm": 7.6,
+                  "forecast_at": "2025-06-29T11:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "1": {
+                  "mm": 2.1,
+                  "forecast_at": "2025-06-29T06:00:00Z"
+                },
+                "3": {
+                  "mm": 5.9,
+                  "forecast_at": "2025-06-29T11:00:00Z"
+                },
+                "6": {
+                  "mm": 11.1,
+                  "forecast_at": "2025-06-29T11:00:00Z"
+                }
+              }
+            },
+            "rain_24h": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "burst": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_before": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_best_match": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_models_mean": {
+              "result": "miss",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            }
+          },
+          {
+            "village_id": "pandoh",
+            "village": "Pandoh",
+            "truth": "uncertain",
+            "event_day": null,
+            "forecast_peaks_mm": {
+              "best_match": {
+                "3": {
+                  "mm": 6.8,
+                  "forecast_at": "2025-06-29T16:00:00Z"
+                },
+                "6": {
+                  "mm": 9.0,
+                  "forecast_at": "2025-06-29T17:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "3": {
+                  "mm": 4.0,
+                  "forecast_at": "2025-06-29T08:00:00Z"
+                },
+                "6": {
+                  "mm": 7.6,
+                  "forecast_at": "2025-06-29T11:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "3": {
+                  "mm": 7.0,
+                  "forecast_at": "2025-06-29T07:00:00Z"
+                },
+                "6": {
+                  "mm": 12.4,
+                  "forecast_at": "2025-06-29T10:00:00Z"
+                }
+              }
+            },
+            "forecast_peaks_by_event_end_mm": null,
+            "rain_24h": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "burst": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_before": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_best_match": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_models_mean": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            }
+          },
+          {
+            "village_id": "sujanpur",
+            "village": "Sujanpur",
+            "truth": "uncertain",
+            "event_day": null,
+            "forecast_peaks_mm": {
+              "best_match": {
+                "3": {
+                  "mm": 28.0,
+                  "forecast_at": "2025-06-30T05:00:00Z"
+                },
+                "6": {
+                  "mm": 37.1,
+                  "forecast_at": "2025-06-30T05:00:00Z"
+                }
+              },
+              "icon_seamless": {
+                "3": {
+                  "mm": 6.5,
+                  "forecast_at": "2025-06-29T00:00:00Z"
+                },
+                "6": {
+                  "mm": 9.7,
+                  "forecast_at": "2025-06-29T00:00:00Z"
+                }
+              },
+              "gfs_seamless": {
+                "3": {
+                  "mm": 10.7,
+                  "forecast_at": "2025-06-30T10:00:00Z"
+                },
+                "6": {
+                  "mm": 19.2,
+                  "forecast_at": "2025-06-30T13:00:00Z"
+                }
+              }
+            },
+            "forecast_peaks_by_event_end_mm": null,
+            "rain_24h": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2025-06-30T06:00:00Z",
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "burst": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": null,
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_before": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2025-06-30T06:00:00Z",
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_best_match": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2025-06-30T06:00:00Z",
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2025-06-30T06:00:00Z",
+              "first_warning": null,
+              "watch_at_window_start": false
+            },
+            "both_models_mean": {
+              "result": "uncertain",
+              "lead_hours": null,
+              "first_watch": "2025-06-30T06:00:00Z",
+              "first_warning": null,
+              "watch_at_window_start": false
+            }
+          }
+        ]
+      }
     }
-  ]
+  ],
+  "burst_burden": {
+    "method": "perfect forecast from the Open-Meteo historical-forecast archive (next 24 archived hours at every hour), the same rain_level and rain_intensity as the sweep, soil off; a day counts when any of its hours is at the level; rises go through the production hysteresis",
+    "windows_mm": {
+      "1": 20.0,
+      "3": 45.0,
+      "6": 50.0
+    },
+    "sets": {
+      "best_match": {
+        "label": "best_match, 2019-2024",
+        "models": [
+          "best_match"
+        ],
+        "combine": "max",
+        "years": [
+          2019,
+          2020,
+          2021,
+          2022,
+          2023,
+          2024
+        ],
+        "villages": [
+          {
+            "village_id": "thunag",
+            "village": "Thunag",
+            "per_year": {
+              "2019": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2020": {
+                "before_watch_days": 1,
+                "before_warning_days": 0,
+                "after_watch_days": 3,
+                "after_warning_days": 1,
+                "burst_watch_days": 3,
+                "burst_warning_days": 1,
+                "before_rises": 1,
+                "after_rises": 2
+              },
+              "2021": {
+                "before_watch_days": 8,
+                "before_warning_days": 1,
+                "after_watch_days": 8,
+                "after_warning_days": 6,
+                "burst_watch_days": 6,
+                "burst_warning_days": 6,
+                "before_rises": 4,
+                "after_rises": 4
+              },
+              "2022": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              },
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              }
+            },
+            "mean": {
+              "before_watch_days": 2.5,
+              "before_warning_days": 0.2,
+              "after_watch_days": 2.8,
+              "after_warning_days": 1.2,
+              "burst_watch_days": 1.5,
+              "burst_warning_days": 1.2,
+              "before_rises": 1.3,
+              "after_rises": 1.5
+            },
+            "years": 6
+          },
+          {
+            "village_id": "janjehli",
+            "village": "Janjehli",
+            "per_year": {
+              "2019": {
+                "before_watch_days": 1,
+                "before_warning_days": 0,
+                "after_watch_days": 1,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2020": {
+                "before_watch_days": 1,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 2,
+                "burst_warning_days": 1,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2021": {
+                "before_watch_days": 6,
+                "before_warning_days": 0,
+                "after_watch_days": 6,
+                "after_warning_days": 4,
+                "burst_watch_days": 4,
+                "burst_warning_days": 4,
+                "before_rises": 3,
+                "after_rises": 3
+              },
+              "2022": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2023": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 2,
+                "burst_watch_days": 2,
+                "burst_warning_days": 2,
+                "before_rises": 1,
+                "after_rises": 1
+              }
+            },
+            "mean": {
+              "before_watch_days": 2.0,
+              "before_warning_days": 0.0,
+              "after_watch_days": 2.2,
+              "after_warning_days": 1.2,
+              "burst_watch_days": 1.3,
+              "burst_warning_days": 1.2,
+              "before_rises": 1.2,
+              "after_rises": 1.2
+            },
+            "years": 6
+          },
+          {
+            "village_id": "gohar",
+            "village": "Gohar",
+            "per_year": {
+              "2019": {
+                "before_watch_days": 4,
+                "before_warning_days": 1,
+                "after_watch_days": 4,
+                "after_warning_days": 2,
+                "burst_watch_days": 2,
+                "burst_warning_days": 2,
+                "before_rises": 2,
+                "after_rises": 2
+              },
+              "2020": {
+                "before_watch_days": 4,
+                "before_warning_days": 0,
+                "after_watch_days": 6,
+                "after_warning_days": 4,
+                "burst_watch_days": 6,
+                "burst_warning_days": 4,
+                "before_rises": 4,
+                "after_rises": 3
+              },
+              "2021": {
+                "before_watch_days": 4,
+                "before_warning_days": 0,
+                "after_watch_days": 4,
+                "after_warning_days": 2,
+                "burst_watch_days": 2,
+                "burst_warning_days": 2,
+                "before_rises": 2,
+                "after_rises": 2
+              },
+              "2022": {
+                "before_watch_days": 1,
+                "before_warning_days": 0,
+                "after_watch_days": 1,
+                "after_warning_days": 1,
+                "burst_watch_days": 1,
+                "burst_warning_days": 1,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 1,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              }
+            },
+            "mean": {
+              "before_watch_days": 2.5,
+              "before_warning_days": 0.3,
+              "after_watch_days": 2.8,
+              "after_warning_days": 1.7,
+              "burst_watch_days": 1.8,
+              "burst_warning_days": 1.5,
+              "before_rises": 1.7,
+              "after_rises": 1.5
+            },
+            "years": 6
+          },
+          {
+            "village_id": "pandoh",
+            "village": "Pandoh",
+            "per_year": {
+              "2019": {
+                "before_watch_days": 4,
+                "before_warning_days": 1,
+                "after_watch_days": 4,
+                "after_warning_days": 2,
+                "burst_watch_days": 2,
+                "burst_warning_days": 2,
+                "before_rises": 2,
+                "after_rises": 2
+              },
+              "2020": {
+                "before_watch_days": 4,
+                "before_warning_days": 0,
+                "after_watch_days": 5,
+                "after_warning_days": 4,
+                "burst_watch_days": 5,
+                "burst_warning_days": 4,
+                "before_rises": 4,
+                "after_rises": 3
+              },
+              "2021": {
+                "before_watch_days": 4,
+                "before_warning_days": 0,
+                "after_watch_days": 4,
+                "after_warning_days": 2,
+                "burst_watch_days": 2,
+                "burst_warning_days": 2,
+                "before_rises": 2,
+                "after_rises": 2
+              },
+              "2022": {
+                "before_watch_days": 1,
+                "before_warning_days": 0,
+                "after_watch_days": 1,
+                "after_warning_days": 1,
+                "burst_watch_days": 1,
+                "burst_warning_days": 1,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 1,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              }
+            },
+            "mean": {
+              "before_watch_days": 2.5,
+              "before_warning_days": 0.3,
+              "after_watch_days": 2.7,
+              "after_warning_days": 1.7,
+              "burst_watch_days": 1.7,
+              "burst_warning_days": 1.5,
+              "before_rises": 1.7,
+              "after_rises": 1.5
+            },
+            "years": 6
+          },
+          {
+            "village_id": "sujanpur",
+            "village": "Sujanpur",
+            "per_year": {
+              "2019": {
+                "before_watch_days": 8,
+                "before_warning_days": 1,
+                "after_watch_days": 9,
+                "after_warning_days": 5,
+                "burst_watch_days": 6,
+                "burst_warning_days": 5,
+                "before_rises": 5,
+                "after_rises": 5
+              },
+              "2020": {
+                "before_watch_days": 4,
+                "before_warning_days": 0,
+                "after_watch_days": 4,
+                "after_warning_days": 4,
+                "burst_watch_days": 4,
+                "burst_warning_days": 4,
+                "before_rises": 2,
+                "after_rises": 2
+              },
+              "2021": {
+                "before_watch_days": 8,
+                "before_warning_days": 2,
+                "after_watch_days": 8,
+                "after_warning_days": 7,
+                "burst_watch_days": 7,
+                "burst_warning_days": 7,
+                "before_rises": 5,
+                "after_rises": 4
+              },
+              "2022": {
+                "before_watch_days": 4,
+                "before_warning_days": 0,
+                "after_watch_days": 4,
+                "after_warning_days": 2,
+                "burst_watch_days": 2,
+                "burst_warning_days": 2,
+                "before_rises": 2,
+                "after_rises": 2
+              },
+              "2023": {
+                "before_watch_days": 5,
+                "before_warning_days": 1,
+                "after_watch_days": 5,
+                "after_warning_days": 1,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 4,
+                "after_rises": 4
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 1,
+                "burst_warning_days": 1,
+                "before_rises": 2,
+                "after_rises": 2
+              }
+            },
+            "mean": {
+              "before_watch_days": 5.2,
+              "before_warning_days": 0.7,
+              "after_watch_days": 5.3,
+              "after_warning_days": 3.3,
+              "burst_watch_days": 3.3,
+              "burst_warning_days": 3.2,
+              "before_rises": 3.3,
+              "after_rises": 3.2
+            },
+            "years": 6
+          }
+        ]
+      },
+      "best_match_2023_2024": {
+        "label": "best_match, 2023-2024",
+        "models": [
+          "best_match"
+        ],
+        "combine": "max",
+        "years": [
+          2023,
+          2024
+        ],
+        "villages": [
+          {
+            "village_id": "thunag",
+            "village": "Thunag",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              }
+            },
+            "mean": {
+              "before_watch_days": 2.0,
+              "before_warning_days": 0.0,
+              "after_watch_days": 2.0,
+              "after_warning_days": 0.0,
+              "burst_watch_days": 0.0,
+              "burst_warning_days": 0.0,
+              "before_rises": 1.0,
+              "after_rises": 1.0
+            },
+            "years": 2
+          },
+          {
+            "village_id": "janjehli",
+            "village": "Janjehli",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 2,
+                "burst_watch_days": 2,
+                "burst_warning_days": 2,
+                "before_rises": 1,
+                "after_rises": 1
+              }
+            },
+            "mean": {
+              "before_watch_days": 1.0,
+              "before_warning_days": 0.0,
+              "after_watch_days": 1.0,
+              "after_warning_days": 1.0,
+              "burst_watch_days": 1.0,
+              "burst_warning_days": 1.0,
+              "before_rises": 0.5,
+              "after_rises": 0.5
+            },
+            "years": 2
+          },
+          {
+            "village_id": "gohar",
+            "village": "Gohar",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 1,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              }
+            },
+            "mean": {
+              "before_watch_days": 1.0,
+              "before_warning_days": 0.5,
+              "after_watch_days": 1.0,
+              "after_warning_days": 0.5,
+              "burst_watch_days": 0.0,
+              "burst_warning_days": 0.0,
+              "before_rises": 0.5,
+              "after_rises": 0.5
+            },
+            "years": 2
+          },
+          {
+            "village_id": "pandoh",
+            "village": "Pandoh",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 1,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              }
+            },
+            "mean": {
+              "before_watch_days": 1.0,
+              "before_warning_days": 0.5,
+              "after_watch_days": 1.0,
+              "after_warning_days": 0.5,
+              "burst_watch_days": 0.0,
+              "burst_warning_days": 0.0,
+              "before_rises": 0.5,
+              "after_rises": 0.5
+            },
+            "years": 2
+          },
+          {
+            "village_id": "sujanpur",
+            "village": "Sujanpur",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 5,
+                "before_warning_days": 1,
+                "after_watch_days": 5,
+                "after_warning_days": 1,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 4,
+                "after_rises": 4
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 1,
+                "burst_warning_days": 1,
+                "before_rises": 2,
+                "after_rises": 2
+              }
+            },
+            "mean": {
+              "before_watch_days": 3.5,
+              "before_warning_days": 0.5,
+              "after_watch_days": 3.5,
+              "after_warning_days": 1.0,
+              "burst_watch_days": 0.5,
+              "burst_warning_days": 0.5,
+              "before_rises": 3.0,
+              "after_rises": 3.0
+            },
+            "years": 2
+          }
+        ]
+      },
+      "models_max": {
+        "label": "3 models (max), 2023-2024",
+        "models": [
+          "best_match",
+          "icon_seamless",
+          "gfs_seamless"
+        ],
+        "combine": "max",
+        "years": [
+          2023,
+          2024
+        ],
+        "villages": [
+          {
+            "village_id": "thunag",
+            "village": "Thunag",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              }
+            },
+            "mean": {
+              "before_watch_days": 2.0,
+              "before_warning_days": 0.0,
+              "after_watch_days": 2.0,
+              "after_warning_days": 0.0,
+              "burst_watch_days": 0.0,
+              "burst_warning_days": 0.0,
+              "before_rises": 1.0,
+              "after_rises": 1.0
+            },
+            "years": 2
+          },
+          {
+            "village_id": "janjehli",
+            "village": "Janjehli",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 2,
+                "burst_watch_days": 2,
+                "burst_warning_days": 2,
+                "before_rises": 1,
+                "after_rises": 1
+              }
+            },
+            "mean": {
+              "before_watch_days": 1.0,
+              "before_warning_days": 0.0,
+              "after_watch_days": 1.0,
+              "after_warning_days": 1.0,
+              "burst_watch_days": 1.0,
+              "burst_warning_days": 1.0,
+              "before_rises": 0.5,
+              "after_rises": 0.5
+            },
+            "years": 2
+          },
+          {
+            "village_id": "gohar",
+            "village": "Gohar",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 1,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              }
+            },
+            "mean": {
+              "before_watch_days": 1.0,
+              "before_warning_days": 0.5,
+              "after_watch_days": 1.0,
+              "after_warning_days": 0.5,
+              "burst_watch_days": 0.0,
+              "burst_warning_days": 0.0,
+              "before_rises": 0.5,
+              "after_rises": 0.5
+            },
+            "years": 2
+          },
+          {
+            "village_id": "pandoh",
+            "village": "Pandoh",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 1,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              }
+            },
+            "mean": {
+              "before_watch_days": 1.0,
+              "before_warning_days": 0.5,
+              "after_watch_days": 1.0,
+              "after_warning_days": 0.5,
+              "burst_watch_days": 0.0,
+              "burst_warning_days": 0.0,
+              "before_rises": 0.5,
+              "after_rises": 0.5
+            },
+            "years": 2
+          },
+          {
+            "village_id": "sujanpur",
+            "village": "Sujanpur",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 5,
+                "before_warning_days": 1,
+                "after_watch_days": 5,
+                "after_warning_days": 2,
+                "burst_watch_days": 2,
+                "burst_warning_days": 2,
+                "before_rises": 4,
+                "after_rises": 4
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 1,
+                "burst_warning_days": 1,
+                "before_rises": 2,
+                "after_rises": 2
+              }
+            },
+            "mean": {
+              "before_watch_days": 3.5,
+              "before_warning_days": 0.5,
+              "after_watch_days": 3.5,
+              "after_warning_days": 1.5,
+              "burst_watch_days": 1.5,
+              "burst_warning_days": 1.5,
+              "before_rises": 3.0,
+              "after_rises": 3.0
+            },
+            "years": 2
+          }
+        ]
+      },
+      "models_mean": {
+        "label": "3 models (mean), 2023-2024",
+        "models": [
+          "best_match",
+          "icon_seamless",
+          "gfs_seamless"
+        ],
+        "combine": "mean",
+        "years": [
+          2023,
+          2024
+        ],
+        "villages": [
+          {
+            "village_id": "thunag",
+            "village": "Thunag",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              }
+            },
+            "mean": {
+              "before_watch_days": 2.0,
+              "before_warning_days": 0.0,
+              "after_watch_days": 2.0,
+              "after_warning_days": 0.0,
+              "burst_watch_days": 0.0,
+              "burst_warning_days": 0.0,
+              "before_rises": 1.0,
+              "after_rises": 1.0
+            },
+            "years": 2
+          },
+          {
+            "village_id": "janjehli",
+            "village": "Janjehli",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              }
+            },
+            "mean": {
+              "before_watch_days": 1.0,
+              "before_warning_days": 0.0,
+              "after_watch_days": 1.0,
+              "after_warning_days": 0.0,
+              "burst_watch_days": 0.0,
+              "burst_warning_days": 0.0,
+              "before_rises": 0.5,
+              "after_rises": 0.5
+            },
+            "years": 2
+          },
+          {
+            "village_id": "gohar",
+            "village": "Gohar",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 1,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              }
+            },
+            "mean": {
+              "before_watch_days": 1.0,
+              "before_warning_days": 0.5,
+              "after_watch_days": 1.0,
+              "after_warning_days": 0.5,
+              "burst_watch_days": 0.0,
+              "burst_warning_days": 0.0,
+              "before_rises": 0.5,
+              "after_rises": 0.5
+            },
+            "years": 2
+          },
+          {
+            "village_id": "pandoh",
+            "village": "Pandoh",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 2,
+                "before_warning_days": 1,
+                "after_watch_days": 2,
+                "after_warning_days": 1,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 1,
+                "after_rises": 1
+              },
+              "2024": {
+                "before_watch_days": 0,
+                "before_warning_days": 0,
+                "after_watch_days": 0,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 0,
+                "after_rises": 0
+              }
+            },
+            "mean": {
+              "before_watch_days": 1.0,
+              "before_warning_days": 0.5,
+              "after_watch_days": 1.0,
+              "after_warning_days": 0.5,
+              "burst_watch_days": 0.0,
+              "burst_warning_days": 0.0,
+              "before_rises": 0.5,
+              "after_rises": 0.5
+            },
+            "years": 2
+          },
+          {
+            "village_id": "sujanpur",
+            "village": "Sujanpur",
+            "per_year": {
+              "2023": {
+                "before_watch_days": 5,
+                "before_warning_days": 1,
+                "after_watch_days": 5,
+                "after_warning_days": 1,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 4,
+                "after_rises": 4
+              },
+              "2024": {
+                "before_watch_days": 2,
+                "before_warning_days": 0,
+                "after_watch_days": 2,
+                "after_warning_days": 0,
+                "burst_watch_days": 0,
+                "burst_warning_days": 0,
+                "before_rises": 2,
+                "after_rises": 2
+              }
+            },
+            "mean": {
+              "before_watch_days": 3.5,
+              "before_warning_days": 0.5,
+              "after_watch_days": 3.5,
+              "after_warning_days": 0.5,
+              "burst_watch_days": 0.0,
+              "burst_warning_days": 0.0,
+              "before_rises": 3.0,
+              "after_rises": 3.0
+            },
+            "years": 2
+          }
+        ]
+      }
+    }
+  },
+  "burst_burden_sensitivity": {
+    "dh_x027": {
+      "label": "Dahal-Hasegawa curve x 0.27 (1 h 20, 3 h 25, 6 h 30 mm)",
+      "method": "perfect forecast from the Open-Meteo historical-forecast archive (next 24 archived hours at every hour), the same rain_level and rain_intensity as the sweep, soil off; a day counts when any of its hours is at the level; rises go through the production hysteresis",
+      "windows_mm": {
+        "1": 20.0,
+        "3": 25.0,
+        "6": 30.0
+      },
+      "sets": {
+        "best_match": {
+          "label": "best_match, 2019-2024",
+          "models": [
+            "best_match"
+          ],
+          "combine": "max",
+          "years": [
+            2019,
+            2020,
+            2021,
+            2022,
+            2023,
+            2024
+          ],
+          "villages": [
+            {
+              "village_id": "thunag",
+              "village": "Thunag",
+              "per_year": {
+                "2019": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 2,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 2,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 1
+                },
+                "2020": {
+                  "before_watch_days": 1,
+                  "before_warning_days": 0,
+                  "after_watch_days": 6,
+                  "after_warning_days": 1,
+                  "burst_watch_days": 6,
+                  "burst_warning_days": 1,
+                  "before_rises": 1,
+                  "after_rises": 3
+                },
+                "2021": {
+                  "before_watch_days": 8,
+                  "before_warning_days": 1,
+                  "after_watch_days": 9,
+                  "after_warning_days": 6,
+                  "burst_watch_days": 7,
+                  "burst_warning_days": 6,
+                  "before_rises": 4,
+                  "after_rises": 5
+                },
+                "2022": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 4,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 4,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 2
+                },
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 6,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 6,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 3
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 2,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 2,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 1
+                }
+              },
+              "mean": {
+                "before_watch_days": 2.5,
+                "before_warning_days": 0.2,
+                "after_watch_days": 4.8,
+                "after_warning_days": 2.2,
+                "burst_watch_days": 4.5,
+                "burst_warning_days": 2.2,
+                "before_rises": 1.3,
+                "after_rises": 2.5
+              },
+              "years": 6
+            },
+            {
+              "village_id": "janjehli",
+              "village": "Janjehli",
+              "per_year": {
+                "2019": {
+                  "before_watch_days": 1,
+                  "before_warning_days": 0,
+                  "after_watch_days": 3,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 2,
+                  "burst_warning_days": 0,
+                  "before_rises": 1,
+                  "after_rises": 2
+                },
+                "2020": {
+                  "before_watch_days": 1,
+                  "before_warning_days": 0,
+                  "after_watch_days": 3,
+                  "after_warning_days": 1,
+                  "burst_watch_days": 3,
+                  "burst_warning_days": 1,
+                  "before_rises": 1,
+                  "after_rises": 2
+                },
+                "2021": {
+                  "before_watch_days": 6,
+                  "before_warning_days": 0,
+                  "after_watch_days": 8,
+                  "after_warning_days": 6,
+                  "burst_watch_days": 8,
+                  "burst_warning_days": 6,
+                  "before_rises": 3,
+                  "after_rises": 4
+                },
+                "2022": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 6,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 6,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 3
+                },
+                "2023": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 4,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 4,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 2
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 6,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 6,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 3
+                }
+              },
+              "mean": {
+                "before_watch_days": 2.0,
+                "before_warning_days": 0.0,
+                "after_watch_days": 5.0,
+                "after_warning_days": 1.8,
+                "burst_watch_days": 4.8,
+                "burst_warning_days": 1.8,
+                "before_rises": 1.2,
+                "after_rises": 2.7
+              },
+              "years": 6
+            },
+            {
+              "village_id": "gohar",
+              "village": "Gohar",
+              "per_year": {
+                "2019": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 1,
+                  "after_watch_days": 4,
+                  "after_warning_days": 3,
+                  "burst_watch_days": 3,
+                  "burst_warning_days": 3,
+                  "before_rises": 2,
+                  "after_rises": 2
+                },
+                "2020": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 7,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 7,
+                  "burst_warning_days": 4,
+                  "before_rises": 4,
+                  "after_rises": 3
+                },
+                "2021": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 7,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 7,
+                  "burst_warning_days": 4,
+                  "before_rises": 2,
+                  "after_rises": 3
+                },
+                "2022": {
+                  "before_watch_days": 1,
+                  "before_warning_days": 0,
+                  "after_watch_days": 6,
+                  "after_warning_days": 1,
+                  "burst_watch_days": 6,
+                  "burst_warning_days": 1,
+                  "before_rises": 1,
+                  "after_rises": 3
+                },
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 1,
+                  "after_watch_days": 7,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 7,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 3
+                },
+                "2024": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 3,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 3,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 2
+                }
+              },
+              "mean": {
+                "before_watch_days": 2.5,
+                "before_warning_days": 0.3,
+                "after_watch_days": 5.7,
+                "after_warning_days": 2.3,
+                "burst_watch_days": 5.5,
+                "burst_warning_days": 2.3,
+                "before_rises": 1.7,
+                "after_rises": 2.7
+              },
+              "years": 6
+            },
+            {
+              "village_id": "pandoh",
+              "village": "Pandoh",
+              "per_year": {
+                "2019": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 1,
+                  "after_watch_days": 4,
+                  "after_warning_days": 3,
+                  "burst_watch_days": 3,
+                  "burst_warning_days": 3,
+                  "before_rises": 2,
+                  "after_rises": 2
+                },
+                "2020": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 7,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 7,
+                  "burst_warning_days": 4,
+                  "before_rises": 4,
+                  "after_rises": 3
+                },
+                "2021": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 7,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 7,
+                  "burst_warning_days": 4,
+                  "before_rises": 2,
+                  "after_rises": 3
+                },
+                "2022": {
+                  "before_watch_days": 1,
+                  "before_warning_days": 0,
+                  "after_watch_days": 6,
+                  "after_warning_days": 1,
+                  "burst_watch_days": 6,
+                  "burst_warning_days": 1,
+                  "before_rises": 1,
+                  "after_rises": 3
+                },
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 1,
+                  "after_watch_days": 7,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 7,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 3
+                },
+                "2024": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 3,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 3,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 2
+                }
+              },
+              "mean": {
+                "before_watch_days": 2.5,
+                "before_warning_days": 0.3,
+                "after_watch_days": 5.7,
+                "after_warning_days": 2.3,
+                "burst_watch_days": 5.5,
+                "burst_warning_days": 2.3,
+                "before_rises": 1.7,
+                "after_rises": 2.7
+              },
+              "years": 6
+            },
+            {
+              "village_id": "sujanpur",
+              "village": "Sujanpur",
+              "per_year": {
+                "2019": {
+                  "before_watch_days": 8,
+                  "before_warning_days": 1,
+                  "after_watch_days": 13,
+                  "after_warning_days": 8,
+                  "burst_watch_days": 13,
+                  "burst_warning_days": 8,
+                  "before_rises": 5,
+                  "after_rises": 7
+                },
+                "2020": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 6,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 6,
+                  "burst_warning_days": 4,
+                  "before_rises": 2,
+                  "after_rises": 3
+                },
+                "2021": {
+                  "before_watch_days": 8,
+                  "before_warning_days": 2,
+                  "after_watch_days": 10,
+                  "after_warning_days": 8,
+                  "burst_watch_days": 10,
+                  "burst_warning_days": 8,
+                  "before_rises": 5,
+                  "after_rises": 4
+                },
+                "2022": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 8,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 8,
+                  "burst_warning_days": 4,
+                  "before_rises": 2,
+                  "after_rises": 3
+                },
+                "2023": {
+                  "before_watch_days": 5,
+                  "before_warning_days": 1,
+                  "after_watch_days": 7,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 6,
+                  "burst_warning_days": 4,
+                  "before_rises": 4,
+                  "after_rises": 3
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 6,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 6,
+                  "burst_warning_days": 2,
+                  "before_rises": 2,
+                  "after_rises": 3
+                }
+              },
+              "mean": {
+                "before_watch_days": 5.2,
+                "before_warning_days": 0.7,
+                "after_watch_days": 8.3,
+                "after_warning_days": 5.0,
+                "burst_watch_days": 8.2,
+                "burst_warning_days": 5.0,
+                "before_rises": 3.3,
+                "after_rises": 3.8
+              },
+              "years": 6
+            }
+          ]
+        },
+        "models_max": {
+          "label": "3 models (max), 2023-2024",
+          "models": [
+            "best_match",
+            "icon_seamless",
+            "gfs_seamless"
+          ],
+          "combine": "max",
+          "years": [
+            2023,
+            2024
+          ],
+          "villages": [
+            {
+              "village_id": "thunag",
+              "village": "Thunag",
+              "per_year": {
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 12,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 12,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 6
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 3,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 3,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 2
+                }
+              },
+              "mean": {
+                "before_watch_days": 2.0,
+                "before_warning_days": 0.0,
+                "after_watch_days": 7.5,
+                "after_warning_days": 2.0,
+                "burst_watch_days": 7.5,
+                "burst_warning_days": 2.0,
+                "before_rises": 1.0,
+                "after_rises": 4.0
+              },
+              "years": 2
+            },
+            {
+              "village_id": "janjehli",
+              "village": "Janjehli",
+              "per_year": {
+                "2023": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 8,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 8,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 5
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 8,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 8,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 4
+                }
+              },
+              "mean": {
+                "before_watch_days": 1.0,
+                "before_warning_days": 0.0,
+                "after_watch_days": 8.0,
+                "after_warning_days": 1.0,
+                "burst_watch_days": 8.0,
+                "burst_warning_days": 1.0,
+                "before_rises": 0.5,
+                "after_rises": 4.5
+              },
+              "years": 2
+            },
+            {
+              "village_id": "gohar",
+              "village": "Gohar",
+              "per_year": {
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 1,
+                  "after_watch_days": 11,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 11,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 5
+                },
+                "2024": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 5,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 5,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 3
+                }
+              },
+              "mean": {
+                "before_watch_days": 1.0,
+                "before_warning_days": 0.5,
+                "after_watch_days": 8.0,
+                "after_warning_days": 1.0,
+                "burst_watch_days": 8.0,
+                "burst_warning_days": 1.0,
+                "before_rises": 0.5,
+                "after_rises": 4.0
+              },
+              "years": 2
+            },
+            {
+              "village_id": "pandoh",
+              "village": "Pandoh",
+              "per_year": {
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 1,
+                  "after_watch_days": 10,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 10,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 5
+                },
+                "2024": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 5,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 5,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 3
+                }
+              },
+              "mean": {
+                "before_watch_days": 1.0,
+                "before_warning_days": 0.5,
+                "after_watch_days": 7.5,
+                "after_warning_days": 1.0,
+                "burst_watch_days": 7.5,
+                "burst_warning_days": 1.0,
+                "before_rises": 0.5,
+                "after_rises": 4.0
+              },
+              "years": 2
+            },
+            {
+              "village_id": "sujanpur",
+              "village": "Sujanpur",
+              "per_year": {
+                "2023": {
+                  "before_watch_days": 5,
+                  "before_warning_days": 1,
+                  "after_watch_days": 9,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 8,
+                  "burst_warning_days": 4,
+                  "before_rises": 4,
+                  "after_rises": 4
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 6,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 6,
+                  "burst_warning_days": 2,
+                  "before_rises": 2,
+                  "after_rises": 3
+                }
+              },
+              "mean": {
+                "before_watch_days": 3.5,
+                "before_warning_days": 0.5,
+                "after_watch_days": 7.5,
+                "after_warning_days": 3.0,
+                "burst_watch_days": 7.0,
+                "burst_warning_days": 3.0,
+                "before_rises": 3.0,
+                "after_rises": 3.5
+              },
+              "years": 2
+            }
+          ]
+        }
+      }
+    },
+    "needed_2025": {
+      "label": "what the 2025 misses would have needed (x0.222)",
+      "method": "perfect forecast from the Open-Meteo historical-forecast archive (next 24 archived hours at every hour), the same rain_level and rain_intensity as the sweep, soil off; a day counts when any of its hours is at the level; rises go through the production hysteresis",
+      "windows_mm": {
+        "1": 4.4,
+        "3": 9.9,
+        "6": 11.1
+      },
+      "sets": {
+        "best_match": {
+          "label": "best_match, 2019-2024",
+          "models": [
+            "best_match"
+          ],
+          "combine": "max",
+          "years": [
+            2019,
+            2020,
+            2021,
+            2022,
+            2023,
+            2024
+          ],
+          "villages": [
+            {
+              "village_id": "thunag",
+              "village": "Thunag",
+              "per_year": {
+                "2019": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 79,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 79,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 36
+                },
+                "2020": {
+                  "before_watch_days": 1,
+                  "before_warning_days": 0,
+                  "after_watch_days": 74,
+                  "after_warning_days": 1,
+                  "burst_watch_days": 74,
+                  "burst_warning_days": 1,
+                  "before_rises": 1,
+                  "after_rises": 32
+                },
+                "2021": {
+                  "before_watch_days": 8,
+                  "before_warning_days": 1,
+                  "after_watch_days": 62,
+                  "after_warning_days": 8,
+                  "burst_watch_days": 62,
+                  "burst_warning_days": 8,
+                  "before_rises": 4,
+                  "after_rises": 26
+                },
+                "2022": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 63,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 63,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 27
+                },
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 64,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 64,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 24
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 70,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 70,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 28
+                }
+              },
+              "mean": {
+                "before_watch_days": 2.5,
+                "before_warning_days": 0.2,
+                "after_watch_days": 68.7,
+                "after_warning_days": 2.5,
+                "burst_watch_days": 68.7,
+                "burst_warning_days": 2.5,
+                "before_rises": 1.3,
+                "after_rises": 28.8
+              },
+              "years": 6
+            },
+            {
+              "village_id": "janjehli",
+              "village": "Janjehli",
+              "per_year": {
+                "2019": {
+                  "before_watch_days": 1,
+                  "before_warning_days": 0,
+                  "after_watch_days": 68,
+                  "after_warning_days": 1,
+                  "burst_watch_days": 68,
+                  "burst_warning_days": 1,
+                  "before_rises": 1,
+                  "after_rises": 31
+                },
+                "2020": {
+                  "before_watch_days": 1,
+                  "before_warning_days": 0,
+                  "after_watch_days": 47,
+                  "after_warning_days": 1,
+                  "burst_watch_days": 47,
+                  "burst_warning_days": 1,
+                  "before_rises": 1,
+                  "after_rises": 21
+                },
+                "2021": {
+                  "before_watch_days": 6,
+                  "before_warning_days": 0,
+                  "after_watch_days": 60,
+                  "after_warning_days": 6,
+                  "burst_watch_days": 60,
+                  "burst_warning_days": 6,
+                  "before_rises": 3,
+                  "after_rises": 27
+                },
+                "2022": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 47,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 47,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 21
+                },
+                "2023": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 41,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 41,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 17
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 49,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 49,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 23
+                }
+              },
+              "mean": {
+                "before_watch_days": 2.0,
+                "before_warning_days": 0.0,
+                "after_watch_days": 52.0,
+                "after_warning_days": 2.0,
+                "burst_watch_days": 52.0,
+                "burst_warning_days": 2.0,
+                "before_rises": 1.2,
+                "after_rises": 23.3
+              },
+              "years": 6
+            },
+            {
+              "village_id": "gohar",
+              "village": "Gohar",
+              "per_year": {
+                "2019": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 1,
+                  "after_watch_days": 43,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 43,
+                  "burst_warning_days": 4,
+                  "before_rises": 2,
+                  "after_rises": 20
+                },
+                "2020": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 31,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 31,
+                  "burst_warning_days": 4,
+                  "before_rises": 4,
+                  "after_rises": 14
+                },
+                "2021": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 34,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 34,
+                  "burst_warning_days": 4,
+                  "before_rises": 2,
+                  "after_rises": 15
+                },
+                "2022": {
+                  "before_watch_days": 1,
+                  "before_warning_days": 0,
+                  "after_watch_days": 60,
+                  "after_warning_days": 1,
+                  "burst_watch_days": 60,
+                  "burst_warning_days": 1,
+                  "before_rises": 1,
+                  "after_rises": 27
+                },
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 1,
+                  "after_watch_days": 41,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 41,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 19
+                },
+                "2024": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 50,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 50,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 24
+                }
+              },
+              "mean": {
+                "before_watch_days": 2.5,
+                "before_warning_days": 0.3,
+                "after_watch_days": 43.2,
+                "after_warning_days": 2.5,
+                "burst_watch_days": 43.2,
+                "burst_warning_days": 2.5,
+                "before_rises": 1.7,
+                "after_rises": 19.8
+              },
+              "years": 6
+            },
+            {
+              "village_id": "pandoh",
+              "village": "Pandoh",
+              "per_year": {
+                "2019": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 1,
+                  "after_watch_days": 34,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 34,
+                  "burst_warning_days": 4,
+                  "before_rises": 2,
+                  "after_rises": 17
+                },
+                "2020": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 30,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 30,
+                  "burst_warning_days": 4,
+                  "before_rises": 4,
+                  "after_rises": 14
+                },
+                "2021": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 30,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 30,
+                  "burst_warning_days": 4,
+                  "before_rises": 2,
+                  "after_rises": 14
+                },
+                "2022": {
+                  "before_watch_days": 1,
+                  "before_warning_days": 0,
+                  "after_watch_days": 43,
+                  "after_warning_days": 1,
+                  "burst_watch_days": 43,
+                  "burst_warning_days": 1,
+                  "before_rises": 1,
+                  "after_rises": 20
+                },
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 1,
+                  "after_watch_days": 30,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 30,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 15
+                },
+                "2024": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 45,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 45,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 23
+                }
+              },
+              "mean": {
+                "before_watch_days": 2.5,
+                "before_warning_days": 0.3,
+                "after_watch_days": 35.3,
+                "after_warning_days": 2.5,
+                "burst_watch_days": 35.3,
+                "burst_warning_days": 2.5,
+                "before_rises": 1.7,
+                "after_rises": 17.2
+              },
+              "years": 6
+            },
+            {
+              "village_id": "sujanpur",
+              "village": "Sujanpur",
+              "per_year": {
+                "2019": {
+                  "before_watch_days": 8,
+                  "before_warning_days": 1,
+                  "after_watch_days": 50,
+                  "after_warning_days": 8,
+                  "burst_watch_days": 50,
+                  "burst_warning_days": 8,
+                  "before_rises": 5,
+                  "after_rises": 23
+                },
+                "2020": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 41,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 41,
+                  "burst_warning_days": 4,
+                  "before_rises": 2,
+                  "after_rises": 21
+                },
+                "2021": {
+                  "before_watch_days": 8,
+                  "before_warning_days": 2,
+                  "after_watch_days": 37,
+                  "after_warning_days": 8,
+                  "burst_watch_days": 37,
+                  "burst_warning_days": 8,
+                  "before_rises": 5,
+                  "after_rises": 17
+                },
+                "2022": {
+                  "before_watch_days": 4,
+                  "before_warning_days": 0,
+                  "after_watch_days": 48,
+                  "after_warning_days": 4,
+                  "burst_watch_days": 48,
+                  "burst_warning_days": 4,
+                  "before_rises": 2,
+                  "after_rises": 20
+                },
+                "2023": {
+                  "before_watch_days": 5,
+                  "before_warning_days": 1,
+                  "after_watch_days": 35,
+                  "after_warning_days": 5,
+                  "burst_watch_days": 35,
+                  "burst_warning_days": 5,
+                  "before_rises": 4,
+                  "after_rises": 15
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 55,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 55,
+                  "burst_warning_days": 2,
+                  "before_rises": 2,
+                  "after_rises": 25
+                }
+              },
+              "mean": {
+                "before_watch_days": 5.2,
+                "before_warning_days": 0.7,
+                "after_watch_days": 44.3,
+                "after_warning_days": 5.2,
+                "burst_watch_days": 44.3,
+                "burst_warning_days": 5.2,
+                "before_rises": 3.3,
+                "after_rises": 20.2
+              },
+              "years": 6
+            }
+          ]
+        },
+        "models_max": {
+          "label": "3 models (max), 2023-2024",
+          "models": [
+            "best_match",
+            "icon_seamless",
+            "gfs_seamless"
+          ],
+          "combine": "max",
+          "years": [
+            2023,
+            2024
+          ],
+          "villages": [
+            {
+              "village_id": "thunag",
+              "village": "Thunag",
+              "per_year": {
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 85,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 85,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 31
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 88,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 88,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 32
+                }
+              },
+              "mean": {
+                "before_watch_days": 2.0,
+                "before_warning_days": 0.0,
+                "after_watch_days": 86.5,
+                "after_warning_days": 2.0,
+                "burst_watch_days": 86.5,
+                "burst_warning_days": 2.0,
+                "before_rises": 1.0,
+                "after_rises": 31.5
+              },
+              "years": 2
+            },
+            {
+              "village_id": "janjehli",
+              "village": "Janjehli",
+              "per_year": {
+                "2023": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 92,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 92,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 36
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 85,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 85,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 34
+                }
+              },
+              "mean": {
+                "before_watch_days": 1.0,
+                "before_warning_days": 0.0,
+                "after_watch_days": 88.5,
+                "after_warning_days": 1.0,
+                "burst_watch_days": 88.5,
+                "burst_warning_days": 1.0,
+                "before_rises": 0.5,
+                "after_rises": 35.0
+              },
+              "years": 2
+            },
+            {
+              "village_id": "gohar",
+              "village": "Gohar",
+              "per_year": {
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 1,
+                  "after_watch_days": 70,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 70,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 29
+                },
+                "2024": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 66,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 66,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 30
+                }
+              },
+              "mean": {
+                "before_watch_days": 1.0,
+                "before_warning_days": 0.5,
+                "after_watch_days": 68.0,
+                "after_warning_days": 1.0,
+                "burst_watch_days": 68.0,
+                "burst_warning_days": 1.0,
+                "before_rises": 0.5,
+                "after_rises": 29.5
+              },
+              "years": 2
+            },
+            {
+              "village_id": "pandoh",
+              "village": "Pandoh",
+              "per_year": {
+                "2023": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 1,
+                  "after_watch_days": 58,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 58,
+                  "burst_warning_days": 2,
+                  "before_rises": 1,
+                  "after_rises": 25
+                },
+                "2024": {
+                  "before_watch_days": 0,
+                  "before_warning_days": 0,
+                  "after_watch_days": 66,
+                  "after_warning_days": 0,
+                  "burst_watch_days": 66,
+                  "burst_warning_days": 0,
+                  "before_rises": 0,
+                  "after_rises": 32
+                }
+              },
+              "mean": {
+                "before_watch_days": 1.0,
+                "before_warning_days": 0.5,
+                "after_watch_days": 62.0,
+                "after_warning_days": 1.0,
+                "burst_watch_days": 62.0,
+                "burst_warning_days": 1.0,
+                "before_rises": 0.5,
+                "after_rises": 28.5
+              },
+              "years": 2
+            },
+            {
+              "village_id": "sujanpur",
+              "village": "Sujanpur",
+              "per_year": {
+                "2023": {
+                  "before_watch_days": 5,
+                  "before_warning_days": 1,
+                  "after_watch_days": 57,
+                  "after_warning_days": 5,
+                  "burst_watch_days": 57,
+                  "burst_warning_days": 5,
+                  "before_rises": 4,
+                  "after_rises": 24
+                },
+                "2024": {
+                  "before_watch_days": 2,
+                  "before_warning_days": 0,
+                  "after_watch_days": 75,
+                  "after_warning_days": 2,
+                  "burst_watch_days": 75,
+                  "burst_warning_days": 2,
+                  "before_rises": 2,
+                  "after_rises": 30
+                }
+              },
+              "mean": {
+                "before_watch_days": 3.5,
+                "before_warning_days": 0.5,
+                "after_watch_days": 66.0,
+                "after_warning_days": 3.5,
+                "burst_watch_days": 66.0,
+                "burst_warning_days": 3.5,
+                "before_rises": 3.0,
+                "after_rises": 27.0
+              },
+              "years": 2
+            }
+          ]
+        }
+      }
+    }
+  }
 }

@@ -96,6 +96,12 @@ class Settings:
     report_window_minutes: int = 10
     report_limit_per_source: int = 5
     report_limit_per_village: int = 30
+    # Heavy-burst rule (risk_rules.rain_intensity): rolling 1/3/6-hour maxima of the hourly forecast.
+    # rain_models: the Open-Meteo models asked in the same forecast request (best_match always first);
+    # rain_models_combine: "max" (the highest model) or "mean" (the multi-model mean). docs/SCORING.md.
+    rain_intensity_enabled: bool = True
+    rain_models: tuple[str, ...] = ("best_match", "icon_seamless", "gfs_seamless")
+    rain_models_combine: str = "max"
 
     @property
     def guardrail_enabled(self) -> bool:
@@ -166,7 +172,23 @@ def get_settings() -> Settings:
         report_window_minutes=max(1, int(os.environ.get("PUKAAR_REPORT_WINDOW_MINUTES", "10"))),
         report_limit_per_source=max(1, int(os.environ.get("PUKAAR_REPORT_LIMIT_PER_SOURCE", "5"))),
         report_limit_per_village=max(1, int(os.environ.get("PUKAAR_REPORT_LIMIT_PER_VILLAGE", "30"))),
+        rain_intensity_enabled=_bool("PUKAAR_RAIN_INTENSITY", True),
+        rain_models=_rain_models(os.environ.get("PUKAAR_RAIN_MODELS", ",".join(DEFAULT_RAIN_MODELS))),
+        rain_models_combine="mean" if os.environ.get("PUKAAR_RAIN_MODELS_COMBINE", "max").strip().lower() == "mean"
+        else "max",
     )
+
+
+# Open-Meteo forecast models the burst rule may read. Three models with the precipitation and two
+# soil layers are 9 variables: still one call on the free tier (more than 10 counts as more).
+RAIN_MODELS_ALLOWED = ("best_match", "icon_seamless", "gfs_seamless")
+DEFAULT_RAIN_MODELS = RAIN_MODELS_ALLOWED
+
+
+def _rain_models(raw: str) -> tuple[str, ...]:
+    """best_match first, then any other allowed model named; unknown names are dropped."""
+    names = [m.strip().lower() for m in raw.split(",") if m.strip()]
+    return ("best_match", *dict.fromkeys(m for m in names if m in RAIN_MODELS_ALLOWED and m != "best_match"))
 
 
 def _voice_provider(raw: str) -> str:

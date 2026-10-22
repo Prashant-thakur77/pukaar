@@ -13,6 +13,13 @@ half to three quarters, and the one hit we had lost most of its lead time as an 
 heads-up comes back as a [get-ready outlook](#5-the-get-ready-outlook-never-an-alert), which is
 shown but never alerts.
 
+On 22 October 2026 the rain side gained a [heavy-burst rule](#heavy-bursts-the-hourly-intensity-rule)
+(rules `risk-rules-v3`): the rolling 1-, 3- and 6-hour maxima of the hourly forecast, read from three
+forecast models. It changes no scored result. **The 2025 Mandi cloudbursts are still missed, 0 of 3**,
+because no archived global forecast put more than 8.5 mm in any hour over the villages that were hit.
+Catching them would have meant Watch on 35 to 89 days a year. The rule's cost at the thresholds we
+chose is small: 0.1 to 0.3 more Watch days a year, and 1 to 2.6 more Warning days.
+
 ![Hits, misses and false alarms per configuration](charts/scores.svg)
 
 ## Method
@@ -26,7 +33,7 @@ Four configurations, each through the same hysteresis:
 
 | Configuration | Level each hour |
 | --- | --- |
-| rain only | `rain_level`: IMD 24 h rain bands (64.5 / 115.6 / 204.5 mm) |
+| rain only | `rain_level`: IMD 24 h rain bands (64.5 / 115.6 / 204.5 mm), and since `risk-rules-v3` the [heavy-burst rule](#heavy-bursts-the-hourly-intensity-rule) |
 | river only | `river_level`: forecast discharge at the village's river cell against its 2-, 5- and 20-year discharges |
 | both (Pukaar) | the final `level`: the higher of the two, one level up when both reach Watch |
 | both + soil | the same, with the soil-moisture modifier on the rain bands (see [below](#soil-moisture-modifier)) |
@@ -195,6 +202,178 @@ early line.
   look-ahead the outlook is on for longer than that: weeks in most monsoons. That is why it is an
   outlook and nothing more.
 
+## Heavy bursts: the hourly-intensity rule
+
+**Why.** IMD calls a cloudburst 100 mm or more of rain in an hour over about 20-30 km²
+([Dimri et al. 2017, *Earth-Science Reviews* 168](https://centaur.reading.ac.uk/69722/)). The 24-hour
+bands cannot see that: a day can stay under the 64.5 mm band while one hour is violent. Before
+`risk-rules-v3`, `rain_level` read only the 24-hour forecast sum, although the sweep already stored
+every forecast hour (`rain_hourly`).
+
+**What it does** (`risk_rules.rain_intensity`, label `rain_intensity` in `rules_fired`):
+
+- **Rolling maxima.** The highest 1-, 3- and 6-hour totals in the next 24 forecast hours. Hours are
+  placed by their timestamps. A missing hour is unknown, never 0 mm, so a window with a gap is a
+  lower bound: it can show a burst, but it cannot rule one out.
+- **A burst** is any window at or above its threshold:
+
+  | Window | Threshold (grid-cell mm) | Where it comes from |
+  | --- | --- | --- |
+  | 1 h | 20 | IMD's cloudburst rate, 100 mm/h over about 25 km², spread over a model cell of about 125 km² (100 × 25/125). It is also above the AMS "heavy rain" rate of 7.6 mm/h. |
+  | 3 h | 45 | Half of the Nepal Himalaya landslide-triggering curve, I = 73.90 D^-0.79 (Dahal and Hasegawa 2008, *Geomorphology* 100: 429-443), which gives 95 mm at a rain gauge, rounded down to 5 mm |
+  | 6 h | 50 | The same curve, 108 mm at a gauge, halved and rounded down |
+
+  These are grid-cell amounts, not gauge rates. A forecast model averages rain over its cell,
+  which is 80-600 km² for the models used here. The 1-hour value scales IMD's footprint to the
+  cell. The halving at 3 and 6 hours is our stated assumption of an areal reduction for convective
+  rain at that scale; it is not a fitted value. Six hours is the longest window because the US
+  National Weather Service defines a flash flood as one that rises within six hours of the rain.
+- **Steep terrain.** The khads (Thunag, Janjehli and Gohar, with 2-year flows of 1.3-1.4 m³/s)
+  respond within an hour or two of a burst on their own slopes, so all three windows count. A large
+  river (2-year flow of 50 m³/s or more: the Beas at Pandoh and Sujanpur) sums rain over hours, so
+  the 1-hour window is not read there. The 3- and 6-hour windows still are.
+- **Level.** A burst on its own raises **Watch** and nothing more. It raises **Warning** when it
+  coincides with a 24-hour total that already reaches a rain band (64.5 mm, or the soil-scaled band),
+  or with saturated soil (S ≥ 0.8) while the soil modifier is on (off by default; see
+  [below](#soil-moisture-modifier)). It never sets Critical. `rain_level` is the higher of the
+  24-hour bands and the burst rule. Rain stays one source for "two sources agree".
+- **Trace.** A `rain_intensity` evidence item carries each model's maxima, the combined maxima,
+  which windows hit, the catchment class and the reason. The rule reads, for example,
+  `rain_intensity:1h=30>=20mm:watch` or `rain_intensity:3h=48>=45mm+rain_24h:warning`.
+- **CAP.** When rain sets the level above every river, gauge and staff-gauge reading,
+  `cap.event_code` is **OET-079 flash flood**, otherwise OET-081 flood. This rule raises
+  `rain_level`, so a burst alert with a quiet river is a flash flood. Tested in
+  `test_rain_intensity.py`.
+- **Nowcast.** "Heavy burst of rain possible in the next N hours (forecast): up to 26 mm in 1 hour
+  (a single forecast)", and in Hindi «अगले N घंटों में भारी बारिश का तेज़ दौर संभव (पूर्वानुमान)».
+  N is the number of hours to the end of the first burst window. When there are several models, the
+  line names them ("the highest of 3 forecast models"). The rule raises the level as soon as the
+  forecast shows a burst, so this line is given while its level is at or above the current one.
+- **Switch.** Set `PUKAAR_RAIN_INTENSITY=false` to turn it off.
+
+**Three forecast models.** The sweep's single forecast request names
+`models=best_match,icon_seamless,gfs_seamless` (`PUKAAR_RAIN_MODELS`). Open-Meteo returns each
+variable once per model, so precipitation and the two soil layers for three models are 9 variables.
+That is still one call on the free tier, which counts a request as more than one only above 10
+variables, so the call budget is unchanged. best_match alone gives the 24-hour sum and the soil;
+every model's hours feed the burst rule. `PUKAAR_RAIN_MODELS_COMBINE` chooses how:
+
+- `max` (default): the highest of each model's own window maximum, a burst that any model
+  forecasts;
+- `mean`: the window maximum of the hourly mean across models.
+
+Max is the default because the global models smooth convection, and a burst that one of them
+resolves is the only warning they can give. Mean adds nothing in the 2023-2024 history, because
+ICON's hourly rain is the smoothest of the three (its highest hour in two monsoons at these villages
+is 11 mm). In the replays the other models are archived under `hourly_models`
+(`python -m Pukaar.scripts.fetch_replay --models`).
+
+**How the thresholds were chosen.** They were set from the sources above before the 2025 replay was
+looked at. They were not tuned to it. The 3-hour value moved from a first 35 mm to 45 mm when the
+rounding rule was written down. The 2019-2024 annual maxima were looked at by then; 2025 was not.
+A model-climatology threshold, as in the European flash-flood indicators EPIC and ERIC (Alfieri and
+Thielen 2015, *Meteorological Applications* 22), would fit each village to its own model. It needs
+more years of multi-model hourly history than the archive holds (ICON from late 2022), so it is left
+for later.
+
+### Results: before and after
+
+`python -m Pukaar.scripts.score` scores each scenario with and without the rule (`burst` in each
+scenario of `data/scores.json`), and `python -m Pukaar.scripts.backtest` adds the highest 1/3/6-hour
+forecast totals and the first burst per village to `data/backtest.json`.
+
+| Scenario | Configuration | Hits / misses | Median lead |
+| --- | --- | --- | --- |
+| Himachal 2023 (1 scored) | 24 h rain only (before) | 1 / 0 | 19 h |
+| | heavy burst only | 0 / 1 | - |
+| | both, without the burst rule (before) | 1 / 0 | 19 h |
+| | both, burst on best_match alone | 1 / 0 | 19 h |
+| | **both (Pukaar): burst on 3 models, max** | **1 / 0** | **19 h** |
+| | both, burst on 3 models, mean | 1 / 0 | 19 h |
+| Mandi 2025 (3 scored) | every configuration | **0 / 3** | - |
+
+**The 2025 cloudbursts are still missed, and the forecasts are why.** The highest totals that any
+archived forecast gave before the end of 30 June, at the three villages that were hit:
+
+| Village | best_match 1 h / 3 h / 6 h | icon_seamless | gfs_seamless | Thresholds |
+| --- | --- | --- | --- | --- |
+| Thunag | 6.6 / 9.9 / 13.7 | 2.4 / 5.6 / 9.5 | 2.4 / 6.6 / 11.0 | 20 / 45 / 50 |
+| Janjehli | 8.5 / 12.7 / 17.7 | 2.4 / 5.6 / 9.5 | 2.8 / 8.0 / 13.9 | 20 / 45 / 50 |
+| Gohar | 2.9 / 6.8 / 9.0 | 1.7 / 4.0 / 7.6 | 2.1 / 5.9 / 11.1 | 20 / 45 / 50 |
+
+All values are in mm. The global models did not forecast the burst. Their best hour was about a
+third of the 1-hour threshold, and a tenth of the cloudburst rate before the cell average. A 9-25
+km model cannot resolve a 25 km² storm. The archive also stitches together the first hours of
+successive runs. A live 24-hour look-ahead reads longer leads, which are no more skilful. No threshold on these forecasts
+catches 2025 without firing for weeks every monsoon (next table). Catching it needs observed rain:
+IMD's Doppler radars at Kufri and Murari Devi, rain gauges, or a nowcast model at 1-3 km.
+
+**In 2023 the rule changed nothing that is scored.** The only burst in the replay was at Sujanpur,
+from 00:00 on 8 July. GFS forecast 48 mm in 3 hours, and later up to 87 mm in 6. The 24-hour total
+was already over 64.5 mm, so rain became a Warning. With the river at Watch, the two sources took
+Sujanpur to Critical at 00:00 on 8 July instead of 13:00. Sujanpur's outcome is uncertain. Gohar's
+best_match forecast reached 19.6 mm in an hour, 0.4 mm under the threshold. We left it there.
+
+### Watch and Warning days a year, 2019-2024
+
+This is the false-alarm burden, which ground truth cannot yet count. It is measured on the
+historical-forecast archive: at every hour, the next 24 archived hours stand in for the forecast and
+go through the same `rain_level` and `rain_intensity` as the sweep, with soil off. A day counts when
+any of its hours is at the level, and rises go through the production hysteresis. Before is the 24-hour
+bands alone; after adds the burst rule. These are rain-side counts: the river's own Watch days are
+in the [river table](#days-a-year-at-watch-2019-2024). Run
+`python -m Pukaar.scripts.fetch_replay --history` to fetch the history (30 requests, one per village
+and year, each for three models; kept in `data/.cache/rain_history`, not in git), then
+`python -m Pukaar.scripts.score --history`.
+The results are in `data/scores.json` under `burst_burden`.
+
+best_match, 2019-2024 (six monsoons; mean a year, with the range of the after count):
+
+| Village | Watch days, before → after | Warning days, before → after | Rises to Watch, before → after |
+| --- | --- | --- | --- |
+| Thunag | 2.5 → 2.8 (0-8) | 0.2 → 1.2 (0-6) | 1.3 → 1.5 |
+| Janjehli | 2.0 → 2.2 (0-6) | 0.0 → 1.2 (0-4) | 1.2 → 1.2 |
+| Gohar | 2.5 → 2.8 (0-6) | 0.3 → 1.7 (0-4) | 1.7 → 1.5 |
+| Pandoh | 2.5 → 2.7 (0-5) | 0.3 → 1.7 (0-4) | 1.7 → 1.5 |
+| Sujanpur | 5.2 → 5.3 (2-9) | 0.7 → 3.3 (1-7) | 3.3 → 3.2 |
+
+Gohar and Pandoh share a best_match cell. Read plainly:
+
+- **Watch hardly moves.** Bursts in the forecast nearly always come on days whose 24-hour total
+  already reaches 64.5 mm.
+- **Warnings grow.** That same coincidence turns about one Watch day a year into a Warning at the
+  khads, and 2.6 a year at Sujanpur. That is officer approvals, not more alerts. Rises can fall
+  slightly because a Warning holds longer through the hysteresis.
+
+The three models, 2023-2024 only (ICON's archive starts in late 2022), mean a year:
+
+| Village | best_match alone: Watch / Warning days after | 3 models, max (default) | 3 models, mean |
+| --- | --- | --- | --- |
+| Thunag | 2.0 / 0.0 | 2.0 / 0.0 | 2.0 / 0.0 |
+| Janjehli | 1.0 / 1.0 | 1.0 / 1.0 | 1.0 / 0.0 |
+| Gohar | 1.0 / 0.5 | 1.0 / 0.5 | 1.0 / 0.5 |
+| Pandoh | 1.0 / 0.5 | 1.0 / 0.5 | 1.0 / 0.5 |
+| Sujanpur | 3.5 / 1.0 | 3.5 / 1.5 | 3.5 / 0.5 |
+
+Two quiet monsoons (2023's flood days were already Watch from the 24-hour bands). Max costs half a
+Warning day a year at Sujanpur over best_match alone; mean is the same as the 24-hour bands alone.
+
+**What lower thresholds would cost** (`burst_burden_sensitivity`, Watch days a year after, before in
+brackets):
+
+| Thresholds (1 / 3 / 6 h) | Thunag | Janjehli | Gohar | Pandoh | Sujanpur |
+| --- | --- | --- | --- | --- | --- |
+| Chosen: 20 / 45 / 50 | 2.8 (2.5) | 2.2 (2.0) | 2.8 (2.5) | 2.7 (2.5) | 5.3 (5.2) |
+| Dahal-Hasegawa × 0.27: 20 / 25 / 30, best_match 2019-2024 | 4.8 | 5.0 | 5.7 | 5.7 | 8.3 |
+| the same, 3 models (max) 2023-2024 | 7.5 (2.0) | 8.0 (1.0) | 8.0 (1.0) | 7.5 (1.0) | 7.5 (3.5) |
+| **What 2025 needed: 4.4 / 9.9 / 11.1** (× 0.22), best_match 2019-2024 | **68.7** | **52.0** | **43.2** | **35.3** | **44.3** |
+| the same, 3 models (max) 2023-2024 | 86.5 | 88.5 | 68.0 | 62.0 | 66.0 |
+
+The last two rows are the honest price of a 2025 hit on these forecasts: the lowest thresholds, scaled
+together, that the forecasts at all three villages reach before the end of 30 June. At those
+thresholds every village sits at Watch for 35 to 89 days a year, with 17 to 35 separate rises. That
+is not a warning. It is the monsoon. It is computed as a diagnostic and is never a setting.
+
 ## Ground truth
 
 Only what public reporting says, checked on 2026-10-11. Where we found no village-specific
@@ -269,8 +448,10 @@ Pandoh as unusual: the real flood came from extreme rain, landslide debris and t
 releases, none of which the model resolves. No return-period threshold catches it without firing
 every year.
 
-The 2025 cloudbursts are still missed by every configuration. No archived forecast crossed a
-threshold at the three villages that were hit.
+The 2025 cloudbursts are still missed by every configuration, including the heavy-burst rule of
+`risk-rules-v3`, which leaves every number in this section unchanged (see
+[Results: before and after](#results-before-and-after)). No archived forecast crossed a threshold
+at the three villages that were hit.
 
 Back-test per village (`data/backtest.json`; times are UTC, first time each level was held):
 
@@ -407,3 +588,8 @@ hour, which is closer to an analysis than to what a live forecast would have sho
   (Janjehli 2025), and the event day is a UTC date, not an hour.
 - **Forecast data only.** Villager reports, gauges and official feeds are not in the replay
   archive, so this does not score the full system.
+- **Bursts need observed rain.** The heavy-burst rule reads global forecasts at 9-25 km. It can only
+  pass on a burst that a model forecasts. A cloudburst that no model forecast, such as Mandi in 2025,
+  needs radar, rain gauges or a convection-permitting nowcast. The burst thresholds rest on IMD's
+  definition and one Himalayan landslide curve, scaled to a model cell by a stated assumption; their
+  burden is measured, and their hit rate is not.

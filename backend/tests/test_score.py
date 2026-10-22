@@ -46,7 +46,7 @@ def _patch(monkeypatch, tmp_path):
     monkeypatch.setattr(score.external_data, "list_scenarios", lambda: ["synthetic"])
     monkeypatch.setattr(score.external_data, "load_scenario", lambda name: sc)
     monkeypatch.setattr(score.external_data, "replay_hours", lambda name: HOURS)
-    monkeypatch.setattr(score.external_data, "replay_reading", lambda name, v, at: _reading(v.id, at))
+    monkeypatch.setattr(score.external_data, "replay_reading", lambda name, v, at, **kw: _reading(v.id, at))
     (tmp_path / "ground_truth.json").write_text(json.dumps({"scenarios": {"synthetic": TRUTH}}), encoding="utf-8")
 
 
@@ -102,7 +102,7 @@ def test_soil_configuration_lowers_bands_on_saturated_ground(monkeypatch, tmp_pa
     from Pukaar.store.models import SoilRange
 
     # 55 mm is below the IMD Watch band (64.5) but above it at full saturation (x0.7 = 45.2).
-    monkeypatch.setattr(score.external_data, "replay_reading", lambda name, v, at: Reading(
+    monkeypatch.setattr(score.external_data, "replay_reading", lambda name, v, at, **kw: Reading(
         village_id=v.id, at=at.isoformat(), rain_24h_mm=55.0 if v.id == "rainy" else 5.0, discharge_peak=1.0,
         soil_moisture_root=0.45))
     villages = [_village(v).model_copy(update={"soil": SoilRange(dry=0.2, wet=0.4)}) for v in TRUTH]

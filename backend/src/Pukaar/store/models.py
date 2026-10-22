@@ -176,6 +176,9 @@ class Reading(BaseModel):
     at: str
     rain_24h_mm: float | None = None
     rain_hourly: list[dict[str, Any]] = Field(default_factory=list)
+    # The same hours from the other forecast models the heavy-burst rule reads (PUKAAR_RAIN_MODELS),
+    # {model: [{"t", "mm"}]}; rain_hourly is best_match and alone gives the 24-hour sum.
+    rain_models: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
     discharge: float | None = None
     discharge_forecast: list[dict[str, Any]] = Field(default_factory=list)
     discharge_peak: float | None = None

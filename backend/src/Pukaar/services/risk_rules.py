@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from Pukaar.services import soil as soil_mod
@@ -28,7 +28,7 @@ REPORT_ZERO_WEIGHT_HOURS = 3.0
 # Report types that floor the village at warning once verified.
 IMPACT_TYPES = {"road_cut", "bridge_unsafe", "homes_affected", "people_trapped", "landslide"}
 SEVERITY_TO_LEVEL = {"low": "normal", "medium": "watch", "high": "warning", "critical": "critical"}
-RULES_VERSION = "risk-rules-v2"
+RULES_VERSION = "risk-rules-v3"
 AUTO_VERIFIED_CAP = "warning"
 # A gauge reading older than this changes nothing.
 GAUGE_FRESH_MINUTES = 30
@@ -50,6 +50,155 @@ def rain_level(rain_24h_mm: float | None, bands: tuple[tuple[str, float], ...] =
         if rain_24h_mm >= mm:
             return level
     return "normal"
+
+
+# -- rain: a heavy burst in the hourly forecast (rain_intensity) ------------------------
+# The 24-hour sum cannot see a cloudburst: IMD calls >= 100 mm in an hour over 20-30 km² a
+# cloudburst, and a day can stay under the 64.5 mm band while one hour is violent. This rule reads
+# the rolling 1-, 3- and 6-hour maxima of the next 24 forecast hours. Thresholds are grid-cell
+# amounts, not rain-gauge rates (a model cell of about 80-600 km² averages a 25 km² burst down):
+#   1 h  20 mm  IMD's cloudburst, 100 mm/h over about 25 km², spread over a ~125 km² model cell
+#   3 h  45 mm  half of Dahal & Hasegawa's (2008) Himalayan landslide curve I = 73.90 D^-0.79
+#   6 h  50 mm  (95 and 108 mm at a gauge), halved for the cell average and rounded down to 5 mm
+# Chosen before the 2025 replay was looked at and not tuned to it; docs/SCORING.md ("Heavy bursts")
+# gives the sources, the 2019-2024 burden and what a 2025 hit would have cost.
+BURST_WINDOWS_MM = {1: 20.0, 3: 45.0, 6: 50.0}
+BURST_LOOKAHEAD_HOURS = 24
+# A river cell whose 2-year flow is at least this is a large river (the Beas at Pandoh and
+# Sujanpur): it integrates rain over hours, so the 1-hour window is not read there. The khads
+# (2-year flow of 1-2 m³/s) answer within an hour or two of a burst on their own slopes.
+LARGE_RIVER_CMS = 50.0
+COMBINE_MODES = ("max", "mean")
+
+
+def _hour_key(t: Any) -> int | None:
+    try:
+        dt = datetime.fromisoformat(str(t).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return int((dt - datetime(1970, 1, 1)).total_seconds() // 3600)
+
+
+def _hour_series(points: list[dict[str, Any]]) -> list[float | None]:
+    """Consecutive hours from the first point, a missing hour as None (unknown, never 0 mm).
+
+    Points are {"t", "mm"}; when the times cannot be read, the points are taken as consecutive."""
+    if not points:
+        return []
+    keys = [_hour_key(p.get("t")) for p in points]
+    if any(k is None for k in keys):
+        return [None if p.get("mm") is None else float(p["mm"]) for p in points]
+    t0 = min(k for k in keys if k is not None)
+    out: list[float | None] = [None] * BURST_LOOKAHEAD_HOURS
+    for k, p in zip(keys, points):
+        i = k - t0  # type: ignore[operator]
+        if 0 <= i < BURST_LOOKAHEAD_HOURS and p.get("mm") is not None:
+            out[i] = float(p["mm"])
+    return out
+
+
+def rolling_maxima(series: list[float | None], windows=tuple(BURST_WINDOWS_MM)) -> dict[int, dict[str, Any]]:
+    """The highest D-hour total of the next BURST_LOOKAHEAD_HOURS hours, for each window D.
+
+    {D: {"mm", "start" (hours from the first hour), "complete"}}. A window with a missing hour sums
+    only what is known, so it is a lower bound ("complete": False). None when no hour is known.
+    """
+    s = series[:BURST_LOOKAHEAD_HOURS]
+    out: dict[int, dict[str, Any]] = {}
+    for d in windows:
+        best: dict[str, Any] | None = None
+        for start in range(0, max(0, len(s) - d) + 1):
+            chunk = s[start:start + d]
+            known = [x for x in chunk if x is not None]
+            if not known:
+                continue
+            total = round(sum(known), 1)
+            if best is None or total > best["mm"]:
+                best = {"mm": total, "start": start, "complete": len(known) == d == len(chunk)}
+        out[d] = best if best is not None else {"mm": None, "start": None, "complete": False}
+    return out
+
+
+def _mean_series(series: list[list[float | None]]) -> list[float | None]:
+    n = max((len(x) for x in series), default=0)
+    out: list[float | None] = []
+    for i in range(n):
+        vals = [x[i] for x in series if i < len(x) and x[i] is not None]
+        out.append(round(sum(vals) / len(vals), 2) if vals else None)
+    return out
+
+
+def rain_intensity(reading: Reading | None, thresholds: Thresholds | None, rain_24h_level: str,
+                   soil_info: dict[str, Any] | None, combine: str | None = None,
+                   windows_mm: dict[int, float] | None = None) -> dict[str, Any]:
+    """The heavy-burst rule (`rain_intensity`): one level by itself, never above Warning.
+
+    burst     some window's maximum (1, 3 or 6 h; 3 and 6 h on a large river) reaches its threshold
+    watch     a burst on its own
+    warning   a burst while the 24-hour total already reaches a rain band (rain_24h_level >= watch),
+              or while the soil modifier is on and the root zone is saturated (S >= 0.8)
+
+    Models: best_match (reading.rain_hourly) and any others the sweep fetched (reading.rain_models).
+    combine "max": the highest of each model's own window maximum (a burst any model forecasts);
+    "mean": the window maximum of the hourly mean across models (the multi-model mean forecast).
+    """
+    if combine is None:
+        from Pukaar.core.config import get_settings
+
+        combine = getattr(get_settings(), "rain_models_combine", "max")
+    combine = combine if combine in COMBINE_MODES else "max"
+    large = thresholds is not None and thresholds.watch >= LARGE_RIVER_CMS
+    windows = {d: mm for d, mm in (windows_mm or BURST_WINDOWS_MM).items() if not (large and d == 1)}
+    out: dict[str, Any] = {"level": "normal", "burst": False, "windows_mm": {str(d): mm for d, mm in windows.items()},
+                           "catchment": "large_river" if large else "small_steep", "combine": combine,
+                           "models": {}, "maxima": {}, "hit": [], "reason": None, "hours_to_end": None}
+    if reading is None:
+        return out
+    per_model = {"best_match": _hour_series(reading.rain_hourly)}
+    for model, points in (reading.rain_models or {}).items():
+        if model != "best_match" and points:
+            per_model[model] = _hour_series(points)
+    per_model = {m: s for m, s in per_model.items() if any(x is not None for x in s)}
+    if not per_model:
+        out["status"] = "no_hourly_rain"
+        return out
+    model_max = {m: rolling_maxima(s, tuple(windows)) for m, s in per_model.items()}
+    out["models"] = {m: {str(d): w["mm"] for d, w in mx.items()} for m, mx in model_max.items()}
+    if combine == "mean" and len(per_model) > 1:
+        combined = rolling_maxima(_mean_series(list(per_model.values())), tuple(windows))
+        source = {d: "mean" for d in windows}
+    else:
+        combined, source = {}, {}
+        for d in windows:
+            m_best = max(model_max, key=lambda m: model_max[m][d]["mm"] if model_max[m][d]["mm"] is not None else -1)
+            combined[d], source[d] = model_max[m_best][d], m_best
+    out["maxima"] = {str(d): {**w, "model": source[d]} for d, w in combined.items()}
+    out["status"] = "ok"
+    hit = [d for d, mm in windows.items() if combined[d]["mm"] is not None and combined[d]["mm"] >= mm]
+    if not hit:
+        return out
+    out["burst"] = True
+    out["hit"] = [{"hours": d, "mm": combined[d]["mm"], "threshold_mm": windows[d], "model": source[d],
+                   "start_hour": combined[d]["start"]} for d in hit]
+    # The sooner the burst window ends, the sooner the nowcast says it: "in the next N hours".
+    out["hours_to_end"] = min(combined[d]["start"] + d for d in hit)
+    wet = bool(soil_info and soil_info.get("enabled") and soil_info.get("saturation") is not None
+               and soil_info["saturation"] >= soil_mod.SATURATED_AT)
+    if level_rank(rain_24h_level) >= level_rank("watch"):
+        out["level"], out["reason"] = "warning", "24h"
+    elif wet:
+        out["level"], out["reason"] = "warning", "soil"
+    else:
+        out["level"] = "watch"
+    return out
+
+
+def intensity_rule_tag(info: dict[str, Any]) -> str:
+    d = min(info["hit"], key=lambda h: h["hours"])
+    extra = {"24h": "+rain_24h", "soil": "+soil_saturated"}.get(info["reason"] or "", "")
+    return f"rain_intensity:{d['hours']}h={d['mm']:g}>={d['threshold_mm']:g}mm{extra}:{info['level']}"
 
 
 def river_level(peak_discharge: float | None, thresholds: Thresholds | None) -> str:
@@ -216,6 +365,9 @@ class Assessment:
     evidence: list[dict[str, Any]] = field(default_factory=list)
     gauge_level: str = "normal"
     staff_level: str = "normal"
+    # rain_level is the higher of these two: the IMD 24-hour bands and the heavy-burst rule.
+    rain_24h_level: str = "normal"
+    rain_intensity_level: str = "normal"
 
 
 def assess(
@@ -231,6 +383,8 @@ def assess(
     allow_simulated: bool = False,
     ensemble_p_min: float | None = None,
     official_raises: bool | None = None,
+    rain_intensity_on: bool | None = None,
+    rain_combine: str | None = None,
 ) -> Assessment:
     """Raw level for one sweep, before hysteresis. reports = (report, created_at).
 
@@ -242,19 +396,27 @@ def assess(
     rain bands (None reads the PUKAAR_SOIL_MODIFIER setting).
     ensemble_p_min: the share of ensemble members that raises a river level (None: the setting).
     official_raises: whether official data may raise the level (None: the setting); never lowers it.
+    rain_intensity_on/rain_combine: the heavy-burst rule and how it combines models (None: the
+    settings PUKAAR_RAIN_INTENSITY and PUKAAR_RAIN_MODELS_COMBINE).
     """
     rules: list[str] = []
     evidence: list[dict[str, Any]] = []
 
-    if soil_modifier is None:
+    if soil_modifier is None or rain_intensity_on is None:
         from Pukaar.core.config import get_settings
 
-        soil_modifier = get_settings().soil_modifier_enabled
+        s = get_settings()
+        soil_modifier = s.soil_modifier_enabled if soil_modifier is None else soil_modifier
+        rain_intensity_on = getattr(s, "rain_intensity_enabled", True) if rain_intensity_on is None else rain_intensity_on
     soil_info = soil_mod.evaluate(reading, soil, soil_modifier)
     bands = scaled_bands(soil_info["factor"])
     if soil_info["applied"]:
         rules.append(soil_mod.rule_tag(soil_info))
-    rain = rain_level(reading.rain_24h_mm if reading else None, bands)
+    rain_24h = rain_level(reading.rain_24h_mm if reading else None, bands)
+    burst = (rain_intensity(reading, thresholds, rain_24h, soil_info, rain_combine) if rain_intensity_on
+             else {"level": "normal", "status": "off", "burst": False})
+    # One rain source with two rules: the higher of the 24-hour bands and the heavy-burst rule.
+    rain = _max(rain_24h, burst["level"])
     river_info = river_assessment(reading, thresholds, ensemble_p_min)
     river = river_info["level"]
     if reading is not None:
@@ -265,6 +427,8 @@ def assess(
                 "source": reading.source,
                 "rain_24h_mm": reading.rain_24h_mm,
                 "rain_level": rain,
+                "rain_24h_level": rain_24h,
+                "rain_intensity_level": burst["level"],
                 "rain_bands_mm": {lvl: mm for lvl, mm in bands},
                 "rain_bands_imd_mm": {lvl: mm for lvl, mm in RAIN_BANDS},
                 "discharge_peak": reading.discharge_peak,
@@ -280,8 +444,12 @@ def assess(
             rules.append(f"{part}_carried_forward" if reading.carried_from else f"{part}_unknown")
         if soil_info["moisture_root"] is not None:
             evidence.append({"kind": "soil", "at": reading.at, **soil_info})
-        if rain != "normal":
-            rules.append(f"rain_24h>={dict(bands)[rain]}mm:{rain}")
+        if rain_24h != "normal":
+            rules.append(f"rain_24h>={dict(bands)[rain_24h]}mm:{rain_24h}")
+        if burst.get("status") == "ok":
+            evidence.append({"kind": "rain_intensity", "at": reading.at, **burst})
+        if burst["level"] != "normal":
+            rules.append(intensity_rule_tag(burst))
         if thresholds is not None:
             evidence.append({"kind": "river", "at": reading.at, "cell": {"lat": thresholds.cell_lat, "lon": thresholds.cell_lon},
                              "river": thresholds.river, "cell_verified": thresholds.cell_verified,
@@ -457,7 +625,8 @@ def assess(
     if contradictions:
         rules.append("data_disagrees")
 
-    return Assessment(level, rain, river, report_level, rules, contradictions, evidence, gauge_lvl, staff_level)
+    return Assessment(level, rain, river, report_level, rules, contradictions, evidence, gauge_lvl, staff_level,
+                      rain_24h, burst["level"])
 
 
 def apply_hysteresis(current: str, calm_sweeps: int, raw: str) -> tuple[str, int, bool]:

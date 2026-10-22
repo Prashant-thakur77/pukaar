@@ -27,7 +27,7 @@ def test_rise_creates_one_alert_and_starts_workflow(repo, frozen, workflow):
     assert res.rose and res.level == "warning"
     assert repo.get_village("thunag").open_alert_id == res.alert_id
     alert = repo.get_alert(res.alert_id)
-    assert alert.status == "drafting" and alert.decision_trace["schema"] == "risk-rules-v2"
+    assert alert.status == "drafting" and alert.decision_trace["schema"] == "risk-rules-v3"
 
     v2 = repo.get_village("gohar")
     res2 = de.recompute_village(repo, v2, now=frozen["now"], reading=make_reading(v2, frozen["now"], v2.thresholds.watch),

@@ -166,6 +166,10 @@ def backtest(scenario: str, villages, soil_modifier: bool | None = None) -> list
         first: dict[str, str | None] = {"watch": None, "warning": None, "critical": None}
         level, calm = "normal", 0
         max_rain = 0.0
+        # The heavy-burst rule (risk_rules.rain_intensity): the highest 1/3/6-hour forecast totals
+        # (the models it reads, combined) and the first hour a burst was forecast.
+        max_burst: dict[str, float] = {}
+        first_burst: str | None = None
         first_ready: str | None = None
         trigger: dict | None = None
         ready_hours = 0
@@ -175,6 +179,12 @@ def backtest(scenario: str, villages, soil_modifier: bool | None = None) -> list
                 continue
             max_rain = max(max_rain, reading.rain_24h_mm or 0.0)
             a = risk_rules.assess(reading, v.thresholds, [], at, soil=v.soil, soil_modifier=soil_modifier)
+            burst = next((e for e in a.evidence if e.get("kind") == "rain_intensity"), None) or {}
+            for d, w in (burst.get("maxima") or {}).items():
+                if w.get("mm") is not None and w["mm"] > max_burst.get(d, -1.0):
+                    max_burst[d] = w["mm"]
+            if first_burst is None and burst.get("burst"):
+                first_burst = clock.iso(at)
             level, calm, _ = risk_rules.apply_hysteresis(level, calm, a.level)
             for lvl in first:
                 if first[lvl] is None and level_rank(level) >= level_rank(lvl):
@@ -196,6 +206,7 @@ def backtest(scenario: str, villages, soil_modifier: bool | None = None) -> list
             "village_id": v.id, "village": v.name, "first_watch": first["watch"], "first_warning": first["warning"],
             "first_critical": first["critical"], "peak_discharge_day": peak_day, "peak_discharge": peak_q,
             "thresholds": v.thresholds.model_dump() if v.thresholds else None, "max_rain_24h_mm": round(max_rain, 1),
+            "max_burst_mm": max_burst, "first_burst": first_burst,
             "lead_hours_watch_to_peak_day": _hours_before(peak_day, first["watch"]),
             "watch_from_first_hour": first["watch"] is not None and first["watch"] == first_hour,
             # The soft outlook: the river forecast for day 1-7 at or over the early line. Never an alert.

@@ -1,13 +1,17 @@
 """Rain and river data: live Open-Meteo forecasts, and archived replay files.
 
 Live:   forecast API hourly precipitation (next 24 h) and root-zone soil
-        moisture (the same request), every sweep; flood API daily river discharge
+        moisture (the same request), every sweep; the same request names the
+        models of PUKAAR_RAIN_MODELS (best_match, icon_seamless, gfs_seamless by
+        default): best_match gives the 24-hour sum and soil, every model's hours
+        feed the heavy-burst rule (risk_rules.rain_intensity); flood API daily river discharge
         for the village's river cell (past 2 days, today and the next 7 days), every
         sweep; the flood API's 51-member ensemble for lead days 1-7, once a day per
         cell (cached: days 1-3 for the level, 1-7 for the get-ready outlook's median);
         and official data as evidence (services/official_data.py).
 Replay: files written by scripts/fetch_replay.py. Rain is the archived
-        forecast (historical-forecast API); discharge is the flood API's
+        forecast (historical-forecast API; the other models under
+        hourly_models); discharge is the flood API's
         archived daily series, which stands in for a perfect discharge
         forecast; soil moisture (soil.json, when present) is the archived
         forecast's root-zone layers. Every replay reading carries replay=True.
@@ -38,7 +42,8 @@ _LOG = get_logger("external_data")
 
 
 def _reading(village: Village, at: datetime, hourly: list[tuple[str, float | None]], daily: list[tuple[str, float]],
-             source: str, replay: bool, soil_root: float | None = None) -> Reading:
+             source: str, replay: bool, soil_root: float | None = None,
+             models: dict[str, list[tuple[str, float | None]]] | None = None) -> Reading:
     # A missing hour is unknown, not 0 mm: the 24-hour sum is known only when all 24 hours are.
     window = hourly[:24]
     known = [(t, mm) for t, mm in window if mm is not None]
@@ -58,6 +63,9 @@ def _reading(village: Village, at: datetime, hourly: list[tuple[str, float | Non
         at=clock.iso(at),
         rain_24h_mm=rain_24h,
         rain_hourly=[{"t": t, "mm": mm} for t, mm in known],
+        # Other models' hours for the heavy-burst rule only; an unknown hour is left out, never 0 mm.
+        rain_models={m: [{"t": t, "mm": mm} for t, mm in series[:24] if mm is not None]
+                     for m, series in (models or {}).items() if any(mm is not None for _, mm in series[:24])},
         missing=missing,
         discharge=current,
         discharge_forecast=[{"date": d, "value": q} for d, q in ahead],
@@ -68,9 +76,14 @@ def _reading(village: Village, at: datetime, hourly: list[tuple[str, float | Non
         source=source,
         replay=replay,
     )
-    # The rain level uses the same bands as the rules: lowered only when the soil modifier is on.
-    info = soil.evaluate(reading, village.soil, get_settings().soil_modifier_enabled)
-    reading.rain_level = rain_level(rain_24h, scaled_bands(info["factor"]))  # type: ignore[assignment]
+    # The rain level uses the same bands as the rules (lowered only when the soil modifier is on), and
+    # the heavy-burst rule on the hourly forecast: the higher of the two, as risk_rules.assess sets it.
+    s = get_settings()
+    info = soil.evaluate(reading, village.soil, s.soil_modifier_enabled)
+    rain_24h_lvl = rain_level(rain_24h, scaled_bands(info["factor"]))
+    burst = (risk_rules.rain_intensity(reading, village.thresholds, rain_24h_lvl, info)["level"]
+             if s.rain_intensity_enabled else "normal")
+    reading.rain_level = risk_rules._max(rain_24h_lvl, burst)  # type: ignore[assignment]
     return reading
 
 
@@ -135,18 +148,38 @@ def fetch_ensemble(client: httpx.Client, lat: float, lon: float, at: datetime) -
                                     failure_ttl_seconds=ENSEMBLE_RETRY_MINUTES * 60)
 
 
+def split_models(h: dict[str, Any], models: tuple[str, ...]) -> tuple[dict[str, Any], dict[str, list]]:
+    """(best_match's hourly block with plain variable names, {other model: [(t, mm)]}).
+
+    A single-model response has plain names already. In a multi-model one every variable carries a
+    _<model> suffix; best_match's precipitation and soil layers are the primary block (the 24-hour
+    sum and soil read only it), the other models' precipitation feeds only the heavy-burst rule."""
+    times = list(h.get("time", []))
+    if "precipitation" in h or len(models) <= 1:
+        return h, {}
+    primary: dict[str, Any] = {"time": times}
+    for var in ("precipitation", *soil.LAYERS):
+        primary[var] = h.get(f"{var}_{models[0]}") or []
+    others = {m: [(t, None if v is None else float(v)) for t, v in zip(times, h.get(f"precipitation_{m}") or [])]
+              for m in models[1:]}
+    return primary, others
+
+
 def fetch_live(village: Village, at: datetime | None = None) -> Reading:
     s = get_settings()
     if not s.hydromet_enabled:
         raise RuntimeError("live hydromet fetch disabled (PUKAAR_HYDROMET_ENABLED=false)")
     at = at or clock.now()
     cell_lat, cell_lon = river_point(village)
+    models = tuple(s.rain_models) or ("best_match",)
     with httpx.Client(timeout=s.hydromet_timeout_seconds) as client:
-        rain = client.get(
-            FORECAST_URL,
-            params={"latitude": village.lat, "longitude": village.lon,
-                    "hourly": ",".join(("precipitation", *soil.LAYERS)), "forecast_hours": 24, "timezone": "GMT"},
-        )
+        params: dict[str, Any] = {"latitude": village.lat, "longitude": village.lon,
+                                  "hourly": ",".join(("precipitation", *soil.LAYERS)), "forecast_hours": 24,
+                                  "timezone": "GMT"}
+        if len(models) > 1:
+            # One request still: Open-Meteo returns each variable once per model, suffixed with its name.
+            params["models"] = ",".join(models)
+        rain = client.get(FORECAST_URL, params=params)
         rain.raise_for_status()
         flood = client.get(
             FLOOD_URL,
@@ -156,13 +189,13 @@ def fetch_live(village: Village, at: datetime | None = None) -> Reading:
         flood.raise_for_status()
         ensemble = (fetch_ensemble(client, cell_lat, cell_lon, at)
                     if s.river_ensemble_enabled and village.thresholds is not None else {"status": "off"})
-    h = rain.json().get("hourly", {})
+    h, others = split_models(rain.json().get("hourly", {}), models)
     # None stays None: a gap in the forecast is unknown rain, never 0 mm (decision_engine handles it).
     hourly = [(t, None if v is None else float(v)) for t, v in zip(h.get("time", []), h.get("precipitation", []))]
     soil_root = soil.root_zone(h, 0)  # the current hour: the antecedent state, not a forecast
     d = flood.json().get("daily", {})
     daily = [(t, float(v)) for t, v in zip(d.get("time", []), d.get("river_discharge", [])) if v is not None]
-    reading = _reading(village, at, hourly, daily, "open-meteo", replay=False, soil_root=soil_root)
+    reading = _reading(village, at, hourly, daily, "open-meteo", replay=False, soil_root=soil_root, models=others)
     reading.discharge_ensemble = ensemble
     # Evidence only (never raises: an unavailable source is an "unavailable" item).
     reading.official = official_data.for_village(village, at)
@@ -219,7 +252,9 @@ def replay_hours(name: str) -> list[datetime]:
     return hours
 
 
-def replay_reading(name: str, village: Village, at: datetime) -> Reading | None:
+def replay_reading(name: str, village: Village, at: datetime, models: tuple[str, ...] | None = None) -> Reading | None:
+    """The archived reading at one hour. models: the rain models the burst rule may read (None: the
+    PUKAAR_RAIN_MODELS setting); models other than best_match come from hourly_models when archived."""
     sc = load_scenario(name)
     series = sc["villages"].get(village.id)
     if series is None:
@@ -235,5 +270,11 @@ def replay_reading(name: str, village: Village, at: datetime) -> Reading | None:
     if len(hourly) < 24:
         # Not enough archived hours ahead: rain is unknown rather than guessed.
         hourly = []
+    archived = series.get("hourly_models") or {}
+    wanted = get_settings().rain_models if models is None else models
+    others = {m: [(times[j], None if archived[m][j] is None else float(archived[m][j]))
+                  for j in range(i, min(i + 24, len(times)))]
+              for m in wanted if m != "best_match" and m in archived and hourly}
     daily = [(d, float(q)) for d, q in zip(series["daily"]["time"], series["daily"]["river_discharge"]) if q is not None]
-    return _reading(village, at, hourly, daily, f"replay:{name}", replay=True, soil_root=soil_at(name, village.id, at))
+    return _reading(village, at, hourly, daily, f"replay:{name}", replay=True, soil_root=soil_at(name, village.id, at),
+                    models=others)

@@ -54,6 +54,11 @@ def main() -> None:
     result = {"rules": risk_rules.RULES_VERSION,
               "outlook": "get-ready: river forecast (ensemble median, else the single forecast) for day 1-7 at or "
                          "over early_cms, the 90th percentile of daily discharge at the river cell; never an alert",
+              "burst_rule": "rain_intensity: the highest 1-, 3- and 6-hour totals of the next 24 forecast hours "
+                            f"(models {', '.join(s.rain_models)}, combined by {s.rain_models_combine}) against "
+                            + ", ".join(f"{d} h {mm:g} mm" for d, mm in risk_rules.BURST_WINDOWS_MM.items())
+                            + " (no 1 h window on a large river); Watch, or Warning with a 24-hour band or "
+                              "saturated soil",
               "scenarios": []}
     for name in external_data.list_scenarios():
         sc = external_data.load_scenario(name)
@@ -66,7 +71,8 @@ def main() -> None:
                   f"({_fmt(r['lead_hours_get_ready_to_peak_day'], r['get_ready_from_first_hour'])} to peak day) "
                   f"watch={r['first_watch']} ({_fmt(r['lead_hours_watch_to_peak_day'], r['watch_from_first_hour'])}) "
                   f"warning={r['first_warning']} critical={r['first_critical']} peak={r['peak_discharge']} on "
-                  f"{r['peak_discharge_day']} max rain 24h={r['max_rain_24h_mm']} mm truth={r['truth']}")
+                  f"{r['peak_discharge_day']} max rain 24h={r['max_rain_24h_mm']} mm "
+                  f"max burst={r['max_burst_mm']} first burst={r['first_burst']} truth={r['truth']}")
     (s.data_dir / "backtest.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
 
 

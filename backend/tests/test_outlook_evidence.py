@@ -63,8 +63,9 @@ def test_without_an_ensemble_the_line_says_single_forecast():
 
 
 def test_rain_nowcast_is_labelled_a_single_forecast():
-    n = nowcast(reading(rain=[10.0] * 10), TH, "normal")
-    assert n["source"] == "rain" and n["basis"] == "single_forecast" and n["hours"] == 7
+    # 5 mm an hour is steady rain, not a burst (risk_rules.BURST_WINDOWS_MM): the 24-hour band is crossed at hour 13.
+    n = nowcast(reading(rain=[5.0] * 14), TH, "normal")
+    assert n["source"] == "rain" and n["basis"] == "single_forecast" and n["hours"] == 13
     assert "rain forecast (a single forecast)" in n["text_en"]
 
 

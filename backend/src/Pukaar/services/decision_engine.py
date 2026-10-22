@@ -126,7 +126,7 @@ def _escalate(repo: Repo, alert: Alert, village: Village, new_level: str, trace:
 # -- data freshness -----------------------------------------------------------
 # Fields a provider can leave out, and the reading fields carried forward for each.
 _CARRY = {
-    "rain": ("rain_24h_mm", "rain_hourly", "rain_level"),
+    "rain": ("rain_24h_mm", "rain_hourly", "rain_models", "rain_level"),
     "discharge": ("discharge", "discharge_forecast", "discharge_peak", "discharge_outlook", "river_level"),
 }
 
