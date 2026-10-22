@@ -537,6 +537,7 @@ Deploy to AWS: [docs/DEPLOY.md](docs/DEPLOY.md).
 - [DEMO.md](DEMO.md): a click-by-click walk through the whole loop, with a fallback for each step.
 - [docs/RESILIENCE.md](docs/RESILIENCE.md): what happens when each part fails.
 - [docs/RUNBOOK.md](docs/RUNBOOK.md): what to do when each alarm fires; drills, number hygiene, consent, secret rotation and the pre-monsoon checklist.
+- [docs/field/](docs/field/): training and field material for a district pilot in Mandi: the [duty officer's guide](docs/field/officer-guide.md) and its one-page [night checklist](docs/field/print/night-checklist.pdf), the [pradhan's guide](docs/field/pradhan-guide-hi.md) in Hindi, the [villager card](docs/field/villager-card-hi.md) ([printable A5](docs/field/print/villager-card.pdf)) and the [monthly drill plan](docs/field/drill-plan.md).
 - [docs/SECURITY.md](docs/SECURITY.md): report-abuse protection and the browser security headers.
 - [docs/CONTRACT.md](docs/CONTRACT.md): API routes and shapes.
 - [docs/SCORING.md](docs/SCORING.md): the back-test scoring method and results.

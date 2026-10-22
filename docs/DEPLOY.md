@@ -463,6 +463,13 @@ After:
 - [ ] `SMOKE_SITE=<prod web url> SMOKE_API=<prod api url> make smoke` passes.
 - [ ] `CriticalAutoSend` stays `false` until the DDMA signs off.
 
+Before the first live day ([docs/field/](field/)):
+
+- [ ] Every officer has read the [duty officer's guide](field/officer-guide.md), and the [night checklist](field/print/night-checklist.pdf) is on the DEOC desk with its blanks filled.
+- [ ] Every pradhan has the [pradhan's guide](field/pradhan-guide-hi.md), reviewed by a Hindi speaker from Mandi, and households are registered with consent as it describes.
+- [ ] The [villager card](field/print/villager-card.pdf) is printed with the prod report address, the prod bot and each village's safe places filled in, and handed out.
+- [ ] The first drill in each village is booked as in the [drill plan](field/drill-plan.md).
+
 ## Fallback: S3 and CloudFront instead of Amplify
 
 If Amplify Hosting is not available in the account, remove `AmplifyApp` and
