@@ -905,7 +905,7 @@ main:has(> .landing) + .site-footer { margin-top: 0; }
 .pl-asof { margin: var(--s-5) 0 0; font-size: 0.86rem; color: var(--ink-3); }
 .pl-asof .how-cite, .pl-caveat a { color: var(--accent-text); }
 .pl-checked { display: inline-block; font-size: 0.74rem; color: var(--ink-3); white-space: nowrap; }
-.pilot .how-cite { min-height: 32px; color: var(--accent-text); }
+.pilot .how-cite { color: var(--accent-text); }
 .pilot .how-cite:hover { color: var(--ink); }
 .pl-inline { display: inline; font: inherit; letter-spacing: inherit; margin: 0; min-height: 0; color: var(--accent-text); }
 

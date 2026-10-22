@@ -52,4 +52,41 @@ describe('evidence formatter', () => {
     expect(holdLine(trace, 'en')?.text).toBe('Holding at Warning: levels drop one step only after 3 calm sweeps (1 of 3 so far)');
     expect(holdLine({ level: 'warning', raw_level: 'critical' }, 'en')).toBeNull();
   });
+  describe('heavy burst of rain', () => {
+    const burst = {
+      kind: 'rain_intensity',
+      level: 'warning',
+      burst: true,
+      combine: 'max',
+      reason: '24h',
+      windows_mm: { '1': 20, '3': 45, '6': 50 },
+      models: { best_match: { '1': 18, '3': 48, '6': 49 }, icon_seamless: { '1': 9, '3': 20, '6': 30 }, gfs_seamless: { '1': 5, '3': 12, '6': 20 } },
+      maxima: { '1': { mm: 18, model: 'best_match' }, '3': { mm: 48, model: 'best_match' }, '6': { mm: 49, model: 'best_match' } },
+      hit: [{ hours: 3, mm: 48, threshold_mm: 45, model: 'best_match', start_hour: 4 }],
+    };
+    it('writes a readable line in English and Hindi, and the 24 h line keeps its own level', () => {
+      const trace: DecisionTrace = {
+        level: 'warning',
+        rules_fired: ['rain_24h>=64.5mm:watch', 'rain_intensity:3h=48>=45mm+rain_24h:warning'],
+        evidence: [reading({ rain_24h_mm: 70, rain_level: 'warning', rain_24h_level: 'watch', discharge_peak: 0.3, river_level: 'normal' }), burst],
+      };
+      const en = evidenceLines(trace, 'en');
+      expect(en[0].text).toBe('Heavy burst forecast: up to 48 mm in 3 hours, highest of 3 models (limit 45 mm), with the 24 h rain already over a band → Warning');
+      expect(en[0].level).toBe('warning');
+      expect(en.map((l) => l.text)).toContain('Rain next 24 h 70 mm ≥ 64.5 mm (IMD watch band)');
+      const hi = evidenceLines(trace, 'hi').map((l) => l.text).join(' ');
+      expect(hi).toContain('भारी बौछार का पूर्वानुमान: 3 घंटे में 48 मिमी तक');
+      expect(hi).toContain('3 मॉडलों में सबसे ज़्यादा');
+      expect([...en.map((l) => l.text), hi].join(' ')).not.toMatch(/rain_intensity|>=/);
+    });
+    it('falls back to the rule tag when the trace has no burst evidence', () => {
+      const lines = evidenceLines({ rules_fired: ['rain_intensity:1h=22>=20mm:watch'], evidence: [] }, 'en').map((l) => l.text);
+      expect(lines).toContain('Heavy burst forecast: up to 22 mm in 1 hour (limit 20 mm) → Watch');
+    });
+    it('says how far off a burst is when none is forecast', () => {
+      const calm = { ...burst, level: 'normal', burst: false, reason: null, hit: [], maxima: { '1': { mm: 4 }, '3': { mm: 30 }, '6': { mm: 31 } } };
+      const lines = evidenceLines({ evidence: [reading({ rain_24h_mm: 20, rain_level: 'normal', discharge_peak: 0.3, river_level: 'normal' }), calm] }, 'en').map((l) => l.text);
+      expect(lines).toContain('No heavy burst: at most 30 mm in 3 hours, below the 45 mm limit');
+    });
+  });
 });

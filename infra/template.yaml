@@ -1176,7 +1176,7 @@ Resources:
         - EdgeConnect: !If [HasApiEdge, " https://*.cloudfront.net", ""]
       CustomRules:
         # Single-page app: any path without a file extension serves index.html.
-        - Source: "</^[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest|webp|mp3|wav|bin)$)([^.]+$)/>"
+        - Source: "</^[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest|webp|mp3|wav|bin|html)$)([^.]+$)/>"
           Target: /index.html
           Status: "200"
 

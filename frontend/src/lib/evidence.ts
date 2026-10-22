@@ -4,6 +4,7 @@ import { enumLabels } from '../i18n';
 import type { DecisionTrace, EnsembleDay, Level, OfficialItem, Readiness, Thresholds, TraceEvidence } from '../types';
 import { isLevel, levelRank } from './levels';
 import { ensembleLines, ensembleNote, officialRows, outlookLine } from './riverEvidence';
+import { burstText, parseBurstTag, type BurstTag } from './rules';
 
 export interface EvidenceLine {
   text: string;
@@ -57,7 +58,8 @@ function rainLine(r: TraceEvidence, lang: Lang): EvidenceLine | null {
   const mm = r.rain_24h_mm;
   if (mm == null) return null;
   const hi = lang === 'hi';
-  const lv = isLevel(r.rain_level) ? r.rain_level : 'normal';
+  // rain_level is the higher of the 24 h bands and the heavy-burst rule; this line is the 24 h total's.
+  const lv = isLevel(r.rain_24h_level) ? r.rain_24h_level : isLevel(r.rain_level) ? r.rain_level : 'normal';
   const bands = r.rain_bands_mm ?? {};
   if (lv !== 'normal' && bands[lv] != null) {
     return {
@@ -84,6 +86,47 @@ function rainLine(r: TraceEvidence, lang: Lang): EvidenceLine | null {
   };
 }
 
+type BurstWindow = { hours?: number; mm?: number | null; threshold_mm?: number };
+
+/**
+ * The heavy-burst rule (risk_rules.rain_intensity): the forecast's wettest 1, 3 or 6 hours. From the
+ * trace's rain_intensity evidence when it is there (it names the models), else from the rule tag.
+ */
+function burstLine(trace: DecisionTrace, lang: Lang): EvidenceLine | null {
+  const ev = (trace.evidence ?? []).find((e) => e.kind === 'rain_intensity');
+  const tag = (trace.rules_fired ?? []).map(parseBurstTag).find((b): b is BurstTag => Boolean(b));
+  const models = ev?.models && typeof ev.models === 'object' ? { n: Object.keys(ev.models).length, combine: ev.combine as string | undefined } : undefined;
+  const lv = isLevel(ev?.level) ? ev.level : (tag?.level ?? null);
+  const hits = Array.isArray(ev?.hit) ? (ev.hit as BurstWindow[]) : [];
+  if (hits.length) {
+    // The shortest window that reached its limit, as the rule tag names it.
+    const h = [...hits].sort((a, b) => (a.hours ?? 0) - (b.hours ?? 0))[0];
+    if (h.hours != null && h.mm != null && h.threshold_mm != null) {
+      const reason = ev?.reason === '24h' || ev?.reason === 'soil' ? ev.reason : null;
+      return { kind: 'rain', level: lv ?? undefined, text: burstText({ hours: h.hours, mm: h.mm, threshold: h.threshold_mm, reason, level: lv }, lang, models) };
+    }
+  }
+  if (tag) return { kind: 'rain', level: tag.level ?? undefined, text: burstText(tag, lang, models) };
+  // No burst: the window closest to its limit, so the officer sees how far off it is.
+  const maxima = ev?.maxima as Record<string, BurstWindow> | undefined;
+  const limits = ev?.windows_mm as Record<string, number> | undefined;
+  if (!maxima || !limits) return null;
+  const near = Object.entries(limits)
+    .map(([d, limit]) => ({ hours: Number(d), mm: maxima[d]?.mm, limit }))
+    .filter((w): w is { hours: number; mm: number; limit: number } => typeof w.mm === 'number' && w.limit > 0)
+    .sort((a, b) => b.mm / b.limit - a.mm / a.limit)[0];
+  if (!near) return null;
+  const hi = lang === 'hi';
+  const hrs = hi ? `${n(near.hours, lang)} घंटे` : `${near.hours} hour${near.hours === 1 ? '' : 's'}`;
+  return {
+    kind: 'rain',
+    level: 'normal',
+    text: hi
+      ? `भारी बौछार नहीं: ${hrs} में अधिकतम ${n(near.mm, lang, 1)} मिमी, सीमा ${n(near.limit, lang, 1)} मिमी से कम`
+      : `No heavy burst: at most ${n(near.mm, lang, 1)} mm in ${hrs}, below the ${n(near.limit, lang, 1)} mm limit`,
+  };
+}
+
 /** One readable line per piece of evidence in a decision trace (risk_rules.py). */
 export function evidenceLines(trace: DecisionTrace | null | undefined, lang: Lang): EvidenceLine[] {
   if (!trace) return [];
@@ -95,12 +138,15 @@ export function evidenceLines(trace: DecisionTrace | null | undefined, lang: Lan
   if (reading) {
     const river = riverLine(reading, lang);
     const rain = rainLine(reading, lang);
-    // Lead with whichever signal is higher.
-    const pair = [river, rain].filter((x): x is EvidenceLine => Boolean(x));
+    const burst = burstLine(trace, lang);
+    // Lead with whichever signal is higher (a stable sort keeps river, 24 h rain, burst on a tie).
+    const pair = [river, rain, burst].filter((x): x is EvidenceLine => Boolean(x));
     pair.sort((a, b) => levelRank(b.level) - levelRank(a.level));
     out.push(...pair);
-  } else if (rules.includes('no_reading')) {
-    out.push({ kind: 'none', text: hi ? 'कोई माप नहीं मिला' : 'No river or rain reading available' });
+  } else {
+    if (rules.includes('no_reading')) out.push({ kind: 'none', text: hi ? 'कोई माप नहीं मिला' : 'No river or rain reading available' });
+    const burst = burstLine(trace, lang);
+    if (burst) out.push(burst);
   }
 
   // The ensemble's odds: how many forecast runs reach each return-period line.

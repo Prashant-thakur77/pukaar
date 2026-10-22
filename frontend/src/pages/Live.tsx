@@ -12,7 +12,7 @@ import { dataIssue, levelIsKnown, liveLevelIfDifferent } from '../lib/dataStatus
 import { PageBand } from '../components/PageBand';
 import { Reveal } from '../components/Reveal';
 import { EmptyState, ErrorState, Skeleton, SkeletonCards } from '../components/States';
-import { VillageMap } from '../components/VillageMap';
+import { LazyVillageMap } from '../components/LazyVillageMap';
 import { usePoll } from '../hooks/usePoll';
 import { LivePill } from '../components/LivePill';
 import { PUBLIC_CHANNELS } from '../lib/live';
@@ -160,7 +160,7 @@ export default function Live() {
         <div className="live-grid">
           <div className="live-map card card-flush" data-tour="live-map">
             {data ? (
-              <VillageMap
+              <LazyVillageMap
                 villages={data.villages}
                 onSelect={(id) => nav(`/village/${id}`)}
                 safe={safeLayer.views}

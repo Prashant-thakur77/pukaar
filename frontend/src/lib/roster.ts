@@ -89,3 +89,20 @@ export function relayLabel(role: RelayRole, lang: Lang): string {
 export function validUsername(v: string): boolean {
   return /^[A-Za-z0-9_.@-]{1,64}$/.test(v.trim());
 }
+
+/** Defaults in backend core/config.py, used when /roster does not send its own values. */
+export const APPROVAL_DEFAULTS = { approval_timeout_seconds: 600, approval_timeout_critical_seconds: 300, officer_wake_seconds: 180 };
+
+/**
+ * The officer approval timings, as workflow/steps.approval_timers computes them: each officer's window
+ * (a Critical's is the shorter of the two), and the reminder with the wake-up call, which comes
+ * officer_wake_seconds in, or half-way through a window shorter than twice that. In minutes.
+ */
+export function approvalTimes(v: { approval_timeout_seconds?: number | null; approval_timeout_critical_seconds?: number | null; officer_wake_seconds?: number | null }) {
+  const total = Math.max(2, v.approval_timeout_seconds ?? APPROVAL_DEFAULTS.approval_timeout_seconds);
+  const crit = Math.max(2, Math.min(total, v.approval_timeout_critical_seconds ?? APPROVAL_DEFAULTS.approval_timeout_critical_seconds));
+  const wake = Math.max(0, v.officer_wake_seconds ?? APPROVAL_DEFAULTS.officer_wake_seconds);
+  const nudge = (t: number) => Math.max(1, wake > 0 ? Math.min(wake, Math.floor(t / 2)) : Math.floor(t / 2));
+  const min = (s: number) => Math.round((s / 60) * 10) / 10;
+  return { windowMin: min(total), criticalWindowMin: min(crit), nudgeMin: min(nudge(total)), criticalNudgeMin: min(nudge(crit)) };
+}

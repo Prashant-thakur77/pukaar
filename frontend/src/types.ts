@@ -380,6 +380,10 @@ export interface RosterView extends SampleFlag {
   critical_auto_send: boolean;
   critical_auto_send_label: string;
   approval_timeout_seconds: number;
+  /** A Critical's approval window per officer (PUKAAR_APPROVAL_TIMEOUT_CRITICAL_SECONDS), when sent. */
+  approval_timeout_critical_seconds?: number;
+  /** When the reminder and wake-up call go to an officer who has not opened the link, when sent. */
+  officer_wake_seconds?: number;
 }
 
 export interface RosterShiftInput {

@@ -9,6 +9,30 @@
  */
 
 /*
+ * Body Devanagari: Noto Sans Devanagari (SIL OFL 1.1, from @fontsource-variable). Android phones ship it
+ * as a system font, so local() comes first and a villager's phone skips the 120 kB download; anywhere
+ * else the variable woff2 loads as before (both weight ranges share the one file). Devanagari only:
+ * Latin text is set in Inter.
+ */
+@font-face {
+  font-family: 'Noto Sans Devanagari Variable';
+  font-style: normal;
+  font-weight: 100 549;
+  font-display: swap;
+  src: local('Noto Sans Devanagari'), local('Noto Sans Devanagari Regular'), local('NotoSansDevanagari-Regular'),
+    url('@fontsource-variable/noto-sans-devanagari/files/noto-sans-devanagari-devanagari-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B09;
+}
+@font-face {
+  font-family: 'Noto Sans Devanagari Variable';
+  font-style: normal;
+  font-weight: 550 900;
+  font-display: swap;
+  src: local('Noto Sans Devanagari Bold'), local('NotoSansDevanagari-Bold'),
+    url('@fontsource-variable/noto-sans-devanagari/files/noto-sans-devanagari-devanagari-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B09;
+}
+/*
  * Display face: Tiro Devanagari Hindi (Tiro Typeworks, SIL OFL 1.1, see fonts/OFL.txt). One family draws both
  * scripts, so a Hindi headline and its English line share weight, contrast and rhythm instead of looking translated.
  * Self-hosted, regular and Latin italic only; swap so text shows at once in the fallback serif.

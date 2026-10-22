@@ -190,6 +190,40 @@ function qs(params: Record<string, string | undefined | null>): string {
 
 const enc = encodeURIComponent;
 
+/**
+ * Public GETs started before their page's code has arrived (main.tsx calls prefetchRoute at boot). On a
+ * slow 3G phone each round trip is about 2 s, so the village page's data comes in alongside its chunks
+ * instead of after them. The page's first call takes the request over; one older than 30 s is dropped.
+ */
+const started = new Map<string, { at: number; p: Promise<unknown> }>();
+const EARLY_MS = 30_000;
+
+function takeOver<T>(path: string, opts: RequestOpts = {}): Promise<T> {
+  const e = started.get(path);
+  started.delete(path);
+  return e && Date.now() - e.at < EARLY_MS ? (e.p as Promise<T>) : request<T>(path, opts);
+}
+
+export function prefetchRoute(pathname: string): void {
+  const m = pathname.match(/^\/village\/([^/]+)\/?$/);
+  if (!m) return;
+  let id: string;
+  try {
+    id = decodeURIComponent(m[1]);
+  } catch {
+    return;
+  }
+  const calls: [string, RequestOpts][] = [
+    [`/villages/${enc(id)}`, {}],
+    [`/villages/${enc(id)}/safe-places`, { auth: false }],
+  ];
+  for (const [path, opts] of calls) {
+    const p = request(path, opts);
+    p.catch(() => {}); // the page sees the error when it takes the request over
+    started.set(path, { at: Date.now(), p });
+  }
+}
+
 export interface NewReport {
   village_id: string;
   text?: string;
@@ -251,10 +285,10 @@ export const api = {
   devLogin: (username: string) => request<DevLoginResponse>('/auth/dev-login', { method: 'POST', body: { username }, auth: false }),
 
   villages: () => request<Village[]>('/villages'),
-  village: (id: string) => request<VillageDetail>(`/villages/${enc(id)}`),
+  village: (id: string) => takeOver<VillageDetail>(`/villages/${enc(id)}`),
   setChecklist: (villageId: string, item: string, done: boolean) =>
     request<Checklist>(`/villages/${enc(villageId)}/checklist/${enc(item)}`, { method: 'POST', body: { done } }),
-  safePlaces: (id: string) => request<SafePlacesView>(`/villages/${enc(id)}/safe-places`, { auth: false }),
+  safePlaces: (id: string) => takeOver<SafePlacesView>(`/villages/${enc(id)}/safe-places`, { auth: false }),
   setShelter: (villageId: string, placeId: string, body: { status: ShelterState; capacity?: number | null; note?: string }) =>
     request<SafePlacesView>(`/villages/${enc(villageId)}/shelters/${enc(placeId)}`, { method: 'POST', body }),
   addRoadblock: (villageId: string, body: { lat: number; lon: number; note: string; label?: string }) =>

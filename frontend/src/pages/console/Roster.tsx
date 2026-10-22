@@ -6,7 +6,8 @@ import { PageBand } from '../../components/PageBand';
 import { DeniedNote, ErrorState, Skeleton } from '../../components/States';
 import { usePoll } from '../../hooks/usePoll';
 import { useT } from '../../i18n';
-import { addDays, chainRole, dayLabel, emptyShifts, isCurrent, istClock, nobodyOnDuty, shiftWindow, todayIST, validUsername } from '../../lib/roster';
+import { fmtNumber } from '../../lib/format';
+import { addDays, approvalTimes, chainRole, dayLabel, emptyShifts, isCurrent, istClock, nobodyOnDuty, shiftWindow, todayIST, validUsername } from '../../lib/roster';
 import { useAuth } from '../../store';
 import type { EscalationTitle, OnDuty, RosterDay, RosterShift, RosterView, ShiftId } from '../../types';
 
@@ -140,8 +141,9 @@ function DutyRow({ duty: d, onChanged }: { duty: OnDuty; onChanged: () => void }
 
 /** The two rules the control room needs to know at night, as plain sentences. */
 function Policy({ view }: { view: RosterView }) {
-  const { t } = useT();
-  const half = Math.max(1, Math.round(view.approval_timeout_seconds / 120));
+  const { t, lang } = useT();
+  const at = approvalTimes(view);
+  const m = (x: number) => fmtNumber(x, lang, 1);
   return (
     <ul className="rs-policy">
       <li>
@@ -149,7 +151,14 @@ function Policy({ view }: { view: RosterView }) {
         <strong>{t(view.critical_auto_send ? 'roster.autosend.on' : 'roster.autosend.off')}</strong>
         <span className="rs-ddma"> · {t('roster.ddma')}</span>
       </li>
-      <li>{t('roster.nudge', { m: half })}</li>
+      <li>
+        {t('roster.nudge', {
+          n: m(at.nudgeMin),
+          nc: at.criticalNudgeMin !== at.nudgeMin ? t('roster.nudge.crit', { m: m(at.criticalNudgeMin) }) : '',
+          c: m(at.criticalWindowMin),
+          w: m(at.windowMin),
+        })}
+      </li>
       <li>{t('roster.relays')}</li>
     </ul>
   );

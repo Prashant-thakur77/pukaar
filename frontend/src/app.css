@@ -222,7 +222,7 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 .denied > svg { color: var(--sos); margin-top: 2px; }
 .denied-title { font-weight: 800; color: var(--sos); }
 .denied-body { color: var(--ink-2); }
-.denied-code { font-size: 12px; color: var(--ink-3); }
+.denied-code { font-size: 12px; color: var(--ink-2); }
 
 /* ---------- reveal motion ---------- */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity var(--dur-3) var(--ease-out) var(--d, 0ms), transform 0.6s var(--ease-out) var(--d, 0ms); }
@@ -544,6 +544,12 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 .map-wrap { position: relative; width: 100%; height: 100%; min-height: 280px; }
 .map-wrap > .map { position: absolute; inset: 0; }
 .map-skel { position: absolute; inset: 0; border-radius: 0; }
+/* The map waits behind this until it scrolls into view or "Show map" is tapped (LazyVillageMap). */
+.map-gate { display: grid; place-items: center; background: var(--surface-2); }
+.map-gate-body { display: grid; justify-items: center; gap: var(--s-3); max-width: 30ch; padding: var(--s-5) var(--s-4); text-align: center; }
+.map-gate-body > svg.lucide { width: 32px; height: 32px; color: var(--ink-3); }
+.map-gate-note { margin: 0; }
+.map-gate .btn { min-height: var(--tap); }
 .map-fail { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: var(--s-5); background: var(--surface-2); color: var(--ink-2); font-weight: 600; }
 /* Dark mode darkens the base raster only, in VillageMap (applyBaseTheme), so the route glow keeps its colour. */
 .maplibregl-ctrl-group button { width: 44px !important; height: 44px !important; }
@@ -1334,7 +1340,7 @@ button.map-key-item:hover { background: var(--surface-2); }
 .clr-sub { margin: var(--s-2) 0 var(--s-3); }
 .clr-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--s-3) var(--s-5); }
 .clr-row { display: grid; gap: 6px; padding-top: var(--s-3); border-top: 1px solid var(--line); }
-.clr-name { font-weight: 700; color: inherit; text-decoration: none; }
+.clr-name { display: inline-flex; align-items: center; gap: 0.3em; min-height: var(--tap); font-weight: 700; color: inherit; text-decoration: none; }
 .clr-name:hover { text-decoration: underline; }
 .clr-meter { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'l v' 'b b'; column-gap: 10px; row-gap: 4px; align-items: baseline; }
 .clr-mlabel { grid-area: l; font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }

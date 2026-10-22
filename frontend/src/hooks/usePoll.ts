@@ -22,6 +22,22 @@ export interface PollOptions {
 }
 
 const NO_CHANNELS: string[] = [];
+
+/** Never poll faster than this on a slow or data-saving connection (see slowLinkInterval). */
+export const SLOW_LINK_MIN_MS = 60_000;
+
+type Connection = { effectiveType?: string; saveData?: boolean };
+
+/**
+ * On 2G or 3G, or with Data Saver on, poll at most once a minute. The sweep runs every 15 minutes and
+ * live push (when up) refetches at once, but a village page's JSON is about 200 kB: every 15 s it would
+ * take a third of a slow 3G link.
+ */
+export function slowLinkInterval(ms: number, conn: Connection | undefined = (globalThis.navigator as { connection?: Connection } | undefined)?.connection): number {
+  if (!ms || !conn) return ms;
+  const slow = conn.saveData === true || ['slow-2g', '2g', '3g'].includes(conn.effectiveType ?? '');
+  return slow ? Math.max(ms, SLOW_LINK_MIN_MS) : ms;
+}
 const DEBOUNCE_MS = 250; // one approval sends a few events at once; refetch once
 
 /**
@@ -78,7 +94,7 @@ export function usePoll<T>(fetcher: () => Promise<T>, deps: unknown[], intervalM
     },
     [],
   );
-  const every = intervalMs && live ? Math.max(intervalMs, opts.liveIntervalMs ?? 60000) : intervalMs;
+  const every = slowLinkInterval(intervalMs && live ? Math.max(intervalMs, opts.liveIntervalMs ?? 60000) : intervalMs);
 
   // Fetch whenever the inputs change.
   useEffect(() => {

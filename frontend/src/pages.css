@@ -1107,7 +1107,8 @@ label.check-row { cursor: pointer; }
 .sl-attrib { flex-basis: 100%; font-size: 11px; font-weight: 600; color: var(--ink-3); }
 
 .map-safe {
-  position: absolute; top: 200px; right: 10px; z-index: 2; height: var(--tap); padding: 0 10px; border: 0; border-radius: var(--r-xs);
+  position: absolute; top: 200px; right: 10px; z-index: 2; height: var(--tap); min-width: var(--tap); padding: 0 10px; border: 0; border-radius: var(--r-xs);
+  justify-content: center;
   display: inline-flex; align-items: center; gap: 6px; background: #fff; color: #111833; cursor: pointer;
   font: 700 var(--fs-sm) / 1 var(--font-body); box-shadow: 0 0 0 2px rgb(0 0 0 / 10%);
 }

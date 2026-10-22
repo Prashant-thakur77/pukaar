@@ -212,6 +212,15 @@ function default3d(compact?: boolean): boolean {
   return !compact && typeof window !== 'undefined' && window.innerWidth >= 768;
 }
 
+/**
+ * Hill shading reads the same elevation tiles as the 3D terrain (about 1.3 MB for one village's view),
+ * so a flat phone map leaves it off and draws it only once 3D is switched on. Wide screens, which start
+ * in 3D, keep it in 2D too.
+ */
+function styleFor(shade: boolean) {
+  return { ...OSM_STYLE, layers: OSM_STYLE.layers.map((l) => (l.id === 'hillshade' ? { ...l, layout: { visibility: shade ? ('visible' as const) : ('none' as const) } } : l)) };
+}
+
 /** MapLibre + OSM raster. Markers are real buttons rendered through portals. */
 export function VillageMap({
   villages,
@@ -287,7 +296,7 @@ export function VillageMap({
         lib.current = ml;
         const m = new ml.Map({
           container: box.current,
-          style: OSM_STYLE,
+          style: styleFor(default3d(compact)),
           center: [77.15, 31.6],
           zoom: 8,
           attributionControl: { compact: true },
@@ -328,8 +337,9 @@ export function VillageMap({
     const m = map.current;
     if (!m || !ready) return;
     m.setTerrain(is3d ? { source: 'dem', exaggeration: TERRAIN_EXAGGERATION } : null);
+    if (m.getLayer('hillshade')) m.setLayoutProperty('hillshade', 'visibility', is3d || default3d(compact) ? 'visible' : 'none');
     m.easeTo({ pitch: is3d ? PITCH_3D : 0, bearing: is3d ? -15 : 0, duration: prefersReducedMotion() ? 0 : 900, freezeElevation: true });
-  }, [is3d, ready]);
+  }, [is3d, ready, compact]);
 
   // Dark mode on the base raster only (see applyBaseTheme).
   useEffect(() => {

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Measures every interactive element on the villager and officer pages at 390 px and fails if any is
+// Measures every interactive element on the villager, public and officer pages at 390 px and fails if any is
 // smaller than 44 x 44 CSS px (WCAG 2.5.5 Target Size, Apple HIG). Usage:
 //   (cd ../backend && PUKAAR_MODE=local PUKAAR_CORS_ORIGINS=http://127.0.0.1:5173 PYTHONPATH=src python -m uvicorn Pukaar.main:app --port 8000) &
 //   VITE_API_BASE=http://127.0.0.1:8000 npm run dev &
-//   npm run check:taps -- [--base http://127.0.0.1:5173] [--api http://127.0.0.1:8000] [--width 390] [--only console,report] [--json out.json]
+//   npm run check:taps -- [--base http://127.0.0.1:5173] [--api http://127.0.0.1:8000] [--width 390] [--only console,live,pilot] [--json out.json]
 // What counts: links, buttons, form fields, summary, and anything with a button/link/tab/checkbox/switch role
 // or a non-negative tabindex. A checkbox, radio or file input is measured by its label when it has one (the
 // label is the hit area). WCAG 2.5.5 exempts links inside a sentence ("inline"); those are listed, not failed.
@@ -38,6 +38,17 @@ async function firstVillage() {
   return o.villages?.[0]?.id ?? 'thunag';
 }
 
+async function showMap(page) {
+  // Scrolling it into view loads it; the button is the fallback.
+  await page.locator('.map-gate').first().scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(500);
+  const gate = page.locator('.map-gate button').first();
+  if (await gate.count()) await gate.click({ timeout: 5000 }).catch(() => {});
+  const loaded = await page.waitForSelector('.maplibregl-canvas', { timeout: 30000 }).then(() => true, () => false);
+  if (!loaded) console.log('   (the map did not load; its controls are not measured)');
+  await page.waitForTimeout(2500);
+}
+
 const auth = await login();
 const village = await firstVillage();
 const PAGES = [
@@ -45,6 +56,12 @@ const PAGES = [
   { name: 'roster', path: '/roster', auth: true },
   { name: 'audit', path: '/audit', auth: true },
   { name: 'village', path: `/village/${village}` },
+  { name: 'live', path: '/live' },
+  // The map waits behind "Show map" until it scrolls into view; measure its controls and markers too.
+  { name: 'live-map', path: '/live', prep: showMap },
+  // Thunag has mapped safe places and walking routes, so its page draws a map.
+  { name: 'village-map', path: '/village/thunag', prep: showMap },
+  { name: 'pilot', path: '/pilot' },
   { name: 'report', path: '/report' },
   // The compose step shows more controls (staff gauge, photo, voice) once a village is picked.
   {

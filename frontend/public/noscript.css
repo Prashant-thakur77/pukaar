@@ -14,6 +14,15 @@ body { margin: 0; background: #f6f3ec; color: #0b1f33; font: 17px/1.55 system-ui
 .nojs-call { background: #b3261e; color: #fff; font-size: 1.25rem; }
 .nojs-tg { border: 2px solid #0f5c9e; color: #0f5c9e; }
 .nojs a:focus-visible { outline: 3px solid #0f5c9e; outline-offset: 3px; }
+.nojs a.nojs-link { display: block; padding: 14px 20px; line-height: 1.35; border: 2px solid #3b5068; color: #0b1f33; }
+.nojs-stale { margin: 8px 0; padding: 10px 12px; border-left: 4px solid #b3261e; background: rgb(179 38 30 / 0.08); }
+.nojs-levels { list-style: none; margin: 12px 0 0; padding: 0; }
+.nojs-lv { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 10px 0; border-top: 1px solid rgb(11 31 51 / 0.15); }
+.nojs-lv strong { white-space: nowrap; }
+.nojs-lv.lv-watch strong { color: #7a5a00; }
+.nojs-lv.lv-warning strong { color: #a34700; }
+.nojs-lv.lv-critical strong { color: #b3261e; }
+.nojs-built { margin-top: 32px; font-size: 0.85rem; }
 .nojs code { font-size: 0.95em; padding: 1px 6px; border-radius: 6px; background: rgb(11 31 51 / 0.08); }
 @media (prefers-color-scheme: dark) {
   body { background: #0b1026; color: #eaf4fb; }
@@ -22,5 +31,11 @@ body { margin: 0; background: #f6f3ec; color: #0b1f33; font: 17px/1.55 system-ui
   .nojs-call { background: #e5534b; color: #1a0503; }
   .nojs-tg { border-color: #8ad0ff; color: #8ad0ff; }
   .nojs a:focus-visible { outline-color: #8ad0ff; }
+  .nojs a.nojs-link { border-color: #b8cbe0; color: #eaf4fb; }
+  .nojs-stale { border-left-color: #e5534b; background: rgb(229 83 75 / 0.12); }
+  .nojs-lv { border-top-color: rgb(234 244 251 / 0.18); }
+  .nojs-lv.lv-watch strong { color: #f2d36b; }
+  .nojs-lv.lv-warning strong { color: #ffab70; }
+  .nojs-lv.lv-critical strong { color: #ff8a80; }
   .nojs code { background: rgb(234 244 251 / 0.12); }
 }

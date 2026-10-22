@@ -7,7 +7,7 @@ import { fmtAgo, fmtDate, fmtNumber } from '../lib/format';
 import { canEditShelters, fmtDistance, fmtGrade, namedInAlerts, routeMidpoint, SHELTER_STATES, snapToRoute } from '../lib/safePlaces';
 import { useAuth } from '../store';
 import type { MapVillage } from './VillageMap';
-import { VillageMap } from './VillageMap';
+import { LazyVillageMap } from './LazyVillageMap';
 import { ErrorState, Skeleton } from './States';
 import type { RoadBlock, SafePlace, SafePlacesView, ShelterState } from '../types';
 
@@ -320,7 +320,7 @@ export function WhereToGo({ village }: { village: MapVillage }) {
     <div className="wtg">
       {view.places.length > 0 && (
         <div className="wtg-map card card-flush">
-          <VillageMap
+          <LazyVillageMap
             villages={mapVillages}
             focus={mapFocus}
             safe={mapSafe}

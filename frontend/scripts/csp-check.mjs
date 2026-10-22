@@ -74,7 +74,7 @@ const code = reports[0]?.track_code ?? 'UNKNOWN';
 const PAGES = [
   ['/', false], ['/live', false], ['/report', false], ['/village/thunag', false], ['/how', false], ['/sensors', false],
   ['/agents', false], ['/impact', false], ['/pilot', false], [`/t/${code}`, false], ['/login', false],
-  ['/console', true], ['/audit', true], ['/roster', true],
+  ['/console', true], ['/audit', true], ['/roster', true], ['/status.html', false],
 ];
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 
@@ -132,6 +132,13 @@ for (const [path, auth] of PAGES) {
   });
   const resp = await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle', timeout: 30000 }).catch((e) => ({ err: e }));
   await page.waitForTimeout(1500);
+  // Maps load only once they scroll into view (LazyVillageMap): bring each one in so MapLibre, its worker
+  // and the tiles are checked too.
+  if (!resp?.err && (await page.locator('.map-gate').count())) {
+    await page.locator('.map-gate').first().scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForSelector('.maplibregl-canvas', { state: 'attached', timeout: 20000 }).catch(() => {});
+    await page.waitForTimeout(2000);
+  }
   const events = await page.evaluate(() => window.__csp ?? []);
   const csp = resp?.headers?.()['content-security-policy'];
   const problems = [...new Set([...consoleCsp, ...events])];

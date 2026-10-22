@@ -15,8 +15,10 @@
 // Exits 1 on any failure, after printing every result.
 //
 // Uses Playwright and @axe-core/playwright from frontend/node_modules (never installs anything).
-// Chromium: $SMOKE_CHROME, else the cached build below, else Playwright's own.
-import { existsSync } from 'node:fs';
+// Chromium: $SMOKE_CHROME, else the newest Playwright build in ~/.cache/ms-playwright, else Playwright's own.
+import { existsSync, readdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(new URL('../frontend/package.json', import.meta.url));
@@ -31,9 +33,15 @@ const arg = (name, fallback) => {
 const SITE = arg('site', process.env.SMOKE_SITE || 'https://main.d15r7ktz99l46x.amplifyapp.com').replace(/\/$/, '');
 const API = arg('api', process.env.SMOKE_API || 'https://362iqe4oae.execute-api.us-east-1.amazonaws.com').replace(/\/$/, '');
 const ONLY = arg('only', '').split(',').filter(Boolean);
-const CHROME = [process.env.SMOKE_CHROME, '/home/prashant/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome'].find(
-  (p) => p && existsSync(p),
-);
+// Any installed Playwright Chromium will do (newest first): a `playwright install` elsewhere replaces the build.
+const PW_CACHE = join(homedir(), '.cache/ms-playwright');
+const installedChromes = existsSync(PW_CACHE)
+  ? readdirSync(PW_CACHE)
+      .filter((d) => /^chromium-\d+$/.test(d))
+      .sort((a, b) => Number(b.split('-')[1]) - Number(a.split('-')[1]))
+      .map((d) => join(PW_CACHE, d, 'chrome-linux64/chrome'))
+  : [];
+const CHROME = [process.env.SMOKE_CHROME, ...installedChromes].find((p) => p && existsSync(p));
 const VIEWPORTS = [
   { name: '390', width: 390, height: 844, mobile: true },
   { name: '1440', width: 1440, height: 900, mobile: false },

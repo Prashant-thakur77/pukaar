@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { statusPagePlugin } from './status-page';
 
 export default defineConfig({
   plugins: [
     react(),
+    statusPagePlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: { enabled: false },
@@ -35,10 +37,17 @@ export default defineConfig({
       filename: 'sw.ts',
       injectManifest: {
         // The app shell (including /report and its fonts) is precached so the
-        // report page opens with no network; API calls are never cached. MapLibre
-        // is left out so a phone on 2G does not download it in the background.
+        // report page opens with no network; API calls are never cached. Left out, so a
+        // phone on 2G does not download them in the background on its first visit:
+        // MapLibre and the 3D hero; Noto Sans Devanagari (120 kB, and a system font on
+        // Android, see theme.css) and the display italic; and the officer and explainer
+        // pages, which load on demand as before.
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
-        globIgnores: ['**/maplibre*', '**/HeroScene*', '**/*latin-ext*', '**/*cyrillic*', '**/*greek*', '**/*vietnamese*'],
+        globIgnores: [
+          '**/maplibre*', '**/HeroScene*', '**/*latin-ext*', '**/*cyrillic*', '**/*greek*', '**/*vietnamese*',
+          '**/noto-sans-devanagari*', '**/*italic*',
+          '**/ConsolePage-*', '**/Roster-*', '**/Audit-*', '**/Pilot-*', '**/Impact-*', '**/Agents-*', '**/How-*', '**/Sensors-*',
+        ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // One classic script, as registerSW.js registers it.
         rollupFormat: 'iife',

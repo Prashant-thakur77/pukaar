@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, chainRole, emptyShifts, isCurrent, istClock, nobodyOnDuty, relayLabel, shiftWindow, todayIST, validUsername } from './roster';
+import { addDays, approvalTimes, chainRole, emptyShifts, isCurrent, istClock, nobodyOnDuty, relayLabel, shiftWindow, todayIST, validUsername } from './roster';
 import type { OnDuty, RosterDay } from '../types';
 
 function day(date: string, entries: Partial<Record<'day' | 'night', boolean>> = {}): RosterDay {
@@ -66,5 +66,23 @@ describe('duty roster helpers', () => {
     expect(validUsername('adm_mandi')).toBe(true);
     expect(validUsername('ADM Mandi')).toBe(false);
     expect(validUsername('')).toBe(false);
+  });
+});
+
+describe('approvalTimes', () => {
+  it('matches the backend defaults: reminder at 3 min (2.5 for a Critical), Critical moves on at 5 min, others at 10', () => {
+    expect(approvalTimes({ approval_timeout_seconds: 600 })).toEqual({ windowMin: 10, criticalWindowMin: 5, nudgeMin: 3, criticalNudgeMin: 2.5 });
+  });
+  it('reads the values the API sends', () => {
+    expect(approvalTimes({ approval_timeout_seconds: 900, approval_timeout_critical_seconds: 600, officer_wake_seconds: 120 })).toEqual({
+      windowMin: 15,
+      criticalWindowMin: 10,
+      nudgeMin: 2,
+      criticalNudgeMin: 2,
+    });
+    // Wake-up call off: the reminder is half-way through the window.
+    expect(approvalTimes({ approval_timeout_seconds: 600, officer_wake_seconds: 0 }).nudgeMin).toBe(5);
+    // A Critical window never exceeds the general one.
+    expect(approvalTimes({ approval_timeout_seconds: 240, approval_timeout_critical_seconds: 300 }).criticalWindowMin).toBe(4);
   });
 });

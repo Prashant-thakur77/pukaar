@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, ApiError, cognitoSignIn, cognitoTotp } from './api';
+import { api, ApiError, cognitoSignIn, cognitoTotp, prefetchRoute } from './api';
 import { useAuth, useNet } from './store';
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -12,6 +12,24 @@ describe('api client', () => {
     useAuth.setState({ token: null, user: null });
     useNet.setState({ sample: false });
     Object.defineProperty(globalThis, 'fetch', { configurable: true, writable: true, value: fetchMock });
+  });
+
+  it('a village page fetched at boot is taken over by the page, not fetched twice', async () => {
+    fetchMock.mockImplementation(async (u) => json(200, { url: String(u) }));
+    prefetchRoute('/village/thunag');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/villages\/thunag$/);
+    expect(String(fetchMock.mock.calls[1][0])).toMatch(/\/villages\/thunag\/safe-places$/);
+    const v = (await api.village('thunag')) as unknown as { url: string };
+    await api.safePlaces('thunag');
+    expect(v.url).toMatch(/\/villages\/thunag$/);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // Taken once: the next poll fetches again. Other routes start nothing early.
+    await api.village('thunag');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    prefetchRoute('/report');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    fetchMock.mockReset();
   });
 
   it('sends the bearer token on officer routes and not on public ones', async () => {
