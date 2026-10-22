@@ -422,6 +422,31 @@ def clear_roadblock(village_id: str, block_id: str,
     return safe_places.view(repo, village_id)
 
 
+class RecipientRoleBody(BaseModel):
+    role: str
+
+
+@router.post("/villages/{village_id}/recipients/{recipient_id}/role")
+def set_recipient_role(village_id: str, recipient_id: str, body: RecipientRoleBody,
+                       principal: Principal = Depends(Allowed("set_recipient_role", "village", "village_id",
+                                                              village_from_path=True))) -> dict:
+    """Make a registered person a relay (pradhan, gauge_reader, task_force) or a villager again. Officers: any
+    village; a pradhan: their own. A Telegram recipient's id is their chat id. Audited ("recipient_role_changed")."""
+    from Pukaar.services import recipients
+
+    repo = get_repo()
+    if repo.get_village(village_id) is None:
+        raise HTTPException(404, "Village not found")
+    try:
+        r = recipients.set_role(repo, village_id, recipient_id, body.role, actor=principal.username,
+                                actor_role=principal.role)
+    except recipients.RoleError as exc:
+        raise HTTPException(400, str(exc)) from None
+    except KeyError:
+        raise HTTPException(404, "Recipient not found in this village") from None
+    return recipients.view(r)
+
+
 class ReplayBody(BaseModel):
     scenario: str = replay_svc.DEFAULT_SCENARIO
     speed_seconds_per_hour: float = 4.0  # narratable pace; capped to fit one worker run

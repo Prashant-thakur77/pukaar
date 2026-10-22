@@ -94,7 +94,7 @@ def test_link_from_a_timed_out_officer_is_rejected(repo, frozen, workflow):
     old_version = repo.get_alert(a.id).token_version
     nxt = s.handle({"step": "next_officer", "alert_id": a.id, "officer_index": 0})
     assert nxt == {"has_next": True, "officer_index": 1, "level": "warning",
-                   "nudge_after_seconds": 180, "nudge_wait_seconds": 420}
+                   "nudge_after_seconds": 180, "nudge_wait_seconds": 420, "last_call_seconds": 600}
     s.handle({"step": "ask_officer", "alert_id": a.id, "officer_index": 1, "task_token": "TOKEN-2"})
     with pytest.raises(ConflictError):
         decide(repo, workflow, a.id, "approved", "officer1", token_version=old_version)

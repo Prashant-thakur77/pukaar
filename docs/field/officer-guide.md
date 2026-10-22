@@ -243,7 +243,8 @@ Pradhans see a disabled **Approve (officers only)** button and cannot approve.
 fastest channel and it is not automatic.
 
 **What happens after you decline:** nothing is sent; the decision and your reason are on the audit trail.
-If the level still holds, the sweep asks again after 30 minutes with a new alert that names this one.
+If the level still holds, the sweep asks again with a new alert that names this one: after 5 minutes
+for a Critical, 30 for a Warning, 60 for a Watch.
 
 **If the console will not load** (RUNBOOK, api-5xx): try the Telegram link (same API, so check it), and
 if neither works decide by phone with the DDMO, warn the village by phone, and record what you did in the
@@ -283,12 +284,16 @@ Each alert asks the chain from the roster in order: **Primary → Backup → Esc
 | 3 (critical 2.5) | Reminder on Telegram and Web Push; wake-up call if you have not opened the link | same |
 | 10 (critical 5) | Your turn ends: "did not answer in time; asking <next>". The next officer gets the same messages | same |
 
-When the last person in the chain has not answered:
-- **Watch and Warning:** the alert **expires unsent** ("Time ran out"). If the level still holds, the
-  sweep asks again after 30 minutes.
-- **Critical:** on the pilot the alert also **expires unsent** and is asked again after 30 minutes
-  (`CriticalAutoSend=false`). Only after the DDMA's written sign-off can it be set to go out by itself
-  with the fixed template, flagged "Auto-sent, unapproved". The roster page states which applies.
+When the last person in the chain has not answered, the alert is **not** dropped quietly:
+- **Last call.** Everyone in the chain and everyone on the district roster now, including the ADM or DM,
+  gets a fresh link on Telegram and Web Push, and the ADM or DM is phoned (when voice calls are on). Any
+  of them can approve or decline for one more window: 5 minutes for a Critical, 10 otherwise. The
+  `alert-unanswered` alarm fires at the same moment.
+- **Then it expires unsent** ("Time ran out"). If the level still holds, the sweep asks again: after
+  5 minutes for a Critical, 30 for a Warning, 60 for a Watch.
+- **Critical on the pilot** follows the same path (`CriticalAutoSend=false`). Only after the DDMA's
+  written sign-off can it be set to go out by itself with the fixed template, flagged "Auto-sent,
+  unapproved". The roster page states which applies.
 
 A chain of three holds a Warning for up to 30 minutes and a Critical for up to 15. That is too long for a
 village in danger. Escalate **by phone** as well:

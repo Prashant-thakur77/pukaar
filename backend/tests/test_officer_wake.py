@@ -274,15 +274,20 @@ def env(monkeypatch):
 def test_critical_waits_5_minutes_per_officer_and_the_nudge_comes_at_3(env):
     assert approval_window("warning") == approval_window("watch") == 600
     assert approval_window("critical") == 300
-    assert approval_timers("warning") == {"nudge_after_seconds": 180, "nudge_wait_seconds": 420}
-    assert approval_timers("critical") == {"nudge_after_seconds": 150, "nudge_wait_seconds": 150}
+    assert approval_timers("warning") == {"nudge_after_seconds": 180, "nudge_wait_seconds": 420,
+                                          "last_call_seconds": 600}
+    assert approval_timers("critical") == {"nudge_after_seconds": 150, "nudge_wait_seconds": 150,
+                                           "last_call_seconds": 300}
     env(PUKAAR_CRITICAL_APPROVAL_TIMEOUT_SECONDS=120, PUKAAR_OFFICER_WAKE_SECONDS=45)
-    assert approval_timers("critical") == {"nudge_after_seconds": 45, "nudge_wait_seconds": 75}
+    assert approval_timers("critical") == {"nudge_after_seconds": 45, "nudge_wait_seconds": 75,
+                                           "last_call_seconds": 120}
     env(PUKAAR_APPROVAL_TIMEOUT_SECONDS=60)  # filming: the critical window is never longer than the general one
     assert approval_window("critical") == 60
-    assert approval_timers("warning") == {"nudge_after_seconds": 30, "nudge_wait_seconds": 30}
+    assert approval_timers("warning") == {"nudge_after_seconds": 30, "nudge_wait_seconds": 30,
+                                          "last_call_seconds": 60}
     env(PUKAAR_OFFICER_WAKE_SECONDS=0, PUKAAR_APPROVAL_TIMEOUT_SECONDS=600)
-    assert approval_timers("warning") == {"nudge_after_seconds": 300, "nudge_wait_seconds": 300}  # half-way
+    assert approval_timers("warning") == {"nudge_after_seconds": 300, "nudge_wait_seconds": 300,
+                                          "last_call_seconds": 600}  # half-way
 
 
 def test_a_chain_of_three_holds_a_critical_15_minutes_not_30(repo, frozen):

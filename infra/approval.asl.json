@@ -58,10 +58,11 @@
     },
     "SetTimers": {
       "Type": "Pass",
-      "Comment": "Each officer's window in two parts: until the nudge (and the wake-up call to an officer who has not opened the link), then the rest. Shorter for a critical (PUKAAR_CRITICAL_APPROVAL_TIMEOUT_SECONDS).",
+      "Comment": "Each officer's window in two parts: until the nudge (and the wake-up call to an officer who has not opened the link), then the rest; and the last call's window when nobody answers. Shorter for a critical (PUKAAR_CRITICAL_APPROVAL_TIMEOUT_SECONDS).",
       "Parameters": {
         "nudge_after_seconds.$": "$.draft.result.nudge_after_seconds",
-        "nudge_wait_seconds.$": "$.draft.result.nudge_wait_seconds"
+        "nudge_wait_seconds.$": "$.draft.result.nudge_wait_seconds",
+        "last_call_seconds.$": "$.draft.result.last_call_seconds"
       },
       "ResultPath": "$.timers",
       "Next": "HasOfficers"
@@ -310,7 +311,8 @@
       "Comment": "The next officer's window follows the alert's level now (an alert raised to critical meanwhile gets the critical window).",
       "Parameters": {
         "nudge_after_seconds.$": "$.next.result.nudge_after_seconds",
-        "nudge_wait_seconds.$": "$.next.result.nudge_wait_seconds"
+        "nudge_wait_seconds.$": "$.next.result.nudge_wait_seconds",
+        "last_call_seconds.$": "$.next.result.last_call_seconds"
       },
       "ResultPath": "$.timers",
       "Next": "AskOfficer"
@@ -352,7 +354,7 @@
           "Next": "AutoSend"
         }
       ],
-      "Default": "Expire"
+      "Default": "LastCall"
     },
     "AutoSend": {
       "Type": "Task",
@@ -394,7 +396,7 @@
     },
     "AutoSendOn": {
       "Type": "Choice",
-      "Comment": "Critical auto-send is configurable (PUKAAR_CRITICAL_AUTO_SEND; keeping it on needs DDMA sign-off). Off: auto_send marked the alert expired and nothing is delivered.",
+      "Comment": "Critical auto-send is configurable (PUKAAR_CRITICAL_AUTO_SEND; keeping it on needs DDMA sign-off). Off: nothing is delivered and the alert goes to the last call, like any other alert nobody answered.",
       "Choices": [
         {
           "And": [
@@ -410,7 +412,7 @@
           "Next": "OutcomeAutoSent"
         }
       ],
-      "Default": "OutcomeExpired"
+      "Default": "LastCall"
     },
     "OutcomeAutoSent": {
       "Type": "Pass",
@@ -741,10 +743,54 @@
       "ResultPath": "$.outcome",
       "Next": "Close"
     },
+    "LastCall": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Comment": "Nobody in the chain answered (a Watch or Warning, or a Critical with auto-send off). The handler emits AlertUnanswered (alarmed), stores the task token, tells every officer on duty for the district and the ADM or DM on Telegram and Web Push that nothing was sent, each with a fresh one-tap link, and phones the ADM or DM (not possible with voice off, and said so). Any of them may approve or decline for one more window ($.timers.last_call_seconds); then the alert expires.",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "unanswered",
+          "alert_id.$": "$.alert_id",
+          "task_token.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.timers.last_call_seconds",
+      "ResultPath": "$.approval",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Expire"
+        },
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Failsafe"
+        }
+      ],
+      "Next": "RouteDecision"
+    },
     "Expire": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
-      "Comment": "Not critical and every officer timed out: close as expired and notify all officers.",
+      "Comment": "The last call passed with no decision: close as expired; nothing was sent. Every officer on duty and the ADM or DM were told at LastCall; the sweep asks again after the level's cooldown while the level holds.",
       "Parameters": {
         "FunctionName": "${WorkflowFunctionArn}",
         "Payload": {

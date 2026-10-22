@@ -146,6 +146,9 @@ def _api_base(request: Request) -> str:
     s = get_settings()
     if s.api_url and not s.is_local:
         return s.api_url
+    if s.edge_required and request.headers.get("x-pukaar-host"):
+        # Behind CloudFront (prod): API Gateway sees its own host; the viewer's is copied by the edge function.
+        return f"https://{request.headers['x-pukaar-host']}"
     proto = request.headers.get("x-forwarded-proto", request.url.scheme).split(",")[0].strip()
     host = request.headers.get("host") or request.url.netloc
     return f"{proto}://{host}"

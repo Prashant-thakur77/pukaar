@@ -25,6 +25,21 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["authorization", "content-type"],
 )
+
+
+@app.middleware("http")
+async def edge_only(request, call_next):
+    """Prod behind CloudFront and AWS WAF: refuse requests that did not come through CloudFront (api/edge.py)."""
+    from fastapi.responses import JSONResponse
+
+    from Pukaar.api import edge
+
+    if not edge.allowed(request.url.path, request.headers):
+        return JSONResponse({"detail": {"code": "edge_only", "reason": "use the API's public address"}},
+                            status_code=403)
+    return await call_next(request)
+
+
 for r in (public.router, reports.router, officer.router, telegram.router, sensors.router, rollcall.router, agents.router,
           gauges.router, push.router, voice.router):
     app.include_router(r)

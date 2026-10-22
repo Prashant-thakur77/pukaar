@@ -41,7 +41,7 @@ Deployed as one AWS SAM stack (`pukaar-dev`, us-east-1); nothing runs between re
 | Service | Role |
 |---|---|
 | EventBridge Scheduler | The 15-minute sweep; zero retries, dead-letter queue |
-| Lambda (5 container functions) | API (FastAPI behind the Lambda Web Adapter), sweep, workflow steps, worker, gauge ingest (AWS IoT Core topic rule) |
+| Lambda (6 container functions) | API (FastAPI behind the Lambda Web Adapter), sweep, workflow steps, worker, gauge ingest (AWS IoT Core topic rule), a canary that checks the public site and API every 15 minutes |
 | Step Functions (Standard) | One approval execution per alert: `waitForTaskToken`, next officer on timeout, critical auto-send, failsafe |
 | DynamoDB | One table, sparse GSI, conditional writes (no double sends), TTL, point-in-time recovery |
 | Bedrock (Amazon Nova 2 Lite via Strands Agents) | Drafts the Hindi alert and answers officers' questions; Cedar policies (the open-source Cedar engine, `cedarpy`) checked on every tool call. Model access on our account is pending, so the live stack currently sends the fixed template, labelled `rule-fallback` |
@@ -50,7 +50,7 @@ Deployed as one AWS SAM stack (`pukaar-dev`, us-east-1); nothing runs between re
 | Transcribe (hi-IN) | Villager voice reports |
 | API Gateway HTTP API + Cognito | Every route; officer and pradhan sign-in; villagers need no account |
 | S3, SSM Parameter Store, SQS | Private audio and photos; secrets; encrypted dead-letter queues |
-| CloudWatch + X-Ray | Thirteen alarms, one dashboard, tracing on every function |
+| CloudWatch + X-Ray | Sixteen alarms, one dashboard, tracing on every function but the canary |
 | Amplify Hosting | The web app (PWA) |
 | AWS Open Data (Terrain Tiles) | Real Himalayan relief for the 3D map and the landing valley |
 | AWS IoT Core | River gauges over MQTT with one X.509 certificate per device; a policy pinned to the device's own topic; a topic rule into the gauge-ingest Lambda |

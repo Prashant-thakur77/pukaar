@@ -322,8 +322,18 @@ Record the answer for each household with `make voice-add ... CONSENT="verbal, <
 asked>"`. `make drill CHANNEL=voice` refuses to run while any voice number in the village has no
 recorded consent.
 
-**Before the day.** Tell the pradhan the day and the hour, and register the pradhan on Telegram
-with `ROLE=pradhan` so the unreachable list reaches them. Deploy with `AckWaitSeconds=600`
+**Before the day.** Tell the pradhan the day and the hour, and make the pradhan a relay so the
+unreachable list reaches them. Sending `/start <village>` to the bot registers anyone, the pradhan
+included, as an ordinary villager. Then set the role in one of three ways:
+
+- `make recipient-role VILLAGE=<id> ID=<their Telegram chat id> ROLE=pradhan`;
+- if they also take calls, `make voice-add VILLAGE=<id> NAME=... PHONE=+91... CONSENT=... CHAT=<chat
+  id> ROLE=pradhan`;
+- an officer, or the pradhan of that village signed in to the console, calls
+  `POST /villages/<id>/recipients/<chat id>/role` with `{"role": "pradhan"}`.
+
+Each change goes to the audit trail as `recipient_role_changed`. `gauge_reader` and `task_force`
+work the same way, and `villager` undoes the change. Deploy with `AckWaitSeconds=600`
 (10 minutes to the second call; `VoiceRetrySeconds=600` to the third).
 
 **On the day.** `make drill VILLAGE=<id> LEVEL=watch CHANNEL=voice`, approve in the console, and

@@ -11,6 +11,12 @@ they have (Web Push and Telegram) and, if they have not opened the link, phoned
 (delivery/officer_call.py: the call can only send the link again, never approve) before the next
 is asked. A critical alert's window is PUKAAR_CRITICAL_APPROVAL_TIMEOUT_SECONDS (5 minutes).
 
+Nobody answered (every officer timed out, or a critical with auto-send off): the last call
+(step_unanswered). AlertUnanswered is emitted (alarmed), every officer on duty for the district and the
+ADM or DM get "nobody approved; it was not sent" on Telegram and Web Push with their own fresh one-tap
+link, valid for one more window, and the ADM or DM is phoned (honestly "not possible" with voice off).
+Only when that window passes too does the alert expire; the sweep asks again after the level's cooldown.
+
 Delivery at scale: deliver, recall and failsafe send the first batch of recipients themselves and
 return the other batches; the Map state runs them (deliver_batch) and deliver_done finishes the round
 or runs the batches with sends still queued again (dispatch.py, docs/CONTRACT.md).
@@ -64,11 +70,12 @@ def approval_window(level: str | None = None) -> int:
 def approval_timers(level: str | None = None) -> dict[str, int]:
     """The two parts of an officer's approval window. The nudge, with the wake-up call to an officer
     who has not opened the link, comes PUKAAR_OFFICER_WAKE_SECONDS in (3 minutes), or half-way
-    through a window shorter than twice that."""
+    through a window shorter than twice that. last_call_seconds: how long the last call to everyone
+    on duty stays open when nobody in the chain answered (one window)."""
     total = approval_window(level)
     wake = get_settings().officer_wake_seconds
     first = max(1, min(wake, total // 2) if wake > 0 else total // 2)
-    return {"nudge_after_seconds": first, "nudge_wait_seconds": total - first}
+    return {"nudge_after_seconds": first, "nudge_wait_seconds": total - first, "last_call_seconds": total}
 
 
 def drive_delivery(handle: Callable[[dict], dict], result: dict, *, sleep: Callable[[float], None] = time.sleep) -> dict:
@@ -267,11 +274,12 @@ class Steps:
         alert = self._alert(e["alert_id"])
         if not get_settings().critical_auto_send:
             # Off by configuration (PUKAAR_CRITICAL_AUTO_SEND=false): nothing goes out without a person.
-            events.alert_changed(self.repo.update_alert(alert.id, status="expired", task_token=None))
+            # The state machine goes on to the last call (step_unanswered), which makes this loud.
+            self.repo.update_alert(alert.id, task_token=None)
             self.repo.add_timeline(alert.id, "auto_send_off",
                                    f"every officer timed out at critical, but critical auto-send is off "
-                                   f"({roster.DDMA_LABEL}): nothing was sent. If the level holds, the sweep asks "
-                                   f"again after {get_settings().reask_cooldown_minutes} min")
+                                   f"({roster.DDMA_LABEL}): nothing was sent. The last call goes to everyone on "
+                                   f"duty and the ADM or DM")
             return {"alert_id": alert.id, "mode": "off"}
         decision = authorize(SYSTEM, "auto_send", "alert", alert.id,
                              {"level": alert.level, "all_officers_timed_out": True, "replay": alert.replay},
@@ -286,12 +294,109 @@ class Steps:
         self.repo.add_timeline(alert.id, "auto_send", "every officer timed out at critical; fixed template, flagged unapproved")
         return {"alert_id": alert.id, "mode": "auto"}
 
-    def step_expire(self, e: dict) -> dict:
+    def step_unanswered(self, e: dict) -> dict:
+        """The last call: nobody in the chain answered (every officer timed out on a Watch or Warning, or on
+        a Critical with auto-send off). Never silent:
+
+        - AlertUnanswered (dimension Level) is emitted; the pukaar-<stage>-alert-unanswered alarm fires;
+        - every officer on duty for the district (the frozen chain, and anyone on the roster now) and the
+          escalation officer (ADM or DM) get "nobody approved; it was not sent" on Telegram and Web Push,
+          each with their own fresh one-tap link; any of them may approve or decline for one more window
+          (last_call_seconds): the task token is stored and the alert is pending again;
+        - the ADM or DM is phoned (delivery/officer_call.py); with voice off, no phone on file or a replay
+          the record says why no call was possible.
+
+        A replay messages and phones nobody and emits nothing; the timeline says so. The wait is the state
+        machine's (infra/approval.asl.json, LastCall)."""
         alert = self._alert(e["alert_id"])
+        people, escalation, duty = self._last_call_people(alert)
+        alert = self.repo.update_alert(alert.id, task_token=e["task_token"], token_version=alert.token_version + 1,
+                                       status="pending", approved=False, unanswered_at=clock.iso(clock.now()),
+                                       officers_asked=list(dict.fromkeys([*alert.officers_asked, *people])))
+        events.alert_changed(alert)  # the approval card is back on every console
+        window = approval_timers(alert.level)["last_call_seconds"]
+        minutes = max(1, round(window / 60))
+        level = hi.LEVEL_EN.get(alert.level, alert.level)
+        if alert.replay:  # a replay never reaches a real phone, and never pages the on-call engineer
+            self.repo.add_timeline(alert.id, "unanswered",
+                                   f"nobody in the chain answered ({level}); nothing was sent. Replay: no officer "
+                                   f"is messaged or phoned; the console shows it for {minutes} min more")
+            return {"alert_id": alert.id, "officers": 0, "reached": 0, "telegram": 0, "push": 0,
+                    "call": "not_possible"}
+        metric("AlertUnanswered", 1, Level=alert.level)
+        drill = bool(alert.decision_trace.get("drill"))
+        by_telegram, by_push, reached = 0, 0, []
+        for officer in people:
+            link = tokens.sign(alert.id, officer, alert.token_version, "approve")
+            url = f"{get_settings().web_url}/a/{link}"
+            got = False
+            chat = self.repo.get_officer_chat(officer)
+            if chat and telegram.configured():
+                try:
+                    telegram.send_text(chat, hi.unanswered_officer(alert.village_name_hi, alert.village_name,
+                                                                   alert.level, minutes, url, drill))
+                    by_telegram += 1
+                    got = True
+                except Exception as exc:
+                    log(_LOG, "last call by telegram failed", 30, alert_id=alert.id, error=str(exc)[:200])
+            payload = officer_push.approval_payload(alert, link, url, minutes)
+            payload["title"] = f"किसी ने मंज़ूरी नहीं दी · Nobody approved: {payload['title']}"
+            payload["body"] = (f"{alert.village_name} {level}: it was NOT sent. "
+                               f"Approve or decline within {minutes} min.")
+            payload["tag"] = f"{alert.id}-unanswered"
+            if officer_push.send_to_user(self.repo, officer, payload, ttl=window, kind="unanswered").sent:
+                by_push += 1
+                got = True
+            if got:
+                reached.append(officer)
+        call_status, call_note = self._wake_escalation(alert, escalation, people, duty)
+        names = ", ".join(f"{who} ({role})" for who, role in people.items()) or "nobody on the roster"
+        self.repo.add_timeline(alert.id, "unanswered",
+                               f"nobody in the chain answered ({level}); nothing was sent. Last call with a fresh "
+                               f"one-tap link to {names}: reached {len(reached)} of {len(people)} "
+                               f"(telegram={by_telegram}, push={by_push}); {call_note}; open {minutes} min more")
+        if not reached:
+            log(_LOG, "last call reached no officer", 40, alert_id=alert.id, officers=len(people))
+        return {"alert_id": alert.id, "officers": len(people), "reached": len(reached), "telegram": by_telegram,
+                "push": by_push, "call": call_status}
+
+    def _last_call_people(self, alert: Alert) -> tuple[dict[str, str], str | None, roster.Duty]:
+        """({officer: role}, the escalation officer, the duty now) for the last call. Everyone, in order: the
+        frozen chain, then anyone on the district's duty roster now (a shift may have changed meanwhile, or
+        the chain was a fallback list); the escalation officer is the ADM or DM the roster names, if any."""
+        people: dict[str, str] = {}
+        for i, who in enumerate(self._officers(alert)):
+            people.setdefault(who, self._role(alert, i))
+        duty = self._duty(alert)
+        for who, role in zip(duty.chain, duty.roles):
+            people.setdefault(who, role)
+        escalation = next((who for who, role in people.items() if role.startswith("escalation")), None)
+        return people, escalation, duty
+
+    def _wake_escalation(self, alert: Alert, escalation: str | None, people: dict[str, str],
+                         duty: roster.Duty) -> tuple[str, str]:
+        """Phone the ADM or DM: (status, the note for the timeline), honest about every case it cannot ring."""
+        if escalation is None:
+            return "not_possible", (f"call=not possible (no ADM or DM on the roster for the "
+                                    f"{duty.slot.label()}: nobody above the chain to phone)")
+        who = f"{escalation} ({people.get(escalation, 'escalation')})"
+        prior = self.repo.get_officer_call(alert.id, escalation)
+        if prior is not None:  # one call per officer per alert: they were rung at their own reminder
+            return prior.status, f"{who} {officer_call.describe(prior)} at their own reminder, not rung twice"
+        call = officer_call.wake(self.repo, alert, escalation, list(people).index(escalation))  # never raises
+        return call.status, f"{who} {officer_call.describe(call)}"
+
+    def step_expire(self, e: dict) -> dict:
+        """The last call passed too with no decision: expired, nothing was sent. The sweep asks again after
+        the level's cooldown (Settings.reask_cooldown) while the level holds."""
+        alert = self._alert(e["alert_id"])
+        if alert.unanswered_at is None and not alert.replay:  # never silent, even if the last call was skipped
+            metric("AlertUnanswered", 1, Level=alert.level)
         events.alert_changed(self.repo.update_alert(alert.id, status="expired", task_token=None))
+        cooldown = get_settings().reask_cooldown(alert.level)
         self.repo.add_timeline(alert.id, "expired",
-                               "no officer answered; not critical, so nothing was sent. If the level holds, the sweep "
-                               f"asks again after {get_settings().reask_cooldown_minutes} min")
+                               "nobody answered, the last call included; nothing was sent. If the level holds, the "
+                               f"sweep asks again after {cooldown} min")
         return {"alert_id": alert.id, "outcome": "expired"}
 
     def step_deliver(self, e: dict) -> dict:

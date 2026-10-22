@@ -31,6 +31,7 @@ EVENTS_KEY_EXP = $(shell date -u -d '+360 days' +%s 2>/dev/null || date -u -v+36
 #   CAP_SENDER_NAME=<authority name>       CAP <senderName> in English (required for STAGE=prod)
 #   CAP_SENDER_NAME_HI=<name in Hindi>     CAP <senderName> in Hindi (optional)
 #   WEB_ORIGIN=https://<host>              the web app's own domain, when not the Amplify URL
+#   EDGE_WEB_ACL_ARN=<arn>                 prod only: the web ACL from make waf-edge (CloudFront + AWS WAF on the API)
 -include .env.deploy.local
 -include .env.deploy.$(STAGE).local
 # Names hold spaces and commas: each goes to sam as one quoted Key="value".
@@ -39,12 +40,13 @@ DEPLOY_EXTRA   = $(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL)) \
                  $(if $(VOICE_PROVIDER),VoiceProvider=$(VOICE_PROVIDER)) \
                  $(if $(EXOTEL_API_HOST),ExotelApiHost=$(EXOTEL_API_HOST)) \
                  $(if $(WEB_ORIGIN),WebOrigin=$(WEB_ORIGIN)) \
+                 $(if $(EDGE_WEB_ACL_ARN),EdgeWebAclArn=$(EDGE_WEB_ACL_ARN)) \
                  $(if $(CAP_SENDER),CapSender=$(CAP_SENDER)) \
                  $(if $(CAP_SENDER_NAME),'CapSenderName="$(CAP_SENDER_NAME)"') \
                  $(if $(CAP_SENDER_NAME_HI),'CapSenderNameHi="$(CAP_SENDER_NAME_HI)"')
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo drill voice-add voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke
+        seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -82,6 +84,17 @@ deploy: build ## Deploy the stack of STAGE (dev, or prod), then publish the web 
 	$(SAM) deploy --config-env $(SAM_ENV) --parameter-overrides $(SAM_PARAMS) EventsApiKeyExpires=$(EVENTS_KEY_EXP) $(DEPLOY_EXTRA)
 	$(MAKE) deploy-web
 
+waf-edge: ## Prod only: the AWS WAF web ACL for CloudFront in front of the API, in us-east-1 (prints its ARN for EDGE_WEB_ACL_ARN)
+	@test "$(STAGE)" = prod || { echo "waf-edge is for STAGE=prod: AWS WAF bills by the month, so dev has none." >&2; exit 2; }
+	aws cloudformation deploy --region us-east-1 --stack-name pukaar-$(STAGE)-waf-edge \
+	  --template-file infra/waf-edge.yaml --parameter-overrides Stage=$(STAGE) --no-fail-on-empty-changeset
+	scripts/edge_secret.sh
+	@echo "EDGE_WEB_ACL_ARN=$$(aws cloudformation describe-stacks --region us-east-1 --stack-name pukaar-$(STAGE)-waf-edge \
+	  --query "Stacks[0].Outputs[?OutputKey=='WebAclArn'].OutputValue" --output text)   (put it in .env.deploy.prod.local)"
+
+restore-drill: ## Restore the table from point-in-time recovery into a scratch table, compare counts, delete it (AT=<ISO UTC>, KEEP=1)
+	$(PYTHON) scripts/restore_drill.py --stage $(STAGE) --region $(REGION) $(if $(AT),--at $(AT)) $(if $(KEEP),--keep)
+
 deploy-web: ## Build the front end against the stack and upload it to Amplify
 	scripts/deploy_web.sh
 
@@ -105,7 +118,11 @@ drill: ## Send a labelled drill alert to registered phones (VILLAGE=gohar LEVEL=
 
 voice-add: ## Register a consented voice number (VILLAGE= NAME= PHONE=+91.. CONSENT="verbal, 2026-10-25"; ROLE=pradhan, CHAT= for Telegram too)
 	@test -n "$(VILLAGE)" -a -n "$(NAME)" -a -n "$(PHONE)" -a -n "$(CONSENT)" || { echo 'usage: make voice-add VILLAGE=gohar NAME="Asha Devi" PHONE=+919812345678 CONSENT="verbal, field visit 2026-10-25"'; exit 2; }
-	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.voice add "$(VILLAGE)" "$(NAME)" "$(PHONE)" "$(CONSENT)" "$(or $(ROLE),villager)" "$(CHAT)"
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.voice add "$(VILLAGE)" "$(NAME)" "$(PHONE)" "$(CONSENT)" "$(ROLE)" "$(CHAT)"
+
+recipient-role: ## Make a registered person a relay or a villager again (VILLAGE= ID=<chat id or v_...> ROLE=pradhan|gauge_reader|task_force|villager)
+	@test -n "$(VILLAGE)" -a -n "$(ID)" -a -n "$(ROLE)" || { echo 'usage: make recipient-role VILLAGE=gohar ID=123456789 ROLE=pradhan'; exit 2; }
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.voice role "$(VILLAGE)" "$(ID)" "$(ROLE)"
 
 voice-list: ## List a village's voice numbers, masked (VILLAGE=gohar)
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.voice list $(or $(VILLAGE),gohar)

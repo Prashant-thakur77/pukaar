@@ -201,7 +201,9 @@ def _went_unsent(a: Alert) -> bool:
 
 def reask_due(repo: Repo, village: Village, level: str, now: datetime) -> dict | None:
     """A live alert that nobody sent (declined or expired) is asked again when the village is still
-    at or above its level after the cooldown. Returns what the new alert's trace records."""
+    at or above its level after the cooldown for the level now (Settings.reask_cooldown): a Critical
+    0 to 5 minutes, so the next sweep asks again; a Warning 30, a Watch 60. Returns what the new
+    alert's trace records."""
     if village.open_alert_id:
         current = repo.get_alert(village.open_alert_id)
         if current is not None and current.status in OPEN_ALERT_STATUSES:
@@ -213,7 +215,7 @@ def reask_due(repo: Repo, village: Village, level: str, now: datetime) -> dict |
         return None
     if level_rank(level) < level_rank(last.level):
         return None
-    cooldown = get_settings().reask_cooldown_minutes
+    cooldown = get_settings().reask_cooldown(level)
     ended = clock.parse(last.decided_at or last.updated_at)
     if now - ended < timedelta(minutes=cooldown):
         return None

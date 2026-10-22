@@ -92,6 +92,21 @@ class LocalWorkflow:
                     self._waiting.pop(token, None)
         return None
 
+    def _last_call(self, steps, alert_id: str, timers: dict) -> dict | None:
+        """The LastCall state: step unanswered tells everyone on duty, then one more window for any of them."""
+        wait = (self.approval_timeout if self.approval_timeout is not None
+                else float(timers.get("last_call_seconds") or 0))
+        token = f"local:{alert_id}:last_call:{time.monotonic_ns()}"
+        event, holder = threading.Event(), {}
+        with self._lock:
+            self._waiting[token] = (event, holder)
+        try:
+            steps.handle({"step": "unanswered", "alert_id": alert_id, "task_token": token})
+            return holder if event.wait(max(0.0, wait)) else None
+        finally:
+            with self._lock:
+                self._waiting.pop(token, None)
+
     def _run(self, alert_id: str) -> None:
         from Pukaar.workflow.steps import drive_delivery
 
@@ -114,22 +129,25 @@ class LocalWorkflow:
                     if not nxt["has_next"]:
                         break
                     index = nxt["officer_index"]
-            if decision is not None and decision.get("decision") == "declined":
+            auto_sent = False
+            if decision is None and level == "critical":
+                auto = steps.handle({"step": "auto_send", "alert_id": alert_id})
+                auto_sent = auto.get("mode") == "auto"
+            if decision is None and not auto_sent:
+                # Nobody answered (a critical with auto-send off too): the last call to everyone on duty.
+                decision = self._last_call(steps, alert_id, timers)
+            if auto_sent:
+                send("deliver")
+                time.sleep(self.ack_wait)
+                send("recall")
+                outcome = "auto_sent_unapproved"
+            elif decision is not None and decision.get("decision") == "declined":
                 outcome = "declined"
             elif decision is not None and decision.get("decision") == "approved":
                 send("deliver")
                 time.sleep(self.ack_wait)
                 send("recall")
                 outcome = "delivered"
-            elif level == "critical":
-                auto = steps.handle({"step": "auto_send", "alert_id": alert_id})
-                if auto.get("mode") == "auto":
-                    send("deliver")
-                    time.sleep(self.ack_wait)
-                    send("recall")
-                    outcome = "auto_sent_unapproved"
-                else:  # critical auto-send is off (needs DDMA sign-off): nothing was sent
-                    outcome = "expired"
             else:
                 steps.handle({"step": "expire", "alert_id": alert_id})
                 outcome = "expired"

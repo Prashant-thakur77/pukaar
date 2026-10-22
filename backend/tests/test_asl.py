@@ -147,6 +147,7 @@ def test_every_task_names_a_contract_step(definition):
         "nudge_officer",
         "next_officer",
         "auto_send",
+        "unanswered",
         "expire",
         "deliver",
         "recall",
@@ -361,21 +362,23 @@ class FakeWorkflow:
     """
 
     def __init__(self, level="warning", officers=2, decisions=(), fail_step=None, voice_rounds=0, auto_off=False,
-                 batches=0, defer=None, broken=(), max_passes=4, next_level=None, failsafe_batches=0):
+                 batches=0, defer=None, broken=(), max_passes=4, next_level=None, failsafe_batches=0,
+                 last_call="timeout"):
         self.level, self.officers, self.fail_step = level, officers, fail_step
         self.auto_off = auto_off  # PUKAAR_CRITICAL_AUTO_SEND=false
         self.decisions = list(decisions)
         self.voice_rounds = voice_rounds  # how many recall results say "again" (another voice round)
         self.batches, self.defer, self.broken = batches, dict(defer or {}), set(broken)
         self.max_passes, self.next_level, self.failsafe_batches = max_passes, next_level, failsafe_batches
+        self.last_call = last_call  # the answer to the last call: "timeout", "approved" or "declined"
         self.calls: list[dict] = []
         self.timeouts: list[tuple[str, int]] = []
 
     @staticmethod
     def _timers(level):
         if level == "critical":
-            return {"nudge_after_seconds": 150, "nudge_wait_seconds": 150}
-        return {"nudge_after_seconds": 180, "nudge_wait_seconds": 420}
+            return {"nudge_after_seconds": 150, "nudge_wait_seconds": 150, "last_call_seconds": 300}
+        return {"nudge_after_seconds": 180, "nudge_wait_seconds": 420, "last_call_seconds": 600}
 
     def _again(self):
         again = bool(self.voice_rounds)
@@ -413,6 +416,11 @@ class FakeWorkflow:
                 "decision": decision,
                 "by": f"officer{payload['officer_index'] + 1}",
             }
+        if step == "unanswered":
+            assert payload["task_token"].startswith("token-")
+            if self.last_call == "timeout":
+                raise TaskFailed("States.Timeout")
+            return {"decision": self.last_call, "by": "adm_mandi"}
         if step == "next_officer":
             nxt = payload["officer_index"] + 1
             has_next = nxt < self.officers
@@ -538,10 +546,13 @@ def test_all_timeout_warning_expires(definition):
         "ask_officer",
         "nudge_officer",
         "next_officer",
+        "unanswered",
         "expire",
         "close",
     ]
     assert fake.calls[-1]["outcome"] == "expired"
+    # The last call waited one more window before the alert expired.
+    assert fake.timeouts[-1] == ("LastCall", 600)
 
 
 def test_no_officers_critical_auto_sends(definition):
@@ -689,5 +700,50 @@ def test_critical_auto_send_off_expires_without_delivering(definition):
     """PUKAAR_CRITICAL_AUTO_SEND=false (needs DDMA sign-off to turn on): nothing goes out unapproved."""
     fake = FakeWorkflow(level="critical", decisions=["timeout", "timeout"], auto_off=True)
     steps, _ = _run(definition, fake, level="critical")
-    assert steps[-2:] == ["auto_send", "close"] and "deliver" not in steps
+    assert steps[-4:] == ["auto_send", "unanswered", "expire", "close"] and "deliver" not in steps
     assert fake.calls[-1]["outcome"] == "expired"
+    assert fake.timeouts[-1] == ("LastCall", 300)  # the critical window
+
+
+# --- the last call: nobody answered ------------------------------------------------
+
+
+def test_the_last_call_waits_for_a_token_and_expires_only_after_it(definition):
+    states = definition["States"]
+    last = states["LastCall"]
+    assert last["Resource"].endswith(":lambda:invoke.waitForTaskToken")
+    assert last["Parameters"]["Payload"] == {"step": "unanswered", "alert_id.$": "$.alert_id",
+                                             "task_token.$": "$$.Task.Token"}
+    assert last["TimeoutSecondsPath"] == "$.timers.last_call_seconds"
+    assert last["Catch"][0] == {"ErrorEquals": ["States.Timeout"], "ResultPath": "$.error", "Next": "Expire"}
+    assert last["Next"] == "RouteDecision"
+    # Every way of nobody answering goes through it: the chain ran out, or critical auto-send is off.
+    assert states["IsCritical"]["Default"] == "LastCall" and states["AutoSendOn"]["Default"] == "LastCall"
+    assert states["SetTimers"]["Parameters"]["last_call_seconds.$"] == "$.draft.result.last_call_seconds"
+    assert states["UseNextTimers"]["Parameters"]["last_call_seconds.$"] == "$.next.result.last_call_seconds"
+    # The comment says what the step does: it notifies all officers (workflow/steps.step_unanswered).
+    assert "every officer on duty" in last["Comment"] and "ADM or DM" in last["Comment"]
+    assert "notify all officers" not in states["Expire"]["Comment"]
+
+
+@pytest.mark.parametrize("level,auto_off", [("warning", False), ("watch", False), ("critical", True)])
+def test_someone_answering_the_last_call_approves_and_it_is_delivered(definition, level, auto_off):
+    fake = FakeWorkflow(level=level, decisions=["timeout", "timeout"], auto_off=auto_off, last_call="approved")
+    steps, result = _run(definition, fake, level=level)
+    assert steps[steps.index("unanswered") + 1:] == ["deliver", "recall", "close"]
+    assert result["status"] == "SUCCEEDED" and fake.calls[-1]["outcome"] == "delivered"
+    declined = FakeWorkflow(level=level, decisions=["timeout", "timeout"], auto_off=auto_off, last_call="declined")
+    steps, _ = _run(definition, declined, level=level)
+    assert steps[-2:] == ["unanswered", "close"] and declined.calls[-1]["outcome"] == "declined"
+
+
+def test_no_officer_at_all_still_gets_the_last_call(definition):
+    fake = FakeWorkflow(level="warning", officers=0)
+    steps, _ = _run(definition, fake)
+    assert steps == ["draft", "unanswered", "expire", "close"]
+
+
+def test_a_broken_last_call_goes_to_the_failsafe(definition):
+    fake = FakeWorkflow(level="warning", decisions=["timeout", "timeout"], fail_step="unanswered")
+    steps, _ = _run(definition, fake)
+    assert steps[-2:] == ["failsafe", "close"] and fake.calls[-1]["outcome"] == "failsafe"

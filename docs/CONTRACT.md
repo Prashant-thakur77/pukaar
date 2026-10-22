@@ -221,6 +221,11 @@ POST /villages/{id}/roadblocks  officer (any village) or pradhan (own village), 
 POST /villages/{id}/roadblocks/{bid}/renew  same Cedar: 7 more days from now; audited ("road_block_renewed")
 POST /villages/{id}/roadblocks/{bid}/clear  same Cedar: the road is open again; audited ("road_block_cleared");
                              404 for a block that is cleared, expired or unknown
+POST /villages/{id}/recipients/{rid}/role  officer (any village) or pradhan (own village), Cedar
+                             set_recipient_role (public demo accounts refused): {role: "pradhan"|"gauge_reader"|
+                             "task_force"|"villager"} -> {id, village_id, name, role, channel, relay}; a Telegram
+                             recipient's rid is the chat id; 400 for another role, 404 for an unknown person;
+                             audited ("recipient_role_changed", "<old> -> <new>")
 GET  /alerts?status=&village_id=   [Alert]
 GET  /alerts/{id}            {alert, deliveries[], timeline[Event], audit[Audit]}
 GET  /alerts/{id}/after-action?fresh=&format=   officer, or pradhan of the alert's village (Cedar
@@ -355,7 +360,7 @@ GET  /villages/{id} and /public/overview villages[] also carry
 | Cognito | user pool, groups `officer`, `pradhan`, attribute `custom:village_ids`, app client without secret, `USER_PASSWORD_AUTH` |
 | HTTP API | JWT authorizer on `$default`, public routes above, CORS to the web origin, throttling |
 | SSM | SecureString `/pukaar/telegram_token`, `/pukaar/telegram_webhook_secret`, `/pukaar/link_secret`, `/pukaar/vapid_private_key`, `/pukaar/after_action_to`, `/pukaar/gauge/<device>/key` and `/cert`, and for voice calls `/pukaar/voice_webhook_key`, `/pukaar/exotel_sid`, `/pukaar/exotel_api_key` (optional), `/pukaar/exotel_token`, `/pukaar/exotel_caller_id`, `/pukaar/exotel_app_id`, `/pukaar/plivo_auth_id`, `/pukaar/plivo_auth_token`, `/pukaar/plivo_caller_id`; String `/pukaar/vapid_public_key` |
-| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision`, `RollCallNeedHelp`, `GaugeReading`, `GaugeRejected`, `GaugeBadReading`, `GaugeBackfill`, `GaugeUnhealthy`, `ReportScreened`, `GuardrailFallback`, `PushSent`, `PushFailed`, `EventPublishFailed`, `AfterActionSent`, `AfterActionFailed`, `VoiceCallPlaced`, `VoiceNotConnected`, `VoiceNoKey`, `VoiceUnreachable`, `VoiceNeedHelp`, `DeliveryDeferred`, `OfficerNudged`, `OfficerWakeCall` (dimension `Status`), `OfficerWakeLinkSent`, `SweepSeconds` |
+| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision`, `RollCallNeedHelp`, `GaugeReading`, `GaugeRejected`, `GaugeBadReading`, `GaugeBackfill`, `GaugeUnhealthy`, `ReportScreened`, `GuardrailFallback`, `PushSent`, `PushFailed`, `EventPublishFailed`, `AfterActionSent`, `AfterActionFailed`, `VoiceCallPlaced`, `VoiceNotConnected`, `VoiceNoKey`, `VoiceUnreachable`, `VoiceNeedHelp`, `DeliveryDeferred`, `OfficerNudged`, `OfficerWakeCall` (dimension `Status`), `OfficerWakeLinkSent`, `SweepSeconds`, `AlertUnanswered` (dimension `Level`), `CanaryFailed` (from the scheduled canary by `PutMetricData`; dimension `Check` on a failed check) |
 
 Environment variables of every function: `PUKAAR_MODE=aws`,
 `PUKAAR_TABLE_NAME`, `PUKAAR_BUCKET`, `PUKAAR_STATE_MACHINE_ARN`,
@@ -374,12 +379,13 @@ Event `{"step": <name>, ...}`; returns a dict. Execution input:
 
 | Step | Input | Output |
 |---|---|---|
-| `draft` | `alert_id` | `{alert_id, level, officer_count, recipients_count, nudge_after_seconds, nudge_wait_seconds}` (freezes the duty-roster chain on the alert; the two parts of each officer's window, see "Approval windows") |
+| `draft` | `alert_id` | `{alert_id, level, officer_count, recipients_count, nudge_after_seconds, nudge_wait_seconds, last_call_seconds}` (freezes the duty-roster chain on the alert; the two parts of each officer's window, and the last call's window, see "Approval windows") |
 | `ask_officer` | `alert_id, officer_index, task_token` | (callback) task success output `{decision: "approved"\|"declined", by}` |
 | `nudge_officer` | `alert_id, officer_index, task_token` | `{alert_id, officer, telegram, push, call}`: the reminder to the same officer (Telegram, Web Push) and, if they have not opened the link, the wake-up call (`call`: `placed`, `not_possible`, `failed` or `not_needed`), then the same callback as `ask_officer` |
-| `next_officer` | `alert_id, officer_index` | `{has_next, officer_index, level, nudge_after_seconds, nudge_wait_seconds}` (the next officer's window follows the level now) |
-| `auto_send` | `alert_id` | `{alert_id, mode: "auto"}` (marks `auto_sent_unapproved` after Cedar allows `System`), or `{alert_id, mode: "off"}` when `PUKAAR_CRITICAL_AUTO_SEND=false` (needs DDMA sign-off; the alert expires unsent) |
-| `expire` | `alert_id` | `{alert_id, outcome: "expired"}` |
+| `next_officer` | `alert_id, officer_index` | `{has_next, officer_index, level, nudge_after_seconds, nudge_wait_seconds, last_call_seconds}` (the next officer's window follows the level now) |
+| `auto_send` | `alert_id` | `{alert_id, mode: "auto"}` (marks `auto_sent_unapproved` after Cedar allows `System`), or `{alert_id, mode: "off"}` when `PUKAAR_CRITICAL_AUTO_SEND=false` (needs DDMA sign-off; nothing is sent and the alert goes to the last call) |
+| `unanswered` | `alert_id, task_token` | `{alert_id, officers, reached, telegram, push, call}`: the last call when nobody in the chain answered (a Watch or Warning, or a Critical with auto-send off). Emits `AlertUnanswered` (dimension `Level`, alarmed), stores the task token (the alert is `pending` again), sends every officer on duty for the district and the ADM or DM "nobody approved; it was not sent" on Telegram and Web Push, each with a fresh one-tap link, and phones the ADM or DM (`call` as in `nudge_officer`; `not_possible` with voice off, no phone, no ADM or DM on the roster, or a replay). A replay messages and phones nobody and emits nothing. Then the same callback as `ask_officer`, for `last_call_seconds` |
+| `expire` | `alert_id` | `{alert_id, outcome: "expired"}`: the last call passed too; the sweep asks again after the level's cooldown (`PUKAAR_REASK_COOLDOWN_CRITICAL_MINUTES` 5, never more than 5; `PUKAAR_REASK_COOLDOWN_WARNING_MINUTES` 30; `PUKAAR_REASK_COOLDOWN_WATCH_MINUTES` 60) |
 | `deliver` | `alert_id` | Everyone in one batch: `{alert_id, sent, failed, mode: "deliver", more: false}`. Otherwise batch 0 is sent and the rest returned: `{alert_id, mode, more: true, pass, counts, batches: [{batch, first, last, mode, share}], concurrency, wait_seconds}` |
 | `deliver_batch` | `alert_id, batch, first, last, mode, share` | `{spec: {batch, first, last}, sent, failed, deferred, retry_after}` (one Map iteration) |
 | `deliver_done` | `alert_id, mode, pass, counts, results` | the batches still to run (`more: true`, as `deliver`), or the finished round as `deliver`, `recall` or `failsafe` returns it |
@@ -392,7 +398,7 @@ Event `{"step": <name>, ...}`; returns a dict. Execution input:
 Each officer in the chain has `ApprovalTimeoutSeconds` (600) to decide, or
 `CriticalApprovalTimeoutSeconds` (300, never longer than the general window) for a critical alert,
 so a chain of three holds a critical for at most 15 minutes before it is sent automatically (or
-expires, with critical auto-send off), not 30. The window has two parts: until the nudge,
+goes to the last call, with critical auto-send off), not 30. The window has two parts: until the nudge,
 `OfficerWakeSeconds` in (180), or half-way through a window shorter than twice that, then the rest.
 `draft` returns the parts for the first officer and `next_officer` for each later one, so an alert
 raised to critical while it waits gives the next officer the critical window.
@@ -405,6 +411,13 @@ Web Push and says so. No key approves or declines: the decision stays a delibera
 call per officer per alert (`OfficerCall`, `ALERT#id / OFFICERCALL#officer`), on the alert timeline;
 with voice off, no phone on file (`make officer-phone`) or a replay, the record says the call was not
 possible and why. The call's webhooks are the `/voice/*` routes with a token for attempt -1.
+
+When nobody in the chain answers (and a critical is not auto-sent), the state machine's `LastCall`
+state runs `unanswered`: every officer on duty for the district and the ADM or DM get their own fresh
+one-tap link, and any of them may approve or decline for one more window (`last_call_seconds`, the
+level's own window: 300 s for a critical, 600 s otherwise). The ADM or DM is phoned unless they were
+already rung for this alert at their own reminder (one call per officer per alert). Only then does
+the alert expire.
 
 ### Delivery at scale
 

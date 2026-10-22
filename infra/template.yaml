@@ -104,6 +104,22 @@ Parameters:
     Description: >
       DPDP retention. Villager reports (words, transcript, GPS) expire this many days after they were made
       (DynamoDB TTL) and their photos and voice notes with them (S3 lifecycle). 0 keeps them. Prod: 365.
+  ReadingRetentionDays:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    MaxValue: 3650
+    Description: >
+      Forecast readings and river-gauge readings are kept this many days (DynamoDB TTL). Dev: 30. Prod: 400, so a
+      monsoon's record is still there for the false-alarm and miss review after it (samconfig.toml).
+  EdgeWebAclArn:
+    Type: String
+    Default: ""
+    Description: >
+      Prod only. The ARN of the CLOUDFRONT-scope AWS WAF web ACL from infra/waf-edge.yaml (us-east-1, make waf-edge).
+      Set: a CloudFront distribution with that web ACL is put in front of the HTTP API (WAF cannot attach to an
+      HTTP API), the stack's ApiUrl becomes the CloudFront address and the API refuses requests that bypass it.
+      Empty, or any stage but prod: no CloudFront, no WAF, no monthly cost.
   CapSender:
     Type: String
     Default: ""
@@ -163,6 +179,9 @@ Conditions:
   HasRetention: !Not [!Equals [!Ref RetentionDays, "0"]]
   HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
   HasAfterActionFrom: !Not [!Equals [!Ref AfterActionFrom, ""]]
+  IsProd: !Equals [!Ref Stage, prod]
+  # AWS WAF has a monthly cost: CloudFront and the web ACL in front of the API exist on prod only.
+  HasApiEdge: !And [!Condition IsProd, !Not [!Equals [!Ref EdgeWebAclArn, ""]]]
 
 Globals:
   Function:
@@ -204,6 +223,10 @@ Globals:
         PUKAAR_CAP_SENDER_NAME_HI: !Ref CapSenderNameHi
         # DPDP retention of villager reports (store/repo.put_report TTL); 0 keeps them.
         PUKAAR_REPORT_RETENTION_DAYS: !Ref RetentionDays
+        # Forecast and gauge readings (store/repo.put_reading, put_sensor_reading TTL): 30 on dev, 400 on prod.
+        PUKAAR_READING_RETENTION_DAYS: !Ref ReadingRetentionDays
+        # Prod behind CloudFront and AWS WAF: the API refuses requests that did not come through it (api/edge.py).
+        PUKAAR_EDGE_REQUIRED: !If [HasApiEdge, "true", "false"]
 
 Resources:
   # ---------------------------------------------------------------- storage
@@ -310,6 +333,9 @@ Resources:
   GaugeIngestLogGroup:
     Type: AWS::Logs::LogGroup
     Properties: { LogGroupName: !Sub "/aws/lambda/pukaar-gauge-ingest-${Stage}", RetentionInDays: 30 }
+  CanaryLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: { LogGroupName: !Sub "/aws/lambda/pukaar-canary-${Stage}", RetentionInDays: 14 }
 
   # ---------------------------------------------------------------- guardrail
   # Screens villager words (typed text and transcripts) before any rule or model
@@ -497,7 +523,7 @@ Resources:
       LoggingConfig: { LogGroup: !Ref SweepLogGroup }
       Environment:
         Variables:
-          PUKAAR_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+          PUKAAR_API_URL: !If [HasApiEdge, !Sub "https://${ApiEdgeDistribution.DomainName}", !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"]
           PUKAAR_SWEEP_CONCURRENCY: "16"
       EventInvokeConfig:
         MaximumRetryAttempts: 0
@@ -551,7 +577,7 @@ Resources:
       LoggingConfig: { LogGroup: !Ref WorkflowLogGroup }
       Environment:
         Variables:
-          PUKAAR_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+          PUKAAR_API_URL: !If [HasApiEdge, !Sub "https://${ApiEdgeDistribution.DomainName}", !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"]
           # Delivery at scale (delivery/dispatch.py, the DeliverBatches Map in approval.asl.json): 250 recipients
           # a batch, 4 batches at once, each at a quarter of 25 Telegram messages a second (Telegram allows ~30).
           PUKAAR_DELIVERY_BUDGET_SECONDS: "200"
@@ -626,7 +652,7 @@ Resources:
       LoggingConfig: { LogGroup: !Ref WorkerLogGroup }
       Environment:
         Variables:
-          PUKAAR_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+          PUKAAR_API_URL: !If [HasApiEdge, !Sub "https://${ApiEdgeDistribution.DomainName}", !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"]
       EventInvokeConfig:
         MaximumRetryAttempts: 0
         DestinationConfig:
@@ -705,7 +731,7 @@ Resources:
       LoggingConfig: { LogGroup: !Ref GaugeIngestLogGroup }
       Environment:
         Variables:
-          PUKAAR_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+          PUKAAR_API_URL: !If [HasApiEdge, !Sub "https://${ApiEdgeDistribution.DomainName}", !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"]
       # IoT invokes asynchronously. A reading that cannot be stored is returned as rejected (no
       # retry); an exception (storage down) goes straight to the DLQ: the next reading is a minute away.
       EventInvokeConfig:
@@ -827,6 +853,75 @@ Resources:
         Input: '{"source": "schedule"}'
         RetryPolicy: { MaximumRetryAttempts: 0, MaximumEventAgeInSeconds: 300 }
         DeadLetterConfig: { Arn: !GetAtt SweepDLQ.Arn }
+
+  # ---------------------------------------------------------------- canary
+  # Every 15 minutes, from outside the app: GET /health, /public/overview and /cap/alerts.atom, and the
+  # web app's index.html, checking status codes and shapes (handlers/canary.py). A failure, or no result at
+  # all, fires pukaar-<stage>-canary-failed. A plain Lambda on the worker image the other functions share
+  # (nothing new to build or upload) and EventBridge Scheduler: it costs one invocation a run, nothing idle.
+  # No CloudWatch Synthetics, which bills per canary run. Its role may write Pukaar metrics and its own logs.
+  CanaryFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      Dockerfile: backend/Dockerfile
+      DockerContext: ..
+      DockerTag: worker
+      DockerBuildTarget: worker
+    Properties:
+      PackageType: Image
+      FunctionName: !Sub pukaar-canary-${Stage}
+      MemorySize: 256
+      # Four checks, each tried twice with a 10 s timeout and a 5 s pause between.
+      Timeout: 120
+      # No X-Ray grant: the role holds cloudwatch:PutMetricData and logs only.
+      Tracing: PassThrough
+      ImageConfig: { Command: [Pukaar.handlers.canary.handler] }
+      LoggingConfig: { LogGroup: !Ref CanaryLogGroup }
+      Environment:
+        Variables:
+          PUKAAR_CANARY_API_URL: !If [HasApiEdge, !Sub "https://${ApiEdgeDistribution.DomainName}", !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"]
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+      Policies:
+        - Statement:
+            - Sid: CanaryMetrics
+              Effect: Allow
+              Action: cloudwatch:PutMetricData
+              # PutMetricData has no resource type; the condition holds it to the Pukaar namespace.
+              Resource: "*"
+              Condition:
+                StringEquals: { cloudwatch:namespace: Pukaar }
+
+  CanaryScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition: { StringEquals: { aws:SourceAccount: !Ref AWS::AccountId } }
+      Policies:
+        - PolicyName: invoke-canary
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt CanaryFunction.Arn
+
+  CanarySchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub pukaar-canary-${Stage}
+      ScheduleExpression: rate(15 minutes)
+      FlexibleTimeWindow: { Mode: "OFF" }
+      State: ENABLED
+      Target:
+        Arn: !GetAtt CanaryFunction.Arn
+        RoleArn: !GetAtt CanaryScheduleRole.Arn
+        Input: '{"source": "schedule"}'
+        # A run that cannot start is a missing result, which the canary alarm treats as a failure.
+        RetryPolicy: { MaximumRetryAttempts: 0, MaximumEventAgeInSeconds: 300 }
 
   # ---------------------------------------------------------------- workflow
   ApprovalStateMachine:
@@ -991,6 +1086,63 @@ Resources:
         "POST /sensors/{id}/readings": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 2 }
         "POST /sensors/{id}/backfill": { ThrottlingBurstLimit: 5, ThrottlingRateLimit: 1 }
 
+  # ---------------------------------------------------------------- AWS WAF on prod (CloudFront in front of the API)
+  # AWS WAF attaches to REST APIs, CloudFront, ALB, AppSync and Cognito, not to an HTTP API. So on prod, with the
+  # CLOUDFRONT-scope web ACL from infra/waf-edge.yaml (it must live in us-east-1: make waf-edge), a CloudFront
+  # distribution carries the WAF in front of the HTTP API: per-IP rate limits (POST /reports 100 per 5 minutes)
+  # and the AWS managed common and IP-reputation rules. CloudFront adds X-Pukaar-Edge (SSM String
+  # /pukaar/edge_origin_secret) and the API refuses any request without it (api/edge.py), so the WAF cannot be
+  # gone round through the execute-api URL. Dev has none of this: WAF bills by the month.
+  ApiEdgeHostFunction:
+    Type: AWS::CloudFront::Function
+    Condition: HasApiEdge
+    Properties:
+      Name: !Sub pukaar-${Stage}-api-edge-host
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Copy the viewer's Host for the API (API Gateway needs its own Host header)
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          request.headers['x-pukaar-host'] = { value: request.headers.host.value };
+          return request;
+        }
+
+  ApiEdgeDistribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: HasApiEdge
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub Pukaar API ${Stage} behind AWS WAF
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        # Includes edge locations in India; billed per request and per GB, nothing by the hour.
+        PriceClass: PriceClass_200
+        WebACLId: !Ref EdgeWebAclArn
+        Origins:
+          - Id: api
+            DomainName: !Sub "${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+            CustomOriginConfig: { OriginProtocolPolicy: https-only, HTTPSPort: 443, OriginSSLProtocols: [TLSv1.2] }
+            OriginCustomHeaders:
+              - HeaderName: X-Pukaar-Edge
+                HeaderValue: "{{resolve:ssm:/pukaar/edge_origin_secret}}"
+        DefaultCacheBehavior:
+          TargetOriginId: api
+          ViewerProtocolPolicy: https-only
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          # Managed CachingDisabled: the API sets its own Cache-Control; nothing is cached at the edge.
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          # Managed AllViewerExceptHostHeader: everything the viewer sent (and CloudFront-Viewer-Address, the
+          # caller's IP for the report guard) except Host, which API Gateway needs to be its own.
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt ApiEdgeHostFunction.FunctionMetadata.FunctionARN
+
   # ---------------------------------------------------------------- web hosting
   AmplifyApp:
     Type: AWS::Amplify::App
@@ -1002,22 +1154,26 @@ Resources:
       # this region: naming them would make a cycle (the API's CORS names this app). The script hash is
       # the theme snippet inline in frontend/index.html; change that snippet and the test fails until the
       # hash here is updated.
-      CustomHeaders: !Sub |
-        customHeaders:
-          - pattern: "**"
-            headers:
-              - key: Strict-Transport-Security
-                value: "max-age=31536000; includeSubDomains"
-              - key: X-Content-Type-Options
-                value: "nosniff"
-              - key: X-Frame-Options
-                value: "DENY"
-              - key: Referrer-Policy
-                value: "strict-origin-when-cross-origin"
-              - key: Permissions-Policy
-                value: "camera=(), geolocation=(self), microphone=(self), payment=(), usb=()"
-              - key: Content-Security-Policy
-                value: "default-src 'self'; script-src 'self' 'sha256-82eyTEtOm5JRVynHL9fPZGB+NZqD9xDebCAJXakDuIA='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://s3.amazonaws.com/elevation-tiles-prod/ https://*.s3.amazonaws.com https://*.s3.${AWS::Region}.amazonaws.com; media-src 'self' blob: https://*.s3.amazonaws.com https://*.s3.${AWS::Region}.amazonaws.com; font-src 'self' data:; connect-src 'self' https://*.execute-api.${AWS::Region}.amazonaws.com https://cognito-idp.${AWS::Region}.amazonaws.com https://*.appsync-api.${AWS::Region}.amazonaws.com wss://*.appsync-realtime-api.${AWS::Region}.amazonaws.com https://tile.openstreetmap.org https://s3.amazonaws.com/elevation-tiles-prod/; worker-src 'self' blob:; child-src 'self' blob:; manifest-src 'self'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+      CustomHeaders: !Sub
+        - |
+          customHeaders:
+            - pattern: "**"
+              headers:
+                - key: Strict-Transport-Security
+                  value: "max-age=31536000; includeSubDomains"
+                - key: X-Content-Type-Options
+                  value: "nosniff"
+                - key: X-Frame-Options
+                  value: "DENY"
+                - key: Referrer-Policy
+                  value: "strict-origin-when-cross-origin"
+                - key: Permissions-Policy
+                  value: "camera=(), geolocation=(self), microphone=(self), payment=(), usb=()"
+                - key: Content-Security-Policy
+                  value: "default-src 'self'; script-src 'self' 'sha256-82eyTEtOm5JRVynHL9fPZGB+NZqD9xDebCAJXakDuIA='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://s3.amazonaws.com/elevation-tiles-prod/ https://*.s3.amazonaws.com https://*.s3.${AWS::Region}.amazonaws.com; media-src 'self' blob: https://*.s3.amazonaws.com https://*.s3.${AWS::Region}.amazonaws.com; font-src 'self' data:; connect-src 'self' https://*.execute-api.${AWS::Region}.amazonaws.com${EdgeConnect} https://cognito-idp.${AWS::Region}.amazonaws.com https://*.appsync-api.${AWS::Region}.amazonaws.com wss://*.appsync-realtime-api.${AWS::Region}.amazonaws.com https://tile.openstreetmap.org https://s3.amazonaws.com/elevation-tiles-prod/; worker-src 'self' blob:; child-src 'self' blob:; manifest-src 'self'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+        # Prod behind CloudFront: the web app calls the API's CloudFront address (it cannot be named here: the
+        # API's CORS names this app, so naming the distribution would be a cycle).
+        - EdgeConnect: !If [HasApiEdge, " https://*.cloudfront.net", ""]
       CustomRules:
         # Single-page app: any path without a file extension serves index.html.
         - Source: "</^[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest|webp|mp3|wav|bin)$)([^.]+$)/>"
@@ -1264,6 +1420,64 @@ Resources:
       AlarmActions: [!Ref AlarmTopic]
       OKActions: [!Ref AlarmTopic]
 
+  # The approval workflow emits AlertUnanswered (dimension Level) when nobody in the duty chain answered a live
+  # alert (workflow/steps.step_unanswered): the last call to everyone on duty and the ADM or DM has gone out,
+  # and nothing has been sent to the village. Replays never emit it.
+  AlertUnansweredAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-alert-unanswered
+      AlarmDescription: Nobody in the duty chain answered a live alert; nothing was sent to the village. Everyone on duty and the ADM or DM got a last call with a fresh approval link. Phone the DEOC now.
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(AlertUnanswered) FROM Pukaar"
+          Period: 60
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  # The sweep emits GaugeUnhealthy every 15 minutes: how many installed river gauges are silent, low on
+  # battery or sending mostly bad readings (services/gauge.health_scan). Two sweeps in a row: alarm.
+  GaugeUnhealthyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-gauge-unhealthy
+      AlarmDescription: An installed river gauge has been silent, low on battery or sending mostly bad readings for two sweeps; see /sensors.
+      Metrics:
+        - Id: q
+          Expression: "SELECT MAX(GaugeUnhealthy) FROM Pukaar"
+          Period: 900
+          ReturnData: true
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  # The canary (handlers/canary.py) sends CanaryFailed 0 or 1 every 15 minutes. Any 1 in half an hour fires,
+  # and so does no result at all (the canary or its schedule broke), hence breaching on missing data.
+  CanaryFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-canary-failed
+      AlarmDescription: The public site or API failed the scheduled check (/health, /public/overview, /cap/alerts.atom or the web app), or the check did not run.
+      Metrics:
+        - Id: q
+          Expression: "SELECT MAX(CanaryFailed) FROM Pukaar"
+          Period: 1800
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: breaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
   Dashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
@@ -1277,7 +1491,10 @@ Resources:
                           [{"expression": "SELECT MAX(UnacknowledgedAlerts) FROM Pukaar", "id": "s2", "label": "UnacknowledgedAlerts"}],
                           [{"expression": "SELECT SUM(ApprovalDecision) FROM Pukaar", "id": "s3", "label": "ApprovalDecision"}],
                           [{"expression": "SELECT SUM(VillageDataStale) FROM Pukaar GROUP BY Village", "id": "s4", "label": "VillageDataStale"}],
-                          [{"expression": "SELECT SUM(NobodyOnDuty) FROM Pukaar GROUP BY District", "id": "s5", "label": "NobodyOnDuty"}]]}},
+                          [{"expression": "SELECT SUM(NobodyOnDuty) FROM Pukaar GROUP BY District", "id": "s5", "label": "NobodyOnDuty"}],
+                          [{"expression": "SELECT SUM(AlertUnanswered) FROM Pukaar GROUP BY Level", "id": "s6", "label": "AlertUnanswered"}],
+                          [{"expression": "SELECT MAX(CanaryFailed) FROM Pukaar", "id": "s7", "label": "CanaryFailed"}],
+                          [{"expression": "SELECT MAX(GaugeUnhealthy) FROM Pukaar", "id": "s8", "label": "GaugeUnhealthy"}]]}},
             {"type": "metric", "x": 12, "y": 0, "width": 12, "height": 6, "properties": {
               "title": "Model", "region": "${AWS::Region}", "period": 300,
               "metrics": [[{"expression": "SELECT SUM(ModelError) FROM Pukaar", "id": "m1", "label": "ModelError"}],
@@ -1309,7 +1526,8 @@ Resources:
 
 Outputs:
   ApiUrl:
-    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Description: The API's public address (CloudFront with AWS WAF on prod when EdgeWebAclArn is set)
+    Value: !If [HasApiEdge, !Sub "https://${ApiEdgeDistribution.DomainName}", !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"]
   WebUrl:
     Value: !If [HasWebOrigin, !Ref WebOrigin, !Sub "https://main.${AmplifyApp.DefaultDomain}"]
   AmplifyAppId:

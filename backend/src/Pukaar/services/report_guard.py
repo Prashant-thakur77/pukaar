@@ -60,7 +60,13 @@ def client_ip(headers, fallback: str | None) -> str | None:
     """The caller's IP as API Gateway saw it. The Lambda Web Adapter puts the request context in
     x-amzn-request-context (it replaces any copy a client sent); X-Forwarded-For's last entry is
     the one API Gateway appended. `fallback` is the socket peer, used in local mode only: on AWS
-    the peer is the adapter itself (127.0.0.1), which would make every villager one source."""
+    the peer is the adapter itself (127.0.0.1), which would make every villager one source.
+    Behind CloudFront and AWS WAF (prod, PUKAAR_EDGE_REQUIRED) API Gateway sees CloudFront's address,
+    so the viewer's comes from CloudFront's headers (api/edge.py checked the request came through it)."""
+    if get_settings().edge_required:
+        from Pukaar.api import edge
+
+        return edge.viewer_ip(headers)
     raw = headers.get("x-amzn-request-context")
     if raw:
         try:

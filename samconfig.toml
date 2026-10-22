@@ -27,7 +27,7 @@ fail_on_empty_changeset = false
 resolve_s3 = true
 resolve_image_repos = true
 s3_prefix = "pukaar-dev"
-parameter_overrides = "Stage=dev ApprovalTimeoutSeconds=600 AckWaitSeconds=300 Architecture=x86_64 ReplayEnabled=true CriticalAutoSend=false RequireMfa=false RetentionDays=0"
+parameter_overrides = "Stage=dev ApprovalTimeoutSeconds=600 AckWaitSeconds=300 Architecture=x86_64 ReplayEnabled=true CriticalAutoSend=false RequireMfa=false RetentionDays=0 ReadingRetentionDays=30"
 
 [default.sync.parameters]
 watch = false
@@ -55,4 +55,4 @@ fail_on_empty_changeset = false
 resolve_s3 = true
 resolve_image_repos = true
 s3_prefix = "pukaar-prod"
-parameter_overrides = "Stage=prod ApprovalTimeoutSeconds=600 AckWaitSeconds=300 Architecture=x86_64 ReplayEnabled=false CriticalAutoSend=false RequireMfa=true RetentionDays=365 BedrockModelId=global.amazon.nova-2-lite-v1:0 BedrockFallbackRegion=ap-southeast-1"
+parameter_overrides = "Stage=prod ApprovalTimeoutSeconds=600 AckWaitSeconds=300 Architecture=x86_64 ReplayEnabled=false CriticalAutoSend=false RequireMfa=true RetentionDays=365 ReadingRetentionDays=400 BedrockModelId=global.amazon.nova-2-lite-v1:0 BedrockFallbackRegion=ap-southeast-1"

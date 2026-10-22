@@ -10,7 +10,7 @@ sections 1 to 9 describe it. A pilot runs on a separate stack, `pukaar-prod` in
 ## 0. Tools on the deploying machine
 
 - AWS CLI v2, AWS SAM CLI 1.120 or later
-- Docker (or Finch) running: the five Lambda functions are container images
+- Docker (or Finch) running: the six Lambda functions are container images
 - Python 3.12 with `uv`, Node 20 or later with `npm`, `zip`, `curl`, `openssl`
 - `make install` installs the backend and frontend dependencies.
 
@@ -126,6 +126,8 @@ Parameters (override with
 | `CriticalAutoSend` | `false` | `true` sends a critical alert, flagged unapproved, when every officer timed out. Needs DDMA sign-off, so off unless set (see the migration note under [Production stage](#production-stage)) |
 | `RequireMfa` | `false` | `true`: every sign-in needs a TOTP code (Cognito MFA ON; prod must). `false`: TOTP optional |
 | `RetentionDays` | `0` | Villager reports, their photos and voice notes expire this many days after they were made; 0 keeps them (prod: 365) |
+| `ReadingRetentionDays` | `30` | Forecast and river-gauge readings are kept this many days (DynamoDB TTL). `samconfig.toml` sets 30 on dev and 400 on prod, so a monsoon's record outlives the monsoon |
+| `EdgeWebAclArn` | empty | Prod only: the AWS WAF web ACL from `make waf-edge`. Set, CloudFront with the WAF goes in front of the API (see [AWS WAF on prod](#aws-waf-on-prod)); empty, or on dev, nothing (no monthly cost) |
 | `CapSender` | empty | CAP `<sender>`. Empty: `pukaar-<stage>@<web host>`. Prod must set the authority's |
 | `CapSenderName` | empty | CAP `<senderName>`. Empty: the "(demo)" name and a not-official note. Prod must set the authority's |
 | `CapSenderNameHi` | empty | The Hindi `<senderName>`; empty uses the English one |
@@ -281,8 +283,9 @@ Things that cost money even when small:
 - Bedrock Nova tokens (per call; no model call at level `normal`).
 - Polly generative voice, Transcribe minutes after the 12-month free tier.
 - ECR storage for the images (two images, roughly 0.5 to 1 GB each).
-- CloudWatch: thirteen alarms and one dashboard; the free tier covers ten alarms
-  and three dashboards, so the eleventh is billed (cents a month). X-Ray
+- CloudWatch: sixteen alarms and one dashboard; the free tier covers ten alarms
+  and three dashboards, so the rest are billed (cents a month). The canary's
+  `PutMetricData` (about 2,900 calls a month) is inside the free tier. X-Ray
   traces past the free tier.
 - DynamoDB point-in-time recovery is billed per GB stored (tiny here).
 - Amplify Hosting bandwidth and build minutes beyond the free tier.
@@ -323,6 +326,8 @@ other region.
 | `ReplayEnabled` | `true` | `false` | template rule `ProductionStage` refuses `true` |
 | `RequireMfa` | `false` (TOTP optional) | `true` (TOTP for every sign-in) | template rule; Cognito `MfaConfiguration ON` |
 | `RetentionDays` | `0` (kept) | `365` | template rule refuses `0` |
+| `ReadingRetentionDays` | `30` | `400` | `samconfig.toml`; `test_reading_retention_is_a_parameter_30_on_dev_and_400_on_prod` |
+| AWS WAF (CloudFront in front of the API) | none | with `EDGE_WEB_ACL_ARN` from `make waf-edge` | template condition `HasApiEdge` (prod and the ARN set) |
 | `CapSender`, `CapSenderName` | empty: the "(demo)" sender | the issuing authority's | template rule and `make deploy` refuse them empty; `make` also refuses a name with "(demo)" |
 | `CriticalAutoSend` | `false` | `false` | turn on only after the DDMA signs off |
 | `VoiceProvider` | `.env.deploy.local` | `.env.deploy.prod.local` | as configured; `off` until a provider account exists |
@@ -408,6 +413,50 @@ by hand at the end of the pilot, as the RUNBOOK's consent section says.
 Alerts, deliveries and the audit trail are the authority's record and are not
 expired by this setting.
 
+Forecast readings and river-gauge readings follow `ReadingRetentionDays`: 400
+days on prod, so the season's own record (what the system saw, sweep by sweep)
+is still there for the false-alarm and miss review after the monsoon. Dev keeps
+30. A reading carries its TTL from when it was written: raising the setting
+does not bring back readings already expired.
+
+### AWS WAF on prod
+
+AWS WAF cannot be attached to an API Gateway **HTTP** API (only to REST APIs,
+CloudFront, Application Load Balancers, AppSync GraphQL, Cognito user pools and
+a few others). So on prod the WAF sits on a CloudFront distribution in front
+of the HTTP API:
+
+1. `make waf-edge STAGE=prod` deploys `infra/waf-edge.yaml` as
+   `pukaar-prod-waf-edge` in **us-east-1** (a CLOUDFRONT-scope web ACL can be
+   made nowhere else), stores the origin-verify value `/pukaar/edge_origin_secret`
+   in ap-south-1 (`scripts/edge_secret.sh`) and prints the web ACL's ARN.
+2. Put `EDGE_WEB_ACL_ARN=<that ARN>` in `.env.deploy.prod.local` and run
+   `make deploy STAGE=prod`. The template's `HasApiEdge` condition (prod and
+   the ARN set) then creates the CloudFront distribution with the web ACL, and:
+   - the stack's `ApiUrl` output becomes the CloudFront address, so the web
+     app, the voice callbacks and the canary use it;
+   - CloudFront adds `X-Pukaar-Edge` and the API refuses every request without
+     it (`api/edge.py`, `PUKAAR_EDGE_REQUIRED`), so the WAF cannot be gone round
+     through the execute-api address;
+   - the report guard reads the caller's IP from `CloudFront-Viewer-Address`.
+3. Register the prod bot's Telegram webhook again (`make secrets STAGE=prod`)
+   and paste the new `make voice-urls STAGE=prod` URLs into the Exotel flow:
+   both must use the CloudFront address now.
+
+The web ACL: the AWS managed IP-reputation and common rule sets (the common
+set's 8 KB body limit and its no-User-Agent rule are counted, not blocked: a
+photo report is larger, and gauges and the voice provider may send no
+User-Agent); `POST /reports` limited to 100 requests per IP in 5 minutes
+(`ReportsPerIpPer5Min`); everything else to 2,000 per IP in 5 minutes, except
+the voice and Telegram webhooks, which come from a few provider addresses in
+bursts and are signed and checked in the app. Blocked requests get a 429 with
+a Hindi and English message.
+
+Cost: about 5 USD a month for the web ACL plus 1 USD per rule (about 9 USD
+a month), and 0.60 USD per million requests; CloudFront bills per request and
+per GB. Dev has none of it. `backend/tests/test_template_safety.py` fails if a
+web ACL exists without a prod-only condition.
+
 ### CAP sender
 
 Put the authority's values in `.env.deploy.prod.local` (gitignored):
@@ -430,8 +479,9 @@ the DDMA gives, and the same sender code it uses in SACHET.
 `CriticalAutoSend` now defaults to `false` in the template and in the app, and
 `samconfig.toml` sets it to `false` for dev as well. The next `make deploy` on
 dev therefore turns critical auto-send off there too: when every officer times
-out, a critical alert expires unsent and the sweep asks again after the
-cooldown. To keep the old behaviour on dev, change `CriticalAutoSend=false` to
+out, a critical alert is not sent: the last call goes to everyone on duty and
+the ADM or DM, and with no answer it expires and the sweep asks again after
+5 minutes (the next sweep). To keep the old behaviour on dev, change `CriticalAutoSend=false` to
 `true` in `[default.deploy.parameters]`. Never set it on prod without the
 DDMA's written sign-off.
 
@@ -442,6 +492,7 @@ Before the first deploy:
 - [ ] AWS credentials for the pilot account; `aws sts get-caller-identity` names it.
 - [ ] Bedrock model access for Nova in `ap-south-1` and `ap-southeast-1`; the `converse` check above answers.
 - [ ] `.env.deploy.prod.local` has `ALARM_EMAIL`, `CAP_SENDER`, `CAP_SENDER_NAME` (and `CAP_SENDER_NAME_HI`) as the DDMA gave them.
+- [ ] `make waf-edge STAGE=prod`, and its `EDGE_WEB_ACL_ARN` in `.env.deploy.prod.local` ([AWS WAF on prod](#aws-waf-on-prod)).
 - [ ] A second Telegram bot for prod (one bot has one webhook), from @BotFather.
 
 Deploy:
@@ -462,6 +513,9 @@ After:
 - [ ] `aws s3api get-bucket-lifecycle-configuration --bucket "$STACK_BucketName"` lists the two report rules.
 - [ ] `SMOKE_SITE=<prod web url> SMOKE_API=<prod api url> make smoke` passes.
 - [ ] `CriticalAutoSend` stays `false` until the DDMA signs off.
+- [ ] The execute-api address answers 403 `edge_only` (`curl -s "https://<api id>.execute-api.ap-south-1.amazonaws.com/public/overview"`), and the CloudFront one answers.
+- [ ] The canary has run: `pukaar-prod-canary-failed` is `OK` within 30 minutes of the deploy.
+- [ ] `make restore-drill STAGE=prod` passes (RUNBOOK, "Restore drill").
 
 Before the first live day ([docs/field/](field/)):
 

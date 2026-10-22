@@ -75,8 +75,13 @@ network or came in over a limit. `ReportSurge` is emitted and alarmed (`pukaar-<
 The API Gateway throttle on `POST /reports` is now 10 a second (burst 20), still shared by everyone.
 The web app treats a 429 like being offline: the report waits in the phone's queue and is sent again,
 so a full throttle delays a villager's report but does not lose it. Per-client limits before the
-Lambda need AWS WAF rate-based rules, which HTTP APIs do not support directly; the next step is
-CloudFront with WAF in front of the API (or a REST API stage with WAF).
+Lambda need AWS WAF rate-based rules, which cannot be attached to an HTTP API. On prod, CloudFront
+carries the WAF in front of the API (docs/DEPLOY.md, "AWS WAF on prod"): `POST /reports` 100 per IP
+in 5 minutes, 2,000 other requests per IP in 5 minutes (not the signed voice and Telegram webhooks),
+and the AWS managed common and IP-reputation rule sets. The API refuses requests that did not come
+through CloudFront (the `X-Pukaar-Edge` origin header), so the WAF cannot be gone round, and the
+report guard reads the caller's IP from `CloudFront-Viewer-Address`. Dev has no WAF: it bills by
+the month. The CSP's `connect-src` gains `https://*.cloudfront.net` on that prod stack only.
 
 ## Who may read villagers' data
 

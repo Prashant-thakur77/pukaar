@@ -49,6 +49,9 @@ UNSCOPABLE = {
     "logs:PutResourcePolicy",
     "logs:DescribeResourcePolicies",
     "logs:DescribeLogGroups",
+    # CloudWatch metrics have no resource type; the canary's grant is held to the Pukaar namespace by a
+    # condition instead (test_canary_may_only_put_pukaar_metrics).
+    "cloudwatch:PutMetricData",
 }
 
 # Anything billed per hour whether or not it is used.
@@ -68,7 +71,14 @@ ALWAYS_ON = {
     "AWS::MSK::Cluster",
     "AWS::Redshift::Cluster",
     "AWS::SageMaker::Endpoint",
+    "AWS::WAFv2::WebACL",
 }
+
+# Billed by the month whatever the traffic, allowed only on prod, each behind a condition that is true
+# for Stage=prod alone. AWS WAF ($5 a month per web ACL and $1 per rule): AWS WAF cannot attach to an
+# HTTP API, so on prod CloudFront carries it in front of the API (infra/waf-edge.yaml, us-east-1).
+PROD_ONLY_MONTHLY = {"AWS::WAFv2::WebACL"}
+EDGE_TEMPLATE = TEMPLATE.parent / "waf-edge.yaml"
 
 
 def _unwrap_if(pol: Any) -> list:
@@ -114,9 +124,59 @@ def test_wildcard_resources_only_for_unscopable_actions():
             assert not extra, f"{name} grants {sorted(extra)} on every resource"
 
 
+def _load(path: Path) -> dict:
+    return yaml.load(path.read_text(encoding="utf-8"), Loader=_CfnLoader)
+
+
+def _prod_only(template: dict, condition: str) -> bool:
+    """True when the named condition holds only for Stage=prod (alone, or And-ed with anything)."""
+    expr = template.get("Conditions", {}).get(condition)
+    if expr == {"Fn::Equals": [{"Fn::Ref": "Stage"}, "prod"]}:
+        return True
+    if isinstance(expr, dict) and "Fn::And" in expr:
+        return any(_prod_only(template, c["Fn::Condition"]) for c in expr["Fn::And"]
+                   if isinstance(c, dict) and "Fn::Condition" in c)
+    return False
+
+
 def test_nothing_billed_by_the_hour():
-    types = {r["Type"] for r in RES.values()}
-    assert not types & ALWAYS_ON, f"always-on resources: {sorted(types & ALWAYS_ON)}"
+    for template in (T, _load(EDGE_TEMPLATE)):
+        for name, r in template["Resources"].items():
+            if r["Type"] not in ALWAYS_ON:
+                continue
+            assert r["Type"] in PROD_ONLY_MONTHLY, f"always-on resource {name} ({r['Type']})"
+            assert _prod_only(template, r.get("Condition", "")), f"{name} must exist on Stage=prod only"
+
+
+def test_dev_has_no_waf_and_prod_puts_cloudfront_with_waf_in_front_of_the_api():
+    edge = _load(EDGE_TEMPLATE)
+    acl = edge["Resources"]["EdgeWebAcl"]["Properties"]
+    assert acl["Scope"] == "CLOUDFRONT"  # an HTTP API cannot take a web ACL; CloudFront can
+    rules = {r["Name"]: r for r in acl["Rules"]}
+    managed = {r["Statement"]["ManagedRuleGroupStatement"]["Name"] for r in rules.values()
+               if "ManagedRuleGroupStatement" in r["Statement"]}
+    assert {"AWSManagedRulesCommonRuleSet", "AWSManagedRulesAmazonIpReputationList"} <= managed
+    reports = rules["reports-per-ip"]["Statement"]["RateBasedStatement"]
+    assert reports["AggregateKeyType"] == "IP" and reports["EvaluationWindowSec"] == 300
+    assert edge["Parameters"]["ReportsPerIpPer5Min"]["Default"] == 100
+    matches = [s["ByteMatchStatement"]["SearchString"]
+               for s in reports["ScopeDownStatement"]["AndStatement"]["Statements"]]
+    assert matches == ["/reports", "POST"]
+    # A villager's photo report is larger than the common rule set's 8 KB body limit: counted, never blocked.
+    overrides = {o["Name"]: o["ActionToUse"] for o in
+                 rules["aws-common"]["Statement"]["ManagedRuleGroupStatement"]["RuleActionOverrides"]}
+    assert overrides["SizeRestrictions_BODY"] == {"Count": {}}
+    # The main stack: CloudFront and its function only when prod has an edge web ACL.
+    assert _prod_only(T, "HasApiEdge")
+    for name in ("ApiEdgeDistribution", "ApiEdgeHostFunction"):
+        assert RES[name]["Condition"] == "HasApiEdge", name
+    dist = RES["ApiEdgeDistribution"]["Properties"]["DistributionConfig"]
+    assert dist["WebACLId"] == {"Fn::Ref": "EdgeWebAclArn"}
+    assert dist["Origins"][0]["OriginCustomHeaders"][0]["HeaderName"] == "X-Pukaar-Edge"
+    assert T["Parameters"]["EdgeWebAclArn"]["Default"] == ""
+    env = T["Globals"]["Function"]["Environment"]["Variables"]
+    assert env["PUKAAR_EDGE_REQUIRED"] == {"Fn::If": ["HasApiEdge", "true", "false"]}
+    assert "EdgeWebAclArn" not in (ROOT / "samconfig.toml").read_text(encoding="utf-8")  # set per deployment
 
 
 def test_table_recoverable_and_expiring():
@@ -156,9 +216,32 @@ def test_queues_encrypted():
 
 
 def test_sweep_schedule_does_not_retry_and_has_dlq():
-    s = next(r for r in RES.values() if r["Type"] == "AWS::Scheduler::Schedule")["Properties"]["Target"]
+    s = RES["SweepSchedule"]["Properties"]["Target"]
     assert s["RetryPolicy"]["MaximumRetryAttempts"] == 0
     assert "DeadLetterConfig" in s
+
+
+def test_canary_runs_every_15_minutes_without_synthetics():
+    types = {r["Type"] for r in RES.values()}
+    assert not {t for t in types if t.startswith("AWS::Synthetics::")}  # billed per canary run
+    sched = RES["CanarySchedule"]["Properties"]
+    assert sched["ScheduleExpression"] == "rate(15 minutes)"
+    assert sched["Target"]["Arn"] == {"Fn::GetAtt": "CanaryFunction.Arn"}
+    fn = RES["CanaryFunction"]["Properties"]
+    assert fn["ImageConfig"]["Command"] == ["Pukaar.handlers.canary.handler"]
+    assert fn["EventInvokeConfig"]["MaximumRetryAttempts"] == 0 and fn["Tracing"] == "PassThrough"
+
+
+def test_canary_may_only_put_pukaar_metrics():
+    grants = [s for n, s in _statements() if n == "CanaryFunction"]
+    assert len(grants) == 1
+    (s,) = grants
+    assert _as_list(s["Action"]) == ["cloudwatch:PutMetricData"] and s["Resource"] == "*"
+    assert s["Condition"] == {"StringEquals": {"cloudwatch:namespace": "Pukaar"}}
+    assert RES["CanaryFunction"]["Properties"]["Policies"] == [{"Statement": [s]}]
+    role = RES["CanaryScheduleRole"]["Properties"]["Policies"][0]["PolicyDocument"]["Statement"]
+    assert role == [{"Effect": "Allow", "Action": "lambda:InvokeFunction",
+                     "Resource": {"Fn::GetAtt": "CanaryFunction.Arn"}}]
 
 
 def test_cors_preflight_skips_the_authorizer():
@@ -442,6 +525,7 @@ def test_replay_can_be_switched_off_for_a_real_pilot():
 def _amplify_headers() -> dict[str, str]:
     raw = RES["AmplifyApp"]["Properties"]["CustomHeaders"]
     text = raw["Fn::Sub"] if isinstance(raw, dict) else raw
+    text = text[0] if isinstance(text, list) else text  # !Sub [text, {variables}]
     rules = yaml.safe_load(text)["customHeaders"]
     everything = [r for r in rules if r["pattern"] == "**"]
     assert everything, "headers must apply to every path"
@@ -513,3 +597,37 @@ def test_report_surge_alarm_watches_the_metric_the_report_guard_emits():
     assert "ReportSurge" in expr
     guard = (SRC / "services" / "report_guard.py").read_text(encoding="utf-8")
     assert guard.count('metric("ReportSurge"') == 2  # one source, one village
+
+
+# -- the alarms added for a shadow pilot ---------------------------------------------------------
+def test_unanswered_gauge_and_canary_alarms_watch_the_metrics_the_code_emits():
+    alarms = _alarms()
+    for name, metric_name, source in (
+        ("AlertUnansweredAlarm", "AlertUnanswered", SRC / "workflow" / "steps.py"),
+        ("GaugeUnhealthyAlarm", "GaugeUnhealthy", SRC / "services" / "gauge.py"),
+        ("CanaryFailedAlarm", "CanaryFailed", SRC / "handlers" / "canary.py"),
+    ):
+        props = alarms[name]
+        assert metric_name in props["Metrics"][0]["Expression"], name
+        assert f'"{metric_name}"' in source.read_text(encoding="utf-8"), name
+    unanswered = alarms["AlertUnansweredAlarm"]
+    assert unanswered["Metrics"][0]["Period"] == 60 and unanswered["Threshold"] == 1
+    assert unanswered["TreatMissingData"] == "notBreaching"
+    assert alarms["CanaryFailedAlarm"]["TreatMissingData"] == "breaching"  # a canary that stopped is a failure
+
+
+def test_reading_retention_is_a_parameter_30_on_dev_and_400_on_prod():
+    import tomllib
+
+    p = T["Parameters"]["ReadingRetentionDays"]
+    assert p["Default"] == 30 and p["MinValue"] >= 1
+    env = T["Globals"]["Function"]["Environment"]["Variables"]
+    assert env["PUKAAR_READING_RETENTION_DAYS"] == {"Fn::Ref": "ReadingRetentionDays"}
+    cfg = tomllib.loads((ROOT / "samconfig.toml").read_text(encoding="utf-8"))
+
+    def overrides(env_name):
+        raw = cfg[env_name]["deploy"]["parameters"]["parameter_overrides"]
+        return dict(t.split("=", 1) for t in raw.split())
+
+    assert overrides("default")["ReadingRetentionDays"] == "30"
+    assert int(overrides("prod")["ReadingRetentionDays"]) >= 365

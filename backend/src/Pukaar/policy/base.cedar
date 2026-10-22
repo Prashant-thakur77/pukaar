@@ -63,6 +63,23 @@ permit (
 )
 when { context.village_id != "" && principal.village_ids.contains(context.village_id) };
 
+@id("officer-recipient-role")
+@desc("Officers make a registered person of any village a relay (pradhan, gauge reader, task force) or a villager again; audited.")
+permit (
+  principal is Pukaar::Officer,
+  action == Pukaar::Action::"set_recipient_role",
+  resource is Pukaar::Village
+);
+
+@id("pradhan-own-recipient-role")
+@desc("A pradhan names the relays (pradhan, gauge reader, task force) among their own village's registered people only.")
+permit (
+  principal is Pukaar::Pradhan,
+  action == Pukaar::Action::"set_recipient_role",
+  resource is Pukaar::Village
+)
+when { context.village_id != "" && principal.village_ids.contains(context.village_id) };
+
 @id("system-deliver-approved")
 @desc("The system delivers an alert only after an officer approved it.")
 permit (
@@ -242,7 +259,7 @@ forbid (
     Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe",
     Pukaar::Action::"edit_roster", Pukaar::Action::"take_over_duty", Pukaar::Action::"set_alert_outcome",
     Pukaar::Action::"view_reports", Pukaar::Action::"view_recipients", Pukaar::Action::"view_rollcall",
-    Pukaar::Action::"view_after_action"
+    Pukaar::Action::"view_after_action", Pukaar::Action::"set_recipient_role"
   ],
   resource
 )

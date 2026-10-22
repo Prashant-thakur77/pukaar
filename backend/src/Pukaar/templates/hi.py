@@ -174,6 +174,17 @@ def officer_wake_voice(village_hi: str, village_en: str, level: str, drill: bool
             f"{flag_en}Pukaar: {village_en} needs your approval now, {LEVEL_EN.get(level, level)}.")
 
 
+def unanswered_officer(village_hi: str, village_en: str, level: str, minutes_left: int, url: str,
+                       drill: bool = False) -> str:
+    """The last call (workflow/steps.step_unanswered): nobody in the chain answered, nothing was sent."""
+    flag = " [अभ्यास DRILL]" if drill else ""
+    return (f"पुकार{flag}: {village_hi} – {LEVEL_HI.get(level, level)}। किसी अधिकारी ने मंज़ूरी नहीं दी; "
+            f"चेतावनी नहीं भेजी गई। {minutes_left} मिनट में कोई भी मंज़ूर या रद्द कर सकता है।\n"
+            f"Pukaar{flag}: {village_en} {LEVEL_EN.get(level, level)}: nobody approved; it was NOT sent. "
+            f"Anyone on duty can approve or decline in the next {minutes_left} min.\n\n"
+            f"Approve / decline: {url}")
+
+
 def nudge_officer(village_hi: str, level: str, minutes_left: int, url: str, replay: bool = False) -> str:
     flag = " [REPLAY]" if replay else ""
     return (f"पुकार{flag}, याद दिलाना: {village_hi} – {LEVEL_HI.get(level, level)}। आपकी मंज़ूरी बाकी है; "

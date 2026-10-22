@@ -1,15 +1,21 @@
 """Register voice-call recipients and print the Exotel flow URLs (docs/VOICE.md).
 
     python -m Pukaar.scripts.voice add <village> "<name>" <+91XXXXXXXXXX> "<consent>" [role] [chat id]
+    python -m Pukaar.scripts.voice role <village> <recipient id or Telegram chat id> <role>
     python -m Pukaar.scripts.voice list <village>
     python -m Pukaar.scripts.voice remove <village> <recipient id>
     python -m Pukaar.scripts.voice urls <api url>
     python -m Pukaar.scripts.voice officer <username> <+91XXXXXXXXXX | remove | show>
 
 add: a new voice-only recipient (id v_<ulid>); with a Telegram chat id, that existing Telegram
-recipient takes calls too (channel "both"). Consent is required: how and when the household
+recipient takes calls too (channel "both"), and takes the role if one is given (an empty role keeps
+theirs). Consent is required: how and when the household
 agreed, e.g. "verbal, field visit 2026-10-25, Asha Devi". The number is stored like the Telegram
 chat id (DynamoDB, encrypted at rest) and is printed masked; it never appears on a public route.
+
+role: make a registered person (a Telegram chat id, or a v_... id) a relay: pradhan, gauge_reader or
+task_force; or villager again. A pradhan who registered with /start <village> is a villager until this
+is run (or an officer sets it in the console). Audited ("recipient_role_changed", actor "cli").
 
 urls: the three URLs to paste into the Exotel flow, with the webhook key from SSM. Treat the
 output as a secret.
@@ -25,16 +31,25 @@ import sys
 
 from Pukaar.core.ids import new_id
 from Pukaar.delivery import voice
+from Pukaar.services import recipients
 from Pukaar.store.models import Recipient
 from Pukaar.store.repo import get_repo
 
 
-def add(village_id: str, name: str, phone: str, consent: str, role: str = "villager", chat_id: str = "") -> None:
+def _role(role: str) -> str:
+    try:
+        return recipients.check_role(role)
+    except recipients.RoleError as exc:
+        raise SystemExit(str(exc)) from None
+
+
+def add(village_id: str, name: str, phone: str, consent: str, role: str = "", chat_id: str = "") -> None:
     repo = get_repo()
     if repo.get_village(village_id) is None:
         raise SystemExit(f"no village {village_id}")
     if not consent.strip():
         raise SystemExit("record how and when the household agreed to be called (CONSENT=...)")
+    role = _role(role) if role.strip() else ""
     if chat_id:
         existing = repo.get_recipient(village_id, chat_id)
         if existing is None or not existing.takes_telegram:
@@ -42,13 +57,30 @@ def add(village_id: str, name: str, phone: str, consent: str, role: str = "villa
         r = existing.model_copy(update={"channel": "both", "phone": phone, "consent": consent.strip()})
         r = Recipient.model_validate(r.model_dump())
     else:
-        r = Recipient.model_validate({"id": new_id("v"), "village_id": village_id, "name": name.strip(), "role": role,
-                                      "channel": "voice", "phone": phone, "consent": consent.strip()})
+        r = Recipient.model_validate({"id": new_id("v"), "village_id": village_id, "name": name.strip(),
+                                      "role": role or "villager", "channel": "voice", "phone": phone,
+                                      "consent": consent.strip()})
     dup = [x.id for x in repo.list_recipients(village_id) if x.phone == r.phone and x.id != r.id]
     if dup:
         raise SystemExit(f"this number is already registered in {village_id} as {dup[0]}")
     repo.put_recipient(r)
-    print(f"{r.id}  {r.name}  {r.channel}  {voice.mask_phone(r.phone)}  consent: {r.consent}")
+    if chat_id and role:  # ROLE=pradhan with CHAT=: the Telegram pradhan becomes a relay too (audited)
+        r = recipients.set_role(repo, village_id, r.id, role, actor="cli", actor_role="operator")
+    print(f"{r.id}  {r.name}  {r.role}  {r.channel}  {voice.mask_phone(r.phone)}  consent: {r.consent}")
+
+
+def role(village_id: str, recipient_id: str, new_role: str) -> None:
+    repo = get_repo()
+    if repo.get_village(village_id) is None:
+        raise SystemExit(f"no village {village_id}")
+    try:
+        r = recipients.set_role(repo, village_id, recipient_id, _role(new_role), actor="cli", actor_role="operator")
+    except KeyError:
+        raise SystemExit(f"no recipient {recipient_id} in {village_id} (a Telegram recipient's id is the chat id; "
+                         f"make voice-list or the console's people list shows the others)") from None
+    except recipients.RoleError as exc:
+        raise SystemExit(str(exc)) from None
+    print(f"{r.id}  {r.name}  {r.role}  {r.channel}")
 
 
 def list_(village_id: str) -> None:
@@ -100,6 +132,8 @@ def main(argv: list[str]) -> None:
     cmd, args = argv[0], argv[1:]
     if cmd == "add" and len(args) >= 4:
         add(*args[:6])
+    elif cmd == "role" and len(args) == 3:
+        role(*args)
     elif cmd == "list" and len(args) == 1:
         list_(args[0])
     elif cmd == "remove" and len(args) == 2:

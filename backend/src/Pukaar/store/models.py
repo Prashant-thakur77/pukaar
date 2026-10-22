@@ -420,6 +420,9 @@ class Alert(BaseModel):
     officer_chain_roles: list[str] = Field(default_factory=list)
     officers_asked: list[str] = Field(default_factory=list)  # everyone asked or reminded, for the all-clear
     nudges: int = 0  # reminders sent half-way through an officer's approval window
+    # Nobody in the chain answered (workflow/steps.step_unanswered): when the last call went to every
+    # rostered officer and the ADM or DM, each with a fresh one-tap link, and AlertUnanswered was emitted.
+    unanswered_at: str | None = None
     # The asked officer opened the one-tap approval link (api/routers/public.approval_view) for this
     # token_version: the wake-up call at the nudge is not placed (delivery/officer_call.py).
     approval_opened_by: str | None = None

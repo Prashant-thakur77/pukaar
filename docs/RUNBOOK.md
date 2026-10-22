@@ -12,7 +12,7 @@ or a section names an alarm that no longer exists.
 | What | Where |
 |---|---|
 | Dashboard | CloudWatch, dashboard `pukaar-<stage>` (sweep, model, delivery, approvals, API, DLQs) |
-| Logs | `/aws/lambda/pukaar-api-<stage>`, `pukaar-sweep-<stage>`, `pukaar-workflow-<stage>`, `pukaar-worker-<stage>`, `pukaar-gauge-ingest-<stage>`; Step Functions `/aws/vendedlogs/states/pukaar-approval-<stage>` |
+| Logs | `/aws/lambda/pukaar-api-<stage>`, `pukaar-sweep-<stage>`, `pukaar-workflow-<stage>`, `pukaar-worker-<stage>`, `pukaar-gauge-ingest-<stage>`, `pukaar-canary-<stage>`; Step Functions `/aws/vendedlogs/states/pukaar-approval-<stage>` |
 | Console | `/console` (approvals, villages, reports, roll-call), `/roster`, `/audit`, `/sensors` |
 | Queues | `pukaar-sweep-dlq-<stage>`, `pukaar-worker-dlq-<stage>` |
 | Alarm topic | SNS `pukaar-alarms-<stage>`; subscribe the on-call phone (SMS) and e-mail. With no subscriber nobody hears an alarm |
@@ -46,7 +46,9 @@ and their number is set: `make officer-phone OFFICER=<username> PHONE=+91...` (`
 masked, `PHONE=remove` stops the calls). Pressing 1 on the call sends the approval link again; the
 call never approves. Set a phone for everyone on the roster before the monsoon; the alert timeline
 says "call=not possible (no phone number on file ...)" otherwise. A critical alert waits 5 minutes
-per officer (`CriticalApprovalTimeoutSeconds`), not 10.
+per officer (`CriticalApprovalTimeoutSeconds`), not 10. When nobody in the chain answers, everyone on
+duty and the ADM or DM get a last call with a fresh link, and the ADM or DM is phoned
+(`pukaar-<stage>-alert-unanswered` below): put the ADM's or DM's number on file too.
 
 "Tell the DDMA" below means the DEOC duty officer or the DDMO, by phone, in the same hour. Anything
 that could mean a village is not being watched, or a warning did not reach people, is their business,
@@ -319,6 +321,84 @@ the shift is filled.
 
 **Tell the DDMA?** Yes: the roster is theirs.
 
+### pukaar-<stage>-alert-unanswered
+
+**What it means.** Nobody in the duty chain answered a live alert: every officer timed out (a Watch or
+Warning, or a Critical with critical auto-send off). Nothing has gone to the village. Pukaar has just
+sent the last call: every officer on duty for the district and the ADM or DM got "nobody approved; it
+was not sent" on Telegram and Web Push with a fresh one-tap link, and the ADM or DM was phoned if voice
+is on and their number is set. The link works for one more window (5 minutes for a Critical, 10
+otherwise); then the alert expires and the sweep asks again (a Critical on the next sweep, a Warning
+after 30 minutes, a Watch after 60).
+
+**First 3 checks.**
+1. The console: is the alert back on the approval card, and has anyone opened it? The timeline's
+   "unanswered" line says who was told, on which channel, and whether the ADM or DM was phoned
+   ("call=not possible (...)" says why not).
+2. `/roster`: who is on duty now, and is an ADM or DM named? "no ADM or DM on the roster" in the
+   timeline means nobody above the chain was told.
+3. The officers' channels: is each officer's Telegram linked and a phone turned on for approval
+   alerts in the console? Is there a number on file for the wake-up call (`make officer-phone OFFICER=<name>
+   PHONE=show`)?
+
+**Fix.** Phone the DEOC landline now and read out the village and level: the officer on duty approves
+or declines from the console or the link. Afterwards, find out why nobody answered (asleep, phone
+silent, wrong person on the roster) and fix the roster or the officer's channels. Repeated alarms in
+one shift mean the chain is not real; take it to the DDMO.
+
+**Who to call.** The DEOC duty officer, then the ADM or DM, by phone, at once, day or night.
+
+**Tell the DDMA?** Yes, every time: a warning nobody approved is the failure the shadow pilot exists to
+find. Note it in the after-action review.
+
+### pukaar-<stage>-gauge-unhealthy
+
+**What it means.** An installed river gauge has been unhealthy for two sweeps in a row (30 minutes):
+silent, low on battery, or sending mostly bad readings. Simulated gauges never count. The village is
+still watched on the forecast, but the observed river level is missing or untrustworthy. The alarm
+sends an OK message when the gauge recovers.
+
+**First 3 checks.**
+1. `/sensors`: which gauge, and its reasons (`silent`, `low_battery`, `bad_quality`), last reading time,
+   battery voltage and firmware.
+2. Gauge-ingest logs (`/aws/lambda/pukaar-gauge-ingest-<stage>`) and the IoT topic rule's errors in the
+   worker DLQ: are readings arriving and being refused, or not arriving at all?
+3. The local network: is the SIM topped up, is there mobile signal at the site?
+
+**Fix.** Refused readings: check the device's clock and certificate (`make gauge-provision`). Silent:
+ask the gauge reader to check power and the antenna; replace the battery or SIM. Bad readings: debris
+under the sensor or a moved mount; clean or re-level it and re-survey the datum.
+
+**Who to call.** The gauge reader of the village (phone), then the on-call engineer.
+
+**Tell the DDMA?** Yes, in the monsoon or if the village is at Watch or above: its observed river level
+is not available until the gauge is fixed.
+
+### pukaar-<stage>-canary-failed
+
+**What it means.** The 15-minute canary (`pukaar-canary-<stage>`) found the public face of Pukaar
+broken, from outside: `/health` not ok, `/public/overview` malformed or with no forecasts stored in 24
+hours, the CAP feed not an Atom feed, or the web app not served. Each check is tried twice before it
+counts. The alarm also fires when no canary result arrived in 30 minutes (the canary or its schedule is
+broken), and sends an OK message when it passes again.
+
+**First 3 checks.**
+1. Canary logs (`/aws/lambda/pukaar-canary-<stage>`): the "canary failed" line names each failed check
+   and why (HTTP status, timeout, shape).
+2. Dashboard: `CanaryFailed` and the API's 4xx and 5xx; `pukaar-<stage>-api-5xx` and
+   `sweep-heartbeat` usually fire with it when the API or the sweep is the cause.
+3. Open the site and `/public/overview` yourself; for the web app, check the Amplify branch's last
+   deployment.
+
+**Fix.** API errors: see `api-5xx`; roll back a bad deploy. `forecast_checks_24h` 0: the sweep is not
+storing forecasts (see `sweep-heartbeat`). Web app: redeploy it (`make deploy-web`). No result at all:
+check the `pukaar-canary-<stage>` schedule is enabled and the function's last error.
+
+**Who to call.** On-call engineer.
+
+**Tell the DDMA?** Yes, if the public pages or the CAP feed are down for more than 30 minutes in the
+monsoon: villagers and SACHET cannot see the levels. No, for a canary that only stopped running.
+
 ## Report abuse: what officers see
 
 - A report over a rate limit is kept and shown with "Held for review: too many reports from one
@@ -362,6 +442,29 @@ voice on a phone, first acknowledgement. Record in the drill log:
 `/pilot` shows the same numbers for all drills (`drills` in `GET /public/pilot-metrics`). Targets for
 the pilot, to agree with the DDMA: approval within 10 minutes, first voice within 2 minutes of
 approval, half the reached phones acknowledged within 15 minutes.
+
+## Restore drill (quarterly)
+
+Point-in-time recovery is on for the table, but a backup nobody has restored is a hope. Once a quarter,
+and before each monsoon, run:
+
+```
+make restore-drill                 # dev; STAGE=prod for the pilot stack
+make restore-drill AT=2026-10-22T04:00:00Z   # a chosen moment instead of the latest restorable time
+```
+
+`scripts/restore_drill.py` restores `pukaar-<stage>` into a scratch table named
+`pukaar-<stage>-restore-drill-<UTC time>`, waits until it is active, counts the items under each key
+prefix (`VILLAGE#`, `ALERT#`, `REPORT#`, ...) in both tables, prints the counts side by side, and
+deletes the scratch table, even if a step failed (`KEEP=1` keeps it for a look; then delete it by
+hand). It only reads the live table. PASS means every prefix of the live table is in the copy, each
+count within 10 % (new writes and TTL deletions since the restore point explain small differences).
+Write the date, the restore time it printed and PASS or FAIL in the drill log. A FAIL, or a restore
+that takes more than an hour, goes to the on-call engineer and AWS support.
+
+To recover for real, restore the same way into a new table, check it, then point the stack at it: the
+table name is `pukaar-<stage>`, so either restore under that name after deleting the broken table
+(downtime) or change `PUKAAR_TABLE_NAME` on every function to the restored copy and deploy.
 
 ## Phone-number hygiene
 
@@ -462,6 +565,7 @@ commit.
 - [ ] Quarterly number review done in every village (above); unreachable numbers resolved.
 - [ ] Consent notice re-read to new households; register up to date.
 - [ ] Secrets older than a year rotated.
+- [ ] A restore drill passed this quarter (`make restore-drill STAGE=prod`, "Restore drill" above).
 - [ ] A full drill in every village, timed to acknowledgement, and the numbers written in the drill log.
 - [ ] Last season's alerts each have a "was this real?" answer; per-rule false-alarm rates reviewed with the DDMA.
 - [ ] The pilot runs on the prod stack (`make deploy STAGE=prod`, docs/DEPLOY.md "Production stage"):

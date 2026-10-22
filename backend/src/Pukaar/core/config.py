@@ -63,8 +63,12 @@ class Settings:
     stale_max_sweeps: int = 4
     # A village with no complete forecast for this long emits VillageDataStale (alarmed).
     stale_alarm_minutes: int = 45
-    # A declined or expired alert is asked again after this long if the level still holds.
-    reask_cooldown_minutes: int = 30
+    # A declined or expired alert is asked again after this long if the level still holds, per level
+    # (decision_engine.reask_due, reask_cooldown()). A Critical is asked again on the next sweep: its
+    # cooldown is 0 to 5 minutes, never more, so nobody sleeps through one for a further half hour.
+    reask_cooldown_critical_minutes: int = 5
+    reask_cooldown_warning_minutes: int = 30
+    reask_cooldown_watch_minutes: int = 60
     # Voice calls with "press 1" (delivery/voice.py): "exotel", "plivo" or "off". Off (the default)
     # records every voice delivery as failed with the reason; it never pretends a call went out.
     voice_provider: str = "off"
@@ -112,6 +116,12 @@ class Settings:
     # (DynamoDB TTL), with their photo and voice note (S3 lifecycle, same parameter RetentionDays).
     # 0 keeps them until deleted by hand.
     report_retention_days: int = 0
+    # Forecast readings and gauge readings are kept this many days (DynamoDB TTL; template parameter
+    # ReadingRetentionDays): 30 on dev, 400 on prod, so a season's record can be reviewed after it.
+    reading_retention_days: int = 30
+    # Prod with CloudFront and AWS WAF in front of the API (template condition HasApiEdge): every request
+    # must carry the origin-verify header CloudFront adds (main.py), so the WAF cannot be gone round.
+    edge_required: bool = False
     # -- approval windows and the duty officer's wake-up call (workflow/steps.py) --
     # A critical alert's window per officer: shorter than approval_timeout_seconds, so a critical is not
     # held 20 to 30 minutes by a chain of three. Never longer than the general window.
@@ -130,6 +140,14 @@ class Settings:
     voice_calls_per_second: float = 2.0  # call requests to the voice provider, all batches together
     # -- the 15-minute sweep (services/decision_engine.sweep_all): villages evaluated at once --
     sweep_concurrency: int = 16
+
+    def reask_cooldown(self, level: str) -> int:
+        """Minutes before an unsent alert at this level is asked again while the level holds."""
+        if level == "critical":
+            return self.reask_cooldown_critical_minutes
+        if level == "watch":
+            return self.reask_cooldown_watch_minutes
+        return self.reask_cooldown_warning_minutes
 
     @property
     def guardrail_enabled(self) -> bool:
@@ -184,7 +202,10 @@ def get_settings() -> Settings:
         events_http_domain=os.environ.get("PUKAAR_EVENTS_HTTP_DOMAIN", "").strip().removeprefix("https://").rstrip("/"),
         stale_max_sweeps=int(os.environ.get("PUKAAR_STALE_MAX_SWEEPS", "4")),
         stale_alarm_minutes=int(os.environ.get("PUKAAR_STALE_ALARM_MINUTES", "45")),
-        reask_cooldown_minutes=int(os.environ.get("PUKAAR_REASK_COOLDOWN_MINUTES", "30")),
+        reask_cooldown_critical_minutes=max(0, min(5, int(os.environ.get("PUKAAR_REASK_COOLDOWN_CRITICAL_MINUTES",
+                                                                       "5")))),
+        reask_cooldown_warning_minutes=max(0, int(os.environ.get("PUKAAR_REASK_COOLDOWN_WARNING_MINUTES", "30"))),
+        reask_cooldown_watch_minutes=max(0, int(os.environ.get("PUKAAR_REASK_COOLDOWN_WATCH_MINUTES", "60"))),
         voice_provider=_voice_provider(os.environ.get("PUKAAR_VOICE_PROVIDER", "off")),
         voice_max_attempts=max(1, min(5, int(os.environ.get("PUKAAR_VOICE_MAX_ATTEMPTS", "3")))),
         voice_ring_timeout_seconds=int(os.environ.get("PUKAAR_VOICE_RING_TIMEOUT_SECONDS", "40")),
@@ -207,6 +228,8 @@ def get_settings() -> Settings:
         cap_sender_name=os.environ.get("PUKAAR_CAP_SENDER_NAME", "").strip(),
         cap_sender_name_hi=os.environ.get("PUKAAR_CAP_SENDER_NAME_HI", "").strip(),
         report_retention_days=max(0, int(os.environ.get("PUKAAR_REPORT_RETENTION_DAYS", "0") or "0")),
+        reading_retention_days=max(1, int(os.environ.get("PUKAAR_READING_RETENTION_DAYS", "30") or "30")),
+        edge_required=_bool("PUKAAR_EDGE_REQUIRED", False),
         approval_timeout_critical_seconds=max(
             2, int(os.environ.get("PUKAAR_CRITICAL_APPROVAL_TIMEOUT_SECONDS", "300"))),
         officer_wake_seconds=max(0, int(os.environ.get("PUKAAR_OFFICER_WAKE_SECONDS", "180"))),

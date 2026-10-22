@@ -85,6 +85,13 @@ def report_expiry(created_at: str, days: int | None = None) -> int | None:
     return int(clock.parse(created_at).timestamp()) + days * 86400
 
 
+def _expiry(days: int | None = None) -> int:
+    """TTL (epoch seconds) of a forecast or gauge reading written now: Settings.reading_retention_days
+    unless a caller gives its own."""
+    days = get_settings().reading_retention_days if days is None else days
+    return int(clock.now().timestamp()) + max(1, days) * 86400
+
+
 def _expired(item: dict[str, Any], now: int | None = None) -> bool:
     """DynamoDB deletes an expired item within a few days, not at once: never serve one meanwhile."""
     ttl = item.get("ttl")
@@ -255,8 +262,10 @@ class Repo:
         return _model(Village, self._update(f"VILLAGE#{village_id}", "META", sets, remove=remove))
 
     # -- readings --------------------------------------------------------
-    def put_reading(self, r: Reading, ttl_days: int = 30) -> None:
-        expires = int(clock.now().timestamp()) + ttl_days * 86400
+    def put_reading(self, r: Reading, ttl_days: int | None = None) -> None:
+        """One forecast reading, kept Settings.reading_retention_days (template ReadingRetentionDays:
+        30 on dev, 400 on prod, so a season's record outlives the season)."""
+        expires = _expiry(ttl_days)
         self._put({"pk": f"VILLAGE#{r.village_id}", "sk": f"READING#{r.at}", "ttl": expires, **r.model_dump()})
 
     def list_readings(self, village_id: str, limit: int = 96) -> list[Reading]:
@@ -269,7 +278,7 @@ class Repo:
                            Attr("replay").not_exists() | Attr("replay").eq(False))
 
     # -- gauge (sensor) readings -----------------------------------------
-    def put_sensor_reading(self, r: SensorReading, ttl_days: int = 14, min_interval_s: int = 60) -> bool:
+    def put_sensor_reading(self, r: SensorReading, ttl_days: int | None = None, min_interval_s: int = 60) -> bool:
         """Store one live gauge reading. False (nothing stored) when the same device already sent a
         reading less than min_interval_s before this one, or a newer one: a conditional write on a
         per-device pointer, so a replayed or too-frequent body never lands twice. A payload-v2
@@ -277,7 +286,7 @@ class Repo:
         device's buffer is a duplicate."""
         at = clock.parse(r.at)
         epoch = int(at.timestamp())
-        expires = int(clock.now().timestamp()) + ttl_days * 86400
+        expires = _expiry(ttl_days)
         pk = f"VILLAGE#{r.village_id}"
         try:
             self._put({"pk": pk, "sk": f"SENSORLAST#{r.device_id}", "at_epoch": epoch, "at": clock.iso(at),
@@ -299,12 +308,12 @@ class Repo:
             return False
         return True
 
-    def put_sensor_backfill(self, r: SensorReading, ttl_days: int = 14) -> bool:
+    def put_sensor_backfill(self, r: SensorReading, ttl_days: int | None = None) -> bool:
         """Store one buffered (older) reading. Idempotent on (device, boot, seq) and on the
         reading's own key: False when it is already stored. It never moves the live pointer, so
         the live path's one-per-minute, never-earlier replay protection is unchanged."""
         at = clock.parse(r.at)
-        expires = int(clock.now().timestamp()) + ttl_days * 86400
+        expires = _expiry(ttl_days)
         if r.seq is not None and not self._claim_sensor_seq(r, expires):
             return False
         try:

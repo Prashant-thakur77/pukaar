@@ -132,9 +132,13 @@ def test_critical_auto_send_is_configurable_and_off_sends_nothing(repo, frozen, 
         a = make_alert(repo, "critical")
         s.handle({"step": "draft", "alert_id": a.id})
         assert s.handle({"step": "auto_send", "alert_id": a.id})["mode"] == "off"
+        assert "needs DDMA sign-off" in repo.list_timeline(a.id)[-1].detail
+        # Then the last call (loud, nothing sent) and, with no answer, expiry.
+        s.handle({"step": "unanswered", "alert_id": a.id, "task_token": "LAST"})
+        assert repo.get_alert(a.id).status == "pending"
+        s.handle({"step": "expire", "alert_id": a.id})
         alert = repo.get_alert(a.id)
         assert alert.status == "expired" and not repo.list_deliveries(a.id)
-        assert "needs DDMA sign-off" in repo.list_timeline(a.id)[-1].detail
     finally:
         monkeypatch.delenv("PUKAAR_CRITICAL_AUTO_SEND")
         get_settings.cache_clear()

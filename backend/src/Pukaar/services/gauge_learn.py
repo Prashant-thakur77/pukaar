@@ -45,7 +45,7 @@ from Pukaar.store.models import GaugeConfig, SensorReading
 
 MIN_DAYS = 7.0
 MIN_READINGS = 2000
-WINDOW_DAYS = 14  # gauge readings live 14 days in the table (repo TTL)
+WINDOW_DAYS = 14  # the last two weeks of readings (they are kept ReadingRetentionDays: 30 on dev, 400 on prod)
 MAX_READINGS = 25000
 PERCENTILES = {"watch": 90.0, "warning": 97.0, "critical": 99.5}
 BASELINE_MARGIN_CM = 30.0
