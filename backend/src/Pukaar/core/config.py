@@ -77,6 +77,20 @@ class Settings:
     # NEEDS DDMA SIGN-OFF: sending without a human decision is the DDMA's call, not Pukaar's. Off means
     # the alert expires unsent and the sweep asks again after the cooldown.
     critical_auto_send: bool = True
+    # River trigger (risk_rules.river_assessment): a level is raised when at least this share of the
+    # GloFAS ensemble members reach its return-period threshold on lead day 1-3 (the ECMWF reporting-
+    # point convention is 0.3). The ensemble is fetched once a day per river cell (external_data).
+    river_ensemble_enabled: bool = True
+    river_ensemble_p_min: float = 0.3
+    # Official corroboration (services/official_data.py): CWC stations above warning and the IMD
+    # district warning colour are shown to officers; they raise a level only when
+    # official_raises_level is on, and never lower one. Google Flood Hub needs an API key
+    # (secret flood_hub_api_key) and BIPAD (Nepal) is optional: both off by default.
+    official_data_enabled: bool = True
+    official_raises_level: bool = False
+    official_timeout_seconds: float = 5.0
+    flood_hub_enabled: bool = False
+    bipad_enabled: bool = False
 
     @property
     def guardrail_enabled(self) -> bool:
@@ -137,6 +151,13 @@ def get_settings() -> Settings:
         voice_ring_timeout_seconds=int(os.environ.get("PUKAAR_VOICE_RING_TIMEOUT_SECONDS", "40")),
         exotel_api_host=os.environ.get("PUKAAR_EXOTEL_API_HOST", "api.exotel.com").strip() or "api.exotel.com",
         critical_auto_send=_bool("PUKAAR_CRITICAL_AUTO_SEND", True),
+        river_ensemble_enabled=_bool("PUKAAR_RIVER_ENSEMBLE", True),
+        river_ensemble_p_min=min(1.0, max(0.02, float(os.environ.get("PUKAAR_RIVER_ENSEMBLE_P_MIN", "0.3")))),
+        official_data_enabled=_bool("PUKAAR_OFFICIAL_DATA", True),
+        official_raises_level=_bool("PUKAAR_OFFICIAL_RAISES_LEVEL", False),
+        official_timeout_seconds=float(os.environ.get("PUKAAR_OFFICIAL_TIMEOUT_SECONDS", "5")),
+        flood_hub_enabled=_bool("PUKAAR_FLOOD_HUB", False),
+        bipad_enabled=_bool("PUKAAR_BIPAD", False),
     )
 
 

@@ -39,8 +39,11 @@ handle. Each line names the code or test that shows it.
 - **No multi-region deployment.** Only the model call fails over between
   regions; the table, workflow and API live in `us-east-1`.
 - **Coordinates are unverified.** Village points come from GeoNames and are
-  marked `coords_verified: false`; the flood API's river cell for small
-  streams may not be the stream that floods the village.
+  marked `coords_verified: false`. River cells were chosen against
+  OpenStreetMap and the model's own routing (`data/river_cells.json`): the
+  Beas cells for Pandoh and Sujanpur are checked; for Thunag, Janjehli and
+  Gohar GloFAS has no channel larger than one cell on their khads, so their
+  river signal stays weak (`cell_verified: false`).
 - **Global models miss cloudbursts.** In the Mandi 30 June 2025 replay the
   archived forecasts and river discharge never crossed for four of five
   villages. Pukaar does not claim to predict such events; verified villager

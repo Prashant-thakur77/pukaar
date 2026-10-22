@@ -51,10 +51,34 @@ def level_rank(level: str) -> int:
 
 
 class Thresholds(BaseModel):
+    """River discharge thresholds (m³/s) for the village's river cell (scripts/calibrate.py).
+
+    method "return_period": watch, warning, critical = the 2-, 5- and 20-year discharges of a
+    Gumbel fit to annual maxima. cell_lat/cell_lon: the GloFAS cell the live sweep asks for (the
+    village's own coordinates when unset); cell_verified is False until the cell is checked to be
+    on the stream that floods the village (data/river_cells.json).
+    """
+
     watch: float
     warning: float
     critical: float
     source: str = "open-meteo flood API daily history 1984-2024"
+    method: str = "percentile"
+    return_period_years: dict[str, int] | None = None
+    cell_lat: float | None = None
+    cell_lon: float | None = None
+    river: str | None = None
+    cell_verified: bool = False
+
+    @classmethod
+    def from_file(cls, entry: dict[str, Any]) -> "Thresholds":
+        """One village's entry of data/thresholds.json."""
+        cell = entry.get("river_cell") or {}
+        return cls(watch=entry["watch"], warning=entry["warning"], critical=entry["critical"],
+                   source=entry.get("source", ""), method=entry.get("method", "percentile"),
+                   return_period_years=entry.get("return_period_years"),
+                   cell_lat=cell.get("lat"), cell_lon=cell.get("lon"), river=entry.get("river"),
+                   cell_verified=bool(entry.get("cell_verified", False)))
 
 
 class SoilRange(BaseModel):
@@ -158,6 +182,11 @@ class Reading(BaseModel):
     missing: list[str] = Field(default_factory=list)
     # Set on the copy the rules used when the last complete values were carried forward.
     carried_from: str | None = None
+    # GloFAS ensemble river forecast for the river cell, fetched once a day (external_data.ensemble):
+    # status ok|unavailable|off, and per lead day the sorted member discharges.
+    discharge_ensemble: dict[str, Any] | None = None
+    # Official data shown beside the level (services/official_data.py): one item per source.
+    official: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SensorReading(BaseModel):

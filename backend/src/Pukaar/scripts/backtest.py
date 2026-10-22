@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 
 from Pukaar.core.config import get_settings
-from Pukaar.services import external_data, replay
+from Pukaar.services import external_data, replay, risk_rules
 from Pukaar.store.models import SoilRange, Thresholds, Village
 
 
@@ -24,8 +24,7 @@ def villages_from_files() -> list[Village]:
     for v in cfg["villages"]:
         t = th.get(v["id"])
         out.append(Village(id=v["id"], name=v["name"], name_hi=v["name_hi"], district=v["district"], lat=v["lat"],
-                           lon=v["lon"], thresholds=Thresholds(watch=t["watch"], warning=t["warning"],
-                                                               critical=t["critical"], source=t["source"]) if t else None,
+                           lon=v["lon"], thresholds=Thresholds.from_file(t) if t else None,
                            soil=SoilRange.model_validate(t["soil"]) if t and t.get("soil") else None))
     return out
 
@@ -33,7 +32,7 @@ def villages_from_files() -> list[Village]:
 def main() -> None:
     s = get_settings()
     villages = villages_from_files()
-    result = {"rules": "risk-rules-v1", "scenarios": []}
+    result = {"rules": risk_rules.RULES_VERSION, "scenarios": []}
     for name in external_data.list_scenarios():
         sc = external_data.load_scenario(name)
         rows = replay.backtest(name, villages)

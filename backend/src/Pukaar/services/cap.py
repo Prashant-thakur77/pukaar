@@ -320,6 +320,10 @@ def _parameters(a: Alert, village: Village | None) -> list[tuple[str, str]]:
     ]
     if village is not None:
         params += _coords(village)
+    p = river_probability(a)
+    if p is not None:
+        params.append(("river_exceedance_probability",
+                       f"{p:g}: share of GloFAS ensemble members above the {a.level} threshold, lead days 1-3"))
     if a.replay or a.decision_trace.get("replay"):
         params.append(("exercise", "replay of archived data; not a current flood"))
     if a.decision_trace.get("drill"):
@@ -327,8 +331,38 @@ def _parameters(a: Alert, village: Village | None) -> list[tuple[str, str]]:
     return params
 
 
+def certainty_from_probability(p: float | None) -> str | None:
+    """CAP certainty from the share of ensemble members above the threshold: >= 0.8 Likely,
+    >= 0.3 Possible; None below that (the level did not come from the ensemble)."""
+    if p is None:
+        return None
+    if p >= 0.8:
+        return "Likely"
+    if p >= 0.3:
+        return "Possible"
+    return None
+
+
+def river_probability(a: Alert) -> float | None:
+    """The ensemble probability behind the alert's level, when the river ensemble set that level."""
+    t = a.decision_trace
+    if t.get("river_level") != a.level:
+        return None
+    river = next((e for e in t.get("evidence") or [] if e.get("kind") == "river"), None)
+    if not river or river.get("mode") != "ensemble" or river.get("level") != a.level:
+        return None
+    p = river.get("p_at_level")
+    return float(p) if p is not None else None
+
+
+def alert_certainty(a: Alert) -> str:
+    """From the ensemble probability when the river ensemble set the level; else the level's default."""
+    return certainty_from_probability(river_probability(a)) or MAPPING[a.level][2]
+
+
 def _info(alert_el: ET.Element, a: Alert, village: Village | None, lang: str, web_url: str) -> None:
-    urgency, severity, certainty, response = MAPPING[a.level]
+    urgency, severity, _, response = MAPPING[a.level]
+    certainty = alert_certainty(a)
     effective = _sent(a)
     hindi = lang == "hi-IN"
     district = village.district if village else ""

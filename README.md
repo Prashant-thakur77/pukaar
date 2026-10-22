@@ -213,7 +213,7 @@ Each message has a Hindi (`hi-IN`) and an English (`en-IN`) `<info>` block, cate
 | Moment | What Pukaar does | AWS service |
 |---|---|---|
 | Every 15 minutes | For five villages, read forecast rain (next 24 h) and river discharge (next days) | EventBridge Scheduler -> Lambda `sweep` |
-| A threshold is crossed | Code sets the level: IMD rain bands, each village's own 1984-2024 discharge percentiles, two-source agreement, verified reports; hysteresis on the way down | Lambda, DynamoDB (conditional writes, dedupe per 15-minute window) |
+| A threshold is crossed | Code sets the level: IMD rain bands, the 2-, 5- and 20-year river discharges at each village's river cell (with the GloFAS ensemble's probability, P ≥ 0.3), two-source agreement, verified reports; hysteresis on the way down | Lambda, DynamoDB (conditional writes, dedupe per 15-minute window) |
 | The level rises | An approval workflow starts, one per alert | Step Functions (Standard, `waitForTaskToken`) |
 | Drafting | A Strands agent reads the decision trace through read-only tools and fills a fixed Hindi template; a checker rejects any number or place not in the trace. The live stack currently uses the fixed Hindi template labelled `rule-fallback` until Bedrock model access is granted | Bedrock (Amazon Nova) via Strands Agents; Cedar hook on every tool call |
 | Where to go | If the pradhan or an officer has marked a nearby safe place open (or on standby) in the shelter ledger, code adds one line naming the nearest one ("सबसे पास सुरक्षित जगह: …") and records it in the decision trace; the checker rejects a draft that names any other place. The village page shows each place, its height above the river, the walking route, distance, time and climb | Places and routes baked offline from OpenStreetMap and AWS Terrain Tiles; ledger in DynamoDB; Cedar |
@@ -444,11 +444,12 @@ The replay runs archived hours through the same code. Rain is the archived
 forecast (Open-Meteo historical forecast API). Discharge is the archived
 GloFAS series from the Open-Meteo flood API.
 
-- **7-11 July 2023:** Sujanpur, Gohar and Pandoh reach critical, and Thunag
-  and Janjehli reach watch.
+- **7-11 July 2023:** Sujanpur reaches critical, Gohar and Pandoh reach
+  warning, Thunag reaches watch and Janjehli stays normal (return-period river
+  thresholds; [docs/SCORING.md](docs/SCORING.md)).
 - **30 June to 1 July 2025, Mandi:** the archived forecasts gave at most
   14.5-33.4 mm in 24 hours at four of the five villages, and river discharge
-  stayed below its 90th percentile at all five. **The global models
+  stayed below its 2-year flow at all five. **The global models
   missed the cloudburst.** Thresholds were not tuned to fake a hit. This is
   why a verified villager report can raise a level on its own.
 

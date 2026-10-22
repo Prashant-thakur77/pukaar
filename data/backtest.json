@@ -1,5 +1,5 @@
 {
-  "rules": "risk-rules-v1",
+  "rules": "risk-rules-v2",
   "scenarios": [
     {
       "name": "himachal_2023_07",
@@ -9,7 +9,7 @@
       "end": "2023-07-11T00:00:00Z",
       "sources": {
         "rain": "https://historical-forecast-api.open-meteo.com/v1/forecast (hourly precipitation, best_match)",
-        "river": "https://flood-api.open-meteo.com/v1/flood (daily river_discharge, archived)"
+        "river": "https://flood-api.open-meteo.com/v1/flood (daily river_discharge, archived, at the village's river cell)"
       },
       "villages": [
         {
@@ -21,10 +21,20 @@
           "peak_discharge_day": "2023-07-11",
           "peak_discharge": 1.03,
           "thresholds": {
-            "watch": 1.14,
-            "warning": 1.532,
-            "critical": 2.1,
-            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+            "watch": 1.43,
+            "warning": 1.967,
+            "critical": 2.664,
+            "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
+            "method": "return_period",
+            "return_period_years": {
+              "watch": 2,
+              "warning": 5,
+              "critical": 20
+            },
+            "cell_lat": 31.575005,
+            "cell_lon": 77.17502,
+            "river": "Bakhli Khad (with Deola Nal), as modelled by GloFAS",
+            "cell_verified": false
           },
           "max_rain_24h_mm": 96.6,
           "lead_hours_watch_to_peak_day": 68.0,
@@ -33,70 +43,110 @@
         {
           "village_id": "janjehli",
           "village": "Janjehli",
-          "first_watch": "2023-07-11T00:00:00Z",
+          "first_watch": null,
           "first_warning": null,
           "first_critical": null,
           "peak_discharge_day": "2023-07-11",
           "peak_discharge": 0.91,
           "thresholds": {
-            "watch": 1.03,
-            "warning": 1.36,
-            "critical": 1.82,
-            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+            "watch": 1.284,
+            "warning": 1.758,
+            "critical": 2.373,
+            "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
+            "method": "return_period",
+            "return_period_years": {
+              "watch": 2,
+              "warning": 5,
+              "critical": 20
+            },
+            "cell_lat": 31.525002,
+            "cell_lon": 77.225006,
+            "river": "Bakhli Khad headwaters (Chimti Khad, Bhekhli Nala)",
+            "cell_verified": false
           },
           "max_rain_24h_mm": 60.1,
-          "lead_hours_watch_to_peak_day": 0.0,
-          "outcome": "reached watch"
+          "lead_hours_watch_to_peak_day": null,
+          "outcome": "never crossed"
         },
         {
           "village_id": "gohar",
           "village": "Gohar",
-          "first_watch": "2023-07-08T00:00:00Z",
-          "first_warning": "2023-07-08T05:00:00Z",
-          "first_critical": "2023-07-09T02:00:00Z",
+          "first_watch": "2023-07-08T05:00:00Z",
+          "first_warning": "2023-07-09T02:00:00Z",
+          "first_critical": null,
           "peak_discharge_day": "2023-07-11",
           "peak_discharge": 0.97,
           "thresholds": {
-            "watch": 0.94,
-            "warning": 1.42,
-            "critical": 2.08,
-            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+            "watch": 1.409,
+            "warning": 2.211,
+            "critical": 3.252,
+            "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
+            "method": "return_period",
+            "return_period_years": {
+              "watch": 2,
+              "warning": 5,
+              "critical": 20
+            },
+            "cell_lat": 31.575005,
+            "cell_lon": 77.025024,
+            "river": "Jhuni Khad (with Bhurni Nala)",
+            "cell_verified": false
           },
           "max_rain_24h_mm": 126.8,
-          "lead_hours_watch_to_peak_day": 72.0,
-          "outcome": "reached critical"
+          "lead_hours_watch_to_peak_day": 67.0,
+          "outcome": "reached warning"
         },
         {
           "village_id": "pandoh",
           "village": "Pandoh",
-          "first_watch": "2023-07-07T00:00:00Z",
-          "first_warning": "2023-07-08T05:00:00Z",
-          "first_critical": "2023-07-09T02:00:00Z",
+          "first_watch": "2023-07-08T05:00:00Z",
+          "first_warning": "2023-07-09T02:00:00Z",
+          "first_critical": null,
           "peak_discharge_day": "2023-07-09",
-          "peak_discharge": 286.08,
+          "peak_discharge": 298.23,
           "thresholds": {
-            "watch": 282.14,
-            "warning": 353.0,
-            "critical": 418.76,
-            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+            "watch": 366.488,
+            "warning": 444.65,
+            "critical": 546.041,
+            "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
+            "method": "return_period",
+            "return_period_years": {
+              "watch": 2,
+              "warning": 5,
+              "critical": 20
+            },
+            "cell_lat": 31.675003,
+            "cell_lon": 77.025024,
+            "river": "Beas (below the Bakhli Khad and Jhuni Khad confluences)",
+            "cell_verified": true
           },
           "max_rain_24h_mm": 126.8,
-          "lead_hours_watch_to_peak_day": 48.0,
-          "outcome": "reached critical"
+          "lead_hours_watch_to_peak_day": 19.0,
+          "outcome": "reached warning"
         },
         {
           "village_id": "sujanpur",
           "village": "Sujanpur",
           "first_watch": "2023-07-07T00:00:00Z",
-          "first_warning": "2023-07-07T00:00:00Z",
-          "first_critical": "2023-07-07T00:00:00Z",
+          "first_warning": "2023-07-07T16:00:00Z",
+          "first_critical": "2023-07-08T13:00:00Z",
           "peak_discharge_day": "2023-07-09",
-          "peak_discharge": 7.3,
+          "peak_discharge": 795.16,
           "thresholds": {
-            "watch": 1.7,
-            "warning": 3.224,
-            "critical": 4.619,
-            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+            "watch": 633.278,
+            "warning": 830.241,
+            "critical": 1085.736,
+            "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
+            "method": "return_period",
+            "return_period_years": {
+              "watch": 2,
+              "warning": 5,
+              "critical": 20
+            },
+            "cell_lat": 31.825005,
+            "cell_lon": 76.475006,
+            "river": "Beas (at Sujanpur Tira, with Nyugal Khad)",
+            "cell_verified": true
           },
           "max_rain_24h_mm": 116.5,
           "lead_hours_watch_to_peak_day": 48.0,
@@ -112,7 +162,7 @@
       "end": "2025-07-02T00:00:00Z",
       "sources": {
         "rain": "https://historical-forecast-api.open-meteo.com/v1/forecast (hourly precipitation, best_match)",
-        "river": "https://flood-api.open-meteo.com/v1/flood (daily river_discharge, archived)"
+        "river": "https://flood-api.open-meteo.com/v1/flood (daily river_discharge, archived, at the village's river cell)"
       },
       "villages": [
         {
@@ -124,10 +174,20 @@
           "peak_discharge_day": "2025-06-29",
           "peak_discharge": 0.53,
           "thresholds": {
-            "watch": 1.14,
-            "warning": 1.532,
-            "critical": 2.1,
-            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+            "watch": 1.43,
+            "warning": 1.967,
+            "critical": 2.664,
+            "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
+            "method": "return_period",
+            "return_period_years": {
+              "watch": 2,
+              "warning": 5,
+              "critical": 20
+            },
+            "cell_lat": 31.575005,
+            "cell_lon": 77.17502,
+            "river": "Bakhli Khad (with Deola Nal), as modelled by GloFAS",
+            "cell_verified": false
           },
           "max_rain_24h_mm": 30.8,
           "lead_hours_watch_to_peak_day": null,
@@ -142,10 +202,20 @@
           "peak_discharge_day": "2025-07-01",
           "peak_discharge": 0.5,
           "thresholds": {
-            "watch": 1.03,
-            "warning": 1.36,
-            "critical": 1.82,
-            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+            "watch": 1.284,
+            "warning": 1.758,
+            "critical": 2.373,
+            "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
+            "method": "return_period",
+            "return_period_years": {
+              "watch": 2,
+              "warning": 5,
+              "critical": 20
+            },
+            "cell_lat": 31.525002,
+            "cell_lon": 77.225006,
+            "river": "Bakhli Khad headwaters (Chimti Khad, Bhekhli Nala)",
+            "cell_verified": false
           },
           "max_rain_24h_mm": 33.4,
           "lead_hours_watch_to_peak_day": null,
@@ -160,10 +230,20 @@
           "peak_discharge_day": "2025-06-29",
           "peak_discharge": 0.37,
           "thresholds": {
-            "watch": 0.94,
-            "warning": 1.42,
-            "critical": 2.08,
-            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+            "watch": 1.409,
+            "warning": 2.211,
+            "critical": 3.252,
+            "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
+            "method": "return_period",
+            "return_period_years": {
+              "watch": 2,
+              "warning": 5,
+              "critical": 20
+            },
+            "cell_lat": 31.575005,
+            "cell_lon": 77.025024,
+            "river": "Jhuni Khad (with Bhurni Nala)",
+            "cell_verified": false
           },
           "max_rain_24h_mm": 14.5,
           "lead_hours_watch_to_peak_day": null,
@@ -176,12 +256,22 @@
           "first_warning": null,
           "first_critical": null,
           "peak_discharge_day": "2025-07-02",
-          "peak_discharge": 188.23,
+          "peak_discharge": 196.7,
           "thresholds": {
-            "watch": 282.14,
-            "warning": 353.0,
-            "critical": 418.76,
-            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+            "watch": 366.488,
+            "warning": 444.65,
+            "critical": 546.041,
+            "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
+            "method": "return_period",
+            "return_period_years": {
+              "watch": 2,
+              "warning": 5,
+              "critical": 20
+            },
+            "cell_lat": 31.675003,
+            "cell_lon": 77.025024,
+            "river": "Beas (below the Bakhli Khad and Jhuni Khad confluences)",
+            "cell_verified": true
           },
           "max_rain_24h_mm": 14.5,
           "lead_hours_watch_to_peak_day": null,
@@ -194,12 +284,22 @@
           "first_warning": null,
           "first_critical": null,
           "peak_discharge_day": "2025-07-02",
-          "peak_discharge": 0.87,
+          "peak_discharge": 318.15,
           "thresholds": {
-            "watch": 1.7,
-            "warning": 3.224,
-            "critical": 4.619,
-            "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+            "watch": 633.278,
+            "warning": 830.241,
+            "critical": 1085.736,
+            "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
+            "method": "return_period",
+            "return_period_years": {
+              "watch": 2,
+              "warning": 5,
+              "critical": 20
+            },
+            "cell_lat": 31.825005,
+            "cell_lon": 76.475006,
+            "river": "Beas (at Sujanpur Tira, with Nyugal Khad)",
+            "cell_verified": true
           },
           "max_rain_24h_mm": 67.7,
           "lead_hours_watch_to_peak_day": 42.0,

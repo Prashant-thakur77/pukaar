@@ -189,6 +189,17 @@ def _sources(trace: dict[str, Any]) -> list[str]:
         if kind == "reading":
             out.append(f"Forecast ({ev.get('source') or 'open-meteo'}): rain 24 h {ev.get('rain_24h_mm')} mm "
                        f"({ev.get('rain_level')}); river peak {ev.get('discharge_peak')} m³/s ({ev.get('river_level')})")
+        elif kind == "river" and ev.get("mode") == "ensemble":
+            p = ev.get("p_max") or {}
+            out.append(f"River ensemble ({ev.get('members')} members, run {ev.get('run_date')}): P(watch) {p.get('watch')}, "
+                       f"P(warning) {p.get('warning')}, P(critical) {p.get('critical')}; a level is raised at "
+                       f"P >= {ev.get('p_min')}")
+        elif kind == "official":
+            for item in ev.get("items") or []:
+                if item.get("status") == "ok":
+                    out.append(f"Official ({item.get('source')}): {item.get('level')}; {item.get('detail', '')}")
+                elif item.get("status") == "unavailable":
+                    out.append(f"Official ({item.get('source')}): unavailable")
         elif kind == "soil":
             out.append(f"Soil moisture (root zone): {ev.get('moisture_root')} m³/m³"
                        + (f", saturation {ev.get('saturation')}" if ev.get("saturation") is not None else ""))

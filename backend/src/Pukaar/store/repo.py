@@ -19,11 +19,13 @@ Keys:
   OFFICER#username META (Telegram chat) | PUSH#id (Web Push subscription; TTL 180 days) | PUSHTEST (rate limit)
   MODELPROBE  META                   (last Bedrock model-access probe; at most one per 6 hours)
   ROSTER#district  date#shift        (duty roster: primary, backup, escalation officer; TTL 400 days)
+  FETCHCACHE#key META                (cached external data: daily river ensemble, official feeds; TTL)
 Sparse GSI gsi1: gsi1pk = "OPEN#ALERT" / "OPEN#REPORT" while work is open.
 """
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from functools import lru_cache
 from typing import Any, Iterable, TypeVar
@@ -540,6 +542,18 @@ class Repo:
     def delete_roster_shift(self, district: str, date: str, shift: str) -> bool:
         old = self.t.delete_item(Key={"pk": f"ROSTER#{district}", "sk": f"{date}#{shift}"}, ReturnValues="ALL_OLD")
         return bool(old.get("Attributes"))
+    # -- cached external data (services/fetch_cache.py) ------------------
+    def get_cache(self, key: str, now: float) -> tuple[float, dict[str, Any]] | None:
+        """(expires, value) while the item has not expired; DynamoDB's own TTL deletes it later."""
+        item = self._get(f"FETCHCACHE#{key}", "META")
+        if not item or float(item.get("expires", 0)) <= now:
+            return None
+        return float(item["expires"]), json.loads(str(item["body"]))
+
+    def put_cache(self, key: str, value: dict[str, Any], expires: float) -> None:
+        # Stored as a JSON string: floats stay floats, and nested None values survive.
+        self._put({"pk": f"FETCHCACHE#{key}", "sk": "META", "body": json.dumps(value, separators=(",", ":")),
+                   "expires": int(expires), "ttl": int(expires) + 86400})
 
     # -- road blocks on evacuation routes --------------------------------
     def put_roadblock(self, b: RoadBlock) -> None:

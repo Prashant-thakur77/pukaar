@@ -1,8 +1,10 @@
 """Rain and river data: live Open-Meteo forecasts, and archived replay files.
 
 Live:   forecast API hourly precipitation (next 24 h) and root-zone soil
-        moisture (the same request), and flood API daily river discharge
-        (past 2 days, today and the next 7 days).
+        moisture (the same request), every sweep; flood API daily river discharge
+        for the village's river cell (past 2 days, today and the next 7 days), every
+        sweep; the flood API's 51-member ensemble for lead days 1-3, once a day per
+        cell (cached); and official data as evidence (services/official_data.py).
 Replay: files written by scripts/fetch_replay.py. Rain is the archived
         forecast (historical-forecast API); discharge is the flood API's
         archived daily series, which stands in for a perfect discharge
@@ -23,7 +25,7 @@ import httpx
 from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.core.log import get_logger, log
-from Pukaar.services import soil
+from Pukaar.services import fetch_cache, official_data, risk_rules, soil
 from Pukaar.services.risk_rules import rain_level, river_level, scaled_bands
 from Pukaar.store.models import Reading, Village
 
@@ -71,11 +73,70 @@ def _reading(village: Village, at: datetime, hourly: list[tuple[str, float | Non
     return reading
 
 
+def river_point(village: Village) -> tuple[float, float]:
+    """The GloFAS cell to ask about: the calibrated river cell (data/river_cells.json), else the village."""
+    th = village.thresholds
+    if th is not None and th.cell_lat is not None and th.cell_lon is not None:
+        return th.cell_lat, th.cell_lon
+    return village.lat, village.lon
+
+
+# -- the GloFAS ensemble, once a day ----------------------------------------------
+# GloFAS issues one forecast a day, so the 51-member ensemble (control + 50) is fetched once per
+# river cell per UTC day and cached (services/fetch_cache.py); rain stays every 15 minutes. A failed
+# fetch is retried after ENSEMBLE_RETRY_MINUTES, never on every sweep.
+ENSEMBLE_RETRY_MINUTES = 60
+ENSEMBLE_CACHE_HOURS = 26
+
+
+def parse_ensemble(body: dict[str, Any], today: str) -> dict[str, Any]:
+    """Sorted member discharges per lead day (1..3) from an ensemble=true flood API response."""
+    daily = body.get("daily") or {}
+    keys = [k for k in daily if k.startswith("river_discharge_member")]
+    if not keys:
+        raise ValueError("no ensemble members in the response")
+    if "river_discharge" in daily:
+        keys = ["river_discharge", *keys]  # the control run is the 51st member
+    times = list(daily.get("time") or [])
+    if today not in times:
+        raise ValueError(f"the ensemble does not start by {today}")
+    t0 = times.index(today)
+    days = []
+    for lead in risk_rules.ENSEMBLE_LEAD_DAYS:
+        i = t0 + lead
+        if i >= len(times):
+            break
+        values = sorted(round(float(daily[k][i]), 3) for k in keys if i < len(daily[k]) and daily[k][i] is not None)
+        days.append({"date": times[i], "lead": lead, "values": values})
+    if not any(d["values"] for d in days):
+        raise ValueError("no member values for lead days 1-3")
+    return {"status": "ok", "members": len(keys), "run_date": times[0], "days": days}
+
+
+def fetch_ensemble(client: httpx.Client, lat: float, lon: float, at: datetime) -> dict[str, Any]:
+    today = at.astimezone(timezone.utc).date().isoformat()
+
+    def _fetch() -> dict[str, Any]:
+        try:
+            r = client.get(FLOOD_URL, params={"latitude": lat, "longitude": lon, "daily": "river_discharge",
+                                              "ensemble": "true", "forecast_days": max(risk_rules.ENSEMBLE_LEAD_DAYS) + 1})
+            r.raise_for_status()
+            out = parse_ensemble(r.json(), today)
+        except Exception as exc:
+            log(_LOG, "river ensemble unavailable", 30, lat=lat, lon=lon, error=f"{type(exc).__name__}: {exc}"[:200])
+            return {"status": "unavailable", "error": f"{type(exc).__name__}: {exc}"[:200], "fetched_at": clock.iso(clock.now())}
+        return {**out, "fetched_at": clock.iso(clock.now()), "cell": {"lat": lat, "lon": lon}}
+
+    return fetch_cache.get_or_fetch(f"ensemble:{lat:.3f},{lon:.3f}:{today}", ENSEMBLE_CACHE_HOURS * 3600, _fetch,
+                                    failure_ttl_seconds=ENSEMBLE_RETRY_MINUTES * 60)
+
+
 def fetch_live(village: Village, at: datetime | None = None) -> Reading:
     s = get_settings()
     if not s.hydromet_enabled:
         raise RuntimeError("live hydromet fetch disabled (PUKAAR_HYDROMET_ENABLED=false)")
     at = at or clock.now()
+    cell_lat, cell_lon = river_point(village)
     with httpx.Client(timeout=s.hydromet_timeout_seconds) as client:
         rain = client.get(
             FORECAST_URL,
@@ -85,18 +146,26 @@ def fetch_live(village: Village, at: datetime | None = None) -> Reading:
         rain.raise_for_status()
         flood = client.get(
             FLOOD_URL,
-            params={"latitude": village.lat, "longitude": village.lon, "daily": "river_discharge",
+            params={"latitude": cell_lat, "longitude": cell_lon, "daily": "river_discharge",
                     "past_days": 2, "forecast_days": OUTLOOK_DAYS + 1},
         )
         flood.raise_for_status()
+        ensemble = (fetch_ensemble(client, cell_lat, cell_lon, at)
+                    if s.river_ensemble_enabled and village.thresholds is not None else {"status": "off"})
     h = rain.json().get("hourly", {})
     # None stays None: a gap in the forecast is unknown rain, never 0 mm (decision_engine handles it).
     hourly = [(t, None if v is None else float(v)) for t, v in zip(h.get("time", []), h.get("precipitation", []))]
     soil_root = soil.root_zone(h, 0)  # the current hour: the antecedent state, not a forecast
     d = flood.json().get("daily", {})
     daily = [(t, float(v)) for t, v in zip(d.get("time", []), d.get("river_discharge", [])) if v is not None]
-    log(_LOG, "live reading fetched", village_id=village.id, hours=len(hourly), days=len(daily), soil=soil_root)
-    return _reading(village, at, hourly, daily, "open-meteo", replay=False, soil_root=soil_root)
+    reading = _reading(village, at, hourly, daily, "open-meteo", replay=False, soil_root=soil_root)
+    reading.discharge_ensemble = ensemble
+    # Evidence only (never raises: an unavailable source is an "unavailable" item).
+    reading.official = official_data.for_village(village, at)
+    reading.river_level = risk_rules.river_assessment(reading, village.thresholds)["level"]  # type: ignore[assignment]
+    log(_LOG, "live reading fetched", village_id=village.id, hours=len(hourly), days=len(daily), soil=soil_root,
+        ensemble=ensemble.get("status"), official=[i.get("status") for i in reading.official])
+    return reading
 
 
 # -- replay ---------------------------------------------------------------

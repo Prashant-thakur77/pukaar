@@ -28,7 +28,7 @@ REPORT_ZERO_WEIGHT_HOURS = 3.0
 # Report types that floor the village at warning once verified.
 IMPACT_TYPES = {"road_cut", "bridge_unsafe", "homes_affected", "people_trapped", "landslide"}
 SEVERITY_TO_LEVEL = {"low": "normal", "medium": "watch", "high": "warning", "critical": "critical"}
-RULES_VERSION = "risk-rules-v1"
+RULES_VERSION = "risk-rules-v2"
 AUTO_VERIFIED_CAP = "warning"
 # A gauge reading older than this changes nothing.
 GAUGE_FRESH_MINUTES = 30
@@ -62,6 +62,97 @@ def river_level(peak_discharge: float | None, thresholds: Thresholds | None) -> 
     if peak_discharge >= thresholds.watch:
         return "watch"
     return "normal"
+
+
+# -- river: the GloFAS ensemble ---------------------------------------------------
+# A level is raised when at least P_MIN of the ensemble members reach its threshold on a lead
+# day (the ECMWF/GloFAS reporting-point convention); Settings.river_ensemble_p_min overrides it.
+ENSEMBLE_P_MIN = 0.3
+ENSEMBLE_LEAD_DAYS = (1, 2, 3)
+RIVER_LEVELS = ("watch", "warning", "critical")
+
+
+def exceedance_probabilities(days: list[dict[str, Any]], thresholds: Thresholds) -> list[dict[str, Any]]:
+    """Per lead day: the share of ensemble members at or above each threshold.
+
+    days: [{"date", "lead", "values": [member discharges]}] (Reading.discharge_ensemble["days"]).
+    Members with no value are left out of both counts; a day with none is skipped.
+    """
+    out = []
+    for day in days:
+        if day.get("lead") not in ENSEMBLE_LEAD_DAYS:
+            continue
+        values = [float(v) for v in day.get("values") or [] if v is not None]
+        if not values:
+            continue
+        p = {lvl: round(sum(1 for v in values if v >= getattr(thresholds, lvl)) / len(values), 3) for lvl in RIVER_LEVELS}
+        out.append({"date": day.get("date"), "lead": day["lead"], "members": len(values), "p": p})
+    return out
+
+
+def ensemble_level(probabilities: list[dict[str, Any]], p_min: float = ENSEMBLE_P_MIN) -> tuple[str, dict[str, float]]:
+    """(the highest level whose exceedance probability reaches p_min on any lead day, max P per level)."""
+    p_max = {lvl: max((d["p"][lvl] for d in probabilities), default=0.0) for lvl in RIVER_LEVELS}
+    level = "normal"
+    for lvl in RIVER_LEVELS:
+        if p_max[lvl] >= p_min:
+            level = lvl
+    return level, p_max
+
+
+def river_assessment(reading: Reading | None, thresholds: Thresholds | None, p_min: float | None = None,
+                     use_ensemble: bool | None = None) -> dict[str, Any]:
+    """The river level and how it was reached.
+
+    With an ensemble ("ensemble" mode): the higher of today's discharge against the thresholds and
+    the highest level whose probability reaches p_min on lead day 1-3. A deterministic forecast that
+    crosses a threshold while fewer than p_min of the members do raises nothing: that is the point.
+    Without one ("deterministic" mode: no ensemble, unavailable, switched off, or a replay): the
+    peak of today and the next three days, as before. Missing discharge never reads as a calm
+    river: decision_engine carries the last values forward or holds the level.
+    """
+    if use_ensemble is None or p_min is None:
+        from Pukaar.core.config import get_settings
+
+        s = get_settings()
+        use_ensemble = getattr(s, "river_ensemble_enabled", True) if use_ensemble is None else use_ensemble
+        p_min = getattr(s, "river_ensemble_p_min", ENSEMBLE_P_MIN) if p_min is None else p_min
+    out: dict[str, Any] = {"level": "normal", "mode": "none", "p_min": p_min, "ensemble_status": None,
+                           "p_at_level": None}
+    if reading is None or thresholds is None:
+        return out
+    ens = reading.discharge_ensemble or {}
+    out["ensemble_status"] = ens.get("status") if ens else None
+    deterministic = river_level(reading.discharge_peak, thresholds)
+    probabilities = exceedance_probabilities(ens.get("days") or [], thresholds) if ens.get("status") == "ok" else []
+    if use_ensemble and probabilities:
+        today = river_level(reading.discharge, thresholds)
+        ens_lvl, p_max = ensemble_level(probabilities, p_min)
+        level = _max(today, ens_lvl)
+        out.update(level=level, mode="ensemble", today_level=today, ensemble_level=ens_lvl,
+                   deterministic_level=deterministic, p_max=p_max, days=probabilities,
+                   members=max(d["members"] for d in probabilities),
+                   # The probability behind the level; None when today's discharge set it.
+                   p_at_level=p_max[level] if level != "normal" and ens_lvl == level else None,
+                   run_date=ens.get("run_date"), fetched_at=ens.get("fetched_at"))
+        return out
+    out.update(level=deterministic, mode="deterministic", deterministic_level=deterministic)
+    return out
+
+
+def official_level(items: list[dict[str, Any]]) -> tuple[str, list[str]]:
+    """The highest level any available official source implies, and which sources said so.
+    An unavailable or switched-off source says nothing (never "normal")."""
+    level, sources = "normal", []
+    for item in items:
+        lvl = item.get("level")
+        if item.get("status") != "ok" or lvl not in LEVELS or lvl == "normal":
+            continue
+        if level_rank(lvl) > level_rank(level):
+            level, sources = lvl, [str(item.get("source", "?"))]
+        elif lvl == level:
+            sources.append(str(item.get("source", "?")))
+    return level, sources
 
 
 def gauge_level(stage_cm: float | None, gauge: GaugeConfig | None) -> str:
@@ -138,6 +229,8 @@ def assess(
     soil: SoilRange | None = None,
     soil_modifier: bool | None = None,
     allow_simulated: bool = False,
+    ensemble_p_min: float | None = None,
+    official_raises: bool | None = None,
 ) -> Assessment:
     """Raw level for one sweep, before hysteresis. reports = (report, created_at).
 
@@ -147,6 +240,8 @@ def assess(
     sets a level unless allow_simulated (replays only).
     soil/soil_modifier: the village's soil range and whether the soil modifier may lower the
     rain bands (None reads the PUKAAR_SOIL_MODIFIER setting).
+    ensemble_p_min: the share of ensemble members that raises a river level (None: the setting).
+    official_raises: whether official data may raise the level (None: the setting); never lowers it.
     """
     rules: list[str] = []
     evidence: list[dict[str, Any]] = []
@@ -160,7 +255,8 @@ def assess(
     if soil_info["applied"]:
         rules.append(soil_mod.rule_tag(soil_info))
     rain = rain_level(reading.rain_24h_mm if reading else None, bands)
-    river = river_level(reading.discharge_peak if reading else None, thresholds)
+    river_info = river_assessment(reading, thresholds, ensemble_p_min)
+    river = river_info["level"]
     if reading is not None:
         evidence.append(
             {
@@ -186,8 +282,21 @@ def assess(
             evidence.append({"kind": "soil", "at": reading.at, **soil_info})
         if rain != "normal":
             rules.append(f"rain_24h>={dict(bands)[rain]}mm:{rain}")
-        if river != "normal" and thresholds is not None:
-            rules.append(f"discharge>={getattr(thresholds, river)}:{river}")
+        if thresholds is not None:
+            evidence.append({"kind": "river", "at": reading.at, "cell": {"lat": thresholds.cell_lat, "lon": thresholds.cell_lon},
+                             "river": thresholds.river, "cell_verified": thresholds.cell_verified,
+                             "method": thresholds.method, "return_period_years": thresholds.return_period_years,
+                             **{k: v for k, v in river_info.items() if k != "days"},
+                             "lead_days": river_info.get("days", [])})
+            if river_info["mode"] == "ensemble" and river != "normal":
+                if river_info["p_at_level"] is not None:
+                    rules.append(f"river_ensemble:P({river})={river_info['p_at_level']:g}>={river_info['p_min']:g}:{river}")
+                else:
+                    rules.append(f"discharge_today>={getattr(thresholds, river)}:{river}")
+            elif river != "normal":
+                rules.append(f"discharge>={getattr(thresholds, river)}:{river}")
+            if river_info["ensemble_status"] == "unavailable":
+                rules.append("river_ensemble_unavailable")
     else:
         rules.append("no_reading")
 
@@ -232,6 +341,23 @@ def assess(
             rules.append("gauge_simulated")
 
     level = _max(rain, river, gauge_lvl)
+
+    # Official data (CWC, IMD, Flood Hub, BIPAD) is evidence for the officer. It raises the level only
+    # when official_raises_level is on, and only ever upwards; it is not a source for "two agree".
+    if reading is not None and reading.official:
+        if official_raises is None:
+            from Pukaar.core.config import get_settings
+
+            official_raises = bool(getattr(get_settings(), "official_raises_level", False))
+        evidence.append({"kind": "official", "at": reading.at, "raises_level": official_raises,
+                         "items": list(reading.official)})
+        off_level, off_sources = official_level(reading.official)
+        if off_level != "normal":
+            if official_raises and level_rank(off_level) > level_rank(level):
+                level = off_level
+                rules.append(f"official:{'+'.join(off_sources)}:{off_level}")
+            else:
+                rules.append(f"official_corroborates:{'+'.join(off_sources)}:{off_level}")
 
     report_level = "normal"
     impact_verified = False

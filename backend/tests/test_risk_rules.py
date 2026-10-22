@@ -82,7 +82,7 @@ def test_hysteresis_calm_count_resets_on_equal_level():
 def test_trace_evidence_lists_reading_and_reports():
     a = rr.assess(reading(rain=70, peak=5), TH, [report()], NOW)
     kinds = [e["kind"] for e in a.evidence]
-    assert kinds == ["reading", "report"]
+    assert kinds == ["reading", "river", "report"]
     assert a.evidence[0]["thresholds"]["warning"] == 20.0
 
 

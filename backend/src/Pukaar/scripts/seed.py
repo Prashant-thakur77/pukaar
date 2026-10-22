@@ -13,6 +13,7 @@ import json
 
 from Pukaar.core.config import get_settings
 from Pukaar.services import checklist
+from Pukaar.services.risk_rules import river_level
 from Pukaar.store.models import GaugeConfig, PastEvent, Recipient, SoilRange, Thresholds, Village
 from Pukaar.store.repo import Repo, get_repo
 
@@ -33,8 +34,7 @@ def seed(repo: Repo) -> list[str]:
             id=raw["id"], name=raw["name"], name_hi=raw["name_hi"], district=raw["district"], lat=raw["lat"],
             lon=raw["lon"], coords_verified=False, coords_source=raw.get("coords_source"), population=None,
             officers=officers,
-            thresholds=Thresholds(watch=th["watch"], warning=th["warning"], critical=th["critical"], source=th["source"])
-            if th else None,
+            thresholds=Thresholds.from_file(th) if th else None,
             # Illustrative thresholds, to be set from the gauge's own record after installation.
             gauge=GaugeConfig.model_validate(raw["gauge"]) if raw.get("gauge") else None,
             soil=SoilRange.model_validate(th["soil"]) if th and th.get("soil") else None,
@@ -52,11 +52,14 @@ def seed(repo: Repo) -> list[str]:
                                          name=f"Demo phone {i} (stub channel)", channel="stub",
                                          role="pradhan" if i == 1 else "villager"))
         for ev in (th or {}).get("past_events", []):
-            level = "critical" if th and ev["discharge"] >= th["critical"] else "warning"
+            # The level the river rule gives that day's discharge (at least Watch: these are the record's top days).
+            level = river_level(ev["discharge"], village.thresholds)
+            level = level if level != "normal" else "watch"
+            record = "-".join(str(y) for y in th.get("record_years", [])) if th else ""
             repo.put_past_event(PastEvent(
                 village_id=raw["id"], date=ev["date"], level=level,
                 note_en=f"River discharge reached {ev['discharge']} m³/s on {ev['date']}, one of the highest days in "
-                        f"the 1984-2024 record for this river cell.",
+                        f"the {record or 'archived'} record for this river cell.",
                 note_hi=f"{ev['date']} को नदी का बहाव {ev['discharge']} m³/s तक पहुँचा था।",
                 source="Open-Meteo flood API (GloFAS reanalysis), daily river discharge",
             ))

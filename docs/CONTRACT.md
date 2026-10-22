@@ -51,7 +51,8 @@ pradhan token and passes `policy.guard.authorize()`.
 
 ```
 Village   {id, name, name_hi, district, lat, lon, coords_verified, population|null,
-           level, level_since, calm_sweeps, thresholds{watch,warning,critical}|null,
+           level, level_since, calm_sweeps, thresholds{watch,warning,critical,method,
+             return_period_years, cell_lat, cell_lon, river, cell_verified}|null,
            latest_reading: Reading|null, open_alert_id|null, soil{dry,wet,source}|null,
            readiness: Readiness, replay, live_level, live_level_since|null, replay_level|null,
            data_status: "ok"|"stale"|"unavailable", data_ok_at|null, data_missing_sweeps, data_note}
@@ -63,7 +64,11 @@ Reading   {village_id, at, rain_24h_mm|null, rain_hourly[{t,mm}], discharge|null
            discharge_forecast[{date,value}], discharge_peak|null,
            discharge_outlook[{date,value}] (today..+7 days), soil_moisture_root|null (m³/m³),
            rain_level, river_level, source: "open-meteo"|"replay", replay,
-           missing["rain"|"discharge"] (unknown, never read as 0), carried_from|null}
+           missing["rain"|"discharge"] (unknown, never read as 0), carried_from|null,
+           discharge_ensemble{status: "ok"|"unavailable"|"off", members, run_date,
+             days[{date,lead,values[]}], fetched_at}|null (GloFAS ensemble at the river cell, once a day),
+           official[{source: "cwc"|"imd"|"flood_hub"|"bipad", name, status: "ok"|"unavailable"|"off",
+             level|null, detail, ...}] (evidence; never lowers a level)}
 Readiness {state: "none"|"get_ready", available, horizon_days|null, peak_day|null,
            peak_vs_watch_ratio|null, peak_discharge|null, watch|null, source,
            window_days[2,7], days[{date,days_ahead,value}], from_reading|null, replay}

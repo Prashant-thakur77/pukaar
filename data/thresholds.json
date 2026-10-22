@@ -1,8 +1,72 @@
 {
   "thunag": {
-    "watch": 1.14,
-    "warning": 1.532,
-    "critical": 2.1,
+    "watch": 1.43,
+    "warning": 1.967,
+    "critical": 2.664,
+    "method": "return_period",
+    "return_period_years": {
+      "watch": 2,
+      "warning": 5,
+      "critical": 20
+    },
+    "gumbel": {
+      "mu": 1.2559,
+      "beta": 0.4742,
+      "n_years": 28
+    },
+    "annual_maxima": {
+      "1997": 2.36,
+      "1998": 1.28,
+      "1999": 1.4,
+      "2000": 1.19,
+      "2001": 1.17,
+      "2002": 0.84,
+      "2003": 0.7,
+      "2004": 0.45,
+      "2005": 0.78,
+      "2006": 1.23,
+      "2007": 2.85,
+      "2008": 2.47,
+      "2009": 1.59,
+      "2010": 2.31,
+      "2011": 1.55,
+      "2012": 1.48,
+      "2013": 1.75,
+      "2014": 1.01,
+      "2015": 2.06,
+      "2016": 1.33,
+      "2017": 1.56,
+      "2018": 1.7,
+      "2019": 1.92,
+      "2020": 1.22,
+      "2021": 1.25,
+      "2022": 1.88,
+      "2023": 2.24,
+      "2024": 1.26
+    },
+    "mean_daily_discharge": 0.539,
+    "percentile": {
+      "watch": 1.14,
+      "warning": 1.532,
+      "critical": 2.1,
+      "river_cell": {
+        "lat": 31.575005,
+        "lon": 77.17502
+      },
+      "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+    },
+    "percentile_at_river_cell": {
+      "watch": 1.14,
+      "warning": 1.532,
+      "critical": 2.1
+    },
+    "river_cell": {
+      "lat": 31.575005,
+      "lon": 77.17502
+    },
+    "river": "Bakhli Khad (with Deola Nal), as modelled by GloFAS",
+    "cell_verified": false,
+    "cell_reasoning": "Thunag sits on Deola Nal, 0.1 km away, which meets Bakhli Khad 1.4 km from the village; Bakhli Khad rises at Janjehli and flows north-west to Thunag, then north to the Beas at Pandoh (OpenStreetMap). In the model the Janjehli cell drains into this cell (residual 0.07 m³/s), so this cell is GloFAS's Bakhli Khad at Thunag. It is still a tiny model catchment (mean 0.6 m³/s, record 2.85 m³/s): GloFAS at 0.05° does not resolve this khad as a larger channel. The next cell on the modelled Bakhli, 31.625, 77.125 (mean 4.4 m³/s), is 7.4 km north and downstream of the village, so it cannot warn before water reaches Thunag. The river signal here stays weak; a gauge on Deola Nal or Bakhli Khad is the real fix.",
     "past_events": [
       {
         "date": "2007-08-12",
@@ -18,22 +82,228 @@
       }
     ],
     "days": 10227,
-    "river_cell": {
-      "lat": 31.575005,
-      "lon": 77.17502
-    },
-    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5",
+    "record_years": [
+      1997,
+      2024
+    ],
+    "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
     "soil": {
       "dry": 0.236,
       "wet": 0.406,
       "hours": 17544,
       "source": "open-meteo historical-forecast hourly soil_moisture_9_to_27cm+soil_moisture_27_to_81cm mean, 2024-01-01..2025-12-31, percentiles 5/95"
+    },
+    "watch_days": {
+      "window": [
+        "2019-01-01",
+        "2024-12-31"
+      ],
+      "lookahead_days": 3,
+      "method": "days with max(today..today+3) >= threshold, reanalysis as a perfect forecast",
+      "before": {
+        "threshold": {
+          "watch": 1.14,
+          "warning": 1.532,
+          "critical": 2.1
+        },
+        "watch": {
+          "per_year": {
+            "2019": 55,
+            "2020": 18,
+            "2021": 30,
+            "2022": 53,
+            "2023": 92,
+            "2024": 36
+          },
+          "mean": 47.3,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 1,
+            "2021": 3,
+            "2022": 1,
+            "2023": 1,
+            "2024": 3
+          },
+          "episodes_mean": 1.7
+        },
+        "warning": {
+          "per_year": {
+            "2019": 23,
+            "2020": 0,
+            "2021": 0,
+            "2022": 19,
+            "2023": 37,
+            "2024": 0
+          },
+          "mean": 13.2,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 0,
+            "2021": 0,
+            "2022": 1,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.5
+        },
+        "critical": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 7,
+            "2024": 0
+          },
+          "mean": 1.2,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.2
+        }
+      },
+      "after": {
+        "threshold": {
+          "watch": 1.43,
+          "warning": 1.967,
+          "critical": 2.664
+        },
+        "watch": {
+          "per_year": {
+            "2019": 27,
+            "2020": 0,
+            "2021": 0,
+            "2022": 24,
+            "2023": 43,
+            "2024": 0
+          },
+          "mean": 15.7,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 0,
+            "2021": 0,
+            "2022": 1,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.5
+        },
+        "warning": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 11,
+            "2024": 0
+          },
+          "mean": 1.8,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.2
+        },
+        "critical": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "mean": 0.0,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "episodes_mean": 0.0
+        }
+      }
     }
   },
   "janjehli": {
-    "watch": 1.03,
-    "warning": 1.36,
-    "critical": 1.82,
+    "watch": 1.284,
+    "warning": 1.758,
+    "critical": 2.373,
+    "method": "return_period",
+    "return_period_years": {
+      "watch": 2,
+      "warning": 5,
+      "critical": 20
+    },
+    "gumbel": {
+      "mu": 1.1311,
+      "beta": 0.4182,
+      "n_years": 28
+    },
+    "annual_maxima": {
+      "1997": 2.05,
+      "1998": 1.12,
+      "1999": 1.38,
+      "2000": 1.14,
+      "2001": 1.11,
+      "2002": 0.77,
+      "2003": 0.64,
+      "2004": 0.44,
+      "2005": 0.69,
+      "2006": 1.11,
+      "2007": 2.91,
+      "2008": 2.0,
+      "2009": 1.31,
+      "2010": 1.99,
+      "2011": 1.5,
+      "2012": 1.32,
+      "2013": 1.56,
+      "2014": 0.95,
+      "2015": 1.81,
+      "2016": 1.19,
+      "2017": 1.35,
+      "2018": 1.46,
+      "2019": 1.8,
+      "2020": 1.08,
+      "2021": 1.14,
+      "2022": 1.62,
+      "2023": 1.94,
+      "2024": 1.05
+    },
+    "mean_daily_discharge": 0.494,
+    "percentile": {
+      "watch": 1.03,
+      "warning": 1.36,
+      "critical": 1.82,
+      "river_cell": {
+        "lat": 31.525002,
+        "lon": 77.225006
+      },
+      "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+    },
+    "percentile_at_river_cell": {
+      "watch": 1.03,
+      "warning": 1.36,
+      "critical": 1.82
+    },
+    "river_cell": {
+      "lat": 31.525002,
+      "lon": 77.225006
+    },
+    "river": "Bakhli Khad headwaters (Chimti Khad, Bhekhli Nala)",
+    "cell_verified": false,
+    "cell_reasoning": "Janjehli is where Bakhli Khad forms: Chimti Khad, Bhekhli Nala and Budhake dar Nala meet at 31.512, 77.224, 30 m from the village (OpenStreetMap), inside this cell. Everything with a larger flow within 7 km is downstream or in another valley, so the village's own cell is the only one upstream of it. The model catchment is tiny (mean 0.5 m³/s); flash floods from cloudbursts on these headwaters are below what GloFAS can show.",
     "past_events": [
       {
         "date": "2007-08-12",
@@ -49,22 +319,228 @@
       }
     ],
     "days": 10227,
-    "river_cell": {
-      "lat": 31.525002,
-      "lon": 77.225006
-    },
-    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5",
+    "record_years": [
+      1997,
+      2024
+    ],
+    "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
     "soil": {
       "dry": 0.245,
       "wet": 0.407,
       "hours": 17544,
       "source": "open-meteo historical-forecast hourly soil_moisture_9_to_27cm+soil_moisture_27_to_81cm mean, 2024-01-01..2025-12-31, percentiles 5/95"
+    },
+    "watch_days": {
+      "window": [
+        "2019-01-01",
+        "2024-12-31"
+      ],
+      "lookahead_days": 3,
+      "method": "days with max(today..today+3) >= threshold, reanalysis as a perfect forecast",
+      "before": {
+        "threshold": {
+          "watch": 1.03,
+          "warning": 1.36,
+          "critical": 1.82
+        },
+        "watch": {
+          "per_year": {
+            "2019": 65,
+            "2020": 17,
+            "2021": 31,
+            "2022": 52,
+            "2023": 89,
+            "2024": 4
+          },
+          "mean": 43.0,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 1,
+            "2021": 3,
+            "2022": 1,
+            "2023": 1,
+            "2024": 1
+          },
+          "episodes_mean": 1.3
+        },
+        "warning": {
+          "per_year": {
+            "2019": 27,
+            "2020": 0,
+            "2021": 0,
+            "2022": 19,
+            "2023": 37,
+            "2024": 0
+          },
+          "mean": 13.8,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 0,
+            "2021": 0,
+            "2022": 1,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.5
+        },
+        "critical": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 7,
+            "2024": 0
+          },
+          "mean": 1.2,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.2
+        }
+      },
+      "after": {
+        "threshold": {
+          "watch": 1.284,
+          "warning": 1.758,
+          "critical": 2.373
+        },
+        "watch": {
+          "per_year": {
+            "2019": 33,
+            "2020": 0,
+            "2021": 0,
+            "2022": 23,
+            "2023": 42,
+            "2024": 0
+          },
+          "mean": 16.3,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 0,
+            "2021": 0,
+            "2022": 1,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.5
+        },
+        "warning": {
+          "per_year": {
+            "2019": 6,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 10,
+            "2024": 0
+          },
+          "mean": 2.7,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.3
+        },
+        "critical": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "mean": 0.0,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "episodes_mean": 0.0
+        }
+      }
     }
   },
   "gohar": {
-    "watch": 0.94,
-    "warning": 1.42,
-    "critical": 2.08,
+    "watch": 1.409,
+    "warning": 2.211,
+    "critical": 3.252,
+    "method": "return_period",
+    "return_period_years": {
+      "watch": 2,
+      "warning": 5,
+      "critical": 20
+    },
+    "gumbel": {
+      "mu": 1.1493,
+      "beta": 0.7078,
+      "n_years": 28
+    },
+    "annual_maxima": {
+      "1997": 2.39,
+      "1998": 1.11,
+      "1999": 1.16,
+      "2000": 0.97,
+      "2001": 0.89,
+      "2002": 0.63,
+      "2003": 0.61,
+      "2004": 0.2,
+      "2005": 0.53,
+      "2006": 1.12,
+      "2007": 1.78,
+      "2008": 3.03,
+      "2009": 1.73,
+      "2010": 3.17,
+      "2011": 1.26,
+      "2012": 2.11,
+      "2013": 1.69,
+      "2014": 0.8,
+      "2015": 4.78,
+      "2016": 1.16,
+      "2017": 1.44,
+      "2018": 1.7,
+      "2019": 1.81,
+      "2020": 1.32,
+      "2021": 1.14,
+      "2022": 2.0,
+      "2023": 1.99,
+      "2024": 1.1
+    },
+    "mean_daily_discharge": 0.415,
+    "percentile": {
+      "watch": 0.94,
+      "warning": 1.42,
+      "critical": 2.08,
+      "river_cell": {
+        "lat": 31.575005,
+        "lon": 77.025024
+      },
+      "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+    },
+    "percentile_at_river_cell": {
+      "watch": 0.94,
+      "warning": 1.42,
+      "critical": 2.08
+    },
+    "river_cell": {
+      "lat": 31.575005,
+      "lon": 77.025024
+    },
+    "river": "Jhuni Khad (with Bhurni Nala)",
+    "cell_verified": false,
+    "cell_reasoning": "Gohar sits on Jhuni Khad (0.2 km), which flows north from the hills south-east of Gohar, past the village, to the Beas at Pandoh; Bhurni Nala joins it at Gohar (OpenStreetMap). No candidate with a larger flow is upstream of Gohar: the two larger cells to the north are downstream and dominated by Bakhli Khad (5.4) or by streams from the west (3.6). GloFAS does not resolve the Jhuni Khad above Gohar as a channel larger than one cell, so the village's own cell is kept.",
     "past_events": [
       {
         "date": "2015-07-10",
@@ -80,78 +556,632 @@
       }
     ],
     "days": 10227,
-    "river_cell": {
-      "lat": 31.575005,
-      "lon": 77.025024
-    },
-    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5",
+    "record_years": [
+      1997,
+      2024
+    ],
+    "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
     "soil": {
       "dry": 0.169,
       "wet": 0.339,
       "hours": 17544,
       "source": "open-meteo historical-forecast hourly soil_moisture_9_to_27cm+soil_moisture_27_to_81cm mean, 2024-01-01..2025-12-31, percentiles 5/95"
+    },
+    "watch_days": {
+      "window": [
+        "2019-01-01",
+        "2024-12-31"
+      ],
+      "lookahead_days": 3,
+      "method": "days with max(today..today+3) >= threshold, reanalysis as a perfect forecast",
+      "before": {
+        "threshold": {
+          "watch": 0.94,
+          "warning": 1.42,
+          "critical": 2.08
+        },
+        "watch": {
+          "per_year": {
+            "2019": 52,
+            "2020": 35,
+            "2021": 21,
+            "2022": 57,
+            "2023": 90,
+            "2024": 39
+          },
+          "mean": 49.0,
+          "episodes_per_year": {
+            "2019": 2,
+            "2020": 1,
+            "2021": 1,
+            "2022": 1,
+            "2023": 1,
+            "2024": 2
+          },
+          "episodes_mean": 1.3
+        },
+        "warning": {
+          "per_year": {
+            "2019": 19,
+            "2020": 0,
+            "2021": 0,
+            "2022": 22,
+            "2023": 25,
+            "2024": 0
+          },
+          "mean": 11.0,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 0,
+            "2021": 0,
+            "2022": 1,
+            "2023": 2,
+            "2024": 0
+          },
+          "episodes_mean": 0.7
+        },
+        "critical": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "mean": 0.0,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "episodes_mean": 0.0
+        }
+      },
+      "after": {
+        "threshold": {
+          "watch": 1.409,
+          "warning": 2.211,
+          "critical": 3.252
+        },
+        "watch": {
+          "per_year": {
+            "2019": 19,
+            "2020": 0,
+            "2021": 0,
+            "2022": 22,
+            "2023": 25,
+            "2024": 0
+          },
+          "mean": 11.0,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 0,
+            "2021": 0,
+            "2022": 1,
+            "2023": 2,
+            "2024": 0
+          },
+          "episodes_mean": 0.7
+        },
+        "warning": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "mean": 0.0,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "episodes_mean": 0.0
+        },
+        "critical": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "mean": 0.0,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "episodes_mean": 0.0
+        }
+      }
     }
   },
   "pandoh": {
-    "watch": 282.14,
-    "warning": 353.0,
-    "critical": 418.76,
+    "watch": 366.488,
+    "warning": 444.65,
+    "critical": 546.041,
+    "method": "return_period",
+    "return_period_years": {
+      "watch": 2,
+      "warning": 5,
+      "critical": 20
+    },
+    "gumbel": {
+      "mu": 341.2123,
+      "beta": 68.9614,
+      "n_years": 28
+    },
+    "annual_maxima": {
+      "1997": 474.34,
+      "1998": 391.65,
+      "1999": 388.94,
+      "2000": 333.97,
+      "2001": 336.29,
+      "2002": 238.33,
+      "2003": 296.17,
+      "2004": 181.39,
+      "2005": 357.92,
+      "2006": 365.44,
+      "2007": 364.59,
+      "2008": 429.53,
+      "2009": 280.19,
+      "2010": 516.61,
+      "2011": 338.63,
+      "2012": 377.44,
+      "2013": 447.75,
+      "2014": 331.66,
+      "2015": 466.74,
+      "2016": 377.44,
+      "2017": 465.66,
+      "2018": 345.74,
+      "2019": 431.51,
+      "2020": 362.92,
+      "2021": 297.54,
+      "2022": 471.06,
+      "2023": 566.54,
+      "2024": 432.51
+    },
+    "mean_daily_discharge": 134.095,
+    "percentile": {
+      "watch": 282.14,
+      "warning": 353.0,
+      "critical": 418.76,
+      "river_cell": {
+        "lat": 31.675003,
+        "lon": 77.07501
+      },
+      "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+    },
+    "percentile_at_river_cell": {
+      "watch": 300.58,
+      "warning": 383.59,
+      "critical": 455.04
+    },
+    "river_cell": {
+      "lat": 31.675003,
+      "lon": 77.025024
+    },
+    "river": "Beas (below the Bakhli Khad and Jhuni Khad confluences)",
+    "cell_verified": true,
+    "cell_reasoning": "Pandoh is on the Beas (0.3 km, OpenStreetMap), at the Pandoh dam, where Bakhli Khad and Jhuni Khad join. The rule picks this cell (mean 143 m³/s over 2015-2024), 2.8 km west on the Beas main stem; in the model it is the Beas cell at Pandoh (31.675, 77.075, the earlier cell) plus the two khads (correlation 1.000, +10 m³/s). Upstream of the village on the Beas, through Larji and Aut. Dam releases at Pandoh are not modelled.",
     "past_events": [
       {
         "date": "2023-08-26",
-        "discharge": 528.66
+        "discharge": 566.54
       },
       {
         "date": "2010-08-18",
-        "discharge": 480.95
+        "discharge": 516.61
       },
       {
-        "date": "2017-08-09",
-        "discharge": 438.54
+        "date": "2010-09-04",
+        "discharge": 477.63
       }
     ],
     "days": 10227,
-    "river_cell": {
-      "lat": 31.675003,
-      "lon": 77.07501
-    },
-    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5",
+    "record_years": [
+      1997,
+      2024
+    ],
+    "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
     "soil": {
       "dry": 0.169,
       "wet": 0.339,
       "hours": 17544,
       "source": "open-meteo historical-forecast hourly soil_moisture_9_to_27cm+soil_moisture_27_to_81cm mean, 2024-01-01..2025-12-31, percentiles 5/95"
+    },
+    "watch_days": {
+      "window": [
+        "2019-01-01",
+        "2024-12-31"
+      ],
+      "lookahead_days": 3,
+      "method": "days with max(today..today+3) >= threshold, reanalysis as a perfect forecast",
+      "before": {
+        "threshold": {
+          "watch": 282.14,
+          "warning": 353.0,
+          "critical": 418.76
+        },
+        "watch": {
+          "per_year": {
+            "2019": 54,
+            "2020": 35,
+            "2021": 0,
+            "2022": 59,
+            "2023": 85,
+            "2024": 53
+          },
+          "mean": 47.7,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 1,
+            "2021": 0,
+            "2022": 1,
+            "2023": 2,
+            "2024": 1
+          },
+          "episodes_mean": 1.0
+        },
+        "warning": {
+          "per_year": {
+            "2019": 20,
+            "2020": 0,
+            "2021": 0,
+            "2022": 26,
+            "2023": 50,
+            "2024": 24
+          },
+          "mean": 20.0,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 0,
+            "2021": 0,
+            "2022": 1,
+            "2023": 3,
+            "2024": 1
+          },
+          "episodes_mean": 1.0
+        },
+        "critical": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 5,
+            "2023": 19,
+            "2024": 0
+          },
+          "mean": 4.0,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 1,
+            "2023": 2,
+            "2024": 0
+          },
+          "episodes_mean": 0.5
+        }
+      },
+      "after": {
+        "threshold": {
+          "watch": 366.488,
+          "warning": 444.65,
+          "critical": 546.041
+        },
+        "watch": {
+          "per_year": {
+            "2019": 27,
+            "2020": 0,
+            "2021": 0,
+            "2022": 30,
+            "2023": 61,
+            "2024": 26
+          },
+          "mean": 24.0,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 0,
+            "2021": 0,
+            "2022": 1,
+            "2023": 1,
+            "2024": 1
+          },
+          "episodes_mean": 0.7
+        },
+        "warning": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 9,
+            "2023": 22,
+            "2024": 0
+          },
+          "mean": 5.2,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 1,
+            "2023": 2,
+            "2024": 0
+          },
+          "episodes_mean": 0.5
+        },
+        "critical": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 4,
+            "2024": 0
+          },
+          "mean": 0.7,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.2
+        }
+      }
     }
   },
   "sujanpur": {
-    "watch": 1.7,
-    "warning": 3.224,
-    "critical": 4.619,
+    "watch": 633.278,
+    "warning": 830.241,
+    "critical": 1085.736,
+    "method": "return_period",
+    "return_period_years": {
+      "watch": 2,
+      "warning": 5,
+      "critical": 20
+    },
+    "gumbel": {
+      "mu": 569.5864,
+      "beta": 173.7764,
+      "n_years": 28
+    },
+    "annual_maxima": {
+      "1997": 813.7,
+      "1998": 652.13,
+      "1999": 596.04,
+      "2000": 560.05,
+      "2001": 594.66,
+      "2002": 382.71,
+      "2003": 419.73,
+      "2004": 282.79,
+      "2005": 513.04,
+      "2006": 586.49,
+      "2007": 532.33,
+      "2008": 702.07,
+      "2009": 420.7,
+      "2010": 882.08,
+      "2011": 532.33,
+      "2012": 1263.74,
+      "2013": 787.86,
+      "2014": 513.04,
+      "2015": 882.08,
+      "2016": 679.77,
+      "2017": 861.98,
+      "2018": 915.22,
+      "2019": 742.02,
+      "2020": 667.34,
+      "2021": 442.61,
+      "2022": 936.56,
+      "2023": 882.08,
+      "2024": 711.85
+    },
+    "mean_daily_discharge": 210.72,
+    "percentile": {
+      "watch": 1.7,
+      "warning": 3.224,
+      "critical": 4.619,
+      "river_cell": {
+        "lat": 31.825005,
+        "lon": 76.525024
+      },
+      "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5"
+    },
+    "percentile_at_river_cell": {
+      "watch": 479.84,
+      "warning": 656.66,
+      "critical": 804.14
+    },
+    "river_cell": {
+      "lat": 31.825005,
+      "lon": 76.475006
+    },
+    "river": "Beas (at Sujanpur Tira, with Nyugal Khad)",
+    "cell_verified": true,
+    "cell_reasoning": "Sujanpur Tira is on the left bank of the Beas (0.7 km, OpenStreetMap), where Nyugal Khad joins. The cell under the village (31.825, 76.525, mean 0.85 m³/s) is a hillside cell, not the river. The rule picks this cell (mean 232 m³/s, record 937 m³/s in 2015-2024), the Beas main stem 3 km downstream, after Nyugal Khad; the Beas cells upstream (31.875, 76.525 and 31.875, 76.475) carry 217-218 m³/s. Local khads such as the Khairi flooding reported in 2023 are not represented.",
     "past_events": [
       {
-        "date": "2018-07-26",
-        "discharge": 13.93
-      },
-      {
         "date": "2012-08-19",
-        "discharge": 13.0
+        "discharge": 1263.74
       },
       {
-        "date": "2018-08-13",
-        "discharge": 11.13
+        "date": "2022-09-26",
+        "discharge": 936.56
+      },
+      {
+        "date": "2018-08-12",
+        "discharge": 915.22
       }
     ],
     "days": 10227,
-    "river_cell": {
-      "lat": 31.825005,
-      "lon": 76.525024
-    },
-    "source": "open-meteo flood API daily river_discharge 1984-01-01..2024-12-31, percentiles 90/97/99.5",
+    "record_years": [
+      1997,
+      2024
+    ],
+    "source": "Gumbel (EV1) fitted by L-moments to calendar-year maxima of daily river discharge, Open-Meteo flood API (GloFAS v4 reanalysis) 1997..2024; watch/warning/critical = 2/5/20-year",
     "soil": {
       "dry": 0.142,
       "wet": 0.336,
       "hours": 17544,
       "source": "open-meteo historical-forecast hourly soil_moisture_9_to_27cm+soil_moisture_27_to_81cm mean, 2024-01-01..2025-12-31, percentiles 5/95"
+    },
+    "watch_days": {
+      "window": [
+        "2019-01-01",
+        "2024-12-31"
+      ],
+      "lookahead_days": 3,
+      "method": "days with max(today..today+3) >= threshold, reanalysis as a perfect forecast",
+      "before": {
+        "threshold": {
+          "watch": 1.7,
+          "warning": 3.224,
+          "critical": 4.619
+        },
+        "watch": {
+          "per_year": {
+            "2019": 57,
+            "2020": 66,
+            "2021": 0,
+            "2022": 85,
+            "2023": 79,
+            "2024": 50
+          },
+          "mean": 56.2,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 1,
+            "2021": 0,
+            "2022": 1,
+            "2023": 1,
+            "2024": 1
+          },
+          "episodes_mean": 0.8
+        },
+        "warning": {
+          "per_year": {
+            "2019": 14,
+            "2020": 39,
+            "2021": 0,
+            "2022": 28,
+            "2023": 5,
+            "2024": 0
+          },
+          "mean": 14.3,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 1,
+            "2021": 0,
+            "2022": 2,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.8
+        },
+        "critical": {
+          "per_year": {
+            "2019": 0,
+            "2020": 5,
+            "2021": 0,
+            "2022": 5,
+            "2023": 4,
+            "2024": 0
+          },
+          "mean": 2.3,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 1,
+            "2021": 0,
+            "2022": 1,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.5
+        }
+      },
+      "after": {
+        "threshold": {
+          "watch": 633.278,
+          "warning": 830.241,
+          "critical": 1085.736
+        },
+        "watch": {
+          "per_year": {
+            "2019": 20,
+            "2020": 16,
+            "2021": 0,
+            "2022": 33,
+            "2023": 41,
+            "2024": 18
+          },
+          "mean": 21.3,
+          "episodes_per_year": {
+            "2019": 1,
+            "2020": 1,
+            "2021": 0,
+            "2022": 2,
+            "2023": 3,
+            "2024": 1
+          },
+          "episodes_mean": 1.3
+        },
+        "warning": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 4,
+            "2023": 6,
+            "2024": 0
+          },
+          "mean": 1.7,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 1,
+            "2023": 1,
+            "2024": 0
+          },
+          "episodes_mean": 0.3
+        },
+        "critical": {
+          "per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "mean": 0.0,
+          "episodes_per_year": {
+            "2019": 0,
+            "2020": 0,
+            "2021": 0,
+            "2022": 0,
+            "2023": 0,
+            "2024": 0
+          },
+          "episodes_mean": 0.0
+        }
+      }
     }
   }
 }

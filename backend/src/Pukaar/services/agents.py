@@ -400,6 +400,19 @@ def trace_rounds(a: Alert, timeline_steps: list[tuple[str, str]]) -> list[dict[s
                             f"{_fmt(e.get('rain_24h_mm'), ' mm')} · {e.get('rain_level', '—')}"))
             facts.append(_f("River peak (forecast)", "नदी का शिखर (पूर्वानुमान)",
                             f"{_fmt(e.get('discharge_peak'), ' m³/s')} · {e.get('river_level', '—')}"))
+        elif k == "river" and e.get("mode") == "ensemble":
+            p = e.get("p_max") or {}
+            facts.append(_f("River ensemble, days 1-3", "नदी पूर्वानुमान समूह, 1-3 दिन",
+                            f"P(watch) {p.get('watch', 0):g} · P(warning) {p.get('warning', 0):g} · "
+                            f"P(critical) {p.get('critical', 0):g} · raises at {e.get('p_min'):g}"))
+        elif k == "official":
+            for item in e.get("items") or []:
+                if item.get("status") == "off":
+                    continue
+                value = (f"{item.get('level')} · {item.get('detail', '')}" if item.get("status") == "ok"
+                         else "unavailable")
+                facts.append(_f(f"Official: {item.get('source', '?').upper()}", f"सरकारी: {item.get('source', '?').upper()}",
+                                value + ("" if e.get("raises_level") else " (shown, not counted)")))
         elif k == "gauge":
             facts.append(_f("River gauge", "नदी गेज",
                             f"{_fmt(e.get('water_level_cm'), ' cm')} · {e.get('gauge_level', '—')}"

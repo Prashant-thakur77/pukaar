@@ -6,8 +6,14 @@ river discharge (used as a stand-in for a perfect discharge forecast). Soil:
 the same historical-forecast API, hourly root-zone soil moisture (9-27 and
 27-81 cm, averaged), written to soil.json beside scenario.json.
 
-    python -m Pukaar.scripts.fetch_replay          # everything
-    python -m Pukaar.scripts.fetch_replay --soil   # soil.json only; scenario.json untouched
+River discharge is read at each village's calibrated river cell (data/thresholds.json,
+river_cell; scripts/calibrate.py), the same cell the live sweep asks about. The series at the
+village's own coordinates is kept beside it as daily_village_point, for comparison with earlier
+scores.
+
+    python -m Pukaar.scripts.fetch_replay           # everything
+    python -m Pukaar.scripts.fetch_replay --soil    # soil.json only; scenario.json untouched
+    python -m Pukaar.scripts.fetch_replay --river   # river series only; archived rain untouched
 """
 
 from __future__ import annotations
@@ -52,26 +58,45 @@ def _get(client: httpx.Client, url: str, params: dict) -> dict:
     raise RuntimeError(f"rate limited: {url}")
 
 
+def river_cell(v: dict) -> tuple[float, float]:
+    th = json.loads((get_settings().data_dir / "thresholds.json").read_text(encoding="utf-8")).get(v["id"], {})
+    cell = th.get("river_cell") or {}
+    return (cell["lat"], cell["lon"]) if cell.get("lat") is not None else (v["lat"], v["lon"])
+
+
+def fetch_river(spec: dict, v: dict, client: httpx.Client) -> dict:
+    """{daily, daily_village_point, river_cell} for one village over the scenario window."""
+    start = date.fromisoformat(spec["start"][:10]) - timedelta(days=2)
+    end = date.fromisoformat(spec["end"][:10]) + timedelta(days=4)
+    out: dict = {}
+    lat, lon = river_cell(v)
+    for key, (qlat, qlon) in (("daily", (lat, lon)), ("daily_village_point", (v["lat"], v["lon"]))):
+        flood = _get(client, FLOOD_URL, {"latitude": qlat, "longitude": qlon, "daily": "river_discharge",
+                                         "start_date": start.isoformat(), "end_date": end.isoformat()})
+        out[key] = {"time": flood["daily"]["time"], "river_discharge": flood["daily"]["river_discharge"]}
+        if key == "daily":
+            out["river_cell"] = {"lat": flood.get("latitude"), "lon": flood.get("longitude")}
+        time.sleep(1)
+    return out
+
+
 def fetch(name: str, spec: dict, villages: list[dict], client: httpx.Client) -> dict:
     start = date.fromisoformat(spec["start"][:10])
     end = date.fromisoformat(spec["end"][:10])
     rain_end = end + timedelta(days=1)  # 24 h of look-ahead after the last replay hour
-    flood_end = end + timedelta(days=4)
     out = {**spec, "name": name, "villages": {},
            "sources": {"rain": HIST_FORECAST_URL + " (hourly precipitation, best_match)",
-                       "river": FLOOD_URL + " (daily river_discharge, archived)"}}
+                       "river": FLOOD_URL + " (daily river_discharge, archived, at the village's river cell)"}}
     for v in villages:
         rain = _get(client, HIST_FORECAST_URL, {"latitude": v["lat"], "longitude": v["lon"], "hourly": "precipitation",
                                                 "start_date": start.isoformat(), "end_date": rain_end.isoformat(),
                                                 "timezone": "GMT"})
-        flood = _get(client, FLOOD_URL, {"latitude": v["lat"], "longitude": v["lon"], "daily": "river_discharge",
-                                         "start_date": (start - timedelta(days=2)).isoformat(),
-                                         "end_date": flood_end.isoformat()})
+        river = fetch_river(spec, v, client)
         out["villages"][v["id"]] = {
             "hourly": {"time": rain["hourly"]["time"], "precipitation": rain["hourly"]["precipitation"]},
-            "daily": {"time": flood["daily"]["time"], "river_discharge": flood["daily"]["river_discharge"]},
+            **river,
         }
-        print(name, v["id"], "hours", len(rain["hourly"]["time"]), "days", len(flood["daily"]["time"]))
+        print(name, v["id"], "hours", len(rain["hourly"]["time"]), "days", len(river["daily"]["time"]))
         time.sleep(1)
     return out
 
@@ -102,6 +127,14 @@ def main() -> None:
         for name, spec in SCENARIOS.items():
             folder = s.data_dir / "replay" / name
             folder.mkdir(parents=True, exist_ok=True)
+            if "--river" in sys.argv[1:]:
+                data = json.loads((folder / "scenario.json").read_text(encoding="utf-8"))
+                for v in villages:
+                    data["villages"][v["id"]].update(fetch_river(spec, v, client))
+                    print(name, v["id"], "river cell", data["villages"][v["id"]]["river_cell"])
+                data["sources"]["river"] = FLOOD_URL + " (daily river_discharge, archived, at the village's river cell)"
+                (folder / "scenario.json").write_text(json.dumps(data) + "\n", encoding="utf-8")
+                continue
             if not soil_only:
                 data = fetch(name, spec, villages, client)
                 (folder / "scenario.json").write_text(json.dumps(data) + "\n", encoding="utf-8")

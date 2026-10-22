@@ -1,0 +1,16 @@
+Saved responses from official sources, used only to test the parsers in
+backend/src/Pukaar/services/official_data.py (backend/tests/test_official_data.py).
+
+cwc_station_water_level_above_warning.json
+  Central Water Commission flood forecasting site, fetched on 22 October 2026 at about 12:14 UTC:
+  GET https://ffs.india-water.gov.in/ffm/api/station-water-level-above-warning/
+  Unmodified. Eleven stations were above warning level that day, none of them in Himachal Pradesh
+  (the codes carry division suffixes such as MGD5PTN, Middle Ganga Division 5, Patna).
+
+imd_district_warning_featureinfo.json
+  India Meteorological Department GeoServer, fetched on 22 October 2026 at 12:19 UTC:
+  WMS GetFeatureInfo on layer imd:Warnings_StateDistrict_Merged at Thunag (Mandi district),
+  https://reactjs.imd.gov.in/geoserver/wms, info_format=application/json.
+  The district polygon geometries were replaced by null to keep the file small; the properties
+  are unmodified. Colour codes from the layer's own style (WarningsDistrictColor):
+  1 red #F20505, 2 orange #F28705, 3 yellow #F2E205, 4 green #078C03, 0 none.

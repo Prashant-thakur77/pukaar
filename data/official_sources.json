@@ -1,0 +1,11 @@
+{
+  "_note": "Which official sources speak for which village (services/official_data.py). Hand-kept. cwc_stations: CWC station codes on the village's river; empty because the public FFS API (station-water-level-above-warning) gives only codes, the station list endpoints answer 404, and no code for a Himachal station on the Beas or Sutlej could be confirmed from a public source on 2026-10-22. A station also matches when a response carries a state of Himachal Pradesh or a river named in cwc_rivers. imd_district: the IMD district whose warning colour is read at the village point. flood_hub_radius_km: Google Flood Hub gauges within this distance of the river cell. bipad_stations: BIPAD (Nepal) river station ids; none, all five villages are in India.",
+  "cwc_state": "Himachal Pradesh",
+  "villages": {
+    "thunag": {"imd_district": "Mandi", "cwc_rivers": ["Beas"], "cwc_stations": [], "flood_hub_radius_km": 25, "bipad_stations": []},
+    "janjehli": {"imd_district": "Mandi", "cwc_rivers": ["Beas"], "cwc_stations": [], "flood_hub_radius_km": 25, "bipad_stations": []},
+    "gohar": {"imd_district": "Mandi", "cwc_rivers": ["Beas"], "cwc_stations": [], "flood_hub_radius_km": 25, "bipad_stations": []},
+    "pandoh": {"imd_district": "Mandi", "cwc_rivers": ["Beas"], "cwc_stations": [], "flood_hub_radius_km": 25, "bipad_stations": []},
+    "sujanpur": {"imd_district": "Hamirpur", "cwc_rivers": ["Beas"], "cwc_stations": [], "flood_hub_radius_km": 25, "bipad_stations": []}
+  }
+}

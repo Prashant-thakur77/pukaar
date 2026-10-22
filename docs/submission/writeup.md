@@ -20,7 +20,7 @@ Forecasts exist, but they are numbers on a website, not a warning a villager hea
 A loop from forecast to a confirmed warning, for five villages in Mandi district:
 
 1. **Every 15 minutes** the sweep reads rain and river forecasts for each village.
-2. **Code sets the level, never a model**: IMD rain bands (64.5 / 115.6 / 204.5 mm in 24 h), each village's own 1984-2024 river percentiles, two-source agreement, verified villager reports, and hysteresis on the way down.
+2. **Code sets the level, never a model**: IMD rain bands (64.5 / 115.6 / 204.5 mm in 24 h), the 2-, 5- and 20-year river discharges at each village's river cell with the GloFAS ensemble's probability, two-source agreement, verified villager reports, and hysteresis on the way down.
 3. **A Hindi alert is drafted** into a fixed template; a checker rejects any number or place not in the decision trace. If the model is unavailable, the fixed template goes out and is labelled `rule-fallback`.
 4. **A district officer approves in one tap** (console or a signed single-use link). No answer moves to the next officer; a critical alert with nobody answering goes out with the template and is flagged unapproved.
 5. **Polly speaks it** in Hindi, and every registered phone gets the voice and a "मिल गया" (got it) button on Telegram. Anyone who has not confirmed is sent it again. The app times each alert from the level rising to the first confirmation.

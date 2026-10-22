@@ -1,0 +1,476 @@
+{
+  "_note": "River cell per village. `candidates`: every GloFAS v4 cell (0.05°) whose centre is within search.radius_km of the village, with mean and maximum daily discharge over search.window (python -m Pukaar.scripts.calibrate --cells). `chosen` is set by hand: start from the rule (largest mean flow within the radius), then keep it only if the cell drains the stream that runs through the village. Two checks: OpenStreetMap waterways within 4 km of the village (Overpass, 2026-10-22; ways are drawn downstream) and the model's own routing, inferred by mass balance from daily 2023-2024 series (a cell is downstream of another when its flow minus the other's is never negative and is about one cell's local runoff). cell_verified=true only where both checks agree and the river is a named main stem; it is a desk check, not a visit.",
+  "villages": {
+    "thunag": {
+      "village": {
+        "lat": 31.55929,
+        "lon": 77.16515
+      },
+      "candidates": [
+        {
+          "lat": 31.575005,
+          "lon": 77.125,
+          "km": 4.19,
+          "mean": 3.082,
+          "max": 11.94,
+          "days": 3653
+        },
+        {
+          "lat": 31.575005,
+          "lon": 77.225006,
+          "km": 5.93,
+          "mean": 1.14,
+          "max": 4.26,
+          "days": 3653
+        },
+        {
+          "lat": 31.525002,
+          "lon": 77.125,
+          "km": 5.39,
+          "mean": 0.991,
+          "max": 3.75,
+          "days": 3653
+        },
+        {
+          "lat": 31.525002,
+          "lon": 77.17502,
+          "km": 3.93,
+          "mean": 0.974,
+          "max": 3.74,
+          "days": 3653
+        },
+        {
+          "lat": 31.575005,
+          "lon": 77.17502,
+          "km": 1.98,
+          "mean": 0.588,
+          "max": 2.24,
+          "days": 3653
+        },
+        {
+          "lat": 31.525002,
+          "lon": 77.225006,
+          "km": 6.83,
+          "mean": 0.535,
+          "max": 1.94,
+          "days": 3653
+        }
+      ],
+      "rule_suggests": {
+        "lat": 31.575005,
+        "lon": 77.125,
+        "mean": 3.082
+      },
+      "chosen": {
+        "lat": 31.575005,
+        "lon": 77.17502,
+        "river": "Bakhli Khad (with Deola Nal), as modelled by GloFAS",
+        "cell_verified": false,
+        "rule_choice_rejected": {
+          "lat": 31.575005,
+          "lon": 77.125,
+          "why": "largest mean within 7 km (3.1 m³/s), but OpenStreetMap puts Surah Khad, a parallel valley to the west, in that cell, and the model's mass balance does not route Thunag's cell through it"
+        },
+        "reasoning": "Thunag sits on Deola Nal, 0.1 km away, which meets Bakhli Khad 1.4 km from the village; Bakhli Khad rises at Janjehli and flows north-west to Thunag, then north to the Beas at Pandoh (OpenStreetMap). In the model the Janjehli cell drains into this cell (residual 0.07 m³/s), so this cell is GloFAS's Bakhli Khad at Thunag. It is still a tiny model catchment (mean 0.6 m³/s, record 2.85 m³/s): GloFAS at 0.05° does not resolve this khad as a larger channel. The next cell on the modelled Bakhli, 31.625, 77.125 (mean 4.4 m³/s), is 7.4 km north and downstream of the village, so it cannot warn before water reaches Thunag. The river signal here stays weak; a gauge on Deola Nal or Bakhli Khad is the real fix.",
+        "alternative": {
+          "lat": 31.625,
+          "lon": 77.125,
+          "why": "the modelled Bakhli Khad below Thunag, 7.4 km north"
+        }
+      }
+    },
+    "janjehli": {
+      "village": {
+        "lat": 31.51852,
+        "lon": 77.21928
+      },
+      "candidates": [
+        {
+          "lat": 31.575005,
+          "lon": 77.225006,
+          "km": 6.3,
+          "mean": 1.14,
+          "max": 4.26,
+          "days": 3653
+        },
+        {
+          "lat": 31.525002,
+          "lon": 77.17502,
+          "km": 4.26,
+          "mean": 0.974,
+          "max": 3.74,
+          "days": 3653
+        },
+        {
+          "lat": 31.525002,
+          "lon": 77.275024,
+          "km": 5.33,
+          "mean": 0.537,
+          "max": 2.04,
+          "days": 3653
+        },
+        {
+          "lat": 31.525002,
+          "lon": 77.225006,
+          "km": 0.9,
+          "mean": 0.535,
+          "max": 1.94,
+          "days": 3653
+        },
+        {
+          "lat": 31.475006,
+          "lon": 77.17502,
+          "km": 6.41,
+          "mean": 0.451,
+          "max": 1.7,
+          "days": 3653
+        },
+        {
+          "lat": 31.475006,
+          "lon": 77.225006,
+          "km": 4.87,
+          "mean": 0.446,
+          "max": 1.8,
+          "days": 3653
+        }
+      ],
+      "rule_suggests": {
+        "lat": 31.575005,
+        "lon": 77.225006,
+        "mean": 1.14
+      },
+      "chosen": {
+        "lat": 31.525002,
+        "lon": 77.225006,
+        "river": "Bakhli Khad headwaters (Chimti Khad, Bhekhli Nala)",
+        "cell_verified": false,
+        "rule_choice_rejected": {
+          "lat": 31.575005,
+          "lon": 77.225006,
+          "why": "largest mean within 7 km (1.1 m³/s), 6.3 km north in another valley; Janjehli's cell drains to Thunag's, not to it"
+        },
+        "reasoning": "Janjehli is where Bakhli Khad forms: Chimti Khad, Bhekhli Nala and Budhake dar Nala meet at 31.512, 77.224, 30 m from the village (OpenStreetMap), inside this cell. Everything with a larger flow within 7 km is downstream or in another valley, so the village's own cell is the only one upstream of it. The model catchment is tiny (mean 0.5 m³/s); flash floods from cloudbursts on these headwaters are below what GloFAS can show."
+      }
+    },
+    "gohar": {
+      "village": {
+        "lat": 31.57975,
+        "lon": 77.04841
+      },
+      "candidates": [
+        {
+          "lat": 31.625,
+          "lon": 77.07501,
+          "km": 5.63,
+          "mean": 5.387,
+          "max": 29.55,
+          "days": 3653
+        },
+        {
+          "lat": 31.625,
+          "lon": 77.025024,
+          "km": 5.5,
+          "mean": 3.689,
+          "max": 23.95,
+          "days": 3653
+        },
+        {
+          "lat": 31.575005,
+          "lon": 76.975006,
+          "km": 6.97,
+          "mean": 2.186,
+          "max": 9.07,
+          "days": 3653
+        },
+        {
+          "lat": 31.525002,
+          "lon": 77.025024,
+          "km": 6.48,
+          "mean": 0.921,
+          "max": 3.58,
+          "days": 3653
+        },
+        {
+          "lat": 31.575005,
+          "lon": 77.07501,
+          "km": 2.57,
+          "mean": 0.51,
+          "max": 5.27,
+          "days": 3653
+        },
+        {
+          "lat": 31.525002,
+          "lon": 77.07501,
+          "km": 6.59,
+          "mean": 0.487,
+          "max": 1.82,
+          "days": 3653
+        },
+        {
+          "lat": 31.575005,
+          "lon": 77.025024,
+          "km": 2.28,
+          "mean": 0.475,
+          "max": 4.78,
+          "days": 3653
+        }
+      ],
+      "rule_suggests": {
+        "lat": 31.625,
+        "lon": 77.07501,
+        "mean": 5.387
+      },
+      "chosen": {
+        "lat": 31.575005,
+        "lon": 77.025024,
+        "river": "Jhuni Khad (with Bhurni Nala)",
+        "cell_verified": false,
+        "rule_choice_rejected": {
+          "lat": 31.625,
+          "lon": 77.07501,
+          "why": "largest mean within 7 km (5.4 m³/s), but by mass balance 4.4 m³/s of it is the modelled Bakhli Khad; it is 5.6 km downstream of Gohar"
+        },
+        "reasoning": "Gohar sits on Jhuni Khad (0.2 km), which flows north from the hills south-east of Gohar, past the village, to the Beas at Pandoh; Bhurni Nala joins it at Gohar (OpenStreetMap). No candidate with a larger flow is upstream of Gohar: the two larger cells to the north are downstream and dominated by Bakhli Khad (5.4) or by streams from the west (3.6). GloFAS does not resolve the Jhuni Khad above Gohar as a channel larger than one cell, so the village's own cell is kept."
+      }
+    },
+    "pandoh": {
+      "village": {
+        "lat": 31.66902,
+        "lon": 77.05359
+      },
+      "candidates": [
+        {
+          "lat": 31.675003,
+          "lon": 77.025024,
+          "km": 2.79,
+          "mean": 142.941,
+          "max": 566.54,
+          "days": 3653
+        },
+        {
+          "lat": 31.675003,
+          "lon": 77.07501,
+          "km": 2.13,
+          "mean": 132.575,
+          "max": 528.66,
+          "days": 3653
+        },
+        {
+          "lat": 31.675003,
+          "lon": 77.125,
+          "km": 6.79,
+          "mean": 131.305,
+          "max": 521.4,
+          "days": 3653
+        },
+        {
+          "lat": 31.625,
+          "lon": 77.07501,
+          "km": 5.3,
+          "mean": 5.387,
+          "max": 29.55,
+          "days": 3653
+        },
+        {
+          "lat": 31.625,
+          "lon": 77.025024,
+          "km": 5.59,
+          "mean": 3.689,
+          "max": 23.95,
+          "days": 3653
+        },
+        {
+          "lat": 31.725006,
+          "lon": 77.07501,
+          "km": 6.55,
+          "mean": 0.774,
+          "max": 4.4,
+          "days": 3653
+        },
+        {
+          "lat": 31.725006,
+          "lon": 77.025024,
+          "km": 6.79,
+          "mean": 0.758,
+          "max": 4.62,
+          "days": 3653
+        }
+      ],
+      "rule_suggests": {
+        "lat": 31.675003,
+        "lon": 77.025024,
+        "mean": 142.941
+      },
+      "chosen": {
+        "lat": 31.675003,
+        "lon": 77.025024,
+        "river": "Beas (below the Bakhli Khad and Jhuni Khad confluences)",
+        "cell_verified": true,
+        "reasoning": "Pandoh is on the Beas (0.3 km, OpenStreetMap), at the Pandoh dam, where Bakhli Khad and Jhuni Khad join. The rule picks this cell (mean 143 m³/s over 2015-2024), 2.8 km west on the Beas main stem; in the model it is the Beas cell at Pandoh (31.675, 77.075, the earlier cell) plus the two khads (correlation 1.000, +10 m³/s). Upstream of the village on the Beas, through Larji and Aut. Dam releases at Pandoh are not modelled."
+      }
+    },
+    "sujanpur": {
+      "village": {
+        "lat": 31.83364,
+        "lon": 76.50539
+      },
+      "candidates": [
+        {
+          "lat": 31.825005,
+          "lon": 76.475006,
+          "km": 3.03,
+          "mean": 232.113,
+          "max": 936.56,
+          "days": 3653
+        },
+        {
+          "lat": 31.875,
+          "lon": 76.475006,
+          "km": 5.42,
+          "mean": 218.49,
+          "max": 850.14,
+          "days": 3653
+        },
+        {
+          "lat": 31.875,
+          "lon": 76.525024,
+          "km": 4.96,
+          "mean": 217.293,
+          "max": 836.53,
+          "days": 3653
+        },
+        {
+          "lat": 31.825005,
+          "lon": 76.57501,
+          "km": 6.65,
+          "mean": 1.875,
+          "max": 21.18,
+          "days": 3653
+        },
+        {
+          "lat": 31.825005,
+          "lon": 76.525024,
+          "km": 2.09,
+          "mean": 0.849,
+          "max": 13.93,
+          "days": 3653
+        },
+        {
+          "lat": 31.775002,
+          "lon": 76.525024,
+          "km": 6.78,
+          "mean": 0.42,
+          "max": 6.8,
+          "days": 3653
+        }
+      ],
+      "rule_suggests": {
+        "lat": 31.825005,
+        "lon": 76.475006,
+        "mean": 232.113
+      },
+      "chosen": {
+        "lat": 31.825005,
+        "lon": 76.475006,
+        "river": "Beas (at Sujanpur Tira, with Nyugal Khad)",
+        "cell_verified": true,
+        "reasoning": "Sujanpur Tira is on the left bank of the Beas (0.7 km, OpenStreetMap), where Nyugal Khad joins. The cell under the village (31.825, 76.525, mean 0.85 m³/s) is a hillside cell, not the river. The rule picks this cell (mean 232 m³/s, record 937 m³/s in 2015-2024), the Beas main stem 3 km downstream, after Nyugal Khad; the Beas cells upstream (31.875, 76.525 and 31.875, 76.475) carry 217-218 m³/s. Local khads such as the Khairi flooding reported in 2023 are not represented."
+      }
+    }
+  },
+  "search": {
+    "radius_km": 7.0,
+    "window": [
+      "2015-01-01",
+      "2024-12-31"
+    ],
+    "rule": "largest mean daily flow"
+  },
+  "routing_check": {
+    "window": [
+      "2023-01-01",
+      "2024-12-31"
+    ],
+    "method": "residual = Q(downstream) - sum Q(upstream), daily; accepted when it is >= -0.02 m³/s on at least 99% of days",
+    "found": [
+      {
+        "down": [
+          31.575,
+          77.175
+        ],
+        "up": [
+          [
+            31.525,
+            77.225
+          ]
+        ],
+        "residual_mean": 0.069,
+        "residual_min": -0.01,
+        "reading": "the Janjehli cell drains into the Thunag cell: Bakhli Khad, Janjehli to Thunag, as on the map"
+      },
+      {
+        "down": [
+          31.625,
+          77.125
+        ],
+        "up": [
+          [
+            31.575,
+            77.125
+          ],
+          [
+            31.575,
+            77.175
+          ]
+        ],
+        "residual_mean": 0.674,
+        "residual_min": 0.25,
+        "reading": "the Thunag cell and the cell to its west meet here, 6-7 km north of Thunag"
+      },
+      {
+        "down": [
+          31.625,
+          77.075
+        ],
+        "up": [
+          [
+            31.625,
+            77.125
+          ]
+        ],
+        "residual_mean": 1.06,
+        "residual_min": 0.39,
+        "reading": "4.4 of this cell's 5.4 m³/s is the modelled Bakhli Khad, not Gohar's Jhuni Khad"
+      },
+      {
+        "down": [
+          31.625,
+          77.025
+        ],
+        "up": [
+          [
+            31.575,
+            77.025
+          ]
+        ],
+        "residual_mean": 3.147,
+        "residual_min": 1.35,
+        "reading": "3.1 of 3.6 m³/s comes from outside Gohar's cell (cells to the west); not the Jhuni Khad through Gohar"
+      },
+      {
+        "down": [
+          31.675,
+          77.025
+        ],
+        "up": [
+          [
+            31.675,
+            77.075
+          ]
+        ],
+        "residual_mean": 10.3,
+        "reading": "the Beas below Pandoh after the modelled Bakhli and Jhuni Khads join (correlation 1.000)"
+      }
+    ]
+  }
+}
