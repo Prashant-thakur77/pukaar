@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 Level = Literal["normal", "watch", "warning", "critical"]
 LEVELS: tuple[str, ...] = ("normal", "watch", "warning", "critical")
@@ -307,20 +308,71 @@ class Alert(BaseModel):
     token_version: int = 0
     execution_arn: str | None = None
     replay: bool = False
+    # Voice: the 8 kHz call audio (voice/polly.synthesize_call_audio), and how many re-send rounds ran.
+    call_audio_key: str | None = None
+    recall_rounds: int = 0
+
+
+E164 = re.compile(r"^\+[1-9]\d{7,14}$")
+VOICE_CHANNELS = {"voice", "both"}
+TELEGRAM_CHANNELS = {"telegram", "both"}
 
 
 class Recipient(BaseModel):
-    id: str  # telegram chat id or "stub-..." for demo recipients
+    # A Telegram chat id ("both": the chat id of someone who also takes calls), "stub-..." for demo
+    # recipients, or "v_<ulid>" for someone reached by voice call only (scripts/voice.py).
+    id: str
     village_id: str
     name: str
     role: Literal["villager", "pradhan", "officer"] = "villager"
-    # "stub" only for demo recipients with no phone. A telegram recipient is never quietly sent
-    # to the stub: if Telegram cannot be reached the delivery is recorded as failed (dispatch.py).
-    channel: Literal["telegram", "stub"] = "telegram"
+    # "stub" only for demo recipients with no phone. A telegram or voice recipient is never quietly
+    # sent to the stub: if the channel cannot be reached the delivery is recorded as failed (dispatch.py).
+    channel: Literal["telegram", "voice", "both", "stub"] = "telegram"
+    # E.164 (+91XXXXXXXXXX), for voice and both only. Stored like the Telegram chat id (the table is
+    # encrypted at rest), never on a public route, never written to a log (voice.mask).
+    phone: str | None = None
+    # How and when the household agreed to be called (voice and both), e.g. "verbal, field visit 2026-10-25".
+    consent: str | None = None
     language: str = "hi"
+
+    @field_validator("phone")
+    @classmethod
+    def _e164(cls, v: str | None) -> str | None:
+        if v is None or v == "":
+            return None
+        v = v.strip().replace(" ", "").replace("-", "")
+        if not E164.match(v):
+            raise ValueError("phone must be in E.164 form, e.g. +919812345678")
+        return v
+
+    @model_validator(mode="after")
+    def _voice_needs_phone(self) -> "Recipient":
+        if self.channel in VOICE_CHANNELS and not self.phone:
+            raise ValueError(f"a {self.channel} recipient needs a phone number")
+        return self
+
+    @property
+    def takes_voice(self) -> bool:
+        return self.channel in VOICE_CHANNELS
+
+    @property
+    def takes_telegram(self) -> bool:
+        return self.channel in TELEGRAM_CHANNELS
+
+
+VoiceCategory = Literal["busy", "no_answer", "failed", "no_status", "invalid_number", "machine", "no_key",
+                        "provider_error", "provider_off", "blocked"]
 
 
 class Delivery(BaseModel):
+    """One send of one alert to one person on one channel. A "both" recipient has two rows.
+
+    Voice rows: status "pending" while the call is placed but not answered, "sent" once answered
+    (sent_at is the first answer: the voice reached the ear), "failed" when not connected or not
+    placed, "acknowledged" after a key press (1, or 2 for help). Two retry counters (docs/VOICE.md):
+    not_connected (busy, no answer, failed) and no_key (answered, no valid key).
+    """
+
     alert_id: str
     recipient_id: str
     name: str
@@ -330,6 +382,27 @@ class Delivery(BaseModel):
     attempts: int = 0
     acknowledged_at: str | None = None
     error: str | None = None
+    # -- voice only
+    provider: str | None = None  # exotel | plivo | stub (replay only, no call placed)
+    call_ids: list[str] = Field(default_factory=list)  # provider call id per attempt, oldest first
+    call_status: str | None = None  # queued | ringing | answered | completed | busy | no_answer | failed | simulated
+    last_attempt_at: str | None = None
+    not_connected: int = 0
+    no_key: int = 0
+    error_category: VoiceCategory | None = None
+    digit: str | None = None  # the last valid key pressed: 1 heard, 2 needs help, 3 repeat
+    repeats: int = 0
+    reprompts: int = 0
+    unreachable: bool = False  # terminally: flagged to the pradhan and on the alert timeline
+
+    @property
+    def row_key(self) -> str:
+        return delivery_key(self.recipient_id, self.channel)
+
+
+def delivery_key(recipient_id: str, channel: str) -> str:
+    """The sort-key suffix: voice rows sit beside the person's Telegram row."""
+    return f"{recipient_id}#voice" if channel == "voice" else recipient_id
 
 
 class ChecklistItem(BaseModel):
@@ -461,12 +534,13 @@ class RollCall(BaseModel):
 
 
 class RollCallAsked(BaseModel):
-    """Who the question went to. channel "stub" is a demo recipient with no phone: nothing was sent."""
+    """Who the question went to. channel "stub" is a demo recipient with no phone: nothing was sent.
+    channel "voice": a voice-only recipient; the roll-call is not asked by call yet (error says so)."""
 
     rollcall_id: str
     recipient_id: str
     name: str
-    channel: Literal["telegram", "stub"]
+    channel: Literal["telegram", "voice", "stub"]
     asked_at: str
     reminded_at: str | None = None
     error: str | None = None

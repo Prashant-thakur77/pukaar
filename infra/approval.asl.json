@@ -13,7 +13,8 @@
         "officer_index": 0,
         "config": {
           "approval_timeout_seconds.$": "States.StringToJson('${ApprovalTimeoutSeconds}')",
-          "ack_wait_seconds.$": "States.StringToJson('${AckWaitSeconds}')"
+          "ack_wait_seconds.$": "States.StringToJson('${AckWaitSeconds}')",
+          "voice_retry_seconds.$": "States.StringToJson('${VoiceRetrySeconds}')"
         }
       },
       "Next": "DraftAlert"
@@ -415,7 +416,32 @@
           "Next": "Failsafe"
         }
       ],
-      "Next": "Close"
+      "Next": "MoreVoiceRounds"
+    },
+    "MoreVoiceRounds": {
+      "Type": "Choice",
+      "Comment": "Voice calls get up to three attempts (PUKAAR_VOICE_MAX_ATTEMPTS): recall says again=true while a call is still worth another round; the step's recall_rounds bounds the loop.",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.recall.result.again",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.recall.result.again",
+              "BooleanEquals": true
+            }
+          ],
+          "Next": "WaitBeforeRecall"
+        }
+      ],
+      "Default": "Close"
+    },
+    "WaitBeforeRecall": {
+      "Type": "Wait",
+      "SecondsPath": "$.config.voice_retry_seconds",
+      "Next": "Recall"
     },
     "OutcomeDeclined": {
       "Type": "Pass",

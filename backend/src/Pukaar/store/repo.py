@@ -5,7 +5,8 @@ Keys:
               | EVENT#date | DIRECTIVE#iso#id | CHECKLIST#item | SHELTER#place_id | ROLLCALL#iso#id (pointer, TTL 30 days)
               | STAFFGAUGE#id (virtual staff gauge: reference photo key, scale, marks)
               | ROADBLOCK#id (a blocked road on a baked route; TTL 7 days unless renewed)
-  ALERT#id    META | DELIVERY#recipient | TIMELINE#iso#n
+  ALERT#id    META | DELIVERY#recipient (Telegram or stub) | DELIVERY#recipient#voice | TIMELINE#iso#n
+  VOICEKEY#call_id  digit             (a key press already acted on; idempotency, TTL 7 days)
   ROLLCALL#id META | ASKED#recipient | RESP#recipient   (safety roll-call; TTL 30 days)
   SAFESHARE#id META                   (family link pointer; TTL 7 days)
   HELPNOTE#chat META                  (waiting for a short note after "need help"; TTL 1 hour)
@@ -39,6 +40,7 @@ from Pukaar.store.models import (
     ChecklistItem,
     Delivery,
     Directive,
+    delivery_key,
     PastEvent,
     PushSubscription,
     Reading,
@@ -349,6 +351,15 @@ class Repo:
     def list_recipients(self, village_id: str) -> list[Recipient]:
         return [_model(Recipient, i) for i in self._query(f"VILLAGE#{village_id}", "RECIPIENT#")]
 
+    def get_recipient(self, village_id: str, recipient_id: str) -> Recipient | None:
+        item = self._get(f"VILLAGE#{village_id}", f"RECIPIENT#{recipient_id}")
+        return _model(Recipient, item) if item else None
+
+    def delete_recipient(self, village_id: str, recipient_id: str) -> bool:
+        old = self.t.delete_item(Key={"pk": f"VILLAGE#{village_id}", "sk": f"RECIPIENT#{recipient_id}"},
+                                 ReturnValues="ALL_OLD")
+        return bool(old.get("Attributes"))
+
     def put_link_code(self, code: str, username: str, ttl_seconds: int = 900) -> None:
         self._put({"pk": f"LINKCODE#{code}", "sk": "META", "username": username,
                    "expires": int(clock.now().timestamp()) + ttl_seconds, "ttl": int(clock.now().timestamp()) + ttl_seconds})
@@ -541,14 +552,30 @@ class Repo:
 
     # -- deliveries ------------------------------------------------------
     def put_delivery(self, d: Delivery) -> None:
-        self._put({"pk": f"ALERT#{d.alert_id}", "sk": f"DELIVERY#{d.recipient_id}", **d.model_dump()})
+        self._put({"pk": f"ALERT#{d.alert_id}", "sk": f"DELIVERY#{d.row_key}", **d.model_dump()})
 
     def list_deliveries(self, alert_id: str) -> list[Delivery]:
         return [_model(Delivery, i) for i in self._query(f"ALERT#{alert_id}", "DELIVERY#")]
 
-    def update_delivery(self, alert_id: str, recipient_id: str, *, condition: Any = None, **fields: Any) -> Delivery:
+    def get_delivery(self, alert_id: str, recipient_id: str, channel: str = "") -> Delivery | None:
+        item = self._get(f"ALERT#{alert_id}", f"DELIVERY#{delivery_key(recipient_id, channel)}")
+        return _model(Delivery, item) if item else None
+
+    def update_delivery(self, alert_id: str, recipient_id: str, *, channel: str = "", condition: Any = None,
+                        **fields: Any) -> Delivery:
+        """channel "voice" names the person's voice row; anything else their Telegram or stub row."""
         cond = Attr("pk").exists() if condition is None else (Attr("pk").exists() & condition)
-        return _model(Delivery, self._update(f"ALERT#{alert_id}", f"DELIVERY#{recipient_id}", fields, condition=cond))
+        return _model(Delivery, self._update(f"ALERT#{alert_id}", f"DELIVERY#{delivery_key(recipient_id, channel)}",
+                                             fields, condition=cond))
+
+    def claim_voice_key(self, call_id: str, digit: str, ttl_seconds: int = 7 * 86400) -> bool:
+        """True the first time this key press on this call is acted on; a retried webhook gets False."""
+        try:
+            self._put({"pk": f"VOICEKEY#{call_id}", "sk": digit, "ttl": int(clock.now().timestamp()) + ttl_seconds},
+                      condition=Attr("pk").not_exists())
+            return True
+        except ConflictError:
+            return False
 
     # -- timeline --------------------------------------------------------
     def add_timeline(self, alert_id: str, step: str, detail: str = "") -> None:

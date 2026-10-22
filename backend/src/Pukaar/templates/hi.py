@@ -96,3 +96,23 @@ def fallback_alert(level: str, village_hi: str, village_en: str, safe_place: dic
     text_hi = f"पुकार: {village_hi} के लिए {LEVEL_HI[level]}। {SAFETY_HI[level]} {place_hi} {CALL_112_HI}"
     text_en = f"Pukaar: {LEVEL_EN[level]} for {village_en}. {SAFETY_EN[level]} {place_en} {CALL_112_EN}"
     return " ".join(text_hi.split()), " ".join(text_en.split())
+
+
+# -- voice calls with "press 1" (delivery/voice.py, docs/VOICE.md) --------------------------------
+VOICE_MENU_HI = "संदेश मिल गया हो तो 1 दबाएँ। मदद चाहिए तो 2 दबाएँ। संदेश दोबारा सुनने के लिए 3 दबाएँ।"
+VOICE_ACK_HI = "धन्यवाद, दर्ज हो गया। सुरक्षित रहें।"
+VOICE_HELP_HI = "मदद का अनुरोध अधिकारी तक पहुँच गया है। जान का ख़तरा हो तो अभी 112 पर कॉल करें।"
+VOICE_GOODBYE_HI = "धन्यवाद। आपात स्थिति में 112 पर कॉल करें।"
+VOICE_REASON_HI = {
+    "busy": "फ़ोन व्यस्त था", "no_answer": "किसी ने नहीं उठाया", "failed": "कॉल नहीं लगी",
+    "no_status": "कॉल का नतीजा नहीं मिला", "invalid_number": "नंबर ग़लत या बंद है", "machine": "मशीन ने उठाया",
+    "provider_error": "कॉल सेवा में गड़बड़ी",
+}
+
+
+def voice_unreachable_pradhan(name: str, village_hi: str, attempts: int, category: str, drill: bool) -> str:
+    """To the pradhan: a household the call could not reach. A first name only, never the number."""
+    label = "अभ्यास (DRILL), " if drill else ""
+    reason = VOICE_REASON_HI.get(category, "कॉल नहीं लगी")
+    return (f"पुकार, {label}{village_hi}: {name} तक चेतावनी की कॉल {attempts} बार कोशिश के बाद भी नहीं पहुँची "
+            f"({reason})। कृपया किसी को घर भेजकर बताएँ।")

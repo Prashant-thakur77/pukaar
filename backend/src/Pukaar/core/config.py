@@ -65,6 +65,14 @@ class Settings:
     stale_alarm_minutes: int = 45
     # A declined or expired alert is asked again after this long if the level still holds.
     reask_cooldown_minutes: int = 30
+    # Voice calls with "press 1" (delivery/voice.py): "exotel", "plivo" or "off". Off (the default)
+    # records every voice delivery as failed with the reason; it never pretends a call went out.
+    voice_provider: str = "off"
+    # Attempts per voice recipient per alert, counting the first call (two retry counters share it).
+    voice_max_attempts: int = 3
+    voice_ring_timeout_seconds: int = 40
+    # Exotel API host: api.exotel.com (Singapore cluster) or api.in.exotel.com (Mumbai cluster).
+    exotel_api_host: str = "api.exotel.com"
 
     @property
     def guardrail_enabled(self) -> bool:
@@ -120,4 +128,14 @@ def get_settings() -> Settings:
         stale_max_sweeps=int(os.environ.get("PUKAAR_STALE_MAX_SWEEPS", "4")),
         stale_alarm_minutes=int(os.environ.get("PUKAAR_STALE_ALARM_MINUTES", "45")),
         reask_cooldown_minutes=int(os.environ.get("PUKAAR_REASK_COOLDOWN_MINUTES", "30")),
+        voice_provider=_voice_provider(os.environ.get("PUKAAR_VOICE_PROVIDER", "off")),
+        voice_max_attempts=max(1, min(5, int(os.environ.get("PUKAAR_VOICE_MAX_ATTEMPTS", "3")))),
+        voice_ring_timeout_seconds=int(os.environ.get("PUKAAR_VOICE_RING_TIMEOUT_SECONDS", "40")),
+        exotel_api_host=os.environ.get("PUKAAR_EXOTEL_API_HOST", "api.exotel.com").strip() or "api.exotel.com",
     )
+
+
+def _voice_provider(raw: str) -> str:
+    """Anything but exotel or plivo is off: a typo never turns calling on."""
+    value = raw.strip().lower()
+    return value if value in {"exotel", "plivo"} else "off"

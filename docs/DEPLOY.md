@@ -107,7 +107,10 @@ Parameters (override with
 |---|---|---|
 | `Stage` | `dev` | Suffix of every resource name |
 | `ApprovalTimeoutSeconds` | `600` | Per officer. Use `60` for a demo and for `make it` |
-| `AckWaitSeconds` | `300` | Before the one re-send. Use `30` for `make it` |
+| `AckWaitSeconds` | `300` | Before the one re-send (and the first voice re-call). Use `30` for `make it`, `600` for a voice pilot |
+| `VoiceRetrySeconds` | `600` | Between later voice re-calls (three attempts in all) |
+| `VoiceProvider` | `off` | `exotel` or `plivo` turns on voice calls with "press 1" ([VOICE.md](VOICE.md)); off records voice deliveries as failed |
+| `ExotelApiHost` | `api.exotel.com` | `api.in.exotel.com` for an account on Exotel's Mumbai cluster |
 | `WebOrigin` | empty | CORS origin; empty means the Amplify URL |
 | `BedrockModelId` | `us.amazon.nova-2-lite-v1:0` | |
 | `BedrockFallbackRegion` | `us-west-2` | Second region on throttling or 5xx |

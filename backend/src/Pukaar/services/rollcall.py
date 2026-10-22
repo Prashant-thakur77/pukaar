@@ -79,7 +79,11 @@ def current_open(repo: Repo, village_id: str) -> RollCall | None:
 def _channel(r: Recipient) -> str:
     # Only an explicitly stub (demo) recipient is stub. A telegram recipient stays telegram even
     # when the token cannot be read: the ask is then recorded with the error, not as a stub.
-    return "stub" if r.channel == "stub" else "telegram"
+    # A voice-only recipient is recorded as asked by "voice" with an error: the roll-call question
+    # is not put by phone call yet, so the board shows them as not reached (docs/VOICE.md).
+    if r.channel == "stub":
+        return "stub"
+    return "telegram" if r.takes_telegram else "voice"
 
 
 def _first_name(name: str) -> str | None:
@@ -102,6 +106,8 @@ def _ask(repo: Repo, rc: RollCall, recipients: list[Recipient], *, reminder: boo
     for r in recipients:
         channel = _channel(r)
         error = None
+        if channel == "voice":
+            error = "no roll-call by voice call yet: ask in person or by phone"
         if channel == "telegram":
             try:
                 if not telegram.configured():
@@ -189,7 +195,7 @@ def remind(repo: Repo, rc: RollCall) -> dict[str, Any]:
     waiting = [by_id[i] for i in asked if i not in answered and i in by_id]
     sent = _ask(repo, rc, waiting, reminder=True, previous=asked)
     log(_LOG, "roll-call reminder", rollcall_id=rc.id, waiting=len(waiting), sent=sent)
-    no_phone = sum(1 for r in waiting if _channel(r) != "telegram")
+    no_phone = sum(1 for r in waiting if _channel(r) == "stub")
     return {"reminded": sent, "waiting": len(waiting), "demo_without_phone": no_phone,
             "last_reminded_at": rc.last_reminded_at}
 

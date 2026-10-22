@@ -120,7 +120,7 @@ def counters(repo: Repo, now: datetime | None = None) -> dict[str, int]:
     """The public counters. Each one counts real records only (docs/CONTRACT.md):
 
     alerts_sent / phones_acknowledged  live flood alerts that went out; never replays, never drills
-    drills_delivered                   drill alerts that reached at least one real phone (Telegram)
+    drills_delivered                   drill alerts that reached at least one real phone (Telegram, or a call answered)
     replay_alerts_approved             replay alerts an officer approved through the approval workflow
     forecast_checks_24h                forecast readings the sweep stored (one per village per sweep), last 24 h
     gauge_readings_24h[_simulated]     river-gauge readings received in the last 24 h (of which simulated)
@@ -137,7 +137,7 @@ def counters(repo: Repo, now: datetime | None = None) -> dict[str, int]:
         "alerts_sent": len(sent),
         "phones_acknowledged": sum(a.acknowledged_count for a in sent),
         "reports_received": sum(1 for v in villages for r in repo.list_reports(v.id, limit=500) if not r.replay),
-        "drills_delivered": sum(1 for a in drills if any(d.channel == "telegram" and d.status in _REAL_PHONE_DELIVERY
+        "drills_delivered": sum(1 for a in drills if any(d.channel in {"telegram", "voice"} and d.status in _REAL_PHONE_DELIVERY
                                                          for d in repo.list_deliveries(a.id))),
         "replay_alerts_approved": sum(1 for a in alerts if is_replay(a) and a.approved),
         "forecast_checks_24h": sum(repo.count_live_readings(v.id, since, until) for v in villages),

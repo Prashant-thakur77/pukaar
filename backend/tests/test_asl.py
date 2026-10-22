@@ -17,6 +17,7 @@ SUBSTITUTIONS = {
     "WorkflowFunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:pukaar-workflow-test",
     "ApprovalTimeoutSeconds": "600",
     "AckWaitSeconds": "300",
+    "VoiceRetrySeconds": "600",
 }
 TERMINAL_TYPES = {"Succeed", "Fail"}
 UNCAUGHT_TASKS = {"Failsafe", "Close"}
@@ -86,6 +87,7 @@ def test_timeout_path_and_execution_limit(definition):
     assert first["ErrorEquals"] == ["States.Timeout"]
     assert states[first["Next"]]["Result"] == {"decision": "timeout"}
     assert states["WaitForAcks"]["SecondsPath"] == "$.config.ack_wait_seconds"
+    assert states["WaitBeforeRecall"]["SecondsPath"] == "$.config.voice_retry_seconds"
 
 
 def test_every_task_names_a_contract_step(definition):
@@ -273,9 +275,10 @@ def run(definition: dict, execution_input: dict, fake) -> tuple[list[str], dict]
 class FakeWorkflow:
     """Fake workflow Lambda. `decisions` answers ask_officer per call."""
 
-    def __init__(self, level="warning", officers=2, decisions=(), fail_step=None):
+    def __init__(self, level="warning", officers=2, decisions=(), fail_step=None, voice_rounds=0):
         self.level, self.officers, self.fail_step = level, officers, fail_step
         self.decisions = list(decisions)
+        self.voice_rounds = voice_rounds  # how many recall results say "again" (another voice round)
         self.calls: list[dict] = []
 
     def __call__(self, payload: dict):
@@ -309,6 +312,9 @@ class FakeWorkflow:
             }
         if step == "close":
             return {"alert_id": alert_id, "status": payload["outcome"]}
+        if step == "recall" and self.voice_rounds:
+            self.voice_rounds -= 1
+            return {"alert_id": alert_id, "resent": 1, "again": True}
         return {"alert_id": alert_id, "step": step}
 
 
@@ -408,3 +414,19 @@ def test_unknown_decision_goes_to_failsafe(definition):
     fake = FakeWorkflow(decisions=["maybe"])
     steps, _ = _run(definition, fake)
     assert steps == ["draft", "ask_officer", "failsafe", "close"]
+
+
+def test_voice_recall_rounds_loop_then_close(definition):
+    """Unanswered voice calls are tried again after VoiceRetrySeconds while recall says again=true."""
+    fake = FakeWorkflow(decisions=["approved"], voice_rounds=2)
+    steps, result = _run(definition, fake)
+    assert steps == ["draft", "ask_officer", "deliver", "recall", "recall", "recall", "close"]
+    assert result["status"] == "SUCCEEDED" and fake.calls[-1]["outcome"] == "delivered"
+
+
+def test_recall_without_again_goes_straight_to_close(definition):
+    """An old or Telegram-only recall result (no "again") ends the run as before."""
+    states = definition["States"]
+    assert states["Recall"]["Next"] == "MoreVoiceRounds"
+    assert states["MoreVoiceRounds"]["Default"] == "Close"
+    assert definition["States"]["Init"]["Parameters"]["config"]["voice_retry_seconds.$"] == "States.StringToJson('600')"

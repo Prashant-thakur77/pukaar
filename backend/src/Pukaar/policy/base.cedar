@@ -96,13 +96,13 @@ permit (
 );
 
 @id("no-replay-to-phones")
-@desc("Replay alerts never reach real phones; they go to the stub channel only.")
+@desc("Replay alerts never reach real phones, by Telegram or by voice call; they go to the stub channel only.")
 forbid (
   principal,
   action in [Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe"],
   resource
 )
-when { context.replay == true && context.channel == "telegram" };
+when { context.replay == true && context.channel != "stub" };
 
 @id("agents-never-send")
 @desc("A model agent can never approve, send, change a level, change the shelter ledger or mark a road blocked.")

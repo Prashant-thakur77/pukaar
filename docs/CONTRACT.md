@@ -40,6 +40,10 @@ Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`, 
 `GET /cap/alerts.atom` and `GET /cap/alerts/{id}.xml` (CAP 1.2 feed of published alerts, XML),
 `GET /agents`, `GET /agents/traces?limit=5`, `GET /sensors` (read-only, no personal data),
 `GET /push/vapid-public-key` (the Web Push applicationServerKey; `{key: null, configured: false}` until `make vapid-keys`),
+the voice-call webhooks (`GET`/`HEAD /voice/exotel/flow`, `GET /voice/exotel/gather`, `POST /voice/exotel/status`,
+`POST /voice/plivo/answer`, `POST /voice/plivo/digits`, `POST /voice/plivo/hangup`: each needs the SSM
+`voice_webhook_key` in `?k=`, an HMAC-signed per-call token and a call id Pukaar placed, plus Plivo's
+`X-Plivo-Signature-V3`; anything else is a 403, see docs/VOICE.md),
 `POST /auth/dev-login` (local only). Everything else needs an officer or
 pradhan token and passes `policy.guard.authorize()`.
 
@@ -74,8 +78,14 @@ Alert     {id, village_id, village_name, village_name_hi, level, previous_level,
            draft_check{passed, reason}, decision_trace{...}, recipients_count,
            officer_index, decided_by|null, decided_at|null, approved: bool,
            delivered_count, acknowledged_count, has_audio, replay}
-Delivery  {alert_id, recipient_id, name, channel: "telegram"|"stub", status,
-           sent_at|null, attempts, acknowledged_at|null, error|null}
+Delivery  {alert_id, recipient_id, name, channel: "telegram"|"voice"|"stub", status,
+           sent_at|null, attempts, acknowledged_at|null, error|null,
+           provider|null, call_ids[], call_status|null, last_attempt_at|null, not_connected, no_key,
+           error_category|null, digit|null, repeats, reprompts, unreachable}
+          (officer routes only. One row per person per channel: a "both" recipient has a telegram and
+           a voice row, and delivered_count/acknowledged_count count people. A voice row is "pending"
+           while the call rings, "sent" once answered (sent_at = first answer), "acknowledged" after
+           key 1 or 2, "failed" when not connected or not placed. No phone number in any shape.)
 Report    {id, village_id, created_at, text, transcript, report_type, severity,
            summary_en, reply_hi, lat|null, lon|null, photo_url|null, audio_url|null,
            state, previous_state|null, parser_source, flags[], track_code, replay}
@@ -271,8 +281,8 @@ GET  /villages/{id} and /public/overview villages[] also carry
 | Scheduler | `rate(15 minutes)` -> `sweep`, retries 0, DLQ |
 | Cognito | user pool, groups `officer`, `pradhan`, attribute `custom:village_ids`, app client without secret, `USER_PASSWORD_AUTH` |
 | HTTP API | JWT authorizer on `$default`, public routes above, CORS to the web origin, throttling |
-| SSM | SecureString `/pukaar/telegram_token`, `/pukaar/telegram_webhook_secret`, `/pukaar/link_secret`, `/pukaar/vapid_private_key`, `/pukaar/after_action_to`, `/pukaar/gauge/<device>/key` and `/cert`; String `/pukaar/vapid_public_key` |
-| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision`, `RollCallNeedHelp`, `GaugeReading`, `GaugeRejected`, `ReportScreened`, `GuardrailFallback`, `PushSent`, `PushFailed`, `EventPublishFailed`, `AfterActionSent`, `AfterActionFailed` |
+| SSM | SecureString `/pukaar/telegram_token`, `/pukaar/telegram_webhook_secret`, `/pukaar/link_secret`, `/pukaar/vapid_private_key`, `/pukaar/after_action_to`, `/pukaar/gauge/<device>/key` and `/cert`, and for voice calls `/pukaar/voice_webhook_key`, `/pukaar/exotel_sid`, `/pukaar/exotel_api_key` (optional), `/pukaar/exotel_token`, `/pukaar/exotel_caller_id`, `/pukaar/exotel_app_id`, `/pukaar/plivo_auth_id`, `/pukaar/plivo_auth_token`, `/pukaar/plivo_caller_id`; String `/pukaar/vapid_public_key` |
+| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision`, `RollCallNeedHelp`, `GaugeReading`, `GaugeRejected`, `ReportScreened`, `GuardrailFallback`, `PushSent`, `PushFailed`, `EventPublishFailed`, `AfterActionSent`, `AfterActionFailed`, `VoiceCallPlaced`, `VoiceNotConnected`, `VoiceNoKey`, `VoiceUnreachable`, `VoiceNeedHelp` |
 
 Environment variables of every function: `PUKAAR_MODE=aws`,
 `PUKAAR_TABLE_NAME`, `PUKAAR_BUCKET`, `PUKAAR_STATE_MACHINE_ARN`,

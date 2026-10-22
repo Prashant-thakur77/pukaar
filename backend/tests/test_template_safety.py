@@ -206,6 +206,48 @@ def test_web_push_key_is_the_only_public_push_route_and_cors_allows_delete():
     assert "DELETE" in cors["AllowMethods"]  # DELETE /me/push-subscriptions/{id}
 
 
+VOICE_ROUTES = {
+    ("/voice/exotel/flow", "GET"), ("/voice/exotel/flow", "HEAD"), ("/voice/exotel/gather", "GET"),
+    ("/voice/exotel/status", "POST"), ("/voice/plivo/answer", "POST"), ("/voice/plivo/digits", "POST"),
+    ("/voice/plivo/hangup", "POST"),
+}
+
+
+def test_voice_webhooks_are_exactly_these_public_routes_and_each_checks_its_key():
+    """Call providers carry no Cognito token: each /voice route is opened alone, and the app refuses it without
+    the webhook key (the signed call token, the call id and Plivo's signature are tested in test_voice.py)."""
+    events = [
+        e["Properties"]
+        for r in RES.values()
+        if r["Type"] == "AWS::Serverless::Function"
+        for e in (r["Properties"].get("Events") or {}).values()
+        if e.get("Type") == "HttpApi"
+    ]
+    voice_events = [e for e in events if str(e.get("Path")).startswith("/voice/")]
+    assert {(e["Path"], e["Method"]) for e in voice_events} == VOICE_ROUTES
+    assert all(e.get("Auth", {}).get("Authorizer") == "NONE" for e in voice_events)
+    params = T["Parameters"]
+    assert params["VoiceProvider"]["Default"] == "off"
+    assert set(params["VoiceProvider"]["AllowedValues"]) == {"off", "exotel", "plivo"}
+    env = T["Globals"]["Function"]["Environment"]["Variables"]
+    assert env["PUKAAR_VOICE_PROVIDER"] == {"Fn::Ref": "VoiceProvider"}
+    # No provider credential is ever a template parameter or an environment value.
+    text = TEMPLATE.read_text(encoding="utf-8").lower()
+    assert "exotel_token" not in text and "plivo_auth_token" not in text
+
+    from fastapi.routing import APIRoute
+    from fastapi.testclient import TestClient
+
+    from Pukaar.main import app
+
+    app_routes = {(r.path, m) for r in app.routes if isinstance(r, APIRoute) and r.path.startswith("/voice/")
+                  for m in r.methods}
+    assert app_routes == VOICE_ROUTES
+    client = TestClient(app)
+    for path, method in VOICE_ROUTES:
+        assert client.request(method, path, params={"digits": '"1"', "CallSid": "x"}).status_code == 403, (path, method)
+
+
 # -- river gauges over AWS IoT Core ------------------------------------------
 THING = "${!iot:Connection.Thing.ThingName}"  # IoT policy variable, escaped from Fn::Sub
 

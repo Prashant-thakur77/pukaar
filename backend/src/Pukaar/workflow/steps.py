@@ -152,24 +152,30 @@ class Steps:
             alert = self.repo.update_alert(alert.id, status="delivering")
             events.alert_changed(alert)
         sent, failed = dispatch.deliver(self.repo, alert, action=action)
-        fields: dict[str, Any] = {"delivered_count": sent}
         if action == "deliver":
-            fields["status"] = "delivered"
-        alert = self.repo.update_alert(alert.id, **fields)
-        if action == "deliver":
+            alert = self.repo.update_alert(alert.id, status="delivered")
             events.alert_changed(alert)
-        events.counts_changed(alert)
+        # In people reached: a voice call counts once answered, a "both" recipient once (dispatch.recount).
+        alert = dispatch.recount(self.repo, alert.id) or alert
         self.repo.add_timeline(alert.id, "delivered", f"sent={sent} failed={failed}")
         return {"alert_id": alert.id, "sent": sent, "failed": failed}
 
     def step_recall(self, e: dict) -> dict:
+        """Re-send to people who have not acknowledged: Telegram once, voice calls up to
+        PUKAAR_VOICE_MAX_ATTEMPTS in all. "again" asks the state machine for another voice round
+        after VoiceRetrySeconds; recall_rounds bounds the loop even if a status callback never comes."""
         alert = self._alert(e["alert_id"])
         action = "auto_send" if alert.status == "auto_sent_unapproved" else "deliver"
+        rounds = alert.recall_rounds + 1
+        alert = self.repo.update_alert(alert.id, recall_rounds=rounds)
         resent, _ = dispatch.deliver(self.repo, alert, action=action, recall=True)
-        unacked = sum(1 for d in self.repo.list_deliveries(alert.id) if not d.acknowledged_at)
-        metric("UnacknowledgedAlerts", unacked)
-        self.repo.add_timeline(alert.id, "recall", f"re-sent once to {resent} without acknowledgement")
-        return {"alert_id": alert.id, "resent": resent}
+        rows = self.repo.list_deliveries(alert.id)
+        acked = {d.recipient_id for d in rows if d.acknowledged_at}
+        metric("UnacknowledgedAlerts", len({d.recipient_id for d in rows} - acked))
+        again = rounds < get_settings().voice_max_attempts - 1 and dispatch.voice_retry_due(self.repo, alert)
+        self.repo.add_timeline(alert.id, "recall", f"round {rounds}: re-sent to {resent} without acknowledgement"
+                                                   + ("; another voice round follows" if again else ""))
+        return {"alert_id": alert.id, "resent": resent, "again": again, "round": rounds}
 
     def step_failsafe(self, e: dict) -> dict:
         """A broken workflow never means silence: critical or approved alerts go out
@@ -187,7 +193,7 @@ class Steps:
             sent = 0
             if broadcast:
                 sent, _ = dispatch.deliver(self.repo, alert, action="failsafe")
-                alert = self.repo.update_alert(alert.id, delivered_count=sent)
+                alert = dispatch.recount(self.repo, alert.id) or alert
             events.alert_changed(alert)
             if broadcast:
                 events.counts_changed(alert)

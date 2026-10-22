@@ -20,6 +20,7 @@ FORBIDDEN_ANYWHERE = {"phone", "phone_number", "mobile", "chat_id", "recipient_i
 FORBIDDEN_IN_REPORT = {"lat", "lon", "photo_url", "audio_url", "photo", "text", "transcript", "summary_en",
                        "reply_hi", "track_code", "photo_description", "verified_by"}
 CHAT_ID = "4242424242"
+VOICE_PHONE = "+919812300077"  # a voice-call recipient's number (delivery/voice.py)
 REPORT_GPS = (31.71135, 76.52491)
 
 
@@ -51,7 +52,10 @@ def seeded():
     assert r.status_code == 200, r.text
     report, code = r.json()["report"], r.json()["track_code"]
     repo = get_repo()
-    repo.put_recipient(Recipient(id=CHAT_ID, village_id="sujanpur", name="Ramesh Kumar", channel="telegram"))
+    repo.put_recipient(Recipient(id=CHAT_ID, village_id="sujanpur", name="Ramesh Kumar", channel="both",
+                                 phone=VOICE_PHONE, consent="test"))
+    repo.put_recipient(Recipient(id="v_privacytest", village_id="sujanpur", name="Ramesh Voice", channel="voice",
+                                 phone="+919812300088", consent="test"))
     stamp = clock.iso(clock.now())
     alert = Alert(id=new_id("alr"), village_id="sujanpur", village_name="Sujanpur", village_name_hi="सुजानपुर",
                   level="warning", status="delivered", approved=True, created_at=stamp, updated_at=stamp,
@@ -61,6 +65,9 @@ def seeded():
     repo.put_alert(alert)
     repo.put_delivery(Delivery(alert_id=alert.id, recipient_id=CHAT_ID, name="Ramesh Kumar", channel="telegram",
                                status="sent", sent_at=stamp))
+    repo.put_delivery(Delivery(alert_id=alert.id, recipient_id=CHAT_ID, name="Ramesh Kumar", channel="voice",
+                               status="acknowledged", sent_at=stamp, acknowledged_at=stamp, provider="exotel",
+                               call_ids=["exo-privacy-call"], digit="1"))
     return {"client": client, "app": app, "report_id": report["id"], "code": code, "alert_id": alert.id}
 
 
@@ -89,6 +96,8 @@ def test_every_public_route_is_free_of_personal_data(seeded):
         checked.append(route.path)
         text = r.text
         assert CHAT_ID not in text, url
+        assert "9812300077" not in text and "9812300088" not in text and "v_privacytest" not in text, url
+        assert "exo-privacy-call" not in text, url
         assert "Ramesh" not in text and "9876543210" not in text, url
         assert str(REPORT_GPS[0]) not in text and str(REPORT_GPS[1]) not in text, url
         for where, key, report_like in _walk(body):

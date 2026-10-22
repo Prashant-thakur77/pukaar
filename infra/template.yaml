@@ -20,7 +20,25 @@ Parameters:
     Default: 300
     MinValue: 10
     MaxValue: 3600
-    Description: Wait after delivery before one re-send to phones that did not acknowledge.
+    Description: Wait after delivery before one re-send to phones that did not acknowledge (and the first voice re-call).
+  VoiceRetrySeconds:
+    Type: Number
+    Default: 600
+    MinValue: 10
+    MaxValue: 1800
+    Description: Wait between later voice re-calls (docs/VOICE.md; 10 to 15 minutes apart in the field).
+  VoiceProvider:
+    Type: String
+    Default: "off"
+    AllowedValues: ["off", exotel, plivo]
+    Description: >
+      Voice calls with "press 1" (docs/VOICE.md). Off records every voice delivery as failed with the reason.
+      Credentials are read from SSM SecureString at run time (/pukaar/exotel_* or /pukaar/plivo_*), never set here.
+  ExotelApiHost:
+    Type: String
+    Default: api.exotel.com
+    AllowedValues: [api.exotel.com, api.in.exotel.com]
+    Description: Exotel API host for the account's cluster (Singapore or Mumbai).
   WebOrigin:
     Type: String
     Default: ""
@@ -93,6 +111,9 @@ Globals:
         PUKAAR_GUARDRAIL_VERSION: !GetAtt ReportGuardrailVersion.Version
         # Live push (services/events.py): every function that changes a level, an alert or a count publishes.
         PUKAAR_EVENTS_HTTP_DOMAIN: !GetAtt PukaarEvents.Dns.Http
+        # Voice calls (delivery/voice.py): placed by the workflow function, answered by the API's /voice/* webhooks.
+        PUKAAR_VOICE_PROVIDER: !Ref VoiceProvider
+        PUKAAR_EXOTEL_API_HOST: !Ref ExotelApiHost
 
 Resources:
   # ---------------------------------------------------------------- storage
@@ -340,6 +361,17 @@ Resources:
         SensorReading: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/sensors/{id}/readings", Method: POST, Auth: { Authorizer: NONE } } }
         # Web Push: the VAPID public key browsers subscribe with (public by design). Subscribing is under /me (Cognito).
         VapidPublicKey: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /push/vapid-public-key, Method: GET, Auth: { Authorizer: NONE } } }
+        # Voice-call webhooks (api/routers/voice.py, docs/VOICE.md). Call providers carry no Cognito token, so each
+        # request is checked in the app: the SSM voice_webhook_key in the URL, an HMAC-signed per-call token naming the
+        # alert, person and attempt, the call id Pukaar placed, and Plivo's X-Plivo-Signature-V3. A forged key press is a 403.
+        # Exotel's Greeting applet sends HEAD before GET.
+        VoiceExotelFlow: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/exotel/flow, Method: GET, Auth: { Authorizer: NONE } } }
+        VoiceExotelFlowHead: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/exotel/flow, Method: HEAD, Auth: { Authorizer: NONE } } }
+        VoiceExotelGather: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/exotel/gather, Method: GET, Auth: { Authorizer: NONE } } }
+        VoiceExotelStatus: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/exotel/status, Method: POST, Auth: { Authorizer: NONE } } }
+        VoicePlivoAnswer: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/plivo/answer, Method: POST, Auth: { Authorizer: NONE } } }
+        VoicePlivoDigits: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/plivo/digits, Method: POST, Auth: { Authorizer: NONE } } }
+        VoicePlivoHangup: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/plivo/hangup, Method: POST, Auth: { Authorizer: NONE } } }
 
   SweepFunction:
     Type: AWS::Serverless::Function
@@ -690,6 +722,7 @@ Resources:
         # Strings; the definition turns them into numbers with States.StringToJson.
         ApprovalTimeoutSeconds: !Ref ApprovalTimeoutSeconds
         AckWaitSeconds: !Ref AckWaitSeconds
+        VoiceRetrySeconds: !Ref VoiceRetrySeconds
       Logging:
         Level: ERROR
         IncludeExecutionData: false

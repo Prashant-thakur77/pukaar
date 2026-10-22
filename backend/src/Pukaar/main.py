@@ -13,7 +13,9 @@ if settings.is_local:
 
     start_local_aws()
 
-from Pukaar.api.routers import agents, gauges, officer, public, push, reports, rollcall, sensors, telegram  # noqa: E402  (after the local mock starts)
+from Pukaar.api.routers import (  # noqa: E402  (after the local mock starts)
+    agents, gauges, officer, public, push, reports, rollcall, sensors, telegram, voice,
+)
 
 app = FastAPI(title="Pukaar API", version="1.0.0")
 app.add_middleware(
@@ -24,5 +26,5 @@ app.add_middleware(
     allow_headers=["authorization", "content-type"],
 )
 for r in (public.router, reports.router, officer.router, telegram.router, sensors.router, rollcall.router, agents.router,
-          gauges.router, push.router):
+          gauges.router, push.router, voice.router):
     app.include_router(r)
