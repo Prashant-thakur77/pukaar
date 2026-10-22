@@ -38,6 +38,7 @@ Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`, 
 `GET /track/{code}`, `GET /replay/status`, `GET /alerts/{id}/audio`, `GET /safe/{token}`,
 `POST /sensors/{id}/readings` and `POST /sensors/{id}/backfill` (river gauge, HMAC-signed body, see docs/hardware/README.md),
 `GET /cap/alerts.atom` and `GET /cap/alerts/{id}.xml` (CAP 1.2 feed of published alerts, XML),
+`GET /raahat/pool` and `GET /raahat/alerts/{id}` (Pukaar Raahat: the relief pool and an alert's chain anchor; ids, amounts and hashes only),
 `GET /agents`, `GET /agents/traces?limit=5`, `GET /sensors` (read-only, no personal data),
 `GET /push/vapid-public-key` (the Web Push applicationServerKey; `{key: null, configured: false}` until `make vapid-keys`),
 the voice-call webhooks (`GET`/`HEAD /voice/exotel/flow`, `GET /voice/exotel/gather`, `POST /voice/exotel/status`,
@@ -142,6 +143,13 @@ POST /sensors/{id}/backfill  public, HMAC-signed {device_id, readings[<=60]} buf
 GET  /cap/alerts.atom        public: ATOM index of the latest 50 published alerts and all-clear Cancels
 GET  /cap/alerts/{id}.xml    public: one CAP 1.2 <alert> (application/cap+xml); 404 if not published.
                              id allclear-{village}-{UTC stamp}: the village's current all-clear Cancel
+GET  /raahat/pool             public: {configured, reachable, chain_id, network, explorer, public_rpc_url, addresses,
+                             pool_is_contract, block, token{address,symbol,decimals}, pool{address,is_contract,
+                             balance_wei}}; always 200, {configured: false} when Raahat is off. Never the backend's RPC URL
+GET  /raahat/alerts/{id}     public: the alert's AlertRegistry anchor {alert_id, alert_key, village_id, level, exercise,
+                             cap_hash, cap_uri, registry, chain_id, network, explorer, public_rpc_url, tx, state
+                             sending|sent|failed, anchored_at, outcome_tx, outcome_state, delivered, acknowledged,
+                             after_action_hash}; 404 when the alert was never anchored
 GET  /health/deep            officer: one 1-token Converse call now; {bedrock: "ok"|"pending model access"|"failed"|"disabled", model, detail}; refreshes the cached model-access flag
 GET  /me                     {username, role, village_ids}
 POST /me/telegram-link       officer: {} -> {code, command, expires_in_seconds}  (one-time; send the

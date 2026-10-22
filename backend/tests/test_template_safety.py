@@ -631,3 +631,73 @@ def test_reading_retention_is_a_parameter_30_on_dev_and_400_on_prod():
 
     assert overrides("default")["ReadingRetentionDays"] == "30"
     assert int(overrides("prod")["ReadingRetentionDays"]) >= 365
+
+
+# -- Pukaar Raahat ------------------------------------------------------------------------------------
+RAAHAT_SIGNER = "arn:aws:ssm:us-east-1:123456789012:parameter/pukaar-raahat/dev/signer_key"
+
+
+def _ssm_resources(stmt: dict) -> list[str]:
+    """The SSM parameter ARNs a statement grants, with ${...} filled as for dev in us-east-1."""
+    actions = _as_list(stmt.get("Action"))
+    if not any(str(a).startswith("ssm:") or a == "*" for a in actions):
+        return []
+    out = []
+    for r in _as_list(stmt.get("Resource")):
+        text = r.get("Fn::Sub") if isinstance(r, dict) else r
+        text = text[0] if isinstance(text, list) else text
+        if isinstance(text, str):
+            out.append(text.replace("${AWS::Partition}", "aws").replace("${AWS::Region}", "us-east-1")
+                       .replace("${AWS::AccountId}", "123456789012").replace("${Stage}", "dev"))
+    return out
+
+
+def test_only_the_api_and_workflow_may_read_the_raahat_signer_key():
+    """The chain signer's key: the workflow anchors alerts, the API releases relief. Nobody else, not even
+    through a wider pattern such as parameter/pukaar* or parameter/*."""
+    from fnmatch import fnmatchcase
+
+    readers = {name for name, s in _statements() if s.get("Effect") == "Allow"
+               and any(fnmatchcase(RAAHAT_SIGNER, r) for r in _ssm_resources(s))}
+    assert readers == {"ApiFunction", "WorkflowFunction"}
+    for name, s in _statements():
+        if any(fnmatchcase(RAAHAT_SIGNER, r) for r in _ssm_resources(s)):
+            assert _as_list(s["Action"]) == ["ssm:GetParameter"], name
+
+
+def test_raahat_signer_key_is_never_in_the_template():
+    text = TEMPLATE.read_text(encoding="utf-8")
+    env = T["Globals"]["Function"]["Environment"]["Variables"]
+    assert "RAAHAT_SIGNER_KEY" not in text
+    assert env["RAAHAT_SIGNER_PARAM"] == {"Fn::Sub": "/pukaar-raahat/${Stage}/signer_key"}
+    for name in ("RAAHAT_CHAIN_ID", "RAAHAT_TEST_INR", "RAAHAT_POOL", "RAAHAT_ALERT_REGISTRY"):
+        assert isinstance(env[name], dict) and {"Ref", "Fn::Ref"} & set(env[name]), name  # a parameter, not a literal
+
+
+def test_raahat_is_base_sepolia_by_default_and_off_without_addresses():
+    params = T["Parameters"]
+    assert params["RaahatChainId"]["Default"] == "84532"
+    for name in ("RaahatTestInr", "RaahatPool", "RaahatAlertRegistry"):
+        assert params[name]["Default"] == "", name
+
+
+def test_raahat_tx_failed_alarm_watches_the_metric_the_chain_client_emits():
+    alarm = _alarms()["RaahatTxFailedAlarm"]
+    assert "SUM(RaahatTxFailed) FROM Pukaar" in alarm["Metrics"][0]["Expression"]
+    assert alarm["Threshold"] == 1 and alarm["TreatMissingData"] == "notBreaching"
+    src = (ROOT / "backend" / "src" / "Pukaar" / "raahat").glob("*.py")
+    assert any('metric("RaahatTxFailed"' in p.read_text(encoding="utf-8") for p in src)
+
+
+def test_raahat_public_routes_are_read_only():
+    events = RES["ApiFunction"]["Properties"]["Events"]
+    raahat = {e["Properties"]["Path"]: e["Properties"] for e in events.values()
+              if str(e.get("Properties", {}).get("Path", "")).startswith("/raahat")}
+    assert set(raahat) == {"/raahat/pool", "/raahat/alerts/{alert_id}"}
+    for path, props in raahat.items():
+        assert props["Method"] == "GET" and props["Auth"] == {"Authorizer": "NONE"}, path
+
+
+def test_csp_lets_the_browser_check_the_chain_itself():
+    assert "${RaahatPublicRpcUrl}" in _csp()["connect-src"]
+    assert T["Parameters"]["RaahatPublicRpcUrl"]["AllowedPattern"].startswith("^https://")

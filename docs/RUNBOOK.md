@@ -399,6 +399,28 @@ check the `pukaar-canary-<stage>` schedule is enabled and the function's last er
 **Tell the DDMA?** Yes, if the public pages or the CAP feed are down for more than 30 minutes in the
 monsoon: villagers and SACHET cannot see the levels. No, for a canary that only stopped running.
 
+### pukaar-<stage>-raahat-tx-failed
+
+**What it means.** A Pukaar Raahat chain transaction failed: an alert's anchor on the AlertRegistry
+(sent when it first reached a phone) or its outcome (sent at close). No alert was held back or changed;
+the chain record is missing. A failed alert anchor is tried once more when the alert closes.
+
+**First 3 checks.**
+1. Workflow logs (`/aws/lambda/pukaar-workflow-<stage>`): the "raahat tx failed" line names the call
+   (`anchor_alert`, `anchor_outcome`), the network and the error.
+2. The chain itself: the RPC (`RaahatRpcUrl`, else the chain's public endpoint) answers, and the
+   signer (`RaahatOracle`) still has test ETH for gas on its explorer page.
+3. The signer key exists at `/pukaar-raahat/<stage>/signer_key` and its address holds ORACLE_ROLE on the
+   AlertRegistry (`cast call <registry> "hasRole(bytes32,address)(bool)" $(cast keccak ORACLE_ROLE) <oracle>`).
+
+**Fix.** Out of gas: top up the signer from a faucet. RPC down: set `RaahatRpcUrl` to another endpoint
+and deploy. Missing key or role: store the key (`aws ssm put-parameter --type SecureString`) or grant the
+role from the deployer. Missing anchors stay missing; the alert's timeline says so.
+
+**Who to call.** On-call engineer, next working day: the alert path does not depend on the chain.
+
+**Tell the DDMA?** No, unless relief releases are waiting on it.
+
 ## Report abuse: what officers see
 
 - A report over a rate limit is kept and shown with "Held for review: too many reports from one

@@ -21,6 +21,8 @@ os.environ.update({
     "AWS_ACCESS_KEY_ID": "testing",
     "AWS_SECRET_ACCESS_KEY": "testing",
     "AWS_DEFAULT_REGION": "us-east-1",
+    # Raahat off: local mode would otherwise read contracts/deployments/anvil.json and reach a running anvil.
+    "RAAHAT_DEPLOYMENTS": "off",
 })
 for var in ("PUKAAR_TELEGRAM_TOKEN", "PUKAAR_TELEGRAM_WEBHOOK_SECRET"):
     os.environ.pop(var, None)

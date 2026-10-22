@@ -1,3 +1,4 @@
+import { ChainReceiptLazy } from '../../components/ChainReceiptLazy';
 import { useState } from 'react';
 import { TimeToEar } from '../../components/TimeToEar';
 import { Link, Navigate, useLocation } from 'react-router-dom';
@@ -361,7 +362,12 @@ function RecentAlert({ alert: a, showAudit }: { alert: Alert; showAudit: boolean
             {t('console.deliveries', { n: a.recipients_count || a.delivered_count })}
             <ChevronDown aria-hidden="true" className={open ? 'rot' : ''} />
           </button>
-          {open && <Deliveries alertId={a.id} />}
+          {open && (
+            <>
+              <Deliveries alertId={a.id} />
+              <ChainReceiptLazy alertId={a.id} />
+            </>
+          )}
         </>
       )}
     </li>

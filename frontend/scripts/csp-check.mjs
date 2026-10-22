@@ -33,7 +33,7 @@ export function amplifyHeaders(templateText, region) {
   if (start < 0) throw new Error('AmplifyApp CustomHeaders not found in the template');
   const block = templateText.slice(start, templateText.indexOf('CustomRules:', start));
   const out = {};
-  for (const m of block.matchAll(/- key: (\S+)\s*\n\s*value: "(.*)"/g)) out[m[1]] = m[2].replaceAll('${AWS::Region}', region);
+  for (const m of block.matchAll(/- key: (\S+)\s*\n\s*value: "(.*)"/g)) out[m[1]] = m[2].replaceAll('${AWS::Region}', region).replaceAll('${RaahatPublicRpcUrl}', 'https://sepolia.base.org');
   return out;
 }
 

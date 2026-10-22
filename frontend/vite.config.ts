@@ -39,7 +39,7 @@ export default defineConfig({
         // is left out so a phone on 2G does not download it in the background.
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         // Raahat (/raahat) and viem stay out too: only people who open the ledger download them.
-        globIgnores: ['**/maplibre*', '**/HeroScene*', '**/Raahat*', '**/chain*', '**/viem*', '**/*latin-ext*', '**/*cyrillic*', '**/*greek*', '**/*vietnamese*'],
+        globIgnores: ['**/maplibre*', '**/HeroScene*', '**/Raahat*', '**/raahat*', '**/ChainReceipt*', '**/localBatchGatewayRequest*', '**/viem*', '**/*latin-ext*', '**/*cyrillic*', '**/*greek*', '**/*vietnamese*'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // One classic script, as registerSW.js registers it.
         rollupFormat: 'iife',

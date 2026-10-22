@@ -183,3 +183,20 @@ def test_pool_route_reads_balance(api_client, monkeypatch):
     assert body["reachable"] is True
     assert body["pool"]["balance_wei"] == str(7 * 10**18)
     assert body["token"]["symbol"] == "tINR"
+
+
+def test_deployments_off_switches_raahat_off_in_local_mode(monkeypatch):
+    for k in ("RAAHAT_RPC_URL", "RAAHAT_CHAIN_ID", "RAAHAT_TEST_INR", "RAAHAT_POOL"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("RAAHAT_DEPLOYMENTS", "off")
+    assert chain.load_config() is None
+
+
+def test_alert_anchor_route(api_client, monkeypatch):
+    from Pukaar.raahat import anchor
+
+    monkeypatch.setattr(anchor, "public_view", lambda repo, alert_id: {"alert_id": alert_id, "tx": "0xabc"}
+                        if alert_id == "alr_1" else None)
+    monkeypatch.setattr(chain, "load_config", lambda: None)
+    assert api_client.get("/raahat/alerts/alr_1").json() == {"alert_id": "alr_1", "tx": "0xabc", "public_rpc_url": None}
+    assert api_client.get("/raahat/alerts/alr_none").status_code == 404

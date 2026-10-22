@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, Ruler, Tent, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, Hourglass, ListChecks, MapPin, Megaphone, RadioTower, Scale, TrendingUp, Users, Waves } from 'lucide-react';
 import { api } from '../api';
+import { ChainReceiptLazy } from '../components/ChainReceiptLazy';
 import { AlertStatusChip, DeliveryChips, ReplayChip, ReportStateChip } from '../components/Chips';
 import { Gauge } from '../components/Gauge';
 import { GaugeProposalPanel } from '../components/GaugeProposal';
@@ -96,6 +97,7 @@ function AlertDetails({ alert }: { alert: Alert }) {
 function AlertCard({ alert, signedIn }: { alert: Alert; signedIn: boolean }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
+  const [receipt, setReceipt] = useState(false);
   return (
     <li className={`alert-card lv-${alert.level}`}>
       <div className="ac-top">
@@ -112,6 +114,14 @@ function AlertCard({ alert, signedIn }: { alert: Alert; signedIn: boolean }) {
         <DeliveryChips approved={alert.approved} delivered={alert.delivered_count} acked={alert.acknowledged_count} status={alert.status} />
         <ListenButton alertId={alert.id} hasAudio={alert.has_audio} />
       </div>
+      {alert.delivered_count > 0 && (
+        <>
+          <button type="button" className="btn btn-sm btn-ghost" aria-expanded={receipt} onClick={() => setReceipt((o) => !o)}>
+            <ChevronDown aria-hidden="true" className={receipt ? 'rot' : ''} /> {t('raahat.receipt.toggle')}
+          </button>
+          {receipt && <ChainReceiptLazy alertId={alert.id} />}
+        </>
+      )}
       {signedIn && (
         <>
           <button type="button" className="btn btn-sm btn-ghost" aria-expanded={open} onClick={() => setOpen((o) => !o)}>

@@ -137,6 +137,41 @@ Parameters:
     Type: String
     Default: ""
     Description: "CAP <senderName> in Hindi. Empty means the English name (or the Hindi demo name when that is empty too)."
+  # Pukaar Raahat (PLAN.md): the relief layer on a public chain. With no contract addresses it stays off
+  # and nothing else changes. Base Sepolia by default; another EVM chain is a change of these values only.
+  RaahatChainId:
+    Type: String
+    Default: "84532"
+    Description: "EVM chain id: 84532 Base Sepolia, 421614 Arbitrum Sepolia, 80002 Polygon Amoy."
+  RaahatRpcUrl:
+    Type: String
+    Default: ""
+    Description: "The backend's RPC URL. Empty means the chain's public endpoint. Never sent to browsers."
+  RaahatPublicRpcUrl:
+    Type: String
+    Default: "https://sepolia.base.org"
+    AllowedPattern: "^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._/-]*)?$"
+    Description: "The chain's public RPC that browsers read to check the API's answers. Also in the CSP connect-src."
+  RaahatTestInr:
+    Type: String
+    Default: ""
+    Description: "TestINR (tINR) contract address from contracts/deployments/<network>.json. Empty: Raahat off."
+  RaahatPool:
+    Type: String
+    Default: ""
+    Description: "Relief pool address (the ReliefPool contract once deployed). Empty: Raahat off."
+  RaahatPoolIsContract:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  RaahatAlertRegistry:
+    Type: String
+    Default: ""
+    Description: "AlertRegistry contract address. Empty: alerts are not anchored."
+  RaahatOracle:
+    Type: String
+    Default: ""
+    Description: "The signer's address (ORACLE_ROLE). Its key is the SecureString /pukaar-raahat/<stage>/signer_key."
   AlarmEmail:
     Type: String
     Default: ""
@@ -227,6 +262,17 @@ Globals:
         PUKAAR_READING_RETENTION_DAYS: !Ref ReadingRetentionDays
         # Prod behind CloudFront and AWS WAF: the API refuses requests that did not come through it (api/edge.py).
         PUKAAR_EDGE_REQUIRED: !If [HasApiEdge, "true", "false"]
+        # Pukaar Raahat (raahat/chain.py): chain and contract addresses. The signer key is never here: only
+        # the api and workflow roles may read its SSM parameter.
+        RAAHAT_CHAIN_ID: !Ref RaahatChainId
+        RAAHAT_RPC_URL: !Ref RaahatRpcUrl
+        RAAHAT_PUBLIC_RPC_URL: !Ref RaahatPublicRpcUrl
+        RAAHAT_TEST_INR: !Ref RaahatTestInr
+        RAAHAT_POOL: !Ref RaahatPool
+        RAAHAT_POOL_IS_CONTRACT: !Ref RaahatPoolIsContract
+        RAAHAT_ALERT_REGISTRY: !Ref RaahatAlertRegistry
+        RAAHAT_ORACLE: !Ref RaahatOracle
+        RAAHAT_SIGNER_PARAM: !Sub /pukaar-raahat/${Stage}/signer_key
 
 Resources:
   # ---------------------------------------------------------------- storage
@@ -440,6 +486,10 @@ Resources:
               Effect: Allow
               Action: appsync:EventPublish
               Resource: [!GetAtt PublicEvents.ChannelNamespaceArn, !GetAtt OfficerEvents.ChannelNamespaceArn]
+            - Sid: RaahatSigner
+              Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/pukaar-raahat/${Stage}/signer_key
             - Sid: Secrets
               Effect: Allow
               Action: [ssm:GetParameter, ssm:GetParameters]
@@ -482,6 +532,8 @@ Resources:
         # HTTP API path variables span a whole segment, so {file} is "<alert id>.xml"; FastAPI matches the suffix.
         CapFeed: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /cap/alerts.atom, Method: GET, Auth: { Authorizer: NONE } } }
         CapAlert: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/cap/alerts/{file}", Method: GET, Auth: { Authorizer: NONE } } }
+        RaahatPool: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /raahat/pool, Method: GET, Auth: { Authorizer: NONE } } }
+        RaahatAlert: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/raahat/alerts/{alert_id}", Method: GET, Auth: { Authorizer: NONE } } }
         # Read-only agent registry, decision traces and gauge board: no personal data (services/agents.py).
         Agents: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agents, Method: GET, Auth: { Authorizer: NONE } } }
         AgentTraces: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agents/traces, Method: GET, Auth: { Authorizer: NONE } } }
@@ -624,6 +676,10 @@ Resources:
               Effect: Allow
               Action: appsync:EventPublish
               Resource: [!GetAtt PublicEvents.ChannelNamespaceArn, !GetAtt OfficerEvents.ChannelNamespaceArn]
+            - Sid: RaahatSigner
+              Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/pukaar-raahat/${Stage}/signer_key
             - Sid: Secrets
               Effect: Allow
               Action: [ssm:GetParameter, ssm:GetParameters]
@@ -1170,7 +1226,7 @@ Resources:
                 - key: Permissions-Policy
                   value: "camera=(), geolocation=(self), microphone=(self), payment=(), usb=()"
                 - key: Content-Security-Policy
-                  value: "default-src 'self'; script-src 'self' 'sha256-82eyTEtOm5JRVynHL9fPZGB+NZqD9xDebCAJXakDuIA='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://s3.amazonaws.com/elevation-tiles-prod/ https://*.s3.amazonaws.com https://*.s3.${AWS::Region}.amazonaws.com; media-src 'self' blob: https://*.s3.amazonaws.com https://*.s3.${AWS::Region}.amazonaws.com; font-src 'self' data:; connect-src 'self' https://*.execute-api.${AWS::Region}.amazonaws.com${EdgeConnect} https://cognito-idp.${AWS::Region}.amazonaws.com https://*.appsync-api.${AWS::Region}.amazonaws.com wss://*.appsync-realtime-api.${AWS::Region}.amazonaws.com https://tile.openstreetmap.org https://s3.amazonaws.com/elevation-tiles-prod/; worker-src 'self' blob:; child-src 'self' blob:; manifest-src 'self'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+                  value: "default-src 'self'; script-src 'self' 'sha256-82eyTEtOm5JRVynHL9fPZGB+NZqD9xDebCAJXakDuIA='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://s3.amazonaws.com/elevation-tiles-prod/ https://*.s3.amazonaws.com https://*.s3.${AWS::Region}.amazonaws.com; media-src 'self' blob: https://*.s3.amazonaws.com https://*.s3.${AWS::Region}.amazonaws.com; font-src 'self' data:; connect-src 'self' https://*.execute-api.${AWS::Region}.amazonaws.com${EdgeConnect} https://cognito-idp.${AWS::Region}.amazonaws.com https://*.appsync-api.${AWS::Region}.amazonaws.com wss://*.appsync-realtime-api.${AWS::Region}.amazonaws.com https://tile.openstreetmap.org https://s3.amazonaws.com/elevation-tiles-prod/ ${RaahatPublicRpcUrl}; worker-src 'self' blob:; child-src 'self' blob:; manifest-src 'self'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
         # Prod behind CloudFront: the web app calls the API's CloudFront address (it cannot be named here: the
         # API's CORS names this app, so naming the distribution would be a cycle).
         - EdgeConnect: !If [HasApiEdge, " https://*.cloudfront.net", ""]
@@ -1214,6 +1270,22 @@ Resources:
           ReturnData: true
       EvaluationPeriods: 1
       Threshold: 3
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  RaahatTxFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-raahat-tx-failed
+      AlarmDescription: A Pukaar Raahat chain transaction (alert anchor, outcome) failed. No alert was held back or changed; the chain record is missing until close retries it.
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(RaahatTxFailed) FROM Pukaar"
+          Period: 300
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
       AlarmActions: [!Ref AlarmTopic]

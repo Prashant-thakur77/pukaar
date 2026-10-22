@@ -42,6 +42,7 @@ from Pukaar.core.log import get_logger, log, metric
 from Pukaar.delivery import dispatch, officer_call, telegram, voice
 from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.policy.guard import SYSTEM, authorize
+from Pukaar.raahat import anchor as raahat_anchor
 from Pukaar.services import after_action, events, officer_push, rollcall, roster
 from Pukaar.services.drafting import draft_alert
 from Pukaar.store.models import Alert, Delivery
@@ -440,6 +441,8 @@ class Steps:
         deadline = time.monotonic() + s.delivery_budget_seconds
         res = dispatch.deliver_round(self.repo, alert, action=action, recall=recall, batch=0, recipients=people,
                                      deadline=deadline)
+        if res.sent and not recall:  # Raahat: anchor on chain once it reached someone; never raises
+            raahat_anchor.on_delivered(self.repo, alert.id)
         specs = dispatch.batch_specs(people)
         counts = {"sent": len(res.sent), "failed": len(res.failed - res.sent), "batches": len(specs)}
         todo = (specs[:1] if res.deferred else []) + specs[1:]
@@ -532,6 +535,8 @@ class Steps:
             events.alert_changed(alert)
         # In people reached: a voice call counts once answered, a "both" recipient once (dispatch.recount).
         alert = dispatch.recount(self.repo, alert.id) or alert
+        if sent:  # Raahat: the anchor, if batch 0 reached nobody but a later batch did (once per alert)
+            raahat_anchor.on_delivered(self.repo, alert.id)
         if mode == "failsafe":
             events.counts_changed(alert)
             self.repo.add_timeline(alert.id, "failsafe_delivery", f"fixed template sent={sent} failed={failed}{scale}")
@@ -600,6 +605,7 @@ class Steps:
             except Exception as exc:
                 log(_LOG, "after-action error", 40, alert_id=alert.id, error=str(exc)[:300])
                 metric("AfterActionFailed")
+            raahat_anchor.on_close(self.repo, alert.id)  # Raahat: the outcome on chain; never raises
             return out
         except Exception as exc:
             log(_LOG, "close error", 40, alert_id=alert_id, error=str(exc)[:300])

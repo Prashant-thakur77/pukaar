@@ -26,6 +26,7 @@ import type {
   Me,
   PilotMetrics,
   PublicOverview,
+  RaahatAnchor,
   RaahatPool,
   ReplayStatus,
   PushSubscriptionView,
@@ -314,6 +315,7 @@ export const api = {
   replayReset: () => request<ReplayStatus>('/replay/reset', { method: 'POST', body: {} }),
   replayStatus: () => request<ReplayStatus>('/replay/status', { auth: false }),
   raahatPool: () => request<RaahatPool>('/raahat/pool', { auth: false }),
+  raahatAnchor: (alertId: string) => request<RaahatAnchor>(`/raahat/alerts/${enc(alertId)}`, { auth: false }),
 
   audit: (p: { date?: string; resource?: string } = {}) => request<Audit[]>(`/audit${qs(p)}`),
   stats: () => request<Stats>('/stats'),

@@ -9,3 +9,17 @@
 .raahat .mono { font-family: var(--font-mono); font-size: 0.85rem; }
 .raahat .break { overflow-wrap: anywhere; }
 @media (max-width: 520px) { .raahat .kv { grid-template-columns: 1fr; gap: 0; } }
+/* The chain receipt card on an alert (components/ChainReceipt.tsx). */
+.chain-receipt { display: grid; gap: var(--s-2); margin-top: var(--s-3); padding: var(--s-3); border: 1px solid var(--line, currentColor); border-radius: var(--r-md); }
+.chain-receipt .h-sub { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin: 0; }
+.chain-receipt .h-sub svg, .chain-receipt p svg { width: 1em; height: 1em; vertical-align: -0.125em; }
+.chain-receipt .kv-list { display: grid; gap: var(--s-2); margin: 0; }
+.chain-receipt .kv { display: grid; grid-template-columns: minmax(7rem, 11rem) 1fr; gap: var(--s-2); }
+.chain-receipt .kv dt { color: var(--ink-2); font-weight: 600; }
+.chain-receipt .kv dd { margin: 0; min-width: 0; }
+.chain-receipt .mono { font-family: var(--font-mono); font-size: 0.85rem; }
+.chain-receipt .break { overflow-wrap: anywhere; }
+.chain-verify { display: grid; gap: var(--s-2); justify-items: start; }
+@media (max-width: 520px) { .chain-receipt .kv { grid-template-columns: 1fr; gap: 0; } }
+.chain-verify .raahat-check { flex-wrap: wrap; }
+.chain-verify .raahat-check .mono { flex-basis: 100%; }

@@ -1336,3 +1336,28 @@ export interface RaahatPool {
   token?: { address: string; symbol: string; decimals: number };
   pool?: { address: string; is_contract: boolean; balance_wei: string };
 }
+
+/** GET /raahat/alerts/{id}: an alert's anchor on the AlertRegistry. Ids, counts and hashes only. */
+export interface RaahatAnchor {
+  alert_id: string;
+  alert_key: string;
+  village_id: string;
+  level: number;
+  exercise: boolean;
+  cap_hash: string | null;
+  cap_uri: string | null;
+  registry: string;
+  chain_id: number;
+  network: string;
+  explorer: string | null;
+  public_rpc_url: string | null;
+  tx: string | null;
+  /** sending, sent or failed (the alert went out either way). */
+  state: 'sending' | 'sent' | 'failed';
+  anchored_at: string | null;
+  outcome_tx: string | null;
+  outcome_state: 'sending' | 'sent' | 'failed' | null;
+  delivered: number | null;
+  acknowledged: number | null;
+  after_action_hash: string | null;
+}

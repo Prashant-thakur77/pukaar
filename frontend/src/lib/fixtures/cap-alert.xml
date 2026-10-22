@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>alr_fixture</identifier>
+  <sender>pukaar-dev@localhost</sender>
+  <sent>2023-07-09T06:00:00+05:30</sent>
+  <status>Exercise</status>
+  <msgType>Alert</msgType>
+  <scope>Public</scope>
+  <info>
+    <language>hi-IN</language>
+    <event>बाढ़</event>
+    <headline>पुकार: थुनाग में बाढ़ की चेतावनी</headline>
+  </info>
+</alert>
