@@ -79,7 +79,7 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
               <li key={r.id} id={`report-${r.id}`} className={`report-card lv-${SEV_LEVEL[r.severity] ?? 'normal'}${held ? ' is-held' : ''}`}>
                 <div className="rc-top">
                   <span className="rc-type">{pick(enumLabels.reportType[r.report_type])}</span>
-                  <span className="chip">{pick(enumLabels.severity[r.severity])}</span>
+                  <span className="rc-sev">{pick(enumLabels.severity[r.severity])}</span>
                   <ReportStateChip state={r.state} />
                   {r.replay && <ReplayChip />}
                   <span className="small muted rc-time">{fmtAgo(r.created_at, lang)}</span>

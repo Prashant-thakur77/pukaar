@@ -6,7 +6,10 @@ import { api } from '../api';
 import { Kicker, ValleyLine, WordField } from '../components/Art';
 import { Call112, PukaarMark } from '../components/Shell';
 import { CounterRow } from '../components/CounterRow';
+import { DogStory } from '../components/DogStory';
 import { LevelBadge } from '../components/Level';
+import { DataBadge } from '../components/DataStatus';
+import { levelIsKnown } from '../lib/dataStatus';
 import { QRCode } from '../components/QRCode';
 import { Reveal } from '../components/Reveal';
 import { Spine } from '../components/Spine';
@@ -134,8 +137,10 @@ export default function Landing() {
   }, []);
 
   const raised = data ? data.villages.filter((v) => levelRank(v.level) >= levelRank('warning')) : [];
+  // Late or missing forecast data: those villages must not be counted as calm.
+  const unknown = data ? data.villages.filter((v) => !levelIsKnown(v)) : [];
   const top = data ? [...data.villages].sort((a, b) => levelRank(b.level) - levelRank(a.level))[0] : null;
-  const allNormal = !!data && !data.replay.active && data.villages.length > 0 && raised.length === 0 && top?.level === 'normal';
+  const allNormal = !!data && !data.replay.active && data.villages.length > 0 && raised.length === 0 && unknown.length === 0 && top?.level === 'normal';
 
   const steps: { n: string; icon: typeof Radar; title: Key; body: Key }[] = [
     { n: '01', icon: Radar, title: 'landing.step1.title', body: 'landing.step1.body' },
@@ -157,6 +162,32 @@ export default function Landing() {
         <div className="hero-inner">
           <div className="hero-copy" data-tour="hero">
             <Kicker className="hero-eyebrow">{t('landing.eyebrow')}</Kicker>
+            {data && top ? (
+              /* First thing in the hero: the level now and where to look, in one line. */
+              raised.length === 0 && unknown.length > 0 ? (
+                <Link to="/live" className="hero-now lv-nodata">
+                  <span className="live-dot" aria-hidden="true" />
+                  <DataBadge kind={unknown.some((v) => v.data_status === 'unavailable') ? 'unavailable' : 'stale'} plain />
+                  <span className="hn-text">{t('data.villages', { n: unknown.length })}</span>
+                  <ArrowRight aria-hidden="true" className="hn-go" />
+                </Link>
+              ) : (
+                <Link to={raised.length > 0 ? `/village/${raised[0].id}` : '/live'} className={`hero-now lv-${raised[0]?.level ?? top.level}`}>
+                  <span className="live-dot" aria-hidden="true" />
+                  <LevelBadge level={raised[0]?.level ?? top.level} size="sm" plain={raised[0]?.level !== 'critical'} />
+                  <span className="hn-text">
+                    {raised.length > 0
+                      ? lang === 'hi'
+                        ? `${raised[0].name_hi}${raised.length > 1 ? ` और ${raised.length - 1} गाँव` : ''}: क्या करें, देखें`
+                        : `${raised[0].name}${raised.length > 1 ? ` and ${raised.length - 1} more` : ''}: see what to do`
+                      : lang === 'hi'
+                        ? `सभी ${data.villages.length} गाँवों पर नज़र`
+                        : `Watching all ${data.villages.length} villages`}
+                  </span>
+                  <ArrowRight aria-hidden="true" className="hn-go" />
+                </Link>
+              )
+            ) : null}
             <h1 id="hero-title" className="hero-h1">
               <span className="hh-line">{lang === 'hi' ? 'नदी से पहले,' : 'The call that'}</span>
               <span className="hh-line">{lang === 'hi' ? 'गाँव तक पहुँचने' : 'reaches the village'}</span>
@@ -188,26 +219,6 @@ export default function Landing() {
           </div>
           <TourButton className="hero-tour" />
           <div className="hero-live">
-            {data && top ? (
-              <Link to="/live" className="hero-live-chip">
-                <span className="live-dot" aria-hidden="true" />
-                {raised.length > 0 ? (
-                  <>
-                    <LevelBadge level={raised[0].level} size="sm" />
-                    <span>
-                      {lang === 'hi'
-                        ? `${raised.length} गाँव चेतावनी या उससे ऊपर`
-                        : `${raised.length} village${raised.length === 1 ? '' : 's'} at Warning or above`}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <LevelBadge level={top.level} size="sm" />
-                    <span>{lang === 'hi' ? `${data.villages.length} गाँवों पर नज़र` : `Watching ${data.villages.length} villages`}</span>
-                  </>
-                )}
-              </Link>
-            ) : null}
             <Call112 />
           </div>
           </div>
@@ -377,6 +388,8 @@ export default function Landing() {
           </Reveal>
         </div>
       </section>
+
+      <DogStory />
 
       <section className="thesis band" aria-label={t('thesis.label')}>
         <div className="wrap">

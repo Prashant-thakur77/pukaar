@@ -69,7 +69,7 @@ function AuditInner() {
         <EmptyState title={t('state.empty')} />
       ) : (
         <div className="table-wrap card card-flush" tabIndex={0} role="region" aria-label={t('audit.title')}>
-          <table className="data-table">
+          <table className="data-table stack-sm audit-table">
             <thead>
               <tr>
                 <th scope="col">Time</th>
@@ -83,19 +83,21 @@ function AuditInner() {
             <tbody>
               {view.rows.map((a) => (
                 <tr key={a.id} className={a.decision === 'deny' ? 'row-deny' : ''}>
-                  <td className="nowrap">{fmtTime(a.at, lang)}</td>
-                  <td>
-                    {a.actor} <span className="muted small">({a.role})</span>
+                  <td className="nowrap" data-label="Time">{fmtTime(a.at, lang)}</td>
+                  <td data-label="Actor">
+                    <span>
+                      {a.actor} <span className="muted small">({a.role})</span>
+                    </span>
                   </td>
-                  <td>
+                  <td data-label="Action">
                     <code>{a.action}</code>
                   </td>
-                  <td>
+                  <td data-label="Resource">
                     <code>{a.resource}</code>
                   </td>
-                  <td>
+                  <td data-label="Decision">
                     {a.decision === 'allow' ? (
-                      <span className="chip chip-good">
+                      <span className="aud-allow">
                         <ShieldCheck aria-hidden="true" /> {t('audit.allow')}
                       </span>
                     ) : (
@@ -104,7 +106,7 @@ function AuditInner() {
                       </span>
                     )}
                   </td>
-                  <td>{a.reason}</td>
+                  <td data-label="Reason">{a.reason}</td>
                 </tr>
               ))}
             </tbody>

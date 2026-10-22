@@ -9,10 +9,12 @@ interface Props {
   /** Show both Hindi and English words (default). */
   both?: boolean;
   lang?: 'hi' | 'en';
+  /** A ledger word: icon and word in the level's ink, no box. One pill per item at most. */
+  plain?: boolean;
 }
 
 /** Level is always icon + word + colour, never colour alone. Flashes when it changes. */
-export function LevelBadge({ level, size = 'md', both = true, lang = 'en' }: Props) {
+export function LevelBadge({ level, size = 'md', both = true, lang = 'en', plain = false }: Props) {
   const Icon = LEVEL_ICON[level];
   const key = `level.${level}` as const;
   const hi = dict[key].hi;
@@ -28,7 +30,7 @@ export function LevelBadge({ level, size = 'md', both = true, lang = 'en' }: Pro
     }
   }, [level]);
   return (
-    <span className={`level-badge lv-${level} lb-${size}${flash ? ' is-flash' : ''}`} data-level={level}>
+    <span className={`level-badge lv-${level} lb-${size}${plain ? ' lb-plain' : ''}${flash ? ' is-flash' : ''}`} data-level={level}>
       <Icon className="lb-icon" aria-hidden="true" key={level} />
       {both ? (
         <span className="lb-words">

@@ -189,7 +189,7 @@ function GaugeTile({ v, i }: { v: SensorVillage; i: number }) {
           </p>
         )}
         {v.fresh && v.gauge_level ? (
-          <LevelBadge level={v.gauge_level} size="sm" both={false} lang={lang} />
+          <LevelBadge level={v.gauge_level} size="sm" both={false} lang={lang} plain={v.gauge_level !== 'critical'} />
         ) : (
           <span className="sn-chip is-stale">{latest ? (en ? 'Stale: not counted' : 'पुरानी: गिनी नहीं जाती') : en ? 'No reading yet' : 'अभी कोई रीडिंग नहीं'}</span>
         )}

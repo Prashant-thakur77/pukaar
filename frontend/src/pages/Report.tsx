@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Check, CircleCheck, Copy, Hourglass, LoaderCircle, MapPin, Mic, PenLine, Ruler, Send, Share2, Square, Trash2, X } from 'lucide-react';
+import { Camera, Check, CircleCheck, Copy, Hourglass, LoaderCircle, MapPin, Mic, PenLine, Ruler, Send, Share2, Square, Trash2, WifiOff, X } from 'lucide-react';
 import { api, ApiError } from '../api';
 import { LevelBadge } from '../components/Level';
 import { StaffCompare } from '../components/StaffGauge';
@@ -275,6 +275,31 @@ export default function Report() {
         <p className="report-lead">{t('report.lead')}</p>
       </header>
 
+      {/* Three steps, ticked as they are done: the page says how far along you are without a word to read. */}
+      <ol className="report-progress" aria-label={t('report.progress')}>
+        {[
+          { done: Boolean(villageId), label: t('report.prog.village') },
+          { done: hasContent, label: t('report.prog.content') },
+          { done: false, label: t('report.prog.send') },
+        ].map((p, i) => (
+          <li key={i} className={p.done ? 'is-done' : ''}>
+            <span className="rp-n" aria-hidden="true">
+              {p.done ? <Check /> : i + 1}
+            </span>
+            <span className="rp-label">
+              {p.label}
+              {p.done && <span className="sr-only"> ({t('report.prog.done')})</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
+
+      {!online && (
+        <p className="report-offline" role="status">
+          <WifiOff aria-hidden="true" /> {t('report.offline')}
+        </p>
+      )}
+
       <div className="report-where">
         <label className="field">
           <span className="field-label">{t('report.village')}</span>
@@ -442,7 +467,7 @@ export default function Report() {
       )}
 
       <div className="send-bar">
-        <button type="button" className="btn btn-send btn-press" onClick={() => void send()} disabled={!canSend} aria-describedby="send-note">
+        <button type="button" className="btn btn-accent btn-send btn-press" onClick={() => void send()} disabled={!canSend} aria-describedby="send-note">
           {phase.k === 'sending' ? <LoaderCircle className="spin" aria-hidden="true" /> : <Send aria-hidden="true" />}
           {phase.k === 'sending' ? t('report.sending') : t('report.send')}
           {!online && <span className="send-offline">· {t('shell.offline')}</span>}
@@ -451,14 +476,6 @@ export default function Report() {
           {!villageId ? t('report.need.village') : !hasContent ? t('report.need.content') : t('report.safety')}
         </p>
       </div>
-
-      {!hasContent && !rec.isRecording && (
-        <ol className="report-steps">
-          <li>{t('report.step1')}</li>
-          <li>{t('report.step2')}</li>
-          <li>{t('report.step3')}</li>
-        </ol>
-      )}
 
       {mine.length > 0 && (
         <section className="my-reports" aria-labelledby="mine-h">

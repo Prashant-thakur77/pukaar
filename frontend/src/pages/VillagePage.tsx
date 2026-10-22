@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, Ruler, Tent, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, Hourglass, ListChecks, MapPin, Megaphone, RadioTower, Scale, TrendingUp, Users, Waves } from 'lucide-react';
 import { api } from '../api';
 import { AlertStatusChip, DeliveryChips, ReplayChip, ReportStateChip } from '../components/Chips';
@@ -14,6 +14,9 @@ import { Reveal } from '../components/Reveal';
 import { Sparkline } from '../components/Sparkline';
 import { TimeToEar } from '../components/TimeToEar';
 import { WhereToGo } from '../components/WhereToGo';
+import { WhatToDo } from '../components/WhatToDo';
+import { DataStatusNote, LiveLevelNote, ShownLevel } from '../components/DataStatus';
+import { levelIsKnown } from '../lib/dataStatus';
 import { DeniedNote, EmptyState, ErrorState, Skeleton, SkeletonCards } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
 import { CHANNELS, PUBLIC_CHANNELS } from '../lib/live';
@@ -117,6 +120,14 @@ function AlertCard({ alert, signedIn }: { alert: Alert; signedIn: boolean }) {
       )}
     </li>
   );
+}
+
+/** Public reports carry no words, GPS or media: only whether a place, a photo or a voice note came with them. */
+function ReportCarried({ r }: { r: { has_location?: boolean; has_photo?: boolean; has_audio?: boolean } }) {
+  const { t } = useT();
+  const parts = [r.has_location && t('village.rp.location'), r.has_photo && t('village.rp.photo'), r.has_audio && t('village.rp.voice')].filter(Boolean);
+  if (!parts.length) return null;
+  return <p className="small muted rp-carried">{t('village.rp.with', { x: parts.join(' · ') })}</p>;
 }
 
 /** An open "Surakshit Hoon" roll-call: counts only, never names. */
@@ -365,6 +376,13 @@ export default function VillagePage() {
     live: PUBLIC_CHANNELS,
     match: (e) => e.data.village_id === id,
   });
+  // A link like /village/gohar#where lands on that section once the page has its data.
+  const { hash } = useLocation();
+  const ready = Boolean(data);
+  useEffect(() => {
+    if (!ready || !hash) return;
+    document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
+  }, [ready, hash]);
 
   if (loading && !data)
     return (
@@ -397,7 +415,7 @@ export default function VillagePage() {
 
   return (
     <div className="village-page">
-      <section className={`v-hero lv-${v.level}`}>
+      <section className={`v-hero lv-${levelIsKnown(v) ? v.level : 'nodata'}`}>
         <div className="wrap">
           <Link to="/live" className="back-link">
             <ArrowLeft aria-hidden="true" /> {t('village.back')}
@@ -421,10 +439,14 @@ export default function VillagePage() {
               </p>
             </div>
             <div className="v-level">
-              <LevelBadge level={v.level} size="lg" />
+              <ShownLevel v={v} size="lg" />
+              <LiveLevelNote v={v} />
               {v.level_since && <p className="small">{t('village.since', { t: fmtAgo(v.level_since, lang) })}</p>}
+              {v.latest_reading?.at && <p className="small v-checked">{t('village.checked', { t: fmtAgo(v.latest_reading.at, lang) })}</p>}
             </div>
           </div>
+          <DataStatusNote v={v} />
+          <WhatToDo level={v.level} whereId="where" unknown={!levelIsKnown(v)} />
           {hold && (
             <p className="v-hold" role="note">
               <Hourglass aria-hidden="true" /> {hold.text}
@@ -464,7 +486,7 @@ export default function VillagePage() {
             </ul>
           </section>
         )}
-        <section aria-labelledby="wtg-h">
+        <section id="where" aria-labelledby="wtg-h" className="v-where">
           <h2 id="wtg-h" className="h-sec">
             <Tent aria-hidden="true" /> {t('safe.title')}
           </h2>
@@ -588,7 +610,11 @@ export default function VillagePage() {
                     {r.held && <span className="chip chip-sm chip-held">{lang === 'hi' ? 'जाँच के लिए रोकी गई' : 'Held for review'}</span>}
                     {r.replay && <ReplayChip />}
                   </div>
-                  <p>{humanizeSummary(r.summary_en, lang, r.report_type, r.severity) || r.transcript || r.text}</p>
+                  {(() => {
+                    const words = humanizeSummary(r.summary_en, lang, r.report_type, r.severity) || r.transcript || r.text;
+                    return words ? <p>{words}</p> : null;
+                  })()}
+                  <ReportCarried r={r} />
                   <p className="small muted">{fmtAgo(r.created_at, lang)}</p>
                 </li>
               ))}

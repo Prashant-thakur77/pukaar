@@ -4,6 +4,7 @@ import { loadBacktest } from '../api';
 import { LevelBadge } from '../components/Level';
 import { Reveal } from '../components/Reveal';
 import { PageBand } from '../components/PageBand';
+import { DogStory } from '../components/DogStory';
 import { SatelliteCompare } from '../components/SatelliteCompare';
 import { EmptyState, Skeleton } from '../components/States';
 import { useT, type Key } from '../i18n';
@@ -71,7 +72,7 @@ function Scenario({ sc, i }: { sc: BacktestScenario; i: number }) {
               <tr key={v.village_id}>
                 <th scope="row">{v.village}</th>
                 <td data-label={t('impact.bt.reached')}>
-                  <LevelBadge level={reached(v)} size="sm" />
+                  <LevelBadge level={reached(v)} size="sm" plain={reached(v) !== 'critical'} />
                 </td>
                 <td className="nowrap" data-label={t('impact.bt.first', { l: t('level.watch') })}>{when(v.first_watch)}</td>
                 <td className="nowrap" data-label={t('impact.bt.first', { l: t('level.warning') })}>{when(v.first_warning)}</td>
@@ -159,6 +160,8 @@ export default function Impact() {
   return (
     <div className="impact">
       <PageBand eyebrow={t('impact.eyebrow')} title={t('impact.title')} lead={t('impact.lead')} className="impact-band" />
+
+      <DogStory variant="quote" />
 
       <section className="band band-paper" aria-labelledby="bt-h">
         <div className="wrap">

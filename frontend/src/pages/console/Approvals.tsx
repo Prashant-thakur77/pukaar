@@ -31,9 +31,9 @@ import { DeniedNote, EmptyState, ErrorState, SkeletonCards } from '../../compone
 import type { PollState } from '../../hooks/usePoll';
 import { useT } from '../../i18n';
 import { evidenceLines, type EvidenceLine } from '../../lib/evidence';
-import { fmtAgo, fmtTime } from '../../lib/format';
+import { fmtAgo, fmtNumber, fmtTime } from '../../lib/format';
 import { levelRank } from '../../lib/levels';
-import type { Alert } from '../../types';
+import type { Alert, Village } from '../../types';
 
 /** Cards shown before "Show N more". */
 const VISIBLE = 2;
@@ -61,24 +61,19 @@ function draftKind(a: Pick<Alert, 'draft_check' | 'reasoning_model'>): DraftKind
   return 'template';
 }
 
-function DraftChip({ alert }: { alert: Alert }) {
+/** The draft check as one plain line: an icon and a word in the outcome's ink, never a pill. */
+function DraftLine({ alert }: { alert: Alert }) {
   const { t } = useT();
   const kind = draftKind(alert);
-  if (kind === 'passed')
-    return (
-      <span className="chip chip-good" title={alert.draft_check?.reason}>
-        <CircleCheck aria-hidden="true" /> {t('console.check.pass')}
-      </span>
-    );
-  if (kind === 'rejected')
-    return (
-      <span className="chip chip-bad" title={alert.draft_check?.reason}>
-        <CircleX aria-hidden="true" /> {t('console.check.rejected')}
-      </span>
-    );
+  const [Icon, tone, label] =
+    kind === 'passed'
+      ? [CircleCheck, 'good', t('console.check.pass')]
+      : kind === 'rejected'
+        ? [CircleX, 'bad', t('console.check.rejected')]
+        : [ShieldAlert, 'warn', kind === 'escalated' ? t('console.check.escalated') : t('console.check.template')];
   return (
-    <span className="chip chip-warn" title={alert.draft_check?.reason}>
-      <ShieldAlert aria-hidden="true" /> {kind === 'escalated' ? t('console.check.escalated') : t('console.check.template')}
+    <span className={`tk-word tk-${tone}`} title={alert.draft_check?.reason}>
+      <Icon aria-hidden="true" /> {label}
     </span>
   );
 }
@@ -173,12 +168,15 @@ function PendingCard({
   onGone,
   localMode,
   canDecide,
+  population,
 }: {
   alert: Alert;
   onDone: () => void;
   onGone: (a: Alert) => void;
   localMode: boolean;
   canDecide: boolean;
+  /** People who live in the village, when the record has it: the stakes in one plain line. */
+  population?: number | null;
 }) {
   const { t, lang } = useT();
   const [confirm, setConfirm] = useState<'approve' | 'decline' | null>(null);
@@ -241,39 +239,31 @@ function PendingCard({
         {alert.text_hi}
       </blockquote>
       <p className="draft-en small">{alert.text_en}</p>
+      <div className="tk-listen">
+        <ListenButton alertId={alert.id} hasAudio={alert.has_audio} />
+      </div>
       <dl className="tk-rows">
         <div className="tk-row">
           <dt>{lang === 'hi' ? 'स्तर' : 'Level'}</dt>
           <dd className="pc-level">
-            <LevelBadge level={alert.previous_level} size="sm" />
+            <LevelBadge level={alert.previous_level} size="sm" plain />
             <ArrowRight aria-hidden="true" className="pc-arrow" />
-            <LevelBadge level={alert.level} size="sm" />
+            {/* The one pill on the ticket, and only for the critical state. */}
+            <LevelBadge level={alert.level} size="sm" plain={alert.level !== 'critical'} />
           </dd>
         </div>
         <div className="tk-row">
           <dt>{lang === 'hi' ? 'पाने वाले' : 'Recipients'}</dt>
-          <dd className="tk-mono">
-            <Users aria-hidden="true" /> {t('console.dryrun', { n: alert.recipients_count })}
-          </dd>
-        </div>
-        <div className="tk-row">
-          <dt>{lang === 'hi' ? 'मसौदा जाँच' : 'Draft check'}</dt>
-          <dd className="chip-row">
-            {!fallback && (
-              <span className="chip">
-                <Bot aria-hidden="true" /> {t('console.model')}: {alert.reasoning_model}
-              </span>
+          <dd className="tk-stakes">
+            {population != null && population > 0 && (
+              <span className="tk-people">{t('console.people', { n: fmtNumber(population, lang), v: lang === 'hi' ? alert.village_name_hi : alert.village_name })}</span>
             )}
-            <DraftChip alert={alert} />
+            <span className="tk-mono">
+              <Users aria-hidden="true" /> {t('console.dryrun', { n: alert.recipients_count })}
+            </span>
           </dd>
-        </div>
-        <div className="tk-row">
-          <dt>{lang === 'hi' ? 'बनी' : 'Created'}</dt>
-          <dd className="tk-mono">{fmtTime(alert.created_at, lang)}</dd>
         </div>
       </dl>
-      {draftKind(alert) === 'rejected' && alert.draft_check.reason && <p className="small bad-text">{alert.draft_check.reason}</p>}
-      <WhyLevel alert={alert} />
       {err &&
         (err.isDenied ? (
           <DeniedNote error={err} />
@@ -288,14 +278,8 @@ function PendingCard({
         ) : (
           <ErrorState error={err} compact />
         ))}
-      <div className="pc-actions">
-        <ListenButton alertId={alert.id} hasAudio={alert.has_audio} />
-        {localMode && canDecide && (
-          <span className="pc-devlink">
-            <DevLinkButton alertId={alert.id} />
-          </span>
-        )}
-        <div className="tk-decide">
+      {/* The decision comes right after what it decides: the message, the level change and who would hear it. */}
+      <div className={`tk-decide${canDecide ? '' : ' is-locked'}`}>
         {canDecide ? (
           <>
             <button type="button" className="btn btn-decline btn-press" onClick={() => setConfirm('decline')} disabled={busy}>
@@ -316,8 +300,33 @@ function PendingCard({
             </button>
           </span>
         )}
-        </div>
       </div>
+      <dl className="tk-rows tk-rows-more">
+        <div className="tk-row">
+          <dt>{lang === 'hi' ? 'मसौदा जाँच' : 'Draft check'}</dt>
+          <dd className="tk-check">
+            <DraftLine alert={alert} />
+            {!fallback && (
+              <span className="tk-mono tk-model">
+                <Bot aria-hidden="true" /> {t('console.model')}: {alert.reasoning_model}
+              </span>
+            )}
+          </dd>
+        </div>
+        <div className="tk-row">
+          <dt>{lang === 'hi' ? 'बनी' : 'Created'}</dt>
+          <dd className="tk-mono">{fmtTime(alert.created_at, lang)}</dd>
+        </div>
+      </dl>
+      {draftKind(alert) === 'rejected' && alert.draft_check.reason && <p className="small bad-text">{alert.draft_check.reason}</p>}
+      <WhyLevel alert={alert} />
+      {localMode && canDecide && (
+        <div className="pc-actions tk-aux">
+          <span className="pc-devlink">
+            <DevLinkButton alertId={alert.id} />
+          </span>
+        </div>
+      )}
       <ConfirmDialog
         open={confirm !== null}
         title={`${confirm === 'approve' ? t('approve.approve') : t('approve.decline')}: ${alert.village_name}`}
@@ -345,11 +354,13 @@ export function Approvals({
   onChange,
   localMode = false,
   canDecide = true,
+  villages = [],
 }: {
   poll: PollState<Alert[]>;
   onChange: () => void;
   localMode?: boolean;
   canDecide?: boolean;
+  villages?: Village[];
 }) {
   const { t, lang } = useT();
   const { data, error, loading, refresh } = poll;
@@ -379,7 +390,15 @@ export function Approvals({
       ) : (
         <div className="pending-list">
           {shown.map((a) => (
-            <PendingCard key={a.id} alert={a} onDone={onChange} onGone={onGone} localMode={localMode} canDecide={canDecide} />
+            <PendingCard
+              key={a.id}
+              alert={a}
+              onDone={onChange}
+              onGone={onGone}
+              localMode={localMode}
+              canDecide={canDecide}
+              population={villages.find((v) => v.id === a.village_id)?.population}
+            />
           ))}
           {(hidden > 0 || (all && list.length > VISIBLE)) && (
             <button type="button" className="btn btn-ghost pending-more" aria-expanded={all} onClick={() => setAll((x) => !x)}>

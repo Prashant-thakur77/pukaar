@@ -346,7 +346,7 @@ function Traces() {
             className={`ag-pick${t.alert_id === current.alert_id ? ' is-on' : ''}`}
             onClick={() => setPick(t.alert_id)}
           >
-            <LevelBadge level={t.level} size="sm" both={false} lang={lang} />
+            <LevelBadge level={t.level} size="sm" both={false} lang={lang} plain={t.level !== 'critical'} />
             <span className="ag-pick-name">{en ? t.village_name : t.village_name_hi}</span>
             <span className="ag-pick-time">{fmtAgo(t.created_at, lang)}</span>
             {t.replay && <span className="ag-flag">{en ? 'Replay' : 'रीप्ले'}</span>}

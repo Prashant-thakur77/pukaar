@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, HeartHandshake, MapPin } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, HeartHandshake, MapPin } from 'lucide-react';
 import { api } from '../api';
 import { AckFunnel } from '../components/AckFunnel';
 import { AllClear } from '../components/AllClear';
 import { AlertStatusChip, DeliveryChips, ReplayChip } from '../components/Chips';
 import { CountUp } from '../components/CountUp';
 import { LevelBadge, LevelIcon, LevelLegend } from '../components/Level';
+import { DataStatusNote, LiveLevelNote, ShownLevel } from '../components/DataStatus';
+import { dataIssue, levelIsKnown, liveLevelIfDifferent } from '../lib/dataStatus';
 import { PageBand } from '../components/PageBand';
 import { Reveal } from '../components/Reveal';
 import { EmptyState, ErrorState, Skeleton, SkeletonCards } from '../components/States';
@@ -17,7 +19,9 @@ import { PUBLIC_CHANNELS } from '../lib/live';
 import { useT } from '../i18n';
 import { fmtAgo } from '../lib/format';
 import { levelRank } from '../lib/levels';
-import type { Counters, SafePlacesView } from '../types';
+import type { Counters, PublicOverview, SafePlacesView } from '../types';
+
+type OverviewVillage = PublicOverview['villages'][number];
 
 const COUNTERS: (keyof Counters)[] = ['villages_watched', 'alerts_sent', 'phones_acknowledged', 'reports_received'];
 const DEMO_URL = 'https://github.com/Prashant-thakur77/pukaar/blob/main/DEMO.md';
@@ -47,6 +51,49 @@ function OfficerPreview() {
         {t('live.officer.demo')} <ArrowUpRight aria-hidden="true" />
       </a>
     </section>
+  );
+}
+
+/**
+ * The answer to "is anywhere in danger?" before the map: every village above Normal as one ledger
+ * line (a rule, the word, the name), or one plain line when all is calm.
+ */
+function NowLine({ villages }: { villages: OverviewVillage[] }) {
+  const { t, lang } = useT();
+  // Above Normal, or Normal that nobody can vouch for (late or missing forecast data).
+  const flagged = villages.filter((v) => v.level !== 'normal' || !levelIsKnown(v));
+  if (!villages.length) return null;
+  return (
+    <div className="now-line" aria-labelledby="now-h">
+      <h2 id="now-h" className="now-h">
+        {t('live.now')}
+      </h2>
+      {flagged.length === 0 ? (
+        <p className="now-calm">
+          <LevelBadge level="normal" size="sm" plain both={false} lang={lang} /> {t('live.now.calm', { n: villages.length })}
+        </p>
+      ) : (
+        <ul className="now-list">
+          {flagged.map((v) => (
+            <li key={v.id} className={`lv-${levelIsKnown(v) ? v.level : 'nodata'}`}>
+              <Link to={`/village/${v.id}`}>
+                <ShownLevel v={v} plain />
+                <span className="now-name">
+                  <span lang="hi">{v.name_hi}</span> <span className="now-en">{v.name}</span>
+                </span>
+                <ArrowRight aria-hidden="true" className="now-go" />
+                {(dataIssue(v) || liveLevelIfDifferent(v)) && (
+                  <span className="now-extra">
+                    <DataStatusNote v={v} compact />
+                    <LiveLevelNote v={v} compact />
+                  </span>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -96,6 +143,7 @@ export default function Live() {
           </div>
         }
       >
+        {data && <NowLine villages={villages} />}
         <ul className="mini-counters stat-strip">
           {COUNTERS.map((k) => (
             <li key={k} className="mini-counter stat">
@@ -185,7 +233,7 @@ export default function Live() {
               <ul className="village-tiles">
                 {villages.map((v, i) => (
                   <Reveal as="li" key={v.id} delay={i * 50}>
-                    <Link to={`/village/${v.id}`} className={`village-tile lv-${v.level}`}>
+                    <Link to={`/village/${v.id}`} className={`village-tile lv-${levelIsKnown(v) ? v.level : 'nodata'}`}>
                       <span className="vt-icon" aria-hidden="true">
                         <LevelIcon level={v.level} />
                       </span>
@@ -195,7 +243,9 @@ export default function Live() {
                         </span>
                         <span className="vt-en">{v.name}</span>
                       </span>
-                      <LevelBadge level={v.level} size="sm" />
+                      <ShownLevel v={v} plain />
+                      <DataStatusNote v={v} compact />
+                      <LiveLevelNote v={v} compact />
                       {!v.coords_verified && (
                         <span className="vt-approx">
                           <MapPin aria-hidden="true" /> {t('common.approx')}

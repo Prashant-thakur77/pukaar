@@ -14,9 +14,9 @@ const H = 3600e3;
 const VILLAGES = [
   { id: 'thunag', name: 'Thunag', name_hi: 'थुनाग', lat: 31.575, lon: 77.175, level: 'critical', base: 160 },
   { id: 'gohar', name: 'Gohar', name_hi: 'गोहर', lat: 31.575, lon: 77.025, level: 'warning', base: 110 },
-  { id: 'janjehli', name: 'Janjehli', name_hi: 'जंजैहली', lat: 31.525, lon: 77.225, level: 'watch', base: 70 },
-  { id: 'pandoh', name: 'Pandoh', name_hi: 'पंडोह', lat: 31.675, lon: 77.075, level: 'normal', base: 30 },
-  { id: 'karsog', name: 'Karsog', name_hi: 'करसोग', lat: 31.385, lon: 77.2, level: 'normal', base: 18 },
+  { id: 'janjehli', name: 'Janjehli', name_hi: 'जंजैहली', lat: 31.525, lon: 77.225, level: 'watch', base: 70, live: 'normal' },
+  { id: 'pandoh', name: 'Pandoh', name_hi: 'पंडोह', lat: 31.675, lon: 77.075, level: 'normal', base: 30, data: 'stale' },
+  { id: 'karsog', name: 'Karsog', name_hi: 'करसोग', lat: 31.385, lon: 77.2, level: 'normal', base: 18, data: 'unavailable' },
 ];
 const RAIN_BANDS = { critical: 204.5, warning: 115.6, watch: 64.5 };
 const LEVELS = ['normal', 'watch', 'warning', 'critical'];
@@ -48,6 +48,22 @@ function readings(v) {
 
 const READINGS = Object.fromEntries(VILLAGES.map((v) => [v.id, readings(v)]));
 
+// Pilot-safety fields (docs/CONTRACT.md): the live level beside a replay's, and forecast data freshness.
+function liveAndData(v) {
+  const st = v.data ?? 'ok';
+  return {
+    // Janjehli: live Normal, so the public views show the replay's Watch beside it.
+    replay: Boolean(v.live),
+    live_level: v.live ?? v.level,
+    live_level_since: iso(5 * H),
+    replay_level: v.live ? v.level : null,
+    data_status: st,
+    data_ok_at: st === 'ok' ? iso(0.2 * H) : iso(st === 'stale' ? 0.9 * H : 3.5 * H),
+    data_missing_sweeps: st === 'ok' ? 0 : st === 'stale' ? 3 : 14,
+    data_note: st === 'ok' ? '' : 'SAMPLE: the provider left out rain and discharge',
+  };
+}
+
 function village(v) {
   const r = READINGS[v.id];
   return {
@@ -62,6 +78,7 @@ function village(v) {
     level: v.level,
     level_since: iso(v.level === 'critical' ? 1.2 * H : 5 * H),
     calm_sweeps: 0,
+    ...liveAndData(v),
     thresholds: thresholds(v),
     latest_reading: r[r.length - 1],
     open_alert_id: alerts.find((a) => a.village_id === v.id && ['pending', 'approved', 'delivering'].includes(a.status))?.id ?? null,
@@ -204,7 +221,11 @@ const overview = () => ({
     gauge_readings_24h: 0,
     gauge_readings_24h_simulated: 0,
   },
-  villages: VILLAGES.map((v) => ({ id: v.id, name: v.name, name_hi: v.name_hi, lat: v.lat, lon: v.lon, level: v.level, coords_verified: false })),
+  villages: VILLAGES.map((v) => {
+    const d = liveAndData(v);
+    return { id: v.id, name: v.name, name_hi: v.name_hi, lat: v.lat, lon: v.lon, level: v.level, live_level: d.live_level, replay: d.replay,
+      coords_verified: false, data_status: d.data_status, data_ok_at: d.data_ok_at };
+  }),
   recent_alerts: alerts.map((a) => ({ id: a.id, village_name: a.village_name, village_name_hi: a.village_name_hi, level: a.level, status: a.status, created_at: a.created_at, approved: a.approved, delivered_count: a.delivered_count, acknowledged_count: a.acknowledged_count, replay: a.replay })),
   replay: { active: replay.active },
 });
@@ -274,7 +295,11 @@ const server = http.createServer(async (req, res) => {
       village: village(v),
       readings: READINGS[v.id],
       alerts: alerts.filter((a) => a.village_id === v.id),
-      reports: reports.filter((r) => r.village_id === v.id),
+      // Public: the coarse facts only (views.public_report): no words, GPS or media.
+      reports: reports
+        .filter((r) => r.village_id === v.id)
+        .map((r) => ({ id: r.id, village_id: r.village_id, created_at: r.created_at, report_type: r.report_type, severity: r.severity, state: r.state,
+          held: Boolean(r.held), replay: r.replay, has_location: r.lat != null, has_photo: Boolean(r.photo_url), has_audio: Boolean(r.audio_url) })),
       past_events: v.level === 'critical' ? [{ date: '2023-07-09', level: 'critical', text_en: 'SAMPLE: heavy-rain event; road and bridge damage reported.', text_hi: 'नमूना: भारी बारिश, सड़क और पुल को नुकसान।' }] : [],
       nowcast: v.level === 'normal' ? null : { likely_level: v.level, hours: 6, text_en: `Likely to stay at ${v.level} for the next 6 hours.`, text_hi: 'अगले 6 घंटे यही स्तर रहने की संभावना।' },
     });

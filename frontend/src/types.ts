@@ -146,7 +146,18 @@ export interface Village extends SampleFlag {
   readiness?: Readiness | null;
   /** True while a replay owns this village's level. */
   replay?: boolean;
+  /** The live level, always: `level` shows a replay's level only while the live one is Normal. */
+  live_level?: Level;
+  live_level_since?: string | null;
+  replay_level?: Level | null;
+  /** Forecast data freshness: "stale" carries the last complete values forward; "unavailable" holds the level. */
+  data_status?: DataStatus;
+  data_ok_at?: string | null;
+  data_missing_sweeps?: number;
+  data_note?: string;
 }
+
+export type DataStatus = 'ok' | 'stale' | 'unavailable';
 
 export interface DraftCheck {
   passed: boolean;
@@ -257,6 +268,10 @@ export interface Report extends SampleFlag {
   held?: boolean;
   /** "Compare with the marked rock": the mark the villager chose, and the officer's check. */
   staff_reading?: StaffReading | null;
+  /** Public pages get the coarse facts only: no words, GPS or media, just whether they were sent. */
+  has_location?: boolean;
+  has_photo?: boolean;
+  has_audio?: boolean;
 }
 
 export interface ReportScreen {
@@ -722,6 +737,10 @@ export interface PublicVillage {
   level: Level;
   coords_verified: boolean;
   rollcall?: PublicRollCall | null;
+  replay?: boolean;
+  live_level?: Level;
+  data_status?: DataStatus;
+  data_ok_at?: string | null;
 }
 
 export interface PublicAlert {

@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ExpressionSpecification, Map as MlMap, Marker } from 'maplibre-gl';
-import { Tent } from 'lucide-react';
+import { CloudOff, Tent } from 'lucide-react';
 import { dict, useT } from '../i18n';
 import { LEVEL_ICON, levelRank } from '../lib/levels';
+import { levelIsKnown } from '../lib/dataStatus';
 import { fanOffsets, routeCollection, viewPoints } from '../lib/safePlaces';
 import { fmtNumber } from '../lib/format';
 import { prefersReducedMotion } from '../hooks/useMotion';
 import { usePrefs } from '../store';
-import type { Level, SafePlace, SafePlacesView } from '../types';
+import type { DataStatus, Level, SafePlace, SafePlacesView } from '../types';
 
 export interface MapVillage {
   id: string;
@@ -18,6 +19,7 @@ export interface MapVillage {
   lon: number;
   level: Level;
   coords_verified: boolean;
+  data_status?: DataStatus;
 }
 
 interface Props {
@@ -624,14 +626,16 @@ export function VillageMap({
       {villages.map((v) => {
         const el = els[v.id];
         if (!el) return null;
-        const Icon = LEVEL_ICON[v.level];
-        const lvWord = `${dict[`level.${v.level}`].hi} / ${dict[`level.${v.level}`].en}`;
+        // A Normal with no data behind it is drawn grey, never green.
+        const known = levelIsKnown(v);
+        const Icon = known ? LEVEL_ICON[v.level] : CloudOff;
+        const lvWord = known ? `${dict[`level.${v.level}`].hi} / ${dict[`level.${v.level}`].en}` : `${dict['data.badge.none'].hi} / ${dict['data.badge.none'].en}`;
         const name = lang === 'hi' ? v.name_hi : v.name;
         const hl = highlight.includes(v.id);
         return createPortal(
           <button
             type="button"
-            className={`mk lv-${v.level}${hl ? ' is-hl' : ''}${v.coords_verified ? '' : ' is-approx'}`}
+            className={`mk lv-${known ? v.level : 'nodata'}${hl ? ' is-hl' : ''}${v.coords_verified ? '' : ' is-approx'}`}
             aria-label={`${t('map.marker', { name, level: lvWord })}${v.coords_verified ? '' : ` (${t('common.approx')})`}`}
             onClick={() => onSelect?.(v.id)}
           >
@@ -657,17 +661,20 @@ export function VillageMap({
     {narrow && numbered.length > 0 && (
       <ol className="map-key" aria-label={t('map.key')}>
         {numbered.map((v) => {
-          const Icon = LEVEL_ICON[v.level];
+          const known = levelIsKnown(v);
+          const Icon = known ? LEVEL_ICON[v.level] : CloudOff;
+          const lv = known ? v.level : 'nodata';
+          const word = known ? t(`level.${v.level}`) : t('data.badge.none');
           const name = lang === 'hi' ? v.name_hi : v.name;
           const inner = (
             <>
-              <span className={`mk-num lv-${v.level}`} aria-hidden="true">
+              <span className={`mk-num lv-${lv}`} aria-hidden="true">
                 {numOf.get(v.id)}
               </span>
               <span lang={lang}>{name}</span>
-              <span className={`mk-key-lv lv-${v.level}`} title={t(`level.${v.level}`)}>
+              <span className={`mk-key-lv lv-${lv}`} title={word}>
                 <Icon aria-hidden="true" />
-                <span className="sr-only">{t(`level.${v.level}`)}</span>
+                <span className="sr-only">{word}</span>
               </span>
             </>
           );

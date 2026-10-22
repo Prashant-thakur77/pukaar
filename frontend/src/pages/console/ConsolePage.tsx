@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { TimeToEar } from '../../components/TimeToEar';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { Bell, BellRing, ChevronDown, Cloud, Download, FileText, HeartHandshake, History, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
+import { ArrowRight, Bell, BellRing, ChevronDown, Cloud, Download, FileText, HeartHandshake, History, Home, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
 import { api, API_BASE, ApiError } from '../../api';
 import { AlertStatusChip, DeliveryChips } from '../../components/Chips';
 import { LevelBadge } from '../../components/Level';
+import { DataStatusNote, LiveLevelNote, ShownLevel } from '../../components/DataStatus';
+import { levelIsKnown } from '../../lib/dataStatus';
 import { Call112 } from '../../components/Shell';
 import { usePoll } from '../../hooks/usePoll';
 import { CHANNELS } from '../../lib/live';
@@ -15,7 +17,7 @@ import { capXmlUrl } from '../../lib/cap';
 import { fmtAgo, fmtTime } from '../../lib/format';
 import { Skeleton } from '../../components/States';
 import { Headline, StatStrip } from '../../components/PageBand';
-import type { Alert } from '../../types';
+import type { Alert, Village } from '../../types';
 import { useAuth } from '../../store';
 import { Approvals } from './Approvals';
 import { Ask } from './Ask';
@@ -67,7 +69,10 @@ function Console() {
     void health.refresh();
   };
 
+  const myIds = officer ? [] : (me.data?.village_ids ?? user?.village_ids ?? []);
+  const mine = vs.filter((v) => myIds.includes(v.id));
   const tabs = [
+    ...(officer ? [] : [{ href: '#mine', label: t('console.tab.mine'), icon: Home }]),
     { href: '#approvals', label: t('console.tab.approvals'), icon: Bell, badge: pendingN },
     { href: '#queue', label: t('console.tab.queue'), icon: LayoutList },
     { href: '#rollcall', label: t('console.tab.rollcall'), icon: HeartHandshake },
@@ -79,6 +84,72 @@ function Console() {
         ]
       : []),
   ];
+
+  const secMine = (
+    <section id="mine" className="panel panel-mine" aria-labelledby="mine-h">
+      <h2 id="mine-h" className="panel-title">
+        <Home aria-hidden="true" /> {t('console.mine')}
+      </h2>
+      <MyVillages villages={mine} loading={villages.loading && !villages.data} />
+    </section>
+  );
+  const secApprovals = (
+    <section id="approvals" className="panel panel-approvals" aria-labelledby="ap-h">
+      <h2 id="ap-h" className="panel-title">
+        <Bell aria-hidden="true" /> {t('console.pending')}
+        {pendingN > 0 && <span className="badge badge-pulse">{pendingN}</span>}
+      </h2>
+      <Approvals poll={pending} onChange={refreshAlerts} localMode={mode === 'local'} canDecide={officer} villages={vs} />
+    </section>
+  );
+  const secQueue = (
+    <section id="queue" className="panel panel-queue" aria-labelledby="q-h">
+      <h2 id="q-h" className="panel-title">
+        <LayoutList aria-hidden="true" /> {t('console.queue')}
+      </h2>
+      <VillageQueue poll={villages} />
+    </section>
+  );
+  const secTop = (
+    <div className="console-top">
+      <section className="panel panel-compact panel-replay" aria-labelledby="rep-h">
+        <h2 id="rep-h" className="panel-title">
+          <History aria-hidden="true" /> {t('console.replay')}
+        </h2>
+        <Replay poll={replay} onChanged={refreshAll} canControl={officer} />
+      </section>
+      <section className="panel panel-compact panel-system" aria-labelledby="sys-h">
+        <h2 id="sys-h" className="panel-title">
+          <Server aria-hidden="true" /> {t('system.title')}
+        </h2>
+        <SystemCard poll={health} />
+      </section>
+    </div>
+  );
+  const secRollcall = (
+    <section id="rollcall" className="panel panel-rollcall" aria-labelledby="rc-h">
+      <h2 id="rc-h" className="panel-title">
+        <HeartHandshake aria-hidden="true" /> {t('rollcall.title')}
+      </h2>
+      <RollCallPanel villages={vs} villageIds={officer ? null : myIds} />
+    </section>
+  );
+  const secAsk = (
+    <section id="ask" className="panel panel-ask" aria-labelledby="ask-h">
+      <h2 id="ask-h" className="panel-title">
+        <Sparkles aria-hidden="true" /> {t('console.ask')}
+      </h2>
+      <Ask villages={vs} />
+    </section>
+  );
+  const secReports = (
+    <section id="reports" className="panel panel-reports" aria-labelledby="rp-h">
+      <h2 id="rp-h" className="panel-title">
+        <FileText aria-hidden="true" /> {t('console.reports')}
+      </h2>
+      <ReportFeed poll={reports} villages={vs} canEdit={officer} />
+    </section>
+  );
 
   return (
     <div className={`console${officer ? '' : ' is-pradhan'}`}>
@@ -136,58 +207,26 @@ function Console() {
       </header>
 
       <div className="console-grid wrap-wide">
-        <div className="console-top">
-          <section className="panel panel-compact panel-replay" aria-labelledby="rep-h">
-            <h2 id="rep-h" className="panel-title">
-              <History aria-hidden="true" /> {t('console.replay')}
-            </h2>
-            <Replay poll={replay} onChanged={refreshAll} canControl={officer} />
-          </section>
-          <section className="panel panel-compact panel-system" aria-labelledby="sys-h">
-            <h2 id="sys-h" className="panel-title">
-              <Server aria-hidden="true" /> {t('system.title')}
-            </h2>
-            <SystemCard poll={health} />
-          </section>
-        </div>
-
-        <section id="approvals" className="panel panel-approvals" aria-labelledby="ap-h">
-          <h2 id="ap-h" className="panel-title">
-            <Bell aria-hidden="true" /> {t('console.pending')}
-            {pendingN > 0 && <span className="badge badge-pulse">{pendingN}</span>}
-          </h2>
-          <Approvals poll={pending} onChange={refreshAlerts} localMode={mode === 'local'} canDecide={officer} />
-        </section>
-
-        <section id="queue" className="panel panel-queue" aria-labelledby="q-h">
-          <h2 id="q-h" className="panel-title">
-            <LayoutList aria-hidden="true" /> {t('console.queue')}
-          </h2>
-          <VillageQueue poll={villages} />
-        </section>
-
-        <section id="rollcall" className="panel panel-rollcall" aria-labelledby="rc-h">
-          <h2 id="rc-h" className="panel-title">
-            <HeartHandshake aria-hidden="true" /> {t('rollcall.title')}
-          </h2>
-          <RollCallPanel villages={vs} villageIds={officer ? null : (me.data?.village_ids ?? user?.village_ids ?? [])} />
-        </section>
-
-        {officer && (
-          <section id="ask" className="panel panel-ask" aria-labelledby="ask-h">
-            <h2 id="ask-h" className="panel-title">
-              <Sparkles aria-hidden="true" /> {t('console.ask')}
-            </h2>
-            <Ask villages={vs} />
-          </section>
+        {/* Reading order follows the job: an officer decides first; a pradhan looks after their village first. */}
+        {officer ? (
+          <>
+            {secApprovals}
+            {secQueue}
+            {secTop}
+            {secRollcall}
+            {secAsk}
+            {secReports}
+          </>
+        ) : (
+          <>
+            {secMine}
+            {secRollcall}
+            {secQueue}
+            {secApprovals}
+            {secTop}
+            {secReports}
+          </>
         )}
-
-        <section id="reports" className="panel panel-reports" aria-labelledby="rp-h">
-          <h2 id="rp-h" className="panel-title">
-            <FileText aria-hidden="true" /> {t('console.reports')}
-          </h2>
-          <ReportFeed poll={reports} villages={vs} canEdit={officer} />
-        </section>
 
         <div id="act" className="panel-stack">
           {officer && (
@@ -229,6 +268,47 @@ function Console() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** The pradhan's own village first: its level, how long, and the three things they look after. */
+function MyVillages({ villages, loading }: { villages: Village[]; loading: boolean }) {
+  const { t, lang } = useT();
+  if (loading) return <Skeleton lines={3} />;
+  if (!villages.length) return <p className="muted">{t('console.mine.none')}</p>;
+  return (
+    <ul className="myv-list">
+      {villages.map((v) => (
+        <li key={v.id} className={`myv-row lv-${levelIsKnown(v) ? v.level : 'nodata'}`}>
+          <p className="myv-name">
+            <span lang="hi">{v.name_hi}</span> <span className="tk-en">{v.name}</span>
+          </p>
+          <p className="myv-level">
+            <ShownLevel v={v} size="md" plain />
+            {v.level_since && <span className="small muted">{t('village.since', { t: fmtAgo(v.level_since, lang) })}</span>}
+          </p>
+          <DataStatusNote v={v} />
+          <LiveLevelNote v={v} />
+          <ul className="myv-links">
+            <li>
+              <Link to={`/village/${v.id}#where`}>
+                {t('console.mine.shelters')} <ArrowRight aria-hidden="true" />
+              </Link>
+            </li>
+            <li>
+              <a href="#rollcall">
+                {t('console.mine.rollcall')} <ArrowRight aria-hidden="true" />
+              </a>
+            </li>
+            <li>
+              <Link to={`/village/${v.id}`}>
+                {t('console.mine.page')} <ArrowRight aria-hidden="true" />
+              </Link>
+            </li>
+          </ul>
+        </li>
+      ))}
+    </ul>
   );
 }
 
