@@ -54,11 +54,12 @@ RAAHAT_STACK_PARAMS = $(if $(filter raahat,$(STAGE)),$(if $(wildcard $(RAAHAT_DE
                  RaahatChainId=$(call raahat_json,chain_id) RaahatTestInr=$(call raahat_json,test_inr) \
                  RaahatPool=$(call raahat_json,pool) RaahatPoolIsContract=true \
                  RaahatAlertRegistry=$(call raahat_json,alert_registry) RaahatOracle=$(call raahat_json,oracle) \
-                 $(if $(call raahat_json,impact_attestation),RaahatImpactAttestation=$(call raahat_json,impact_attestation))))
+                 $(if $(call raahat_json,impact_attestation),RaahatImpactAttestation=$(call raahat_json,impact_attestation)) \
+                 RaahatFromBlock=$(call raahat_json,deployed_at_block)))
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
         seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke \
-        test-contracts raahat-deps raahat-anvil raahat-deploy raahat-fund raahat-seed-households raahat-attesters raahat-signer-ssm
+        test-contracts raahat-deps raahat-anvil raahat-deploy raahat-fund raahat-seed-households raahat-attesters raahat-demo-photo raahat-signer-ssm
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -231,6 +232,10 @@ raahat-attesters: ## Grant the officer and each village's pradhan attester role 
 	  eval "$$(scripts/stack_env.sh)"; cd backend && RAAHAT_SIGNER_KEY="$$RAAHAT_DEPLOYER_KEY" \
 	    RAAHAT_DEPLOYMENTS=$(abspath $(RAAHAT_DEPLOYMENT)) PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.attest setup; \
 	else cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.attest setup; fi
+
+raahat-demo-photo: ## Demo only: file a labelled DEMO photo as a verified replay report for the pradhan's attestation (VILLAGE=pandoh)
+	@test "$(STAGE)" != prod || { echo "never on STAGE=prod" >&2; exit 2; }
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.demo $(or $(VILLAGE),pandoh) $(abspath data/raahat/demo-photo-labelled.jpg)
 
 raahat-signer-ssm: ## Store the testnet signer key as the SecureString /pukaar-raahat/<stage>/signer_key (STAGE=raahat), never printed
 	@test -n "$$RAAHAT_DEPLOYER_KEY" || { echo "RAAHAT_DEPLOYER_KEY is not set in .env.deploy.local." >&2; exit 2; }

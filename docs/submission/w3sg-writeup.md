@@ -5,8 +5,8 @@ Flood warning that pays the household before the river rises: forecast-triggered
 - Track: Tech Track (built prototype, repo and demo)
 - Code: https://github.com/Prashant-thakur77/pukaar/tree/web3-social-good
 - Live relief ledger: https://main.d227ld968f3fok.amplifyapp.com/raahat (no sign-in)
-- Contracts on Base Sepolia (chain 84532): AlertRegistry [`0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3`](https://sepolia.basescan.org/address/0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3), ReliefPool [`0x5EA7EfaaDf46D0DD61dfa98F761bAe2e717cc8F8`](https://sepolia.basescan.org/address/0x5EA7EfaaDf46D0DD61dfa98F761bAe2e717cc8F8), TestINR [`0x6b3C4E4E29233b8d3e336a6148702ab1D395a419`](https://sepolia.basescan.org/address/0x6b3C4E4E29233b8d3e336a6148702ab1D395a419)
-- Demo video (3:00): VIDEO_LINK
+- Contracts on Base Sepolia (chain 84532): AlertRegistry [`0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3`](https://sepolia.basescan.org/address/0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3), ReliefPool [`0x61Ce8978cD5ea7F1F12cd7BDdCd959d4Eb0F49f0`](https://sepolia.basescan.org/address/0x61Ce8978cD5ea7F1F12cd7BDdCd959d4Eb0F49f0), ImpactAttestation [`0x0d9D5139D215e1C341eaa298eF1ddb1BBe2769b7`](https://sepolia.basescan.org/address/0x0d9D5139D215e1C341eaa298eF1ddb1BBe2769b7), TestINR [`0x6b3C4E4E29233b8d3e336a6148702ab1D395a419`](https://sepolia.basescan.org/address/0x6b3C4E4E29233b8d3e336a6148702ab1D395a419)
+- Demo video (3:00): to be added after recording ([script](w3sg-demo-script.md))
 - Sources for every number: [w3sg-sources.md](w3sg-sources.md)
 - Tags: Web3, Social Impact, Sustainability, AI, Decentralized Identity, DAPP
 
@@ -38,7 +38,7 @@ A villager needs no wallet, app or account. If the rule fires for a live alert t
 2. The confirmation comes from three parties who do not run the ledger: the pradhan (photo report, hashed), the district officer and a satellite check from Sentinel-2 imagery. One of them alone unlocks nothing.
 3. A donor and a villager can verify the same receipts without trusting us. The CAP hash, the release and each household receipt are public transactions.
 
-What the chain does not do: it does not forecast, it does not decide the level (code does, from IMD bands and GloFAS river thresholds), and it holds no personal data. A household is `keccak256(villageId, HMAC(salt, householdNo))`; names, phone numbers and chat ids stay in DynamoDB. There is no token, no DAO, no NFT and no upgradeable proxy: three small contracts and a test stablecoin.
+What the chain does not do: it does not forecast, it does not decide the level (code does, from IMD bands and GloFAS river thresholds), and it holds no personal data. A household is `keccak256(villageId, HMAC(salt, householdNo))`; names, phone numbers and chat ids stay in DynamoDB. There is no token sale, no DAO, no NFT and no upgradeable proxy: three small contracts and a test stablecoin.
 
 ## What is real, a replay, simulated or planned
 
@@ -46,12 +46,12 @@ What the chain does not do: it does not forecast, it does not decide the level (
 |---|---|
 | Real | The Pukaar warning loop on AWS; the contracts on Base Sepolia; every anchor and release transaction; the public ledger at /raahat; the Cedar policies and the audit row for every release |
 | Replay | The July 2023 Beas flood replay drives the whole money path on testnet. It is labelled REPLAY everywhere, and on chain the alert carries `exercise=true`, as CAP carries `status=Exercise`. Exercise cooldowns are kept apart from live ones, so a demo can never block a real payout |
-| Simulated | The money is TestINR (tINR), a test token with no value. The household register adds labelled demo households on the demo stack. The cash-out agent on testnet is the backend's own address, holding the village's relief for the pradhan |
-| Planned | A real INR stablecoin or a bank/UPI rail (needs a licensed partner); SDRF norm mapping with the DDMA; the production chain chosen with the issuing authority. STEP3_STATUS |
+| Simulated | The money is TestINR (tINR), a test token with no value. The household register adds labelled demo households on the demo stack. On the testnet the backend holds the three attester keys (one per role, so they are different addresses on chain) and signs after Cedar checks the person; the cash-out agent is the backend's own address, holding the village's relief for the pradhan. The satellite pair covers Pandoh, for July 2023 only. The pradhan's photo in the demo is a labelled demo image, filed as a replay report |
+| Planned | A real INR stablecoin or a bank/UPI rail (needs a licensed partner); SDRF norm mapping with the DDMA; the production chain chosen with the issuing authority. Each attester's own device key |
 
 ## How it is built
 
-The three contracts (Solidity 0.8.26, OpenZeppelin 5) are AlertRegistry (87 lines), ReliefPool (161 lines) and TestINR (22 lines). Foundry runs 36 tests on them, including fuzzing on amounts and household counts, a token that tries to re-enter `release`, sealing, cooldowns, the exercise flag, and Merkle receipts that are valid, replayed or from the wrong village. Line, branch and function coverage is 100%. The Merkle proofs in those tests are generated by the Python backend, so the same fixture proves the backend's trees verify on chain.
+The four contracts (Solidity 0.8.26, OpenZeppelin 5) are AlertRegistry (87 lines), ReliefPool (161 lines), ImpactAttestation (82 lines) and TestINR (22 lines). Foundry runs 44 tests on them, including fuzzing on amounts and household counts, a token that tries to re-enter `release`, sealing, cooldowns, the exercise flag, two roles on one key counting as one attester, and Merkle receipts that are valid, replayed or from the wrong village. Line, branch and function coverage is 100%. The Merkle proofs in those tests are generated by the Python backend, so the same fixture proves the backend's trees verify on chain.
 
 The backend is the existing Pukaar FastAPI and Step Functions stack with one new package, `raahat/`. The anchor runs after an alert's first successful delivery and again at close. Every chain call is wrapped: a failure is logged, counted as `RaahatTxFailed` (a CloudWatch alarm with its runbook section) and swallowed, and the alert goes out unchanged. That is the same rule Pukaar already applies to Bedrock. A conditional DynamoDB write claims each anchor and each release, so a re-run step or a double tap never sends twice.
 
@@ -59,7 +59,7 @@ Cedar decides who may release relief: district officers only; the public demo ac
 
 The public /raahat page is Hindi-first and loads as its own chunk; the villager report page keeps its 129 kB budget and never downloads the chain library. It shows the pool balance (checked again from the chain in the browser), the sealed rule and a timeline per alert: anchored, heard (मिल गया counts), anticipatory relief, confirmed relief. It updates live through AppSync Events and has no axe violations.
 
-Tests: BACKEND_TESTS backend tests and FRONTEND_TESTS frontend tests pass, plus the 36 Foundry tests.
+Tests: 995 backend tests and 199 frontend tests pass, plus the 44 Foundry tests. The live smoke test checks the deployed stack, Raahat included.
 
 ## Who it is for
 

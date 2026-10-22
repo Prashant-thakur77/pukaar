@@ -276,7 +276,8 @@ async function landingChecks(page) {
 
 async function browserChecks() {
   const code = await trackCode();
-  const pages = ['/', '/live', '/how', '/agents', '/sensors', '/impact', '/report', '/village/gohar', `/t/${code}`, '/login'].filter(
+  const raahat = process.env.SMOKE_RAAHAT === 'off' ? [] : ['/raahat'];
+  const pages = ['/', '/live', '/how', '/agents', '/sensors', '/impact', '/report', '/village/gohar', `/t/${code}`, '/login', ...raahat].filter(
     (p) => !ONLY.length || ONLY.includes(p),
   );
   const browser = await chromium.launch({ headless: true, ...(CHROME ? { executablePath: CHROME } : {}) });

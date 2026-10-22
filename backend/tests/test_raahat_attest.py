@@ -344,3 +344,17 @@ def test_missing_snapshot_is_rebuilt_only_when_it_matches_the_root_on_chain(repo
     with pytest.raises(receipts.ReceiptRefused) as e:
         receipts.households_for(repo, b.id)
     assert e.value.code == "register_changed" and households.snapshot(repo, "gohar") is None
+
+
+def test_demo_photo_report_is_a_replay_never_a_live_report(repo, frozen, fake):
+    """make raahat-demo-photo: a labelled demo photo for the pradhan's attestation in a replay. It is filed as a
+    replay report (never on the live village page, never raising a live level) and verified by the demo officer."""
+    from Pukaar.raahat import demo
+
+    rid = demo.photo_report(repo, "pandoh", b"\xff\xd8 labelled demo photo", by="officer1")
+    r = repo.get_report(rid)
+    assert r.replay is True and r.state == "verified" and r.verified_by == "officer1" and r.photo_key
+    assert "DEMO" in r.text and "replay" in r.text.lower()
+    a = _anchored(repo, village="pandoh")
+    out = attest.attest_pradhan(repo, a.id, report_id=rid, severity=2, by="pradhan_pandoh")
+    assert out["state"] == "sent"

@@ -463,6 +463,7 @@ How it is wired, and what the tests hold it to:
 - The indexer copies the contracts' events into the table in 200-block windows from a checkpoint during the sweep; when the chain cannot be read, /raahat shows the last snapshot and says it is cached.
 - Foundry: 44 tests on the four contracts (roles, write-once anchors, sealing, cooldowns, the exercise flag, a token that tries to re-enter `release`, Merkle receipts valid, replayed and from another village, two roles on one key counting once, fuzzing on amounts and severities) with 100% line, statement, branch and function coverage (`forge coverage`). The Merkle proofs in those tests are built by the Python backend.
 - /raahat is its own chunk, kept out of the service worker's precache; the villager report page never downloads the chain library. axe reports no violations on /raahat, the console's relief and receipts panels, in Hindi and English, at 390 px.
+- The live smoke test (`make smoke`) checks the deployed `pukaar-raahat` stack: the pool readable with its rule sealed, the ledger linking real transactions, the officer routes closed without a token, and axe on /raahat at 390 and 1440 px (86 of 86 on 23 Oct 2026).
 
 Run it locally (no AWS, no testnet):
 
@@ -475,7 +476,7 @@ make raahat-attesters          # the officer's and each village's pradhan's atte
 make local                     # sign in as officer1, start the July 2023 replay
 ```
 
-On the testnet the same targets take `RAAHAT_NETWORK=base-sepolia` (a funded key in `.env.deploy.local` as `RAAHAT_DEPLOYER_KEY`), and the stack is `make deploy STAGE=raahat`, which passes the addresses from the deployment file. Cost on Base Sepolia so far: under 0.0001 test ETH in fees for every deployment, seeding run, role grant and transaction above (plus 0.001 handed to each of the six attester keys for their own gas).
+For the pradhan's attestation in a demo, `make raahat-demo-photo STAGE=raahat` files a labelled DEMO photo as a verified replay report (never a live report). On the testnet the same targets take `RAAHAT_NETWORK=base-sepolia` (a funded key in `.env.deploy.local` as `RAAHAT_DEPLOYER_KEY`), and the stack is `make deploy STAGE=raahat`, which passes the addresses from the deployment file. Cost on Base Sepolia so far: under 0.0001 test ETH in fees for every deployment, seeding run, role grant and transaction above (plus 0.001 handed to each of the six attester keys for their own gas).
 
 ## What the back-test shows (and what it does not)
 

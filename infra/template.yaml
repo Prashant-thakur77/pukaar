@@ -173,6 +173,10 @@ Parameters:
     Type: String
     Default: ""
     Description: "ImpactAttestation contract address (2 of 3 confirmation). Empty: no attestation, no confirmed tranche."
+  RaahatFromBlock:
+    Type: String
+    Default: ""
+    Description: "The block the indexer starts from on its first run (the deployment's). Empty: about a day back."
   RaahatOracle:
     Type: String
     Default: ""
@@ -278,6 +282,7 @@ Globals:
         RAAHAT_ALERT_REGISTRY: !Ref RaahatAlertRegistry
         RAAHAT_IMPACT_ATTESTATION: !Ref RaahatImpactAttestation
         RAAHAT_ORACLE: !Ref RaahatOracle
+        RAAHAT_FROM_BLOCK: !Ref RaahatFromBlock
         RAAHAT_SIGNER_PARAM: !Sub /pukaar-raahat/${Stage}/signer_key
 
 Resources:
