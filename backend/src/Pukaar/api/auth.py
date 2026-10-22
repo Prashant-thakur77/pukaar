@@ -25,6 +25,7 @@ DEV_USERS = {
     "officer1": ("officer", []),
     "officer2": ("officer", []),
     "pradhan_thunag": ("pradhan", ["thunag"]),
+    "pradhan_pandoh": ("pradhan", ["pandoh"]),  # Raahat demo: Pandoh is the village the satellite pair covers
     # The public demo accounts, as on the live stack: Cedar holds them to replay alerts only.
     "judge": ("officer", []),
     "judge_pradhan": ("pradhan", ["thunag"]),

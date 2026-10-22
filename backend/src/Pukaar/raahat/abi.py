@@ -54,6 +54,9 @@ RELIEF_POOL = [
      "inputs": [{"name": "alertId", "type": "bytes32"}, {"name": "tier", "type": "uint8"}], "outputs": []},
     {"type": "function", "name": "setHouseholds", "stateMutability": "nonpayable",
      "inputs": [{"name": "villageId", "type": "bytes32"}, {"name": "root", "type": "bytes32"}, {"name": "count", "type": "uint32"}], "outputs": []},
+    {"type": "function", "name": "receipt", "stateMutability": "nonpayable",
+     "inputs": [{"name": "alertId", "type": "bytes32"}, {"name": "householdHash", "type": "bytes32"},
+                {"name": "proof", "type": "bytes32[]"}, {"name": "upiRefHash", "type": "bytes32"}], "outputs": []},
     {"type": "function", "name": "setCashOutAgent", "stateMutability": "nonpayable",
      "inputs": [{"name": "villageId", "type": "bytes32"}, {"name": "agent", "type": "address"}], "outputs": []},
 ]
@@ -61,4 +64,25 @@ RELIEF_POOL = [
 CONFIRMATION = [
     {"type": "function", "name": "isConfirmed", "stateMutability": "view",
      "inputs": [{"name": "alertId", "type": "bytes32"}], "outputs": [{"name": "", "type": "bool"}]},
+]
+
+IMPACT_ATTESTATION = [
+    {"type": "function", "name": "attest", "stateMutability": "nonpayable",
+     "inputs": [{"name": "alertId", "type": "bytes32"}, {"name": "who", "type": "uint8"},
+                {"name": "severity", "type": "uint8"}, {"name": "evidenceHash", "type": "bytes32"}], "outputs": []},
+    {"type": "function", "name": "attestations", "stateMutability": "view",
+     "inputs": [{"name": "alertId", "type": "bytes32"}, {"name": "who", "type": "uint8"}],
+     "outputs": [{"name": "by", "type": "address"}, {"name": "severity", "type": "uint8"},
+                 {"name": "evidenceHash", "type": "bytes32"}, {"name": "at", "type": "uint64"}]},
+    {"type": "function", "name": "isConfirmed", "stateMutability": "view",
+     "inputs": [{"name": "alertId", "type": "bytes32"}], "outputs": [{"name": "", "type": "bool"}]},
+    {"type": "function", "name": "pradhanRole", "stateMutability": "pure",
+     "inputs": [{"name": "villageId", "type": "bytes32"}], "outputs": [{"name": "", "type": "bytes32"}]},
+    {"type": "function", "name": "OFFICER_ROLE", "stateMutability": "view", "inputs": [],
+     "outputs": [{"name": "", "type": "bytes32"}]},
+    {"type": "function", "name": "hasRole", "stateMutability": "view",
+     "inputs": [{"name": "role", "type": "bytes32"}, {"name": "account", "type": "address"}],
+     "outputs": [{"name": "", "type": "bool"}]},
+    {"type": "function", "name": "grantRole", "stateMutability": "nonpayable",
+     "inputs": [{"name": "role", "type": "bytes32"}, {"name": "account", "type": "address"}], "outputs": []},
 ]

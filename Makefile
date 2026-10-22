@@ -53,11 +53,12 @@ raahat_json = $(shell jq -r '.$(1) // empty' $(RAAHAT_DEPLOYMENT) 2>/dev/null)
 RAAHAT_STACK_PARAMS = $(if $(filter raahat,$(STAGE)),$(if $(wildcard $(RAAHAT_DEPLOYMENT)),\
                  RaahatChainId=$(call raahat_json,chain_id) RaahatTestInr=$(call raahat_json,test_inr) \
                  RaahatPool=$(call raahat_json,pool) RaahatPoolIsContract=true \
-                 RaahatAlertRegistry=$(call raahat_json,alert_registry) RaahatOracle=$(call raahat_json,oracle)))
+                 RaahatAlertRegistry=$(call raahat_json,alert_registry) RaahatOracle=$(call raahat_json,oracle) \
+                 $(if $(call raahat_json,impact_attestation),RaahatImpactAttestation=$(call raahat_json,impact_attestation))))
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
         seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke \
-        test-contracts raahat-deps raahat-anvil raahat-deploy raahat-fund raahat-seed-households raahat-signer-ssm
+        test-contracts raahat-deps raahat-anvil raahat-deploy raahat-fund raahat-seed-households raahat-attesters raahat-signer-ssm
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -192,8 +193,12 @@ RAAHAT_RPC_URL    ?= $(if $(filter anvil,$(RAAHAT_NETWORK)),http://127.0.0.1:$(R
 # The key reaches forge, the backend and the AWS CLI only through the environment of these targets: it is never
 # on a command line, so neither the log nor `make -n` shows it.
 RAAHAT_SIGN        = $(if $(filter anvil,$(RAAHAT_NETWORK)),--unlocked --sender $(RAAHAT_ANVIL_FROM),--private-key "$$RAAHAT_DEPLOYER_KEY")
-raahat-deploy raahat-fund raahat-seed-households raahat-signer-ssm: export RAAHAT_DEPLOYER_KEY := $(RAAHAT_DEPLOYER_KEY)
-raahat-deploy raahat-fund raahat-seed-households: export RAAHAT_ORACLE := $(RAAHAT_ORACLE)
+# Anvil never gets them: the local chain signs with its own unlocked accounts.
+RAAHAT_USES_KEY = $(or $(filter-out anvil,$(RAAHAT_NETWORK)),$(filter raahat,$(STAGE)))
+ifneq ($(RAAHAT_USES_KEY),)
+raahat-deploy raahat-fund raahat-seed-households raahat-attesters raahat-signer-ssm: export RAAHAT_DEPLOYER_KEY := $(RAAHAT_DEPLOYER_KEY)
+raahat-deploy raahat-fund raahat-seed-households raahat-attesters: export RAAHAT_ORACLE := $(RAAHAT_ORACLE)
+endif
 RAAHAT_RPC_DEFAULT = $(if $(filter base-sepolia,$(RAAHAT_NETWORK)),https://sepolia.base.org,$(if $(filter arbitrum-sepolia,$(RAAHAT_NETWORK)),https://sepolia-rollup.arbitrum.io/rpc,$(if $(filter polygon-amoy,$(RAAHAT_NETWORK)),https://rpc-amoy.polygon.technology)))
 export RAAHAT_NETWORK
 
@@ -220,6 +225,12 @@ raahat-seed-households: ## Household roots and cash-out agents on chain (local m
 	  eval "$$(scripts/stack_env.sh)"; cd backend && RAAHAT_SIGNER_KEY="$$RAAHAT_DEPLOYER_KEY" \
 	    RAAHAT_DEPLOYMENTS=$(abspath $(RAAHAT_DEPLOYMENT)) PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.households; \
 	else cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.households; fi
+
+raahat-attesters: ## Grant the officer and each village's pradhan attester role to their keys, with a little gas (STAGE=raahat: testnet)
+	@if [ "$(STAGE)" = raahat ]; then \
+	  eval "$$(scripts/stack_env.sh)"; cd backend && RAAHAT_SIGNER_KEY="$$RAAHAT_DEPLOYER_KEY" \
+	    RAAHAT_DEPLOYMENTS=$(abspath $(RAAHAT_DEPLOYMENT)) PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.attest setup; \
+	else cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.attest setup; fi
 
 raahat-signer-ssm: ## Store the testnet signer key as the SecureString /pukaar-raahat/<stage>/signer_key (STAGE=raahat), never printed
 	@test -n "$$RAAHAT_DEPLOYER_KEY" || { echo "RAAHAT_DEPLOYER_KEY is not set in .env.deploy.local." >&2; exit 2; }

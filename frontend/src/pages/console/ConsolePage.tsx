@@ -2,7 +2,7 @@ import { ChainReceiptLazy } from '../../components/ChainReceiptLazy';
 import { useState } from 'react';
 import { TimeToEar } from '../../components/TimeToEar';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { ArrowRight, Bell, BellRing, CalendarClock, ChevronDown, Cloud, Download, FileText, HandCoins, HeartHandshake, History, Home, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
+import { ArrowRight, Bell, BellRing, CalendarClock, ChevronDown, Cloud, Download, FileText, HandCoins, HeartHandshake, ReceiptText, History, Home, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
 import { api, API_BASE, ApiError } from '../../api';
 import { AlertStatusChip, DeliveryChips } from '../../components/Chips';
 import { LevelBadge } from '../../components/Level';
@@ -25,6 +25,7 @@ import { Approvals } from './Approvals';
 import { Ask } from './Ask';
 import { Directives } from './Directives';
 import { Relief } from './Relief';
+import { RaahatPradhan } from './RaahatPradhan';
 import { Replay } from './Replay';
 import { ReportFeed } from './ReportFeed';
 import { RollCallPanel } from './RollCall';
@@ -75,7 +76,7 @@ function Console() {
   const myIds = officer ? [] : (me.data?.village_ids ?? user?.village_ids ?? []);
   const mine = vs.filter((v) => myIds.includes(v.id));
   const tabs = [
-    ...(officer ? [] : [{ href: '#mine', label: t('console.tab.mine'), icon: Home }]),
+    ...(officer ? [] : [{ href: '#mine', label: t('console.tab.mine'), icon: Home }, { href: '#receipts', label: t('raahat.receipts.title'), icon: ReceiptText }]),
     { href: '#approvals', label: t('console.tab.approvals'), icon: Bell, badge: pendingN },
     { href: '#queue', label: t('console.tab.queue'), icon: LayoutList },
     { href: '#rollcall', label: t('console.tab.rollcall'), icon: HeartHandshake },
@@ -144,6 +145,14 @@ function Console() {
         <HandCoins aria-hidden="true" /> {t('raahat.relief.title')}
       </h2>
       <Relief villages={vs} />
+    </section>
+  );
+  const secReceipts = (
+    <section id="receipts" className="panel panel-relief" aria-labelledby="rr-h">
+      <h2 id="rr-h" className="panel-title">
+        <ReceiptText aria-hidden="true" /> {t('raahat.receipts.title')}
+      </h2>
+      <RaahatPradhan villageIds={myIds} />
     </section>
   );
   const secAsk = (
@@ -238,6 +247,7 @@ function Console() {
         ) : (
           <>
             {secMine}
+            {secReceipts}
             {secRollcall}
             {secQueue}
             {secApprovals}

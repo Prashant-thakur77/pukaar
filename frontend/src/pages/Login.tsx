@@ -13,6 +13,7 @@ const DEMO: { username: string; label: Key }[] = [
   { username: 'officer1', label: 'login.demo.officer1' },
   { username: 'officer2', label: 'login.demo.officer2' },
   { username: 'pradhan_thunag', label: 'login.demo.pradhan' },
+  { username: 'pradhan_pandoh', label: 'login.demo.pradhan_pandoh' },
 ];
 
 export default function Login() {

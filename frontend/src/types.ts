@@ -1378,6 +1378,38 @@ export interface RaahatLedgerItem {
   network: string;
   explorer: string | null;
   releases: RaahatRelease[];
+  /** pradhan / officer / satellite, as attested (severity 0 to 3). */
+  attestations?: Partial<Record<RaahatAttester, { state: string; severity: number; tx: string | null; evidence_hash: string }>>;
+  confirmed?: boolean;
+  receipts?: number;
+}
+
+export type RaahatAttester = 'pradhan' | 'officer' | 'satellite';
+
+/** GET /raahat/alerts/{id}/attestations (public). */
+export interface RaahatAttestations {
+  alert_id: string;
+  village_id: string;
+  confirmed: boolean;
+  chain_reachable: boolean;
+  satellite_covers: boolean;
+  attestations: Record<RaahatAttester, null | {
+    severity: number;
+    on_chain: boolean;
+    state: string;
+    tx: string | null;
+    evidence_hash: string;
+    evidence_url: string | null;
+    at: string | null;
+  }>;
+}
+
+/** GET /raahat/alerts/{id}/households (pradhan, own village): never a full name, phone or chat id. */
+export interface RaahatHousehold {
+  household: string;
+  label: string;
+  demo: boolean;
+  receipt: { state: string; tx: string | null; at: string | null } | null;
 }
 
 export interface RaahatLedger {

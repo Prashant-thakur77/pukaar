@@ -156,11 +156,23 @@ function Step({ step, explorer }: { step: LedgerStep; explorer: string | null })
   else if (step.key === 'heard') detail = t('raahat.step.heard.counts', { a: step.acknowledged ?? 0, d: step.delivered ?? 0 });
   else if ((step.key === 'tier1' || step.key === 'tier2') && step.totalWei)
     detail = t('raahat.step.released', { n: step.households ?? 0, v: inr(step.totalWei, lang) });
+  if (step.key === 'receipts' && step.households) detail = t('raahat.receipts.count', { n: step.receipts ?? 0, t: step.households });
   return (
     <li className={`lstep is-${step.state}`}>
       <Icon aria-hidden="true" />
       <span className="lstep-name">{t(`raahat.step.${step.key}` as never)}</span>
-      <span className="small muted">{detail}</span>
+      {step.key === 'attested' && step.attesters ? (
+        <span className="lstep-chips">
+          {step.attesters.map((a) => (
+            <span key={a.who} className={`chip${a.severity != null && a.severity >= 2 ? ' chip-ok' : ' chip-muted'}`}>
+              {t(`raahat.attest.${a.who}` as never)}
+              {a.severity != null ? ` ${a.severity}/3` : ''}
+            </span>
+          ))}
+        </span>
+      ) : (
+        <span className="small muted">{detail}</span>
+      )}
       {step.tx &&
         (href ? (
           <a className="link mono small" href={href} target="_blank" rel="noreferrer">

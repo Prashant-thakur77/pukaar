@@ -166,23 +166,30 @@ def release(repo: Repo, alert_id: str, tier: int, *, by: str) -> dict[str, Any]:
 
 def ledger(repo: Repo, village_id: str = "", limit: int = 50) -> dict[str, Any]:
     """The public ledger from the table (the indexer keeps it in step with the chain): per anchored alert, the
-    anchor, the outcome and each release. Ids, levels, counts, amounts and hashes only; no officer names."""
+    anchor, the outcome, the three attesters, each release and the receipts. Ids, levels, counts, amounts and
+    hashes only; no officer or villager names."""
     items = []
     for row in repo._query(anchor.LEDGER_PK, newest_first=True, limit=limit * 2):
         if village_id and row.get("village_id") != village_id:
             continue
-        a = anchor.get(repo, row["alert_id"])
+        rows = {r["sk"]: anchor._plain(r) for r in repo._query(anchor.PK + row["alert_id"])}
+        a = rows.get(anchor.SK)
         if a is None:
             continue
         releases = [{k: r.get(k) for k in ("tier", "state", "tx", "households", "amount_wei", "total_wei", "at")}
-                    for r in (get_release(repo, a["alert_id"], t) for t in TIERS) if r]
+                    for sk, r in sorted(rows.items()) if sk.startswith("RELEASE#")]
+        attested = {sk.split("#", 1)[1]: {k: r.get(k) for k in ("state", "severity", "tx", "evidence_hash")}
+                    for sk, r in rows.items() if sk.startswith("ATTEST#")}
+        confirmed = sum(1 for r in attested.values() if r["state"] == "sent" and int(r["severity"] or 0) >= 2) >= 2
         items.append({"alert_id": a["alert_id"], "village_id": a.get("village_id"), "level": a.get("level"),
                       "exercise": bool(a.get("exercise")), "anchor_state": a.get("state"), "anchor_tx": a.get("tx"),
                       "anchored_at": a.get("anchored_at"), "cap_hash": a.get("cap_hash"),
                       "cap_uri": a.get("cap_uri"), "outcome_tx": a.get("outcome_tx"),
                       "delivered": a.get("delivered"), "acknowledged": a.get("acknowledged"),
                       "chain_id": a.get("chain_id"), "network": a.get("network"),
-                      "explorer": chain.explorer_url(int(a.get("chain_id") or 0)), "releases": releases})
+                      "explorer": chain.explorer_url(int(a.get("chain_id") or 0)), "releases": releases,
+                      "attestations": attested, "confirmed": confirmed,
+                      "receipts": sum(1 for sk, r in rows.items() if sk.startswith("RECEIPT#") and r.get("state") == "sent")})
         if len(items) >= limit:
             break
     return {"items": items, "illustrative": ILLUSTRATIVE}

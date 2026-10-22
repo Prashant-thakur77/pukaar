@@ -12,6 +12,10 @@ raises into a caller: an alert must go out even when the chain is down.
 Writes are signed with the oracle key: RAAHAT_SIGNER_KEY in the environment (local runs), else the
 SecureString at RAAHAT_SIGNER_PARAM (default /pukaar-raahat/<stage>/signer_key; outside /pukaar/* so
 only the roles granted it can read it). On anvil with no key, anvil's unlocked oracle account sends.
+The officer and pradhan attesters sign with their own keys, derived from the signer key per role
+(keccak256(key || role)), so on chain they are different addresses from the oracle and from each other: one
+key never counts as two attesters. On a testnet the backend holds all three after Cedar checks the person; a
+production deployment gives each attester its own device key.
 A transaction is sent and its hash returned; nothing waits for it to be mined.
 """
 
@@ -41,7 +45,7 @@ PUBLIC_RPCS = {31337: ANVIL_RPC, 84532: "https://sepolia.base.org", 421614: "htt
 RPC_TIMEOUT_SECONDS = 5
 # Contract name -> env var holding its address: required, then optional (absent: that feature is off).
 ADDRESS_ENV = {"test_inr": "RAAHAT_TEST_INR", "pool": "RAAHAT_POOL"}
-OPTIONAL_ADDRESS_ENV = {"alert_registry": "RAAHAT_ALERT_REGISTRY"}
+OPTIONAL_ADDRESS_ENV = {"alert_registry": "RAAHAT_ALERT_REGISTRY", "impact_attestation": "RAAHAT_IMPACT_ATTESTATION"}
 KEY_CACHE_SECONDS = 300
 _KEY_CACHE: dict[str, tuple[float, str]] = {}
 
@@ -163,25 +167,35 @@ class RaahatChain:
             metric("RaahatReadFailed", 1)
             return None
 
-    def _signer(self) -> tuple[str, Any]:
-        """(sender address, local account or None for an unlocked anvil account)."""
+    def _signer(self, role: str = "oracle") -> tuple[str, Any]:
+        """(sender address, local account or None for an unlocked anvil account) for "oracle", "officer" or
+        "pradhan:<village id>"."""
         from eth_account import Account
+        from eth_utils import keccak
 
         key = signer_key()
         if key:
+            if role != "oracle":
+                key = "0x" + keccak(bytes.fromhex(key.removeprefix("0x")) + role.encode()).hex()
             acct = Account.from_key(key)
             return acct.address, acct
         if self.cfg.chain_id == 31337:  # anvil only: its accounts are unlocked test accounts
-            return self.cfg.oracle or self.w3.eth.accounts[0], None
+            accounts = self.w3.eth.accounts
+            if role == "oracle":
+                return self.cfg.oracle or accounts[0], None
+            return accounts[1 if role == "officer" else 2 + int.from_bytes(keccak(text=role)[:2], "big") % 7], None
         raise RuntimeError("no signer key configured (RAAHAT_SIGNER_KEY or the SSM parameter)")
 
-    def _send(self, what: str, call: Any) -> str | None:
+    def address_of(self, role: str) -> str:
+        return self._signer(role)[0]
+
+    def _send(self, what: str, call: Any, role: str = "oracle") -> str | None:
         """Send one contract call as a transaction; its hash, or None (logged and counted) on any failure."""
         try:
             got = self.w3.eth.chain_id
             if got != self.cfg.chain_id:
                 raise RuntimeError(f"RPC is on chain {got}, configured for {self.cfg.chain_id}")
-            sender, acct = self._signer()
+            sender, acct = self._signer(role)
             tx = call.build_transaction({"from": sender, "chainId": self.cfg.chain_id,
                                          "nonce": self.w3.eth.get_transaction_count(sender, "pending")})
             if acct is not None:
@@ -253,6 +267,58 @@ class RaahatChain:
             }
         return self._safe("relief_state", read)
 
+    def _attestation(self) -> Any:
+        return self.w3.eth.contract(address=self.cfg.addresses["impact_attestation"], abi=abi.IMPACT_ATTESTATION)
+
+    def attest(self, alert_key: bytes, who: int, severity: int, evidence_hash: bytes, *, village_id: str = "") -> str | None:
+        """who: 0 pradhan (signs with that village's pradhan key), 1 officer, 2 satellite (the oracle)."""
+        role = {0: f"pradhan:{village_id}", 1: "officer", 2: "oracle"}[who]
+        try:
+            call = self._attestation().functions.attest(alert_key, who, severity, evidence_hash)
+        except Exception as exc:
+            log(_LOG, "raahat tx failed", 40, what="attest", network=self.cfg.network, error=str(exc)[:200])
+            metric("RaahatTxFailed", 1)
+            return None
+        return self._send("attest", call, role)
+
+    def read_attestations(self, alert_key: bytes) -> dict | None:
+        def read() -> dict:
+            f = self._attestation().functions
+            out = {}
+            for who in (0, 1, 2):
+                by, severity, evidence, at = f.attestations(alert_key, who).call()
+                if int(by, 16):
+                    out[who] = {"by": by, "severity": severity, "evidence_hash": "0x" + bytes(evidence).hex(), "at": at}
+            return {"attestations": out, "confirmed": f.isConfirmed(alert_key).call()}
+        return self._safe("read_attestations", read)
+
+    def household_root(self, village_key: bytes) -> bytes | None:
+        return self._safe("household_root", lambda: bytes(self._pool().functions.households(village_key).call()))
+
+    def receipt(self, alert_key: bytes, household: bytes, proof: list[bytes], upi_ref_hash: bytes) -> str | None:
+        """Signed by the oracle key: on testnet the cash-out agent is the backend, holding relief for the pradhan."""
+        return self._send("receipt", self._pool().functions.receipt(alert_key, household, proof, upi_ref_hash))
+
+    def setup_attesters(self, village_ids: list[str]) -> list[str]:
+        """Grant OFFICER_ROLE and each village's pradhan role to the derived keys, and give each a little gas.
+        Idempotent: only missing roles are granted. Returns what was done."""
+        f = self._attestation().functions
+        done = []
+        targets = [("officer", f.OFFICER_ROLE().call())]
+        targets += [(f"pradhan:{v}", f.pradhanRole(anchor_key(v)).call()) for v in village_ids]
+        for role, role_id in targets:
+            who = self.address_of(role)
+            if not f.hasRole(role_id, who).call():
+                done.append(f"grant {role} {who}: {self._send('grant_role', f.grantRole(role_id, who))}")
+            if self.w3.eth.get_balance(who) < 2 * 10**14 and signer_key():
+                sender, acct = self._signer()
+                tx = {"from": sender, "to": who, "value": 10**15, "chainId": self.cfg.chain_id, "gas": 21000,
+                      "nonce": self.w3.eth.get_transaction_count(sender, "pending"),
+                      "maxFeePerGas": self.w3.eth.gas_price * 2, "maxPriorityFeePerGas": self.w3.eth.max_priority_fee}
+                sent = self.w3.eth.send_raw_transaction(acct.sign_transaction(tx).raw_transaction)
+                done.append(f"gas {role} {who}: 0x{bytes(sent).hex()}")
+        return done
+
     def read_pool(self) -> dict | None:
         """The pool's tINR balance (exact wei, as a string), the token and the block it was read at."""
         def read() -> dict:
@@ -275,6 +341,12 @@ class RaahatChain:
         return {"min_level": min_level, "amount_anticipatory_wei": str(amount_a), "amount_confirmed_wei": str(amount_c),
                 "cooldown_hours": cooldown, "sealed": f.rulesSealed().call(), "sealed_at": f.sealedAt().call(),
                 "allow_exercise": f.allowExercisePayout().call()}
+
+
+def anchor_key(village_id: str) -> bytes:
+    from eth_utils import keccak
+
+    return keccak(text=village_id)
 
 
 def client() -> RaahatChain | None:

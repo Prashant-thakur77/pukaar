@@ -10,7 +10,13 @@
       "releases": [
         { "tier": 1, "state": "sent", "tx": "0xccc", "households": 42, "amount_wei": "1500000000000000000000",
           "total_wei": "63000000000000000000000", "at": "2026-10-23T01:05:00Z" }
-      ]
+      ],
+      "attestations": {
+        "officer": { "state": "sent", "severity": 2, "tx": "0xeee", "evidence_hash": "0x01" },
+        "satellite": { "state": "sent", "severity": 3, "tx": "0xfff", "evidence_hash": "0x02" }
+      },
+      "confirmed": true,
+      "receipts": 5
     },
     {
       "alert_id": "alr_live", "village_id": "gohar", "level": 1, "exercise": false,

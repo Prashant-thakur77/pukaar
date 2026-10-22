@@ -146,6 +146,27 @@ def snapshot(repo, village_id: str) -> dict | None:
     return {k: (int(v) if k in {"count", "demo"} else v) for k, v in item.items() if k not in {"pk", "sk"}}
 
 
+def ensure_snapshot(repo, village_id: str, pool) -> dict | None:
+    """The village's snapshot; when the table has none (local mode: the seeding ran in another process), rebuild it
+    from the register and keep it only if its root is the one on chain. None when they differ or cannot be read."""
+    snap = snapshot(repo, village_id)
+    if snap is not None or pool is None:
+        return snap
+    key = salt()
+    if key is None:
+        return None
+    reg = register(repo, village_id)
+    tree = tree_of(village_id, (household_hash(village_id, no, key) for no, _ in reg))
+    if pool.household_root(village_key(village_id)) != tree.root:
+        return None
+    from Pukaar.core import clock
+
+    repo._put({"pk": SNAPSHOT_PK + village_id, "sk": SNAPSHOT_SK, **tree.summary(), "demo": sum(1 for _, d in reg if d),
+               "households_tx": None, "agent_tx": None, "at": clock.iso(clock.now()),
+               "hashes": ["0x" + h.hex() for h in tree.households]})
+    return snapshot(repo, village_id)
+
+
 def snapshot_tree(repo, village_id: str) -> VillageTree | None:
     snap = snapshot(repo, village_id)
     return tree_of(village_id, (bytes.fromhex(h[2:]) for h in snap["hashes"])) if snap else None

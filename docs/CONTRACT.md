@@ -38,7 +38,7 @@ Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`, 
 `GET /track/{code}`, `GET /replay/status`, `GET /alerts/{id}/audio`, `GET /safe/{token}`,
 `POST /sensors/{id}/readings` and `POST /sensors/{id}/backfill` (river gauge, HMAC-signed body, see docs/hardware/README.md),
 `GET /cap/alerts.atom` and `GET /cap/alerts/{id}.xml` (CAP 1.2 feed of published alerts, XML),
-`GET /raahat/pool`, `GET /raahat/ledger` and `GET /raahat/alerts/{id}` (Pukaar Raahat: the relief pool and its sealed rule, the ledger, an alert's chain anchor; ids, amounts and hashes only),
+`GET /raahat/pool`, `GET /raahat/ledger`, `GET /raahat/alerts/{id}` and `GET /raahat/alerts/{id}/attestations` (Pukaar Raahat: the relief pool and its sealed rule, the ledger, an alert's chain anchor and its three attesters; ids, amounts and hashes only),
 `GET /agents`, `GET /agents/traces?limit=5`, `GET /sensors` (read-only, no personal data),
 `GET /push/vapid-public-key` (the Web Push applicationServerKey; `{key: null, configured: false}` until `make vapid-keys`),
 the voice-call webhooks (`GET`/`HEAD /voice/exotel/flow`, `GET /voice/exotel/gather`, `POST /voice/exotel/status`,
@@ -165,6 +165,22 @@ POST /raahat/alerts/{id}/release  officer (Cedar release_relief; the public demo
                              refused or was unreachable (tap again). A sent release is pushed on /public/raahat
                              {type, kind, alert_id, village_id, tier, households, total_wei, exercise, at} and, for a
                              live alert only, told to the village's Telegram users as test money
+GET  /raahat/alerts/{id}/attestations  public: {alert_id, village_id, confirmed, chain_reachable, satellite_covers,
+                             attestations{pradhan|officer|satellite: null | {severity 0..3, on_chain, state, tx,
+                             evidence_hash, evidence_url, at}}}; confirmed = two different keys at severity >= 2
+POST /raahat/alerts/{id}/attest  Cedar attest_impact (officers any village; pradhans their own; the public demo
+                             accounts on replay alerts only): {who: "officer", severity, note} | {who: "satellite"}
+                             (an officer runs the Sentinel-2 check; only a replay of July 2023 in Pandoh is covered)
+                             | {who: "pradhan", severity, report_id} (a verified photo report of the own village);
+                             409 {code}: no_satellite_coverage, already_attested, report_not_verified,
+                             report_has_no_photo, report_from_another_village, not_anchored, raahat_off
+GET  /raahat/alerts/{id}/households  Cedar record_receipt (the pradhan of the alert's village):
+                             [{household (salted hash), label (a first name, or "Demo household N"), demo,
+                             receipt|null}]; never a full name, phone or chat id
+POST /raahat/receipts        Cedar record_receipt on the alert in the body: {alert_id, household, upi_ref} -> the
+                             receipt with a Merkle proof from the register snapshot; only keccak256(upi_ref) is kept;
+                             409 {code}: nothing_released, household_not_in_village, already_receipted,
+                             no_reference, register_changed
 GET  /health/deep            officer: one 1-token Converse call now; {bedrock: "ok"|"pending model access"|"failed"|"disabled", model, detail}; refreshes the cached model-access flag
 GET  /me                     {username, role, village_ids}
 POST /me/telegram-link       officer: {} -> {code, command, expires_in_seconds}  (one-time; send the

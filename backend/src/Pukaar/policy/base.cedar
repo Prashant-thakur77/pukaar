@@ -260,7 +260,8 @@ forbid (
     Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe",
     Pukaar::Action::"edit_roster", Pukaar::Action::"take_over_duty", Pukaar::Action::"set_alert_outcome",
     Pukaar::Action::"view_reports", Pukaar::Action::"view_recipients", Pukaar::Action::"view_rollcall",
-    Pukaar::Action::"view_after_action", Pukaar::Action::"set_recipient_role", Pukaar::Action::"release_relief"
+    Pukaar::Action::"view_after_action", Pukaar::Action::"set_recipient_role", Pukaar::Action::"release_relief",
+    Pukaar::Action::"attest_impact", Pukaar::Action::"record_receipt"
   ],
   resource
 )
@@ -303,3 +304,20 @@ permit (
   action == Pukaar::Action::"notify_relief",
   resource is Pukaar::Alert
 );
+
+@id("officer-attest-impact")
+@desc("A district officer attests how badly any village was flooded (one of the three attesters), or runs the satellite attester.")
+permit (
+  principal is Pukaar::Officer,
+  action == Pukaar::Action::"attest_impact",
+  resource is Pukaar::Alert
+);
+
+@id("pradhan-own-attest-and-receipt")
+@desc("A pradhan attests the flood in their own village from a verified photo report, and records payout receipts for their own village's households; never another village's.")
+permit (
+  principal is Pukaar::Pradhan,
+  action in [Pukaar::Action::"attest_impact", Pukaar::Action::"record_receipt"],
+  resource is Pukaar::Alert
+)
+when { context.village_id != "" && principal.village_ids.contains(context.village_id) };

@@ -1,0 +1,40 @@
+{
+ "event": "Beas flood, 9-11 July 2023 (Mandi district, Himachal Pradesh)",
+ "scenario": "himachal_2023_07",
+ "bounds": [
+  76.89,
+  31.61,
+  77.15,
+  31.75
+ ],
+ "covers": [
+  "pandoh"
+ ],
+ "scenes": [
+  {
+   "date": "2023-07-23",
+   "scene_id": "S2B_43SFR_20230723_0_L2A",
+   "water": "2023-07-23-water.png",
+   "compared_km2": 317.7,
+   "before_km2": 2.07,
+   "after_km2": 4.1,
+   "new_water_km2": 2.03,
+   "severity": 3,
+   "evidence_hash": "0x0a1c1cc95b479d7db33c9bc4cd2f872c04a5f364740150126e1a04844b1c831f",
+   "public_path": "/satellite/2023/2023-07-23-water.png"
+  },
+  {
+   "date": "2023-09-06",
+   "scene_id": "S2A_43SFR_20230906_0_L2A",
+   "water": "2023-09-06-water.png",
+   "compared_km2": 381.3,
+   "before_km2": 2.31,
+   "after_km2": 3.05,
+   "new_water_km2": 0.74,
+   "severity": 2,
+   "evidence_hash": "0x54522618ffebbc551ec80a8620bbde180ef026c7be3c92914e9383251358ff30",
+   "public_path": "/satellite/2023/2023-09-06-water.png"
+  }
+ ],
+ "source": "Sentinel-2 L2A cloud-optimised GeoTIFFs, AWS Open Data (s3://sentinel-cogs), found via Element 84 Earth Search"
+}

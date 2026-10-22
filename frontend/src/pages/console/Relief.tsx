@@ -10,6 +10,7 @@ import { explorerTx } from '../../lib/chain-links';
 import { CHANNELS } from '../../lib/live';
 import { inr } from '../../lib/ledger';
 import type { RaahatLedgerItem, RaahatRelief, Village } from '../../types';
+import { AttestControls } from './RaahatAttest';
 import '../../raahat.css';
 
 type Tier = RaahatRelief['tiers'][number];
@@ -102,6 +103,7 @@ function ReliefCard({ item, village, onReleased }: { item: RaahatLedgerItem; vil
           )}
         </div>
       ))}
+      {relief && <AttestControls alertId={item.alert_id} villageId={item.village_id} role="officer" onChange={() => void load()} />}
       {note && (
         <p className="small bad-text" role="alert">
           {note}

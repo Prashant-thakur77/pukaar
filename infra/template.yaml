@@ -169,6 +169,10 @@ Parameters:
     Type: String
     Default: ""
     Description: "AlertRegistry contract address. Empty: alerts are not anchored."
+  RaahatImpactAttestation:
+    Type: String
+    Default: ""
+    Description: "ImpactAttestation contract address (2 of 3 confirmation). Empty: no attestation, no confirmed tranche."
   RaahatOracle:
     Type: String
     Default: ""
@@ -272,6 +276,7 @@ Globals:
         RAAHAT_POOL: !Ref RaahatPool
         RAAHAT_POOL_IS_CONTRACT: !Ref RaahatPoolIsContract
         RAAHAT_ALERT_REGISTRY: !Ref RaahatAlertRegistry
+        RAAHAT_IMPACT_ATTESTATION: !Ref RaahatImpactAttestation
         RAAHAT_ORACLE: !Ref RaahatOracle
         RAAHAT_SIGNER_PARAM: !Sub /pukaar-raahat/${Stage}/signer_key
 
@@ -536,6 +541,7 @@ Resources:
         RaahatPool: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /raahat/pool, Method: GET, Auth: { Authorizer: NONE } } }
         RaahatAlert: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/raahat/alerts/{alert_id}", Method: GET, Auth: { Authorizer: NONE } } }
         RaahatLedger: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /raahat/ledger, Method: GET, Auth: { Authorizer: NONE } } }
+        RaahatAttestations: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/raahat/alerts/{alert_id}/attestations", Method: GET, Auth: { Authorizer: NONE } } }
         # Read-only agent registry, decision traces and gauge board: no personal data (services/agents.py).
         Agents: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agents, Method: GET, Auth: { Authorizer: NONE } } }
         AgentTraces: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agents/traces, Method: GET, Auth: { Authorizer: NONE } } }
@@ -1280,7 +1286,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub pukaar-${Stage}-raahat-tx-failed
-      AlarmDescription: A Pukaar Raahat chain transaction (alert anchor, outcome, relief release) failed. No alert was held back or changed; the chain record is missing until close retries it.
+      AlarmDescription: A Pukaar Raahat chain transaction (alert anchor, outcome, relief release, attestation, receipt) failed. No alert was held back or changed; the chain record is missing until close retries it.
       Metrics:
         - Id: q
           Expression: "SELECT SUM(RaahatTxFailed) FROM Pukaar"
