@@ -12,6 +12,7 @@ import { fmtDate, fmtNumber, fmtTime } from '../lib/format';
 import { levelRank } from '../lib/levels';
 import scores from '../data/scores.json';
 import { LEVELS, type Backtest, type BacktestScenario, type BacktestVillage, type Level } from '../types';
+import '../styles/story.css';
 
 const MEASURED: Key[] = ['impact.m1', 'impact.m2', 'impact.m3'];
 const NOT_MEASURED: Key[] = ['impact.n1', 'impact.n2', 'impact.n3'];

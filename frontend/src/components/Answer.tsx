@@ -1,9 +1,10 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, CloudOff, Mountain, Phone } from 'lucide-react';
-import { dict, levelWord, useT } from '../i18n';
+import { dict, useT } from '../i18n';
 import { LEVEL_ICON } from '../lib/levels';
-import { istClock, isStale, levelStep, minutesSince, placeLine, type SafePlaceNow } from '../lib/villageNow';
+import { freshnessText, istClock, levelStep, meterLabel, placeLine } from '../lib/answerText';
+import type { SafePlaceNow } from '../lib/villageNow';
 import type { ActionLine } from '../lib/actions';
 import type { Level } from '../types';
 import './answer.css';
@@ -22,11 +23,8 @@ const STEPS: Level[] = ['normal', 'watch', 'warning', 'critical'];
 export function LevelMeter({ level, unknown = false }: { level: Level; unknown?: boolean }) {
   const { lang } = useT();
   const step = levelStep(level);
-  const label = unknown
-    ? lang === 'hi' ? 'स्तर पता नहीं: डेटा नहीं मिल रहा' : 'Level unknown: no data'
-    : lang === 'hi' ? `स्तर ${step} में से 4: ${levelWord(level, 'hi')}` : `Level ${step} of 4: ${levelWord(level, 'en')}`;
   return (
-    <span className="lv-meter" role="img" aria-label={label}>
+    <span className="lv-meter" role="img" aria-label={meterLabel(level, unknown, lang)}>
       {STEPS.map((l, i) => (
         <i key={l} className={!unknown && i < step ? 'is-on' : ''} />
       ))}
@@ -43,38 +41,26 @@ function useMinuteTick(): number {
   return now;
 }
 
-/**
- * "आख़िरी जाँच 03:10 IST · 4 मिनट पहले". Older than an hour, it says the information is old; from the phone's
- * copy with no signal, it says so and gives the time of that copy.
- */
+/** C6, the freshness stamp: the words come from answerText.ts, the same as the boot painter's. */
 export function Freshness({ at, offline = false, every = false, next = false }: { at: string | null; offline?: boolean; every?: boolean; next?: boolean }) {
   const { lang } = useT();
   const now = useMinuteTick();
-  const clock = istClock(at);
-  const mins = minutesSince(at, now);
-  const stale = isStale(at, now);
-  const hi = lang === 'hi';
-  if (!clock) {
-    return <p className="fresh">{hi ? 'अभी कोई जाँच नहीं मिली' : 'No check received yet'}</p>;
-  }
-  const ago =
-    mins == null ? '' : mins < 1 ? (hi ? 'अभी' : 'just now') : mins < 60 ? (hi ? `${mins} मिनट पहले` : `${mins} min ago`) : hi ? `${Math.round(mins / 60)} घंटे पहले` : `${Math.round(mins / 60)} h ago`;
-  // The sweep runs every 15 minutes: the next one is due 15 minutes after the last.
-  const nextIn = next && mins != null && mins < 15 ? 15 - mins : null;
+  const f = freshnessText(at, lang, { offline, every, next }, now);
+  if (!istClock(at)) return <p className="fresh">{f.line}</p>;
   return (
-    <p className={`fresh${stale ? ' is-stale' : ''}${offline ? ' is-offline' : ''}`}>
-      {offline && (
+    <p className={`fresh${f.stale ? ' is-stale' : ''}${f.offline ? ' is-offline' : ''}`}>
+      {f.chip && (
         <span className="fresh-chip">
-          <CloudOff aria-hidden="true" /> {hi ? 'इंटरनेट नहीं है' : 'No internet'}
+          {f.offline ? (
+            <>
+              <CloudOff aria-hidden="true" /> {f.chip}
+            </>
+          ) : (
+            f.chip
+          )}
         </span>
       )}
-      {stale && !offline && <span className="fresh-chip">{hi ? 'पुरानी जानकारी' : 'Old information'}</span>}
-      <span>
-        {offline ? (hi ? `आख़िरी जानकारी ${clock} की` : `Last information from ${clock}`) : hi ? `आख़िरी जाँच ${clock}` : `Last checked ${clock}`}
-        {ago && <> · {ago}</>}
-        {every && !stale && !offline && <> · {hi ? 'हर 15 मिनट जाँच' : 'checked every 15 minutes'}</>}
-        {nextIn != null && nextIn > 0 && !offline && <> · {hi ? `अगली ${nextIn} मिनट में` : `next in ${nextIn} min`}</>}
-      </span>
+      <span>{f.line}</span>
     </p>
   );
 }

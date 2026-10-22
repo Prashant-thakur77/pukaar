@@ -12,6 +12,7 @@ import { DEFAULT_COST_INPUTS, estimatePilotCost, fmtRupees, fmtRupeesShort, type
 import { countByStatus, parseReadiness, type Readiness, type ReadinessStatus } from '../lib/pilotReadiness';
 import type { Lang } from '../store';
 import type { PilotFalseAlarms, PilotGroup, PilotMetrics } from '../types';
+import '../styles/story.css';
 
 type Txt = { hi: string; en: string };
 type Source = { label: string; href: string };

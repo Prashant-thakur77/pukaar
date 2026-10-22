@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Kicker } from '../components/Art';
 import { useT } from '../i18n';
+import '../styles/NotFound.css';
 
 export default function NotFound() {
   const { t } = useT();

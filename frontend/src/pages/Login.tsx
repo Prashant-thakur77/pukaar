@@ -8,6 +8,7 @@ import { ErrorState } from '../components/States';
 import { useT, type Key } from '../i18n';
 import { useAuth } from '../store';
 import { Lehar } from '../components/Art';
+import '../styles/console.css';
 
 const DEMO: { username: string; label: Key }[] = [
   { username: 'officer1', label: 'login.demo.officer1' },

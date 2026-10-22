@@ -43,6 +43,7 @@ SERIES_POINTS = 48
 ACTION_TEXT: dict[str, tuple[str, str]] = {
     "approve": ("Approve an alert", "चेतावनी मंज़ूर करना"),
     "decline": ("Decline an alert", "चेतावनी रद्द करना"),
+    "edit_alert": ("Change what an alert says", "चेतावनी के शब्द बदलना"),
     "deliver": ("Send an alert to phones", "फ़ोन पर चेतावनी भेजना"),
     "auto_send": ("Auto-send without approval", "बिना मंज़ूरी अपने आप भेजना"),
     "failsafe": ("Fire the failsafe template", "फ़ेलसेफ़ संदेश भेजना"),

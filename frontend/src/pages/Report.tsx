@@ -14,6 +14,7 @@ import { flushQueue, refreshQueueCount } from '../lib/queue';
 import { resolvePhase, type Phase } from '../lib/reportPhase';
 import { myTrackCodes, readLS, rememberTrackCode, useNet, writeLS } from '../store';
 import type { Level, Village } from '../types';
+import '../styles/Report.css';
 
 type CachedVillage = Pick<Village, 'id' | 'name' | 'name_hi' | 'level'>;
 

@@ -5,11 +5,12 @@
 // Context:    level, approved, all_officers_timed_out, replay, channel, village_id.
 
 @id("officer-operate")
-@desc("Officers run the console: approve or decline alerts, triage reports, see who an alert reached, issue directives, update the shelter ledger, run replays, read the audit trail, ask the analyst and tick any village's early-action checklist.")
+@desc("Officers run the console: approve, decline, edit or snooze pending alerts, triage reports, see who an alert reached, issue directives, update the shelter ledger, run replays, read the audit trail, ask the analyst and tick any village's early-action checklist.")
 permit (
   principal is Pukaar::Officer,
   action in [
     Pukaar::Action::"view_console", Pukaar::Action::"approve", Pukaar::Action::"decline",
+    Pukaar::Action::"edit_alert", Pukaar::Action::"snooze_alert",
     Pukaar::Action::"view_reports", Pukaar::Action::"view_recipients", Pukaar::Action::"set_report_state",
     Pukaar::Action::"issue_directive",
     Pukaar::Action::"start_replay", Pukaar::Action::"read_audit", Pukaar::Action::"ask_analyst",
@@ -126,11 +127,11 @@ forbid (
 when { context.replay == true && context.channel != "stub" };
 
 @id("agents-never-send")
-@desc("A model agent can never approve, send, change a level, change the shelter ledger, mark a road blocked, or sound, stop, test or change a siren.")
+@desc("A model agent can never approve, edit or send an alert, change a level, change the shelter ledger, mark a road blocked, or sound, stop, test or change a siren.")
 forbid (
   principal is Pukaar::Agent,
   action in [
-    Pukaar::Action::"approve", Pukaar::Action::"decline", Pukaar::Action::"deliver",
+    Pukaar::Action::"approve", Pukaar::Action::"decline", Pukaar::Action::"edit_alert", Pukaar::Action::"deliver",
     Pukaar::Action::"auto_send", Pukaar::Action::"failsafe", Pukaar::Action::"issue_directive",
     Pukaar::Action::"open_rollcall", Pukaar::Action::"remind_rollcall", Pukaar::Action::"set_shelter_status",
     Pukaar::Action::"block_road", Pukaar::Action::"sound_siren", Pukaar::Action::"stop_siren",
@@ -253,8 +254,8 @@ when { context.village_id != "" && principal.village_ids.contains(context.villag
 forbid (
   principal,
   action in [
-    Pukaar::Action::"approve", Pukaar::Action::"decline", Pukaar::Action::"issue_directive",
-    Pukaar::Action::"send_drill", Pukaar::Action::"set_shelter_status", Pukaar::Action::"block_road",
+    Pukaar::Action::"approve", Pukaar::Action::"decline", Pukaar::Action::"edit_alert", Pukaar::Action::"snooze_alert",
+    Pukaar::Action::"issue_directive", Pukaar::Action::"send_drill", Pukaar::Action::"set_shelter_status", Pukaar::Action::"block_road",
     Pukaar::Action::"open_rollcall", Pukaar::Action::"remind_rollcall", Pukaar::Action::"tick_checklist",
     Pukaar::Action::"set_report_state", Pukaar::Action::"set_gauge_thresholds",
     Pukaar::Action::"manage_staff_gauge", Pukaar::Action::"confirm_staff_reading", Pukaar::Action::"dev_link",

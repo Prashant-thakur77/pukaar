@@ -52,9 +52,31 @@ async function showMap(page) {
 const auth = await login();
 const village = await firstVillage();
 const PAGES = [
-  { name: 'console', path: '/console', auth: true },
-  { name: 'roster', path: '/roster', auth: true },
-  { name: 'audit', path: '/audit', auth: true },
+  // The console (spec 4.9): the inbox opens the first alert waiting, if any; the other sections one by one.
+  { name: 'console', path: '/console/inbox', auth: true },
+  // On a phone the decision is its own screen: open the first alert waiting (or sent) and measure it too.
+  {
+    name: 'console-decision',
+    path: '/console/inbox',
+    auth: true,
+    prep: async (page) => {
+      const row = page.locator('.ib-row').first();
+      if (!(await row.count())) await page.goto(page.url().replace('/console/inbox', '/console/inbox?v=sent'));
+      await page.locator('.ib-row').first().click({ timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(1200);
+    },
+  },
+  { name: 'console-sent', path: '/console/inbox?v=sent', auth: true },
+  { name: 'villages', path: '/console/villages', auth: true },
+  { name: 'reports', path: '/console/reports', auth: true },
+  { name: 'rollcall', path: '/console/rollcall', auth: true },
+  { name: 'directives', path: '/console/directives', auth: true },
+  { name: 'ask', path: '/console/ask', auth: true },
+  { name: 'settings', path: '/console/settings', auth: true },
+  { name: 'replay', path: '/console/replay', auth: true },
+  { name: 'system', path: '/console/system', auth: true },
+  { name: 'roster', path: '/console/roster', auth: true },
+  { name: 'audit', path: '/console/audit?all=1', auth: true },
   { name: 'village', path: `/village/${village}` },
   { name: 'live', path: '/live' },
   // The map waits behind "Show map" until it scrolls into view; measure its controls and markers too.

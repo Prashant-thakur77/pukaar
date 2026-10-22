@@ -20,6 +20,7 @@ import { useT } from '../i18n';
 import { fmtAgo } from '../lib/format';
 import { levelRank } from '../lib/levels';
 import type { Counters, PublicOverview, SafePlacesView } from '../types';
+import '../styles/Live.css';
 
 type OverviewVillage = PublicOverview['villages'][number];
 

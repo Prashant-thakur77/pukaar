@@ -1,24 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Check, CircleCheck, CircleX, Clock, Link2Off, X } from 'lucide-react';
+import { CircleCheck, CircleX, Clock, Link2Off, X } from 'lucide-react';
 import { api, ApiError } from '../api';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { HoldToConfirm } from '../components/HoldToConfirm';
+import '../styles/console-shell.css';
 import { LevelBadge } from '../components/Level';
 import { ListenButton } from '../components/ListenButton';
 import { ReplayChip } from '../components/Chips';
 import { DeniedNote, ErrorState, Skeleton } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
-import { dict } from '../i18n';
+import { both, useBothLangs, type Key } from '../i18n';
 import { expiryMs, fmtDuration } from '../lib/format';
 import type { Alert } from '../types';
+import '../styles/console.css';
 
 /** Both languages on every line: an officer may read either. */
-function Bi({ k, vars }: { k: keyof typeof dict; vars?: Record<string, string | number> }) {
+function Bi({ k, vars }: { k: Key; vars?: Record<string, string | number> }) {
   const f = (s: string) => s.replace(/\{(\w+)\}/g, (_, n: string) => String(vars?.[n] ?? ''));
   return (
     <>
-      <span lang="hi">{f(dict[k].hi)}</span>
-      <span className="bi-en">{f(dict[k].en)}</span>
+      <span lang="hi">{f(both(k).hi)}</span>
+      <span className="bi-en">{f(both(k).en)}</span>
     </>
   );
 }
@@ -43,8 +46,8 @@ function LatePage({ error, timedOut }: { error?: ApiError | null; timedOut?: boo
         <Bi k={timedOut ? 'approve.timeout.title' : 'approve.late.title'} />
       </h1>
       <p className="result-body">
-        {error?.messageHi ? <span lang="hi">{error.messageHi}</span> : <span lang="hi">{dict['approve.late.body'].hi}</span>}
-        <span className="bi-en">{error?.messageEn && error.status === 409 ? error.messageEn : dict['approve.late.body'].en}</span>
+        {error?.messageHi ? <span lang="hi">{error.messageHi}</span> : <span lang="hi">{both('approve.late.body').hi}</span>}
+        <span className="bi-en">{error?.messageEn && error.status === 409 ? error.messageEn : both('approve.late.body').en}</span>
       </p>
     </section>
   );
@@ -61,8 +64,8 @@ function InvalidPage() {
         <Bi k="approve.invalid" />
       </h1>
       <p className="result-body">
-        <span lang="hi">{dict['approve.invalid.body'].hi}</span>
-        <span className="bi-en">{dict['approve.invalid.body'].en}</span>
+        <span lang="hi">{both('approve.invalid.body').hi}</span>
+        <span className="bi-en">{both('approve.invalid.body').en}</span>
       </p>
     </section>
   );
@@ -71,6 +74,8 @@ function InvalidPage() {
 const isInvalid = (e: ApiError | null | undefined) => Boolean(e && (e.code === 'invalid' || e.status === 400 || e.status === 404 || e.status === 401));
 
 export default function Approve() {
+  // Every line is in both languages: wait for both tables (i18n.ts).
+  useBothLangs();
   const { token = '' } = useParams();
   const { data, error, loading, refresh } = usePoll(() => api.approval(token), [token], 0);
   const [confirm, setConfirm] = useState<'approve' | 'decline' | null>(null);
@@ -86,6 +91,7 @@ export default function Approve() {
       setResult(await api.decideApproval(token, d));
     } catch (e) {
       setActErr(e instanceof ApiError ? e : new ApiError(0, null));
+      throw e;
     } finally {
       setBusy(false);
       setConfirm(null);
@@ -160,27 +166,39 @@ export default function Approve() {
           <Bi k="approve.onetap" />
         </p>
         <div className="approve-actions">
-          <button type="button" className="btn btn-xl btn-approve btn-press" onClick={() => setConfirm('approve')} disabled={busy}>
-            <Check aria-hidden="true" />
-            <span lang="hi">{dict['approve.approve'].hi}</span>
-            <span className="btn-sub">{dict['approve.approve'].en}</span>
-          </button>
+          {/* S4: hold one second to approve (or tap, then confirm); the console's own control. */}
+          <HoldToConfirm
+            className="approve-hold"
+            disabled={busy}
+            onConfirm={() => decide('approve')}
+            text={{
+              idle: `${both('decide.hold.idle').hi} · ${both('decide.hold.idle').en}`,
+              holding: both('decide.hold.holding').hi,
+              almost: both('decide.hold.almost').hi,
+              sending: `${both('decide.hold.sending').hi} · ${both('decide.hold.sending').en}`,
+              done: `${both('decide.hold.done').hi} · ${both('decide.hold.done').en}`,
+              hint: `${both('decide.hold.hint').hi}. ${both('decide.hold.hint').en}`,
+              confirmQ: `${both('decide.confirm.q').hi} · ${both('decide.confirm.q').en}`,
+              confirmYes: 'हाँ, मंज़ूर · Yes, approve',
+              confirmNo: 'रद्द · Cancel',
+            }}
+          />
           <button type="button" className="btn btn-xl btn-decline btn-press" onClick={() => setConfirm('decline')} disabled={busy}>
             <X aria-hidden="true" />
-            <span lang="hi">{dict['approve.decline'].hi}</span>
-            <span className="btn-sub">{dict['approve.decline'].en}</span>
+            <span lang="hi">{both('approve.decline').hi}</span>
+            <span className="btn-sub">{both('approve.decline').en}</span>
           </button>
         </div>
         <ConfirmDialog
           open={confirm !== null}
-          title={confirm === 'approve' ? `${dict['approve.approve'].hi} · ${dict['approve.approve'].en}` : `${dict['approve.decline'].hi} · ${dict['approve.decline'].en}`}
+          title={confirm === 'approve' ? `${both('approve.approve').hi} · ${both('approve.approve').en}` : `${both('approve.decline').hi} · ${both('approve.decline').en}`}
           confirmLabel={confirm === 'approve' ? 'हाँ, मंज़ूर · Yes, approve' : 'हाँ, अस्वीकार · Yes, decline'}
           cancelLabel="रद्द · Cancel"
           tone={confirm === 'decline' ? 'danger' : 'accent'}
           busy={busy}
           sheet
           onCancel={() => setConfirm(null)}
-          onConfirm={() => confirm && void decide(confirm)}
+          onConfirm={() => confirm && void decide(confirm).catch(() => {})}
         >
           <p>{confirm === 'approve' ? <Bi k="approve.confirm.approve" vars={{ n: a.recipients_count }} /> : <Bi k="approve.confirm.decline" />}</p>
         </ConfirmDialog>

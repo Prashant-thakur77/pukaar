@@ -2,13 +2,19 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { statusPagePlugin } from './status-page';
+import { bootPlugin } from './boot-plugin';
+import { i18nStringsPlugin } from './i18n-plugin';
 
 export default defineConfig({
   plugins: [
     react(),
+    i18nStringsPlugin(),
     statusPagePlugin(),
+    bootPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
+      // A deferred registration script: a classic script in <head> would hold the first paint for a round trip.
+      injectRegister: 'script-defer',
       devOptions: { enabled: false },
       includeAssets: ['favicon.svg'],
       manifest: {
@@ -45,7 +51,7 @@ export default defineConfig({
         globIgnores: [
           '**/maplibre*', '**/HeroScene*', '**/*latin-ext*', '**/*cyrillic*', '**/*greek*', '**/*vietnamese*',
           '**/noto-sans-devanagari*',
-          '**/ConsolePage-*', '**/Roster-*', '**/Audit-*', '**/Pilot-*', '**/Impact-*', '**/Agents-*', '**/How-*', '**/Sensors-*',
+          '**/ConsoleLayout-*', '**/Inbox-*', '**/AuditPage-*', '**/AskSection-*', '**/Sections-*', '**/console-*', '**/Roster-*', '**/Pilot-*', '**/Impact-*', '**/Agents-*', '**/How-*', '**/Sensors-*',
         ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // One classic script, as registerSW.js registers it.

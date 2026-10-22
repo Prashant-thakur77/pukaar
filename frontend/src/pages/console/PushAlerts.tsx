@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { BellOff, BellRing, LoaderCircle, Send, Smartphone } from 'lucide-react';
 import { api, ApiError } from '../../api';
 import { ErrorState } from '../../components/States';
-import { dict, useT } from '../../i18n';
+import { useT, type Key } from '../../i18n';
 import { pushEnvironment, sameKey, subscriptionId, urlBase64ToUint8Array } from '../../lib/push';
 
 type State = 'checking' | 'unsupported' | 'ios-install' | 'no-worker' | 'server-off' | 'blocked' | 'off' | 'on';
 
-const MESSAGE: Record<Exclude<State, 'checking'>, keyof typeof dict> = {
+const MESSAGE: Record<Exclude<State, 'checking'>, Key> = {
   unsupported: 'console.push.unsupported',
   'ios-install': 'console.push.ios',
   'no-worker': 'console.push.no_worker',

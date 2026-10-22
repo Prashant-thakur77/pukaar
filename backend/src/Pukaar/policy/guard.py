@@ -30,6 +30,8 @@ RESOURCE_TYPES = {"village": "Village", "alert": "Alert", "report": "Report", "r
 DENY_HINTS = {
     "approve": "Only a district officer can approve an alert.",
     "decline": "Only a district officer can decline an alert.",
+    "edit_alert": "Only a district officer can change what an alert says.",
+    "snooze_alert": "Only a district officer can snooze an alert in the console.",
     "set_report_state": "Only a district officer can change a report's state.",
     "issue_directive": "Only a district officer can issue a directive.",
     "start_replay": "Only a district officer can start or reset a replay.",

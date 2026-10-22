@@ -560,9 +560,11 @@ def test_csp_is_strict_where_it_matters():
     assert csp["frame-ancestors"] == ["'none'"] and csp["object-src"] == ["'none'"]
     assert csp["base-uri"] == ["'self'"] and csp["form-action"] == ["'self'"]
     assert "'unsafe-inline'" not in csp["script-src"] and "'unsafe-eval'" not in csp["script-src"]
-    # No <style> elements from anywhere but the app; inline style attributes only, for the after-action
-    # report the console opens from a blob: URL (a blob: page inherits this policy).
-    assert csp["style-src"] == ["'self'"] and csp["style-src-attr"] == ["'unsafe-inline'"]
+    # No <style> element but the app's own critical CSS, allowed by its hash (frontend/boot-plugin.ts); inline
+    # style attributes only, for the after-action report the console opens from a blob: URL (a blob: page
+    # inherits this policy).
+    assert csp["style-src"][0] == "'self'" and all(s.startswith("'sha256-") for s in csp["style-src"][1:])
+    assert "'unsafe-inline'" not in csp["style-src"] and csp["style-src-attr"] == ["'unsafe-inline'"]
     for directive, sources in csp.items():
         assert "*" not in sources and "https:" not in sources and "http:" not in sources, directive
     connect = " ".join(csp["connect-src"])
@@ -572,17 +574,25 @@ def test_csp_is_strict_where_it_matters():
     assert "blob:" in csp["worker-src"] and "blob:" in csp["media-src"]  # MapLibre workers, recorded voice notes
 
 
-def test_csp_allows_exactly_the_inline_scripts_in_index_html():
+def test_csp_allows_exactly_the_inline_blocks_of_the_built_index_html():
     import base64
     import hashlib
+    import json
     import re
 
+    # The theme guard is written in frontend/index.html; the boot painter and the critical CSS are added by the
+    # build (frontend/boot-plugin.ts). frontend/csp-hashes.json is the build's list, committed by
+    # scripts/csp-sync.mjs together with this template; deploy_web.sh refuses a build the template does not allow.
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
     inline = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.S)
-    hashes = {"'sha256-" + base64.b64encode(hashlib.sha256(s.encode("utf-8")).digest()).decode() + "'" for s in inline}
-    allowed = {s for s in _csp()["script-src"] if s.startswith("'sha256-")}
-    # Edit the theme snippet in frontend/index.html and this fails until the template's hash matches.
-    assert hashes and hashes == allowed
+    theme = {"'sha256-" + base64.b64encode(hashlib.sha256(s.encode("utf-8")).digest()).decode() + "'" for s in inline}
+    built = json.loads((ROOT / "frontend" / "csp-hashes.json").read_text(encoding="utf-8"))
+    csp = _csp()
+    allowed_scripts = {s for s in csp["script-src"] if s.startswith("'sha256-")}
+    allowed_styles = {s for s in csp["style-src"] if s.startswith("'sha256-")}
+    assert theme and theme <= set(built["script"]), "edit the theme snippet, then build and run scripts/csp-sync.mjs"
+    assert allowed_scripts == set(built["script"]) and len(built["script"]) == 2  # the theme guard and the painter
+    assert allowed_styles == set(built["style"]) and len(built["style"]) == 1  # the critical CSS
 
 
 def test_report_route_has_its_own_throttle_and_the_api_reads_the_report_salt():

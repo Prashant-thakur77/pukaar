@@ -53,17 +53,8 @@
 .sg-picker.is-compact .sg-pick-mark { font-size: var(--t-small); }
 .sg-pick-lv { font-size: var(--t-small); font-weight: 700; color: var(--ink-2); }
 .sg-pick-check { position: absolute; top: 4px; right: 4px; width: 16px; height: 16px; color: var(--accent-text); }
-
-/* ---------- villager compare panel ---------- */
-.sg-open {
-  display: flex; align-items: center; gap: var(--sp-3); width: 100%; margin: var(--sp-4) 0; padding: var(--sp-4);
-  min-height: var(--tap-primary); border: 2px dashed color-mix(in srgb, var(--accent) 55%, transparent); border-radius: var(--r-2);
-  background: var(--accent-tint); color: var(--ink); text-align: left; cursor: pointer; position: relative;
-}
 .sg-open > svg { width: 30px; height: 30px; flex: none; color: var(--accent-text); }
-.sg-open > span { display: grid; gap: 2px; }
 .sg-open strong { font-size: var(--t-body); }
-.sg-open.is-done { border-style: solid; border-color: var(--ok); }
 .sg-compare, .sg-review { display: grid; gap: var(--sp-3); }
 .sg-compare { margin: var(--sp-4) 0; padding: var(--sp-4); border: 1px solid var(--line); border-radius: var(--r-2); background: var(--surface); }
 .sg-compare-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
@@ -114,41 +105,18 @@
 .sg-readings { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .sg-readings li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; }
 .sg-reading-mark { font-weight: 700; font-size: var(--t-small); line-height: 1; font-family: var(--font-ui); min-width: 2.6em; padding: 4px 6px; border-radius: var(--r-1); background: var(--accent-tint); color: var(--accent-text); text-align: center; }
-
-/* ---------- learned thresholds panel ---------- */
-.gp-panel { display: grid; gap: var(--sp-2); margin-top: var(--sp-3); padding-top: var(--sp-4); border-top: 1px dashed var(--line); }
-.gp-head { display: flex; align-items: center; gap: 8px; }
 .gp-head > svg { width: 18px; height: 18px; color: var(--accent-text); }
-.gp-head h4 { margin: 0; flex: 1; font-size: var(--t-small); }
-.gp-chart { margin: 0; display: grid; gap: 4px; }
 .gp-chart svg { width: 100%; max-width: 760px; height: auto; display: block; overflow: visible; }
-.gp-grid line { stroke: var(--line); stroke-width: 1; }
-.gp-grid text, .gp-axis { fill: var(--ink-3); font-weight: 500; font-size: var(--t-small); font-family: var(--font-ui); }
-.gp-curve { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
-.gp-line line { stroke-width: 2; }
 .gp-line.is-current line { stroke-dasharray: 5 5; stroke-width: 1.5; opacity: 0.75; }
-.gp-line text { fill: var(--ink-2); font-weight: 700; font-size: var(--t-small); font-family: var(--font-ui); }
 .gp-line.lv-watch line { stroke: var(--lv-watch-fill); }
 .gp-line.lv-warning line { stroke: var(--lv-warning-fill); }
 .gp-line.lv-critical line { stroke: var(--lv-critical-fill); }
-.gp-hit { fill: transparent; }
-.gp-pt:hover .gp-hit { fill: var(--accent); }
-.gp-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; pointer-events: none; }
-.gp-table td, .gp-table th { padding: 8px 10px; }
 .gp-table td > .muted { display: block; }
-.gp-swatch { display: inline-block; width: 10px; height: 10px; border-radius: var(--r-1); margin-right: 4px; vertical-align: 0; }
 .gp-swatch.lv-watch { background: var(--lv-watch-fill); }
 .gp-swatch.lv-warning { background: var(--lv-warning-fill); }
 .gp-swatch.lv-critical { background: var(--lv-critical-fill); }
-.gp-note { display: flex; gap: 8px; margin: 0; padding: 10px 12px; border-radius: var(--r-2); background: var(--accent-tint); color: var(--ink); }
 .gp-note svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--accent-text); }
-.gp-faults-h { margin: var(--sp-2) 0 0; font-size: var(--t-small); }
-.gp-faults { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.gp-fault { display: flex; gap: 8px; font-size: var(--t-small); }
 .gp-fault svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
-.gp-fault.is-warn svg { color: var(--lv-warning-fill); }
-.gp-fault.is-info svg { color: var(--ink-3); }
-.gp-actions { display: grid; gap: 4px; justify-items: start; }
 
 @media (max-width: 720px) {
   .sg-setup-grid { grid-template-columns: 1fr; }

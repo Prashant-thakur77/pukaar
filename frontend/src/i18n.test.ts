@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { dict, enumLabels, format, scopeFor } from './i18n';
+import { both, dict as core, enumLabels, format, langReady, loadLang, scopeFor, translate } from './i18n';
+import { strings } from './i18n/strings';
+import { LEVEL_WORDS } from './lib/answerText';
+import hiTable from 'virtual:pk-strings/hi';
+import enTable from 'virtual:pk-strings/en';
+
+// Every string: the split tables' source and the few kept in the main bundle.
+const dict = { ...strings, ...core };
 
 describe('i18n', () => {
   it('every key has non-empty Hindi and English', () => {
@@ -29,6 +36,30 @@ describe('i18n', () => {
         expect(e.hi, k).toBeTruthy();
         expect(e.en, k).toBeTruthy();
       }
+  });
+
+  it('splits the strings into one table per language, nothing lost or mixed', () => {
+    expect(Object.keys(hiTable).sort()).toEqual(Object.keys(strings).sort());
+    expect(Object.keys(enTable).sort()).toEqual(Object.keys(strings).sort());
+    for (const [k, e] of Object.entries(strings)) {
+      expect(hiTable[k], k).toBe(e.hi);
+      expect(enTable[k], k).toBe(e.en);
+    }
+    // The few strings kept in the main bundle are not also in the tables.
+    for (const k of Object.keys(core)) expect(k in strings, k).toBe(false);
+  });
+
+  it('translates from the loaded tables, and both() gives the two languages', async () => {
+    await loadLang('hi');
+    await loadLang('en');
+    expect(langReady('hi') && langReady('en')).toBe(true);
+    expect(translate('hi', 'nav.status')).toBe(strings['nav.status'].hi);
+    expect(translate('en', 'level.critical')).toBe('Critical');
+    expect(both('village.do')).toEqual(strings['village.do']);
+  });
+
+  it('says the level words the boot painter says (lib/answerText.ts)', () => {
+    for (const [lv, w] of Object.entries(LEVEL_WORDS)) expect(core[`level.${lv}` as keyof typeof core], lv).toEqual(w);
   });
 
   it('formats placeholders and picks Hindi-first scope for villager pages', () => {

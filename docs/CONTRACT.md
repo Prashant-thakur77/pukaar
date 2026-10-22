@@ -273,6 +273,13 @@ POST /alerts/{id}/outcome    officer (Cedar set_alert_outcome): {outcome: "real_
 POST /alerts/{id}/approve    officer: {} -> Alert; 409 {detail{code,message_en,message_hi}} when late;
                              503 {detail{code:"retry",reason}} when the workflow was briefly unreachable
 POST /alerts/{id}/decline    officer: {reason?} -> Alert; 409 as above
+POST /alerts/{id}/edit       officer (Cedar edit_alert): {text_hi, text_en?} -> Alert; pending only (409 otherwise);
+                             held to the model draft's rules (no new number, place or link; the village and the
+                             level word stay): 422 {detail{code:"edit_rejected",reason,message_en,message_hi}};
+                             the alert MP3 is made again from the new Hindi; timeline "edited"
+POST /alerts/{id}/snooze     officer (Cedar snooze_alert): {minutes: 1..60, default 10} -> {alert_id, snoozed_until,
+                             minutes}; pending only; changes nothing but the timeline and the audit trail (the
+                             escalation to the next officer keeps its own clock); the console hides it here
 GET  /approval/{token}       signed link: {alert, expires_at, valid, officer}; 409 late/expired;
                              400 {detail{code:"invalid",message_en,message_hi}} for a broken or forged link
 POST /approval/{token}       signed link: {decision: "approve"|"decline"} -> Alert; 409 when late or reused

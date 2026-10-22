@@ -13,7 +13,7 @@ or a section names an alarm that no longer exists.
 |---|---|
 | Dashboard | CloudWatch, dashboard `pukaar-<stage>` (sweep, model, delivery, approvals, API, DLQs) |
 | Logs | `/aws/lambda/pukaar-api-<stage>`, `pukaar-sweep-<stage>`, `pukaar-workflow-<stage>`, `pukaar-worker-<stage>`, `pukaar-gauge-ingest-<stage>`, `pukaar-canary-<stage>`; Step Functions `/aws/vendedlogs/states/pukaar-approval-<stage>` |
-| Console | `/console` (approvals, villages, reports, roll-call), `/roster`, `/audit`, `/sensors` |
+| Console | `/console/inbox` (approvals, and what was sent), `/console/villages`, `/console/reports`, `/console/rollcall`, `/console/roster`, `/console/audit`; `/sensors` |
 | Queues | `pukaar-sweep-dlq-<stage>`, `pukaar-worker-dlq-<stage>` |
 | Alarm topic | SNS `pukaar-alarms-<stage>`; subscribe the on-call phone (SMS) and e-mail. With no subscriber nobody hears an alarm |
 
@@ -128,7 +128,7 @@ stopped half way.
 **First 3 checks.**
 1. Step Functions console, state machine `pukaar-approval-<stage>`: the failed execution, the last
    state and its error.
-2. The alert in the console (`/console`, Approvals and Recent alerts): its status and timeline.
+2. The alert in the console (`/console/inbox`, waiting or sent): its status and timeline.
 3. Workflow logs for that `alert_id`.
 
 **Fix.** If the alert was approved but not delivered, deliver it with the fixed template from the

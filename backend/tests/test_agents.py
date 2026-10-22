@@ -71,7 +71,7 @@ def test_registry_is_read_from_code(repo, frozen):
     # Every Cedar forbid action for agents, plus the design rules.
     assert {"approve", "decline", "deliver", "auto_send", "failsafe", "issue_directive"} <= never
     assert {"set_level", "choose_recipients"} <= never
-    assert set(agents_svc.forbidden_agent_actions()) == {"approve", "decline", "deliver", "auto_send", "failsafe",
+    assert set(agents_svc.forbidden_agent_actions()) == {"approve", "decline", "edit_alert", "deliver", "auto_send", "failsafe",
                                                          "issue_directive", "open_rollcall", "remind_rollcall", "set_shelter_status",
                                                          "block_road", "sound_siren", "stop_siren", "test_siren",
                                                          "manage_device", "pour_test"}

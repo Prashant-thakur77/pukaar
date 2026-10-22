@@ -6,6 +6,7 @@ import { ErrorState, Skeleton } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
 import { enumLabels, useT } from '../i18n';
 import { fmtTime } from '../lib/format';
+import '../styles/Track.css';
 
 export default function Track() {
   const { code = '' } = useParams();

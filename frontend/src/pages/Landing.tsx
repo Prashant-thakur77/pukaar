@@ -4,8 +4,9 @@ import { ArrowRight, ChevronRight, CircleCheck, Eye, Map as MapIcon, Mic, PhoneC
 import { api } from '../api';
 import { Freshness, LevelBanner, VillageRows, type RowVillage } from '../components/Answer';
 import { usePoll } from '../hooks/usePoll';
+import { useHandOff } from '../boot/handoff';
 import { useT } from '../i18n';
-import { MEANS, ACTIONS } from '../lib/actions';
+import { LEAD, MEANS } from '../lib/actions';
 import { levelIsKnown } from '../lib/dataStatus';
 import { levelRank } from '../lib/levels';
 import { DEFAULT_COST_INPUTS, estimatePilotCost, fmtRupees } from '../lib/pilotCost';
@@ -45,6 +46,8 @@ export default function Landing() {
     if (fresh) writeLS(CACHE_KEY, JSON.stringify(fresh));
   }, [fresh]);
   const data = fresh ?? cached;
+  // The boot painter drew this status already: hand over once there is something to show.
+  useHandOff(Boolean(data) || Boolean(error));
   const offline = !fresh && Boolean(cached) && Boolean(error?.isNetwork);
 
   const villages = data?.villages ?? [];
@@ -118,7 +121,7 @@ export default function Landing() {
                         </span>
                       </Link>
                     }
-                    why={<span lang="hi">{ACTIONS[v.level][0].hi}</span>}
+                    why={<span lang="hi">{LEAD[v.level].hi}</span>}
                   />
                 ))}
               </div>

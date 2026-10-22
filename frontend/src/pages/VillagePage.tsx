@@ -19,6 +19,8 @@ import { WhereToGo } from '../components/WhereToGo';
 import { ActionList, Freshness, LevelBanner, StickyActionBar } from '../components/Answer';
 import { Call112 } from '../components/Shell';
 import { useVillageNow } from '../hooks/useVillageNow';
+import { useHandOff } from '../boot/handoff';
+import '../styles/VillagePage.css';
 import './village.css';
 import { districtLine, shelterWord } from '../lib/villageNow';
 import { DataStatusNote, LiveLevelNote } from '../components/DataStatus';
@@ -404,6 +406,8 @@ export default function VillagePage() {
   }, [ready, hash]);
 
   const now = answer.now;
+  // The boot painter's page stays until this one has the answer, or knows it cannot get one.
+  useHandOff(Boolean(now) || Boolean(error) || answer.missing);
   if (!now) {
     if (answer.missing || (error && error.status === 404))
       return (

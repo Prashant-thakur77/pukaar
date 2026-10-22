@@ -33,6 +33,7 @@ import { usePoll } from '../hooks/usePoll';
 import { useT } from '../i18n';
 import { fmtAgo } from '../lib/format';
 import type { AgentCard, AgentRegistry, AgentState, AgentTrace, TraceKind, TraceRound } from '../types';
+import '../styles/story.css';
 
 type Txt = { hi: string; en: string };
 const GITHUB = 'https://github.com/Prashant-thakur77/pukaar';

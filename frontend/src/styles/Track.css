@@ -1,0 +1,20 @@
+/* The rules only the Track page use, moved out of the global stylesheets in their cascade order. */
+.track-card { display: grid; gap: 6px; }
+.track-village { font-size: var(--t-h3); font-weight: 700; }
+.tl-step { display: grid; grid-template-columns: 48px 1fr; gap: 12px; position: relative; padding-bottom: var(--sp-5); opacity: 0; animation: rise var(--dur-slow) var(--ease-out) var(--d) forwards; }
+.tl-step::before { content: ''; position: absolute; left: 23px; top: 44px; bottom: 4px; width: 3px; border-radius: var(--r-1); background: var(--line); }
+.tl-step:last-child::before { display: none; }
+.tl-step.is-done::before { background: var(--ok); }
+.tl-dot { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--ink-3); }
+.tl-title { font-size: var(--t-lead); font-weight: 700; line-height: 1.4; }
+.track-lookup { margin-top: var(--sp-4); }
+@media (prefers-reduced-motion: reduce) {
+.tl-step { opacity: 1; } }
+.track-village { font-size: var(--t-h2); }
+.tl-dot { width: 44px; height: 44px; }
+.tl-step::before { left: 21px; top: 44px; width: 2px; }
+.tl-step.is-done .tl-dot { background: var(--surface-2); }
+.tl-step.is-done::before { background: var(--surface-2); }
+.tl-title { font-size: var(--t-body); }
+.track-lookup .input-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.track-lookup .input-row input { flex: 1 1 180px; min-width: 0; }

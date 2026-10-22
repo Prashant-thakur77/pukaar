@@ -16,24 +16,32 @@ export const MEANS: Record<Level, ActionLine> = {
   critical: { hi: "अभी निकलें", en: "Leave now" },
 };
 
+/** The first line of each level, the one that matters most (the home page shows it under a banner). */
+export const LEAD: Record<Level, ActionLine> = {
+  normal: { hi: "अभी कुछ करने की ज़रूरत नहीं।", en: "Nothing to do now." },
+  watch: { hi: "नदी और नालों के किनारे न जाएँ।", en: "Keep away from the river and streams." },
+  warning: { hi: "ऊँची जगह और वहाँ तक का रास्ता अभी देख लें।", en: "Look at the high place and the route to it now." },
+  critical: { hi: "अभी ऊँची, सुरक्षित जगह पर जाएँ। सामान के लिए न रुकें।", en: "Go to high, safe ground now. Do not stop for belongings." },
+};
+
 /** At most three lines per level, the most important first. */
 export const ACTIONS: Record<Level, ActionLine[]> = {
   normal: [
-    { hi: "अभी कुछ करने की ज़रूरत नहीं।", en: "Nothing to do now." },
+    LEAD.normal,
     { hi: "अपनी सबसे पास की ऊँची, सुरक्षित जगह पहले से जान लें।", en: "Know your nearest high, safe place in advance." },
   ],
   watch: [
-    { hi: "नदी और नालों के किनारे न जाएँ।", en: "Keep away from the river and streams." },
+    LEAD.watch,
     { hi: "काग़ज़, दवा, टॉर्च और पानी एक थैले में रख लें।", en: "Put papers, medicine, a torch and water in one bag." },
     { hi: "फ़ोन चार्ज रखें और चेतावनी सुनते रहें।", en: "Keep your phone charged and listen for alerts." },
   ],
   warning: [
-    { hi: "ऊँची जगह और वहाँ तक का रास्ता अभी देख लें।", en: "Look at the high place and the route to it now." },
+    LEAD.warning,
     { hi: "बुज़ुर्ग, बच्चे, बीमार और पशु पहले ले जाने की तैयारी करें।", en: "Plan to move the elderly, children, the sick and animals first." },
     { hi: "नदी, नाले, पुल और ढलानों से दूर रहें।", en: "Stay away from the river, streams, bridges and slopes." },
   ],
   critical: [
-    { hi: "अभी ऊँची, सुरक्षित जगह पर जाएँ। सामान के लिए न रुकें।", en: "Go to high, safe ground now. Do not stop for belongings." },
+    LEAD.critical,
     { hi: "पुल या बहता पानी पार न करें।", en: "Do not cross bridges or moving water." },
     { hi: "जान को ख़तरा हो तो 112 पर कॉल करें।", en: "If a life is in danger, call 112." },
   ],

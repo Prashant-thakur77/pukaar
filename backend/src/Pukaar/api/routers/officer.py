@@ -203,6 +203,82 @@ def decline(alert_id: str, body: DeclineBody | None = None,
     return _decide(alert_id, "declined", principal, (body.reason if body else "")[:200])
 
 
+class EditBody(BaseModel):
+    text_hi: str
+    text_en: str = ""
+
+
+def _pending(alert_id: str):
+    a = get_repo().get_alert(alert_id)
+    if a is None:
+        raise HTTPException(404, "Alert not found")
+    if a.status != "pending":
+        raise HTTPException(409, {"code": "late", "message_en": hi.LATE_REPLY_EN, "message_hi": hi.LATE_REPLY_HI,
+                                  "reason": f"the alert is {a.status}, not pending"})
+    return a
+
+
+@router.post("/alerts/{alert_id}/edit")
+def edit_alert(alert_id: str, body: EditBody,
+               principal: Principal = Depends(Allowed("edit_alert", "alert", "alert_id"))) -> dict:
+    """An officer changes what a pending alert will say, before approving it. Held to the same rules as a model
+    draft (services/drafting.check_officer_edit); the spoken copy is made again from the new Hindi."""
+    import re
+
+    from Pukaar.services import drafting
+    from Pukaar.store.models import DraftCheck
+    from Pukaar.voice import polly
+
+    repo = get_repo()
+    a = _pending(alert_id)
+    new_hi = re.sub(r"\s+", " ", body.text_hi).strip()
+    new_en = re.sub(r"\s+", " ", body.text_en).strip() or a.text_en
+    if new_hi == a.text_hi and new_en == a.text_en:
+        return views.alert(a)
+    village = repo.get_village(a.village_id)
+    if village is None:
+        raise HTTPException(404, "Village not found")
+    villages = repo.list_villages()
+    others = [v.name for v in villages if v.id != village.id] + [v.name_hi for v in villages if v.id != village.id]
+    others += sorted(safe_places.all_place_names())
+    check = drafting.check_officer_edit(new_hi, new_en, a.text_hi, a.text_en, village, a.level, others)
+    if not check.passed:
+        raise HTTPException(422, {"code": "edit_rejected", "reason": check.reason,
+                                  "message_en": f"Not saved: {check.reason}.",
+                                  "message_hi": f"बदलाव नहीं हुआ: {check.reason}।"})
+    updated = repo.update_alert(a.id, text_hi=new_hi, text_en=new_en,
+                                draft_check=DraftCheck(passed=True, reason=f"edited by {principal.username}; {check.reason}"))
+    repo.add_timeline(a.id, "edited", f"message edited by {principal.username}")
+    # The spoken copies follow the words: the alert MP3 now, the call audio again at delivery.
+    try:
+        audio_key = polly.synthesize_alert(a.id, new_hi)
+    except Exception:  # without audio the page and the call speak the text
+        audio_key = None
+    updated = repo.update_alert(a.id, audio_key=audio_key, call_audio_key=None)
+    from Pukaar.services import events
+
+    events.alert_changed(updated)
+    return views.alert(updated)
+
+
+class SnoozeBody(BaseModel):
+    minutes: int = 10
+
+
+@router.post("/alerts/{alert_id}/snooze")
+def snooze_alert(alert_id: str, body: SnoozeBody | None = None,
+                 principal: Principal = Depends(Allowed("snooze_alert", "alert", "alert_id"))) -> dict:
+    """"In 10 minutes": the console sets this alert aside for the officer who asked, and the audit trail says so.
+    Nothing else changes: the alert stays pending, and the escalation to the next officer runs on its own clock."""
+    from datetime import timedelta
+
+    a = _pending(alert_id)
+    minutes = max(1, min(60, body.minutes if body else 10))
+    until = clock.iso(clock.now() + timedelta(minutes=minutes))
+    get_repo().add_timeline(a.id, "snoozed", f"set aside for {minutes} min by {principal.username}; escalation continues")
+    return {"alert_id": a.id, "snoozed_until": until, "minutes": minutes}
+
+
 @router.get("/directives")
 def list_directives(request: Request, village_id: str = "") -> list[dict]:
     """Public. Who issued a directive (an officer's username) is shown to a signed-in caller only."""

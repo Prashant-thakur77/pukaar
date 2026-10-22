@@ -1,21 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ChevronDown, CloudOff, History, LogOut, Menu, Moon, Phone, Sun, SunMoon, TriangleAlert, X } from 'lucide-react';
 import { api } from '../api';
 import { useT, type Key } from '../i18n';
 import { flushQueue, refreshQueueCount } from '../lib/queue';
-import { applyTheme, useAuth, useNet, usePrefs, type ThemePref } from '../store';
+import { useAuth, useNet, usePrefs, type ThemePref } from '../store';
 import { usePoll } from '../hooks/usePoll';
 import { fmtTime } from '../lib/format';
 import { REPLAY_EVENT } from '../lib/events';
-import { TourHost } from './Tour';
+import { useTour } from '../lib/tour';
 import { LivePill } from './LivePill';
+import { isAnswerPath, useHandOff } from '../boot/handoff';
+import { useDocumentPrefs } from '../hooks/useDocumentPrefs';
+import { bootState } from '../boot/protocol';
 import './shell.css';
+
+/** The guided tour's code loads only when a tour is asked for (?tour=1) or running. */
+const TourHost = lazy(() => import('./Tour').then((m) => ({ default: m.TourHost })));
+function TourGate() {
+  const { search } = useLocation();
+  const active = useTour((s) => s.active);
+  if (!active && !/[?&]tour=1\b/.test(search)) return null;
+  return (
+    <Suspense fallback={null}>
+      <TourHost />
+    </Suspense>
+  );
+}
 
 /** Officer pages: the live-push pill belongs in their header, not the public one. */
 const isStaffRoute = (p: string) => /^\/(console|audit|roster)(\/|$)/.test(p);
-/** The story pages are the only ones set in the display serif. */
-const isStoryRoute = (p: string) => /^\/(how|agents|sensors|impact|pilot)?\/?$/.test(p);
 
 type NavItem = { to: string; key: Key; sub?: Key };
 /** The four public places (spec 2.3): status, report, how it works, proof and pilot. */
@@ -212,8 +226,9 @@ function Header() {
   const user = useAuth((s) => s.user);
   const signOut = useAuth((s) => s.signOut);
   const { pathname } = useLocation();
-  // The sheet closes on navigation: it is only "open" for the path it was opened on.
-  const [openOn, setOpenOn] = useState<string | null>(null);
+  // The sheet closes on navigation: it is only "open" for the path it was opened on. A tap on the boot
+  // painter's menu button, before this header existed, opens it now.
+  const [openOn, setOpenOn] = useState<string | null>(() => (bootState()?.menu ? pathname : null));
   const open = openOn === pathname;
   const close = useCallback(() => setOpenOn(null), []);
   return (
@@ -423,20 +438,40 @@ function reducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 }
 
+/** The one-tap approval link (spec 4.13): the mark and 112 only; no menu, no footer, nothing to wander into. */
+export function BareShell() {
+  const { lang } = useT();
+  useHandOff(true);
+  useDocumentPrefs();
+  return (
+    <>
+      <a href="#main" className="skip-link">
+        {lang === 'hi' ? 'सीधे सामग्री पर जाएँ' : 'Skip to content'}
+      </a>
+      <header className="hd">
+        <div className="hd-inner">
+          <span className="hd-brand">
+            <Wordmark />
+          </span>
+          <div className="hd-tools">
+            <Call112 />
+          </div>
+        </div>
+      </header>
+      <main id="main" className="page" tabIndex={-1}>
+        <Outlet />
+      </main>
+    </>
+  );
+}
+
 export default function Shell() {
   const { pathname, hash } = useLocation();
+  // The boot painter draws the answer pages itself; every other page takes over on its first frame.
+  useHandOff(!isAnswerPath(pathname));
   const { lang } = useT();
-  const theme = usePrefs((s) => s.theme);
   useNetworkWatch();
-  useEffect(() => {
-    document.documentElement.lang = lang;
-  }, [lang]);
-  // Villager pages are light unless dark was chosen; the serif only on the story pages.
-  useEffect(() => {
-    applyTheme(theme, pathname);
-    if (isStoryRoute(pathname)) document.documentElement.setAttribute('data-story', '');
-    else document.documentElement.removeAttribute('data-story');
-  }, [theme, pathname]);
+  useDocumentPrefs();
   const lastPath = useRef(pathname);
   useEffect(() => {
     // Links like /#story land on that section; everything else starts at the top. A jump within
@@ -471,7 +506,7 @@ export default function Shell() {
         <Outlet />
       </main>
       {villager ? null : <Footer />}
-      <TourHost />
+      <TourGate />
     </>
   );
 }

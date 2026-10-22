@@ -1,8 +1,7 @@
 import { Component, lazy, Suspense, type ComponentType, type ReactNode } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import Shell from './components/Shell';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import Shell, { BareShell } from './components/Shell';
 import { SkeletonCards } from './components/States';
-import Report from './pages/Report';
 
 /**
  * After a deploy, a tab (or a service worker) still running the previous build asks for chunk files that no
@@ -46,14 +45,14 @@ class PageBoundary extends Component<{ children: ReactNode }, { failed: boolean 
   }
 }
 
-// The villager report page is in the main bundle so it works offline at once;
-// everything else (and MapLibre) loads on demand.
+// Every page loads on demand, so the village answer's code is small; the report page's chunk is fetched as
+// soon as the phone is idle (main.tsx), and the service worker keeps all of them for offline use.
+const Report = lazyPage(() => import('./pages/Report'));
 const Landing = lazyPage(() => import('./pages/Landing'));
 const Live = lazyPage(() => import('./pages/Live'));
 const How = lazyPage(() => import('./pages/How'));
 const Agents = lazyPage(() => import('./pages/Agents'));
 const Sensors = lazyPage(() => import('./pages/Sensors'));
-const ConsolePage = lazyPage(() => import('./pages/console/ConsolePage'));
 const VillagePage = lazyPage(() => import('./pages/VillagePage'));
 const Track = lazyPage(() => import('./pages/Track'));
 const Safe = lazyPage(() => import('./pages/Safe'));
@@ -61,9 +60,29 @@ const Approve = lazyPage(() => import('./pages/Approve'));
 const Impact = lazyPage(() => import('./pages/Impact'));
 const Pilot = lazyPage(() => import('./pages/Pilot'));
 const Login = lazyPage(() => import('./pages/Login'));
-const Audit = lazyPage(() => import('./pages/Audit'));
 const Roster = lazyPage(() => import('./pages/console/Roster'));
+// The console has its own layout (spec 4.9); each section is its own chunk where it is heavy.
+const ConsoleLayout = lazyPage(() => import('./pages/console/ConsoleLayout'));
+const Inbox = lazyPage(() => import('./pages/console/Inbox'));
+const AuditPage = lazyPage(() => import('./pages/console/AuditPage'));
+const AskSection = lazyPage(() => import('./pages/console/AskSection'));
+const section = (name: keyof typeof import('./pages/console/Sections')) =>
+  lazyPage(() => import('./pages/console/Sections').then((m) => ({ default: m[name] as ComponentType })));
+const VillagesSection = section('VillagesSection');
+const MineSection = section('MineSection');
+const ReportsSection = section('ReportsSection');
+const RollCallSection = section('RollCallSection');
+const DirectivesSection = section('DirectivesSection');
+const ReplaySection = section('ReplaySection');
+const SystemSection = section('SystemSection');
+const SettingsSection = section('SettingsSection');
 const NotFound = lazyPage(() => import('./pages/NotFound'));
+
+/** The old officer paths open their console section, with the same query (an audit filter, a roster week). */
+function MovedTo({ to }: { to: string }) {
+  const { search, hash } = useLocation();
+  return <Navigate to={`${to}${search}${hash}`} replace />;
+}
 
 function PageFallback() {
   return (
@@ -88,15 +107,33 @@ export default function App() {
             <Route path="report" element={<Report />} />
             <Route path="t/:code" element={<Track />} />
             <Route path="safe/:token" element={<Safe />} />
-            <Route path="a/:token" element={<Approve />} />
             <Route path="village/:id" element={<VillagePage />} />
-            <Route path="console" element={<ConsolePage />} />
-            <Route path="audit" element={<Audit />} />
-            <Route path="roster" element={<Roster />} />
+            <Route path="audit" element={<MovedTo to="/console/audit" />} />
+            <Route path="roster" element={<MovedTo to="/console/roster" />} />
             <Route path="impact" element={<Impact />} />
             <Route path="pilot" element={<Pilot />} />
             <Route path="login" element={<Login />} />
             <Route path="*" element={<NotFound />} />
+          </Route>
+          <Route element={<BareShell />}>
+            <Route path="a/:token" element={<Approve />} />
+          </Route>
+          <Route path="console" element={<ConsoleLayout />}>
+            <Route index element={<Navigate to="inbox" replace />} />
+            <Route path="inbox" element={<Inbox />} />
+            <Route path="inbox/:alertId" element={<Inbox />} />
+            <Route path="mine" element={<MineSection />} />
+            <Route path="villages" element={<VillagesSection />} />
+            <Route path="reports" element={<ReportsSection />} />
+            <Route path="rollcall" element={<RollCallSection />} />
+            <Route path="directives" element={<DirectivesSection />} />
+            <Route path="ask" element={<AskSection />} />
+            <Route path="roster" element={<Roster />} />
+            <Route path="audit" element={<AuditPage />} />
+            <Route path="replay" element={<ReplaySection />} />
+            <Route path="system" element={<SystemSection />} />
+            <Route path="settings" element={<SettingsSection />} />
+            <Route path="*" element={<Navigate to="/console/inbox" replace />} />
           </Route>
         </Routes>
       </Suspense>

@@ -95,6 +95,41 @@ def check_draft(draft: AlertDraft, village: Village, trace: dict[str, Any], othe
     return DraftCheck(passed=True, reason="every number and place found in the decision trace")
 
 
+EDIT_MAX_HI = 600
+EDIT_MAX_EN = 600
+
+
+def check_officer_edit(new_hi: str, new_en: str, old_hi: str, old_en: str, village: Village, level: str,
+                       other_places: list[str]) -> DraftCheck:
+    """An officer's own words for a pending alert, held to the model draft's rules: every number must already be
+    in the drafted message (the times and thresholds it was built from, and 112), no other village or place, no
+    link, nothing that contradicts the level. The village and the level word stay, so an edit can change how the
+    message says it, never which village or which level it is about."""
+    allowed = numbers_in(f"{old_hi} {old_en}") | {"112"}
+    stray = sorted(numbers_in(f"{new_hi} {new_en}") - allowed)
+    if stray:
+        return DraftCheck(passed=False, reason=f"numbers not in the drafted message: {', '.join(stray[:5])}")
+    if not new_hi.strip():
+        return DraftCheck(passed=False, reason="the Hindi message is empty")
+    if not re.search(r"[ऀ-ॿ]", new_hi):
+        return DraftCheck(passed=False, reason="the Hindi message is not in Devanagari")
+    if len(new_hi) > EDIT_MAX_HI or len(new_en) > EDIT_MAX_EN:
+        return DraftCheck(passed=False, reason="the message is too long")
+    if village.name_hi not in new_hi:
+        return DraftCheck(passed=False, reason=f"the Hindi message must name {village.name_hi}")
+    if hi.LEVEL_HI[level] not in new_hi:
+        return DraftCheck(passed=False, reason=f"the Hindi message must keep the level word {hi.LEVEL_HI[level]}")
+    lowered = f"{new_hi} {new_en}".lower()
+    for place in other_places:
+        if place and place.lower() in lowered and place.lower() not in f"{old_hi} {old_en}".lower():
+            return DraftCheck(passed=False, reason=f"names another place: {place}")
+    if any(p in lowered for p in _CONTRADICTIONS):
+        return DraftCheck(passed=False, reason="contradicts the raised level")
+    if "http" in lowered or "www." in lowered:
+        return DraftCheck(passed=False, reason="contains a link")
+    return DraftCheck(passed=True, reason="every number and place is from the drafted message")
+
+
 def rule_reason(level: str, trace: dict[str, Any]) -> str:
     rules = trace.get("rules_fired") or ["no rules fired"]
     return f"{hi.LEVEL_EN[level]} set by rules: {', '.join(rules[:4])}."

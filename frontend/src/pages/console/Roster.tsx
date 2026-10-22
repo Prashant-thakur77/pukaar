@@ -2,7 +2,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, LoaderCircle, UserCheck } from 'lucide-react';
 import { api, ApiError } from '../../api';
-import { PageBand } from '../../components/PageBand';
+import { Page } from './Sections';
 import { DeniedNote, ErrorState, Skeleton } from '../../components/States';
 import { usePoll } from '../../hooks/usePoll';
 import { useT } from '../../i18n';
@@ -10,13 +10,14 @@ import { fmtNumber } from '../../lib/format';
 import { addDays, approvalTimes, chainRole, dayLabel, emptyShifts, isCurrent, istClock, nobodyOnDuty, shiftWindow, todayIST, validUsername } from '../../lib/roster';
 import { useAuth } from '../../store';
 import type { EscalationTitle, OnDuty, RosterDay, RosterShift, RosterView, ShiftId } from '../../types';
+import '../../styles/console.css';
 
 const SHIFTS: ShiftId[] = ['day', 'night'];
 
 /** /roster: who approves alerts now, and the week's duty chart. Officers only (Cedar "officer-roster"). */
 export default function RosterPage() {
   const token = useAuth((s) => s.token);
-  if (!token) return <Navigate to="/login" replace state={{ from: '/roster' }} />;
+  if (!token) return <Navigate to="/login" replace state={{ from: '/console/roster' }} />;
   return <Roster />;
 }
 
@@ -37,9 +38,8 @@ function Roster() {
   };
 
   return (
-    <div className="roster-page">
-      <PageBand eyebrow={t('roster.eyebrow')} title={t('roster.title')} lead={t('roster.lead')} />
-      <div className="wrap roster">
+    <Page title={t('roster.title')} lead={t('roster.lead')} wide>
+      <div className="roster">
         {poll.loading && !view ? (
           <Skeleton lines={6} />
         ) : poll.error && !view ? (
@@ -52,7 +52,7 @@ function Roster() {
           </>
         ) : null}
       </div>
-    </div>
+    </Page>
   );
 }
 

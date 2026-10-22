@@ -3,15 +3,16 @@ import { CircleAlert, Phone, ShieldCheck } from 'lucide-react';
 import { api } from '../api';
 import { Skeleton } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
-import { dict, format, type Key } from '../i18n';
+import { both, format, useBothLangs, type Key } from '../i18n';
+import '../styles/Safe.css';
 
 /** Both languages at once: the person who opens a family link may read either. */
 function Both({ k, vars, as: Tag = 'p', className = '' }: { k: Key; vars?: Record<string, string>; as?: 'p' | 'h1' | 'span'; className?: string }) {
   return (
     <Tag className={className}>
-      <span lang="hi">{format(dict[k].hi, vars)}</span>
+      <span lang="hi">{format(both(k).hi, vars)}</span>
       <span className="safe-en" lang="en">
-        {format(dict[k].en, vars)}
+        {format(both(k).en, vars)}
       </span>
     </Tag>
   );
@@ -30,6 +31,8 @@ function dayIST(iso: string, locale: string): string {
  * the time and the village: no phone number, no location beyond the village.
  */
 export default function Safe() {
+  // Every line is in both languages: wait for both tables (i18n.ts).
+  useBothLangs();
   const { token = '' } = useParams();
   const { data, error, loading } = usePoll(() => api.safe(token), [token], 0);
 
@@ -66,9 +69,9 @@ export default function Safe() {
       <WaterLines />
       <article className="safe-card" aria-labelledby="safe-h">
         <p className="safe-eyebrow">
-          <span lang="hi">{dict['safe.eyebrow'].hi}</span>
+          <span lang="hi">{both('safe.eyebrow').hi}</span>
           <span aria-hidden="true"> · </span>
-          <span lang="en">{dict['safe.eyebrow'].en}</span>
+          <span lang="en">{both('safe.eyebrow').en}</span>
         </p>
         <div className="safe-mark" aria-hidden="true">
           <span className="safe-ring" />
@@ -76,10 +79,10 @@ export default function Safe() {
         </div>
         <h1 id="safe-h" className="safe-title">
           <span lang="hi">
-            {name ?? dict['safe.someone'].hi} {dict['safe.marked'].hi}
+            {name ?? both('safe.someone').hi} {both('safe.marked').hi}
           </span>
           <span className="safe-en" lang="en">
-            {name ?? dict['safe.someone'].en} {dict['safe.marked'].en}
+            {name ?? both('safe.someone').en} {both('safe.marked').en}
           </span>
         </h1>
         <p className="safe-when">
@@ -105,9 +108,9 @@ function Call112() {
   return (
     <a className="safe-112" href="tel:112">
       <Phone aria-hidden="true" />
-      <span lang="hi">{dict['safe.call112'].hi}</span>
+      <span lang="hi">{both('safe.call112').hi}</span>
       <span className="safe-en" lang="en">
-        {dict['safe.call112'].en}
+        {both('safe.call112').en}
       </span>
     </a>
   );

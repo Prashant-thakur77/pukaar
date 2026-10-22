@@ -15,6 +15,7 @@
         if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
       } catch (e) {}
     </script>
+    <!-- pk:boot -->
     <noscript><link rel="stylesheet" href="/noscript.css" /></noscript>
   </head>
   <body>
@@ -39,17 +40,19 @@
         <a class="nojs-link" href="/status.html">बिना JavaScript वाला स्थिति पेज <span lang="en">· Status page without JavaScript</span></a>
       </main>
     </noscript>
-    <!-- Painted as soon as the stylesheet arrives, before any JavaScript: the header with 112, the same as the
-         app's (components/Shell.tsx), so a slow phone shows the emergency number first. React replaces it. -->
-    <div id="root">
+    <!-- The boot painter's page (boot-plugin.ts, src/boot/boot.ts). Before any script: the header with 112, painted
+         by the inlined critical CSS. The painter then draws the answer here; React renders into #root (hidden while
+         this exists) and removes it once its page has the answer (src/boot/handoff.ts). -->
+    <div id="pk-boot">
       <header class="hd">
         <div class="hd-inner">
-          <span class="hd-brand"><span class="wordmark"><span lang="hi" class="wm-hi">पुकार</span><span class="wm-en" lang="en">Pukaar</span></span></span>
+          <a href="/" class="hd-brand"><span class="wordmark"><span lang="hi" class="wm-hi">पुकार</span><span class="wm-en" lang="en">Pukaar</span></span></a>
           <div class="hd-tools"><a href="tel:112" class="call112" aria-label="आपातकाल 112 पर कॉल करें"><span lang="hi" class="c112-hi">आपातकाल</span><span class="c112-num">112</span></a></div>
         </div>
       </header>
-      <main class="page boot-page"><p class="boot-wait" lang="hi">पुकार खुल रहा है… <span lang="en">Opening Pukaar…</span></p></main>
+      <main class="page"><p class="boot-wait" lang="hi">पुकार खुल रहा है… <span lang="en">Opening Pukaar…</span></p></main>
     </div>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

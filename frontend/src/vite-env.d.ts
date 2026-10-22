@@ -13,3 +13,9 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** One language's UI strings, split from i18n/strings.ts at build time (i18n-plugin.ts). */
+declare module 'virtual:pk-strings/*' {
+  const table: Record<string, string>;
+  export default table;
+}

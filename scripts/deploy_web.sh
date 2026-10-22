@@ -22,6 +22,8 @@ echo "Building frontend for $STACK_ApiUrl"
   VITE_EVENTS_REALTIME_DOMAIN="${STACK_EventsRealtimeDomain:-}" \
   VITE_EVENTS_API_KEY="${STACK_EventsApiKey:-}" \
     npm run build
+  # The inline boot painter and critical CSS are allowed by hash: refuse a build the deployed policy would block.
+  node scripts/csp-sync.mjs --check
 )
 
 ZIP="$(mktemp -d)/web.zip"

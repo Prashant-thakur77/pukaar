@@ -38,6 +38,7 @@ import { useReducedMotion } from '../hooks/useMotion';
 import { useT } from '../i18n';
 import { fmtAgo, fmtNumber } from '../lib/format';
 import type { SensorVillage, WatchFinding } from '../types';
+import '../styles/story.css';
 
 type Txt = { hi: string; en: string };
 const HW = 'https://github.com/Prashant-thakur77/pukaar/tree/main/docs/hardware';

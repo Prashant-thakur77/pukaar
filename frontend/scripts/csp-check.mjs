@@ -42,6 +42,19 @@ export function amplifyHeaders(templateText, region) {
 }
 
 const HEADERS = amplifyHeaders(readFileSync(TEMPLATE, 'utf8'), REGION);
+// index.html's inline blocks (theme guard, boot painter, critical CSS) are allowed by hash: say plainly when the
+// template is behind the build, before the browser reports the blocked blocks below.
+{
+  const inline = join(DIST, 'csp-inline.json');
+  if (existsSync(inline)) {
+    const need = JSON.parse(readFileSync(inline, 'utf8'));
+    const policy = HEADERS['Content-Security-Policy'] ?? '';
+    const missing = [...need.script, ...need.style].filter((h) => !policy.includes(h));
+    if (missing.length && !process.env.CSP_OVERRIDE) {
+      console.log(`FAIL the template's CSP does not allow ${missing.length} inline block(s) of this build: run node scripts/csp-sync.mjs`);
+    }
+  }
+}
 // Negative control: CSP_OVERRIDE="default-src 'self'" must make this script fail.
 if (process.env.CSP_OVERRIDE) HEADERS['Content-Security-Policy'] = process.env.CSP_OVERRIDE;
 const seen = { api: 0, tiles: 0 };
@@ -78,7 +91,8 @@ const code = reports[0]?.track_code ?? 'UNKNOWN';
 const PAGES = [
   ['/', false], ['/live', false], ['/report', false], ['/village/thunag', false], ['/how', false], ['/sensors', false],
   ['/agents', false], ['/impact', false], ['/pilot', false], [`/t/${code}`, false], ['/login', false],
-  ['/console', true], ['/audit', true], ['/roster', true], ['/status.html', false],
+  ['/console/inbox', true], ['/console/inbox?v=sent', true], ['/console/reports', true], ['/console/settings', true],
+  ['/console/audit', true], ['/console/roster', true], ['/status.html', false],
 ];
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 
@@ -157,7 +171,7 @@ for (const [path, auth] of PAGES) {
 // report's styles must survive it.
 {
   const page = await ctx.newPage();
-  await page.goto(`${BASE}/console`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/console/inbox`, { waitUntil: 'domcontentloaded' });
   const popupPromise = page.waitForEvent('popup');
   await page.evaluate(() => {
     const html = '<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; ' +

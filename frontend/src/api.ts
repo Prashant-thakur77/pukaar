@@ -52,6 +52,7 @@ import type {
   VillageDetail,
 } from './types';
 import type { VillageNow } from './lib/villageNow';
+import { bootState } from './boot/protocol';
 
 export const API_BASE: string = (import.meta.env.VITE_API_BASE ?? 'http://localhost:8000').replace(/\/$/, '');
 
@@ -199,7 +200,28 @@ const enc = encodeURIComponent;
 const started = new Map<string, { at: number; p: Promise<unknown> }>();
 const EARLY_MS = 30_000;
 
+/** The boot painter's request (boot/boot.ts, in index.html), read the way request() reads a response. */
+function fromBoot<T>(path: string): Promise<T> | null {
+  const b = bootState()?.take(path);
+  if (!b) return null;
+  return b.then(
+    (r) => {
+      if (!r.ok) {
+        const body = r.body as { detail?: unknown } | null;
+        throw new ApiError(r.status, body && typeof body === 'object' && 'detail' in body ? body.detail : body);
+      }
+      noteSample(r.body);
+      return r.body as T;
+    },
+    () => {
+      throw new ApiError(0, null);
+    },
+  );
+}
+
 function takeOver<T>(path: string, opts: RequestOpts = {}): Promise<T> {
+  const fromPainter = fromBoot<T>(path);
+  if (fromPainter) return fromPainter;
   const e = started.get(path);
   started.delete(path);
   return e && Date.now() - e.at < EARLY_MS ? (e.p as Promise<T>) : request<T>(path, opts);
@@ -221,6 +243,8 @@ export function prefetchRoute(pathname: string): void {
     [`/villages/${enc(id)}/safe-places`, { auth: false }],
   ];
   for (const [path, opts] of calls) {
+    // The boot painter already asked for the small answer: the page takes that request over instead.
+    if (bootState()?.has(path)) continue;
     const p = request(path, opts);
     p.catch(() => {}); // the page sees the error when it takes the request over
     started.set(path, { at: Date.now(), p });
@@ -328,6 +352,12 @@ export const api = {
     request<Alert>(`/alerts/${enc(id)}/outcome`, { method: 'POST', body: { outcome } }),
   decline: (id: string, reason?: string) =>
     request<Alert>(`/alerts/${enc(id)}/decline`, { method: 'POST', body: reason ? { reason } : {} }),
+  /** The officer's own words for a pending alert (E in the console), held to the model draft's rules. */
+  editAlert: (id: string, text_hi: string, text_en: string) =>
+    request<Alert>(`/alerts/${enc(id)}/edit`, { method: 'POST', body: { text_hi, text_en } }),
+  /** "In 10 minutes" (S): set aside for this officer and written to the audit trail; escalation runs on. */
+  snoozeAlert: (id: string, minutes = 10) =>
+    request<{ alert_id: string; snoozed_until: string; minutes: number }>(`/alerts/${enc(id)}/snooze`, { method: 'POST', body: { minutes } }),
   afterAction: (id: string) => requestBlob(afterActionPath(id)),
   alertAudio: (id: string) => request<AlertAudio>(`/alerts/${enc(id)}/audio`, { auth: false }),
   ack: (id: string, token: string) =>
@@ -355,7 +385,7 @@ export const api = {
   stats: () => request<Stats>('/stats'),
   ask: (question: string) => request<AskResponse>('/ask/officer', { method: 'POST', body: { question } }),
 
-  overview: () => request<PublicOverview>('/public/overview', { auth: false }),
+  overview: () => takeOver<PublicOverview>('/public/overview', { auth: false }),
   pilotMetrics: () => request<PilotMetrics>('/public/pilot-metrics', { auth: false }),
   track: (code: string) => request<TrackView>(`/track/${enc(code)}`, { auth: false }),
 
