@@ -33,6 +33,9 @@ class FakeRepo:
         self.readings.append(r)
         return True
 
+    def list_sensor_readings(self, village_id, since, limit=2000):
+        return [r for r in self.readings if clock.parse(r.at) >= clock.parse(since)][:limit]
+
     def append_audit(self, row):
         self.audit.append(row)
 
@@ -60,10 +63,14 @@ def test_rule_payload_extras_are_ignored_and_level_change_is_audited(monkeypatch
     calls = []
     monkeypatch.setattr(de, "recompute_village", lambda repo, v, **kw: calls.append((v.id, kw["only_if_rising"])))
     repo = FakeRepo()
-    out = gauge_ingest.handle(event(water_level_cm=130, firmware="0.3.1"), repo=repo, now=NOW)
+    out = gauge_ingest.handle(event(water_level_cm=130, firmware="0.3.1", at=clock.iso(NOW - timedelta(minutes=2))),
+                              repo=repo, now=NOW)
     assert out["status"] == "accepted" and out["gauge_level"] == "watch"
+    assert out["confirmed_level"] == "normal" and not repo.audit  # one reading at watch is not enough
+    out = gauge_ingest.handle(event(water_level_cm=131), repo=repo, now=NOW)
+    assert out["confirmed_level"] == out["effective_level"] == "watch"  # 2 of the last 3
     assert repo.audit and "via mqtt" in repo.audit[0].reason and repo.audit[0].actor == "gauge-gohar-sim"
-    assert "(simulated)" in repo.audit[0].reason
+    assert "(simulated)" in repo.audit[0].reason and "2 of the last 3" in repo.audit[0].reason
     assert calls == []  # simulated: stored, shown and audited, but never re-evaluates a live village
 
     # real hardware at watch: re-evaluated at once, only ever to raise the level
@@ -71,8 +78,11 @@ def test_rule_payload_extras_are_ignored_and_level_change_is_audited(monkeypatch
                                            gauge=G.model_copy(update={"device_id": "gauge-gohar-01"}))
     repo.readings.clear()
     out = gauge_ingest.handle(event(device_id="gauge-gohar-01", simulated=False, water_level_cm=130,
+                                    at=clock.iso(NOW - timedelta(minutes=1))), repo=repo, now=NOW)
+    assert out["status"] == "accepted" and out["simulated"] is False and calls == []
+    out = gauge_ingest.handle(event(device_id="gauge-gohar-01", simulated=False, water_level_cm=132,
                                     at=clock.iso(NOW)), repo=repo, now=NOW)
-    assert out["status"] == "accepted" and out["simulated"] is False
+    assert out["effective_level"] == "watch"
     assert calls == [("gohar", True)]
 
 
@@ -154,9 +164,14 @@ def test_rising_mqtt_reading_raises_the_village_through_the_real_repo(repo, froz
     # Real hardware (no "-sim", not flagged simulated) raises the village at once.
     real = v.gauge.model_copy(update={"device_id": "gauge-gohar-01"})
     repo.update_village("gohar", gauge=real)
+    first = gauge_ingest.handle(event(device_id="gauge-gohar-01", simulated=False, water_level_cm=real.warning_cm + 8,
+                                      at=clock.iso(NOW - timedelta(minutes=1))), repo=repo, now=NOW)
+    # one reading at warning is not enough: nothing is re-evaluated yet
+    assert first["confirmed_level"] == "normal" and first["alert_id"] is None and workflow.started == []
     out = gauge_ingest.handle(event(device_id="gauge-gohar-01", simulated=False, water_level_cm=real.warning_cm + 10,
                                     at=clock.iso(NOW)), repo=repo, now=NOW)
     assert out["status"] == "accepted" and out["gauge_level"] == "warning" and out["simulated"] is False
+    assert out["confirmed_level"] == "warning"
     assert out["village_level"] in {"warning", "critical"} and out["alert_id"]
     assert workflow.started == [out["alert_id"]]
 
@@ -165,13 +180,18 @@ def test_simulator_and_provisioner_agree_with_the_rule_and_policy():
     from Pukaar.scripts import gauge_sim_mqtt, iot_provision
 
     topic = gauge_sim_mqtt.topic_for("gohar", "gauge-gohar-sim")
-    assert topic == "pukaar/gauge/gohar/gauge-gohar-sim/reading"
+    assert topic == "pukaar/gauge/gohar/gauge-gohar-sim/reading" == iot_provision.topic("gohar", "gauge-gohar-sim")
+    assert gauge_sim_mqtt.topic_for("gohar", "gauge-gohar-sim", "backfill") == iot_provision.topic(
+        "gohar", "gauge-gohar-sim", "backfill") == "pukaar/gauge/gohar/gauge-gohar-sim/backfill"
     parts = topic.split("/")
-    assert (parts[2], parts[3]) == ("gohar", "gauge-gohar-sim")  # topic(3), topic(4) in the rule
+    assert (parts[2], parts[3], parts[4]) == ("gohar", "gauge-gohar-sim", "reading")  # topic(3..5) in the rule
     payload = gauge_sim_mqtt.payload(clock.parse("2026-10-11T09:30:00Z"), 150.0, 3.9)
     assert payload["simulated"] is True and "device_id" not in payload  # identity comes from the topic
-    merged = {**payload, "village_id": parts[2], "device_id": parts[3]}
-    assert gauge_ingest.MqttReading.model_validate(merged).water_level_cm == 150.0
+    merged = {**payload, "village_id": parts[2], "device_id": parts[3], "topic_kind": parts[4]}
+    body = gauge_ingest.MqttReading.model_validate(merged)
+    assert body.water_level_cm == 150.0 and body.schema_version == 2 and body.seq is not None
+    back = gauge_sim_mqtt.backfill_payload([(clock.parse("2026-10-11T09:00:00Z"), 120.0)])
+    assert back["readings"][0]["buffered"] is True and back["readings"][0]["seq"] is not None
     assert iot_provision.param_names("gauge-gohar-sim") == (
         "/pukaar/gauge/gauge-gohar-sim/key", "/pukaar/gauge/gauge-gohar-sim/cert")
 

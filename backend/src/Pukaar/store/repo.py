@@ -1,7 +1,8 @@
 """DynamoDB single-table repository.
 
 Keys:
-  VILLAGE#id  META | READING#iso | SENSOR#iso#device | SENSORLAST#device | REPORT#iso#id | DEDUPE#window | RECIPIENT#id
+  VILLAGE#id  META | READING#iso | SENSOR#iso#device | SENSORLAST#device | SENSORSEQ#device#boot#seq
+              | REPORT#iso#id | DEDUPE#window | RECIPIENT#id
               | EVENT#date | DIRECTIVE#iso#id | CHECKLIST#item | SHELTER#place_id | ROLLCALL#iso#id (pointer, TTL 30 days)
               | STAFFGAUGE#id (virtual staff gauge: reference photo key, scale, marks)
               | ROADBLOCK#id (a blocked road on a baked route; TTL 7 days unless renewed)
@@ -238,9 +239,11 @@ class Repo:
 
     # -- gauge (sensor) readings -----------------------------------------
     def put_sensor_reading(self, r: SensorReading, ttl_days: int = 14, min_interval_s: int = 60) -> bool:
-        """Store one gauge reading. False (nothing stored) when the same device already sent a
+        """Store one live gauge reading. False (nothing stored) when the same device already sent a
         reading less than min_interval_s before this one, or a newer one: a conditional write on a
-        per-device pointer, so a replayed or too-frequent body never lands twice."""
+        per-device pointer, so a replayed or too-frequent body never lands twice. A payload-v2
+        reading also claims its (device, boot, seq) marker, so the same reading sent again from the
+        device's buffer is a duplicate."""
         at = clock.parse(r.at)
         epoch = int(at.timestamp())
         expires = int(clock.now().timestamp()) + ttl_days * 86400
@@ -251,8 +254,33 @@ class Repo:
                       condition=Attr("pk").not_exists() | Attr("at_epoch").lte(epoch - min_interval_s))
         except ConflictError:
             return False
+        if r.seq is not None and not self._claim_sensor_seq(r, expires):
+            return False
         self._put({"pk": pk, "sk": f"SENSOR#{clock.iso(at)}#{r.device_id}", "ttl": expires,
                    **r.model_dump(), "at": clock.iso(at)})
+        return True
+
+    def _claim_sensor_seq(self, r: SensorReading, expires: int) -> bool:
+        try:
+            self._put({"pk": f"VILLAGE#{r.village_id}", "sk": f"SENSORSEQ#{r.device_id}#{r.boot or 0}#{r.seq}",
+                       "at": r.at, "ttl": expires}, condition=Attr("pk").not_exists())
+        except ConflictError:
+            return False
+        return True
+
+    def put_sensor_backfill(self, r: SensorReading, ttl_days: int = 14) -> bool:
+        """Store one buffered (older) reading. Idempotent on (device, boot, seq) and on the
+        reading's own key: False when it is already stored. It never moves the live pointer, so
+        the live path's one-per-minute, never-earlier replay protection is unchanged."""
+        at = clock.parse(r.at)
+        expires = int(clock.now().timestamp()) + ttl_days * 86400
+        if r.seq is not None and not self._claim_sensor_seq(r, expires):
+            return False
+        try:
+            self._put({"pk": f"VILLAGE#{r.village_id}", "sk": f"SENSOR#{clock.iso(at)}#{r.device_id}", "ttl": expires,
+                       **r.model_dump(), "at": clock.iso(at)}, condition=Attr("pk").not_exists())
+        except ConflictError:
+            return False
         return True
 
     def list_sensor_readings(self, village_id: str, since: str, limit: int = 2000) -> list[SensorReading]:
@@ -281,12 +309,25 @@ class Repo:
         # sk is SENSOR#<iso>#<device>: "~" sorts after the device id, so `until` itself is included.
         return self._count(f"VILLAGE#{village_id}", f"SENSOR#{since}", f"SENSOR#{until}#~", flt)
 
-    def latest_sensor_reading(self, village_id: str, max_age_minutes: float | None = 30, now: Any = None) -> SensorReading | None:
-        """Newest reading, or None when there is none or it is older than max_age_minutes."""
-        items = self._query(f"VILLAGE#{village_id}", "SENSOR#", newest_first=True, limit=1)
-        if not items:
+    def latest_sensor_reading(self, village_id: str, max_age_minutes: float | None = 30, now: Any = None, *,
+                              include_backfill: bool = False) -> SensorReading | None:
+        """Newest live reading (backfilled ones are skipped unless include_backfill), or None when
+        there is none or it is older than max_age_minutes."""
+        kwargs: dict[str, Any] = {"KeyConditionExpression": Key("pk").eq(f"VILLAGE#{village_id}")
+                                  & Key("sk").begins_with("SENSOR#"), "ScanIndexForward": False, "Limit": 50}
+        found = None
+        for _ in range(20):  # at most 1,000 rows: a long backfill newer than the last live reading
+            page = self.t.query(**kwargs)
+            for item in page.get("Items", []):
+                if include_backfill or item.get("origin", "live") != "backfill":
+                    found = item
+                    break
+            if found is not None or "LastEvaluatedKey" not in page:
+                break
+            kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+        if found is None:
             return None
-        r = _model(SensorReading, items[0])
+        r = _model(SensorReading, found)
         if max_age_minutes is not None:
             now = now or clock.now()
             if (now - clock.parse(r.at)).total_seconds() > max_age_minutes * 60:

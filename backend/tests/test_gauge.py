@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from itertools import pairwise
 
 import pytest
 from conftest import NOW
@@ -165,17 +166,21 @@ def test_ingest_accepts_rate_limits_and_shows_on_village_page(client):
     assert again.status_code == 202 and again.json()["status"] == "ignored"
     too_soon = _post(client, "sujanpur", {**first, "at": _at(170)})
     assert too_soon.json()["status"] == "ignored"
-    rising = _post(client, "sujanpur", {**first, "at": _at(100), "water_level_cm": 310.0})
-    assert rising.status_code == 202 and rising.json()["gauge_level"] == "warning"
+    # 260 cm in 100 s: faster than any river, so a spike: stored and shown, never counted
+    jump = _post(client, "sujanpur", {**first, "at": _at(100), "water_level_cm": 310.0})
+    assert jump.status_code == 202 and jump.json()["gauge_level"] == "warning"
+    assert jump.json()["quality"] == "spike" and jump.json()["effective_level"] == "normal"
     # simulated: stored and shown, but the live village level and alerts are untouched
-    assert rising.json()["village_level"] == before and rising.json()["alert_id"] is None
+    assert jump.json()["village_level"] == before and jump.json()["alert_id"] is None
     assert client.get("/villages/sujanpur").json()["village"]["live_level"] == before
 
     g = client.get("/villages/sujanpur").json()["gauge"]
     assert g["config"]["device_id"] == "gauge-sujanpur-sim" and g["config"]["installed"] is False
-    assert g["fresh"] is True and g["level"] == "warning"
+    assert g["fresh"] is True and g["measured_level"] == "warning" and g["level"] == "normal"
     assert g["latest"]["water_level_cm"] == 310.0 and g["latest"]["simulated"] is True
-    assert [p["cm"] for p in g["series"]] == [50.5, 310.0]
+    assert g["latest"]["quality"] == "spike"
+    assert [(p["cm"], p.get("q")) for p in g["series"]] == [(50.5, None), (310.0, "spike")]
+    assert g["health"]["readings_24h"] == 2 and g["health"]["bad_24h"] == 1 and "silent" not in g["health"]["reasons"]
 
 
 # -- simulator ------------------------------------------------------------
@@ -183,10 +188,18 @@ def test_simulator_rises_past_watch_and_warning_and_signs_like_the_server():
     from Pukaar.scripts import gauge_sim
 
     cfg = G.model_dump()
-    stages = gauge_sim.profile(cfg, 5, "warning")
+    stages = gauge_sim.profile(cfg, 12, "warning")
     assert stages[0] < G.watch_cm and stages[-1] > G.warning_cm and stages == sorted(stages)
+    # real-time mode, 70 s apart: never faster than the spike limit
+    assert max(b - a for a, b in pairwise(stages)) < G.max_rise_cm_per_min
     # --fast spacing fits the server's one-per-minute and five-minute rules
     assert gauge_sim.FAST_STEP_S >= 60 and gauge_sim.FAST_OLDEST_S < gauge_svc.MAX_AGE_SECONDS
+    back, live = gauge_sim.fast_plan(cfg, "warning", NOW)
+    assert len(live) == 5 and all(cm >= G.warning_cm for _, cm in live)  # 2 of 3 confirm on the second
+    assert live[-1][1] - live[0][1] < G.rise_cm  # a gentle last stretch: not "rising fast"
+    assert len(back) <= gauge_svc.BACKFILL_MAX_ITEMS and back[-1][0] < live[0][0]
+    assert (NOW - back[0][0]).total_seconds() < gauge_svc.BACKFILL_MAX_AGE_HOURS * 3600
+    assert all(cm < G.warning_cm for _, cm in back)
     body = b'{"device_id":"gauge-thunag-sim"}'
     sig = gauge_svc.sign(gauge_svc.device_key(SECRET, "gauge-thunag-sim"), body)
     assert gauge_svc.signature_ok(SECRET, "gauge-thunag-sim", body, sig)

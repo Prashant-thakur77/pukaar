@@ -26,7 +26,7 @@ from Pukaar.core.config import get_settings
 from Pukaar.llm import bedrock
 from Pukaar.llm.tools import TOOL_DOCS
 from Pukaar.policy import guard
-from Pukaar.services import risk_rules, watch
+from Pukaar.services import gauge, risk_rules, watch
 from Pukaar.services.analyst import ANALYST_TOOLS, AnalystAnswer
 from Pukaar.services.drafting import DRAFT_TOOLS
 from Pukaar.store.models import Alert, Village
@@ -535,7 +535,9 @@ def _gauge_village(v: Village, readings, latest, findings, now) -> dict[str, Any
         },
         "age_minutes": age,
         "fresh": fresh,
-        "gauge_level": risk_rules.gauge_level(latest.water_level_cm, g) if latest and fresh else None,
+        # What the rules count (2 of the last 3 good readings, one step up when rising fast).
+        "gauge_level": risk_rules.gauge_counted_level(latest, g) if latest and fresh else None,
+        "health": gauge.health(g, readings, now, None if readings else latest),
         "readings_24h": len(readings),
         "simulated": bool(latest.simulated) if latest else g.device_id.endswith("-sim"),
         "series": _thin([{"at": r.at, "cm": r.water_level_cm} for r in readings], SERIES_POINTS),

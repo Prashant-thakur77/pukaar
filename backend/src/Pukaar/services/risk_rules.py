@@ -76,6 +76,18 @@ def gauge_level(stage_cm: float | None, gauge: GaugeConfig | None) -> str:
     return "normal"
 
 
+def gauge_counted_level(sensor: SensorReading, gauge: GaugeConfig) -> str:
+    """The level a stored reading counts for. Ingest (services/gauge.py) sets effective_level: 2 of
+    the last 3 good live readings at or above a stage, spikes and out-of-range readings left out,
+    one step up when rising fast. A backfilled reading never counts. A row stored before ingest
+    computed the effective level falls back to its own stage."""
+    if sensor.origin == "backfill":
+        return "normal"
+    if sensor.effective_level in LEVELS:
+        return sensor.effective_level
+    return gauge_level(sensor.water_level_cm, gauge)
+
+
 def gauge_is_fresh(sensor: SensorReading | None, now: datetime) -> bool:
     if sensor is None:
         return False
@@ -183,8 +195,10 @@ def assess(
     if gauge is not None and gauge_is_fresh(sensor, now):
         assert sensor is not None
         measured = gauge_level(sensor.water_level_cm, gauge)
-        ignored = sensor.simulated and not allow_simulated
-        gauge_lvl = "normal" if ignored else measured
+        counted = gauge_counted_level(sensor, gauge)
+        confirmed = sensor.confirmed_level if sensor.confirmed_level in LEVELS else counted
+        ignored = (sensor.simulated and not allow_simulated) or sensor.origin == "backfill"
+        gauge_lvl = "normal" if ignored else counted
         evidence.append(
             {
                 "kind": "gauge",
@@ -192,6 +206,11 @@ def assess(
                 "device_id": sensor.device_id,
                 "water_level_cm": sensor.water_level_cm,
                 "gauge_level": measured,
+                "confirmed_level": confirmed,
+                "effective_level": counted,
+                "quality": sensor.quality,
+                "rising_fast": sensor.rising_fast,
+                "rise_cm": sensor.rise_cm,
                 "counted": not ignored,
                 "thresholds_cm": {"watch": gauge.watch_cm, "warning": gauge.warning_cm, "critical": gauge.critical_cm},
                 "battery_v": sensor.battery_v,
@@ -199,7 +218,13 @@ def assess(
             }
         )
         if gauge_lvl != "normal":
-            rules.append(f"gauge>={getattr(gauge, gauge_lvl + '_cm'):g}cm:{gauge_lvl}")
+            if confirmed != "normal":
+                rules.append(f"gauge>={getattr(gauge, confirmed + '_cm'):g}cm:{confirmed}")
+            if sensor.rising_fast and counted != confirmed:
+                rules.append(f"gauge_rising_fast:+{sensor.rise_cm or 0:g}cm/{gauge.rise_minutes:g}min:{counted}")
+        elif not ignored and measured != "normal" and confirmed == "normal":
+            # One reading at a stage is not enough (2 of the last 3 good readings must agree).
+            rules.append(f"gauge_unconfirmed:{measured}")
         if ignored:
             # Stored and shown, never a live level: a simulator must not raise a real alert.
             rules.append("gauge_simulated_ignored")

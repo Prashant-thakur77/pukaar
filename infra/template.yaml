@@ -367,6 +367,8 @@ Resources:
         Sensors: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /sensors, Method: GET, Auth: { Authorizer: NONE } } }
         # River gauges have no Cognito account; each body carries a per-device HMAC signature (services/gauge.py).
         SensorReading: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/sensors/{id}/readings", Method: POST, Auth: { Authorizer: NONE } } }
+        # Readings a gauge buffered while offline: same signature; stored once per (device, boot, seq), never alerts.
+        SensorBackfill: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/sensors/{id}/backfill", Method: POST, Auth: { Authorizer: NONE } } }
         # Web Push: the VAPID public key browsers subscribe with (public by design). Subscribing is under /me (Cognito).
         VapidPublicKey: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /push/vapid-public-key, Method: GET, Auth: { Authorizer: NONE } } }
         # Voice-call webhooks (api/routers/voice.py, docs/VOICE.md). Call providers carry no Cognito token, so each
@@ -577,9 +579,10 @@ Resources:
 
   # ---------------------------------------------------------------- river gauges (AWS IoT Core)
   # A gauge connects over MQTT with its own X.509 certificate (scripts/iot_provision.py makes one
-  # thing and one certificate per device) and publishes to pukaar/gauge/<village>/<device>/reading.
-  # The topic rule adds the two topic parts and invokes the ingest Lambda, which stores the reading
-  # through the same gauge service as the HTTPS route.
+  # thing and one certificate per device) and publishes to pukaar/gauge/<village>/<device>/reading,
+  # and readings it buffered while offline to .../backfill. The topic rule adds the topic parts and
+  # invokes the ingest Lambda, which stores the reading through the same gauge service as the HTTPS
+  # route. Backfilled readings are stored and shown, never alerted on.
   GaugeIngestFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -629,9 +632,9 @@ Resources:
       # Rule names allow letters, digits and underscores only.
       RuleName: !Join ["_", !Split ["-", !Sub "pukaar_gauge_${Stage}"]]
       TopicRulePayload:
-        Description: River-gauge readings to the Pukaar gauge-ingest Lambda.
+        Description: River-gauge readings (live and backfill) to the Pukaar gauge-ingest Lambda.
         AwsIotSqlVersion: "2016-03-23"
-        Sql: "SELECT *, topic(3) AS village_id, topic(4) AS device_id FROM 'pukaar/gauge/+/+/reading'"
+        Sql: "SELECT *, topic(3) AS village_id, topic(4) AS device_id, topic(5) AS topic_kind FROM 'pukaar/gauge/+/+/+' WHERE topic(5) = 'reading' OR topic(5) = 'backfill'"
         RuleDisabled: false
         Actions:
           - Lambda: { FunctionArn: !GetAtt GaugeIngestFunction.Arn }
@@ -667,7 +670,7 @@ Resources:
 
   # Attached to each gauge's certificate. A device may connect only with its own thing name as
   # the client id (and only while the certificate is attached to that thing), and publish only
-  # to its own reading topic. It cannot subscribe, receive, or touch any other device's topic.
+  # to its own reading and backfill topics. It cannot subscribe, receive, or touch any other device's topic.
   PukaarGaugePolicy:
     Type: AWS::IoT::Policy
     Properties:
@@ -681,7 +684,9 @@ Resources:
             Condition: { Bool: { "iot:Connection.Thing.IsAttached": "true" } }
           - Effect: Allow
             Action: iot:Publish
-            Resource: !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/gauge/*/${!iot:Connection.Thing.ThingName}/reading"
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/gauge/*/${!iot:Connection.Thing.ThingName}/reading"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/gauge/*/${!iot:Connection.Thing.ThingName}/backfill"
 
   # ---------------------------------------------------------------- schedule
   SweepScheduleRole:
@@ -871,6 +876,7 @@ Resources:
       RouteSettings:
         "POST /reports": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 5 }
         "POST /sensors/{id}/readings": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 2 }
+        "POST /sensors/{id}/backfill": { ThrottlingBurstLimit: 5, ThrottlingRateLimit: 1 }
 
   # ---------------------------------------------------------------- web hosting
   AmplifyApp:

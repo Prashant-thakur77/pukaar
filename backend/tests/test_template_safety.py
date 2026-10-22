@@ -253,7 +253,8 @@ THING = "${!iot:Connection.Thing.ThingName}"  # IoT policy variable, escaped fro
 
 
 def test_gauge_iot_policy_allows_only_own_client_id_and_own_reading_topic():
-    """A stolen gauge certificate can connect as that gauge and publish its readings; nothing else."""
+    """A stolen gauge certificate can connect as that gauge and publish its readings (live and
+    backfill); nothing else."""
     policies = [r for r in RES.values() if r["Type"] == "AWS::IoT::Policy"]
     assert len(policies) == 1
     stmts = policies[0]["Properties"]["PolicyDocument"]["Statement"]
@@ -261,22 +262,23 @@ def test_gauge_iot_policy_allows_only_own_client_id_and_own_reading_topic():
     by_action = {}
     for s in stmts:
         actions, resources = _as_list(s["Action"]), _as_list(s["Resource"])
-        assert len(actions) == 1 and len(resources) == 1, s
+        assert len(actions) == 1, s
         assert "*" not in actions[0], f"wildcard action {actions[0]}"
-        by_action[actions[0]] = (resources[0]["Fn::Sub"], s.get("Condition"))
+        by_action[actions[0]] = ([r["Fn::Sub"] for r in resources], s.get("Condition"))
     assert set(by_action) == {"iot:Connect", "iot:Publish"}  # no Subscribe, Receive, shadow or jobs
 
     connect, cond = by_action["iot:Connect"]
-    assert connect == f"arn:${{AWS::Partition}}:iot:${{AWS::Region}}:${{AWS::AccountId}}:client/{THING}"
+    assert connect == [f"arn:${{AWS::Partition}}:iot:${{AWS::Region}}:${{AWS::AccountId}}:client/{THING}"]
     assert cond == {"Bool": {"iot:Connection.Thing.IsAttached": "true"}}
     publish, _ = by_action["iot:Publish"]
-    assert publish == (f"arn:${{AWS::Partition}}:iot:${{AWS::Region}}:${{AWS::AccountId}}:"
-                       f"topic/pukaar/gauge/*/{THING}/reading")
+    assert publish == [f"arn:${{AWS::Partition}}:iot:${{AWS::Region}}:${{AWS::AccountId}}:"
+                       f"topic/pukaar/gauge/*/{THING}/{kind}" for kind in ("reading", "backfill")]
 
 
 def test_gauge_rule_feeds_the_ingest_lambda_with_errors_to_the_dlq():
     rule = next(r for r in RES.values() if r["Type"] == "AWS::IoT::TopicRule")["Properties"]["TopicRulePayload"]
-    assert rule["Sql"] == "SELECT *, topic(3) AS village_id, topic(4) AS device_id FROM 'pukaar/gauge/+/+/reading'"
+    assert rule["Sql"] == ("SELECT *, topic(3) AS village_id, topic(4) AS device_id, topic(5) AS topic_kind "
+                           "FROM 'pukaar/gauge/+/+/+' WHERE topic(5) = 'reading' OR topic(5) = 'backfill'")
     assert rule["AwsIotSqlVersion"] == "2016-03-23"
     assert rule["Actions"] == [{"Lambda": {"FunctionArn": {"Fn::GetAtt": "GaugeIngestFunction.Arn"}}}]
     assert rule["ErrorAction"]["Sqs"]["QueueUrl"] == {"Fn::Ref": "WorkerDLQ"}

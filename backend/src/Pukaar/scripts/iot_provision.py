@@ -14,7 +14,8 @@ For the village's registered gauge device (its gauge.device_id on the deployed s
    certificate to the thing;
 4. stores the private key and the certificate PEM as SSM SecureString parameters
    /pukaar/gauge/<device>/key and /pukaar/gauge/<device>/cert;
-5. prints the ATS data endpoint and the topic the device publishes to.
+5. prints the ATS data endpoint and the two topics the device publishes to: .../reading for
+   live readings and .../backfill for readings it buffered while offline.
 
 Idempotent: a thing that already has a certificate and both parameters is left alone. A
 failure after the certificate was created rolls it back, so a re-run starts clean.
@@ -34,6 +35,13 @@ SSM_PREFIX = "/pukaar/gauge"
 
 def param_names(device_id: str) -> tuple[str, str]:
     return f"{SSM_PREFIX}/{device_id}/key", f"{SSM_PREFIX}/{device_id}/cert"
+
+
+def topic(village: str, device_id: str, kind: str = "reading") -> str:
+    """The topics the IoT policy lets this device publish to (kind: reading or backfill)."""
+    if kind not in ("reading", "backfill"):
+        raise ValueError(kind)
+    return f"pukaar/gauge/{village}/{device_id}/{kind}"
 
 
 def stack_output(cfn: Any, stack: str, key: str) -> str | None:
@@ -169,7 +177,8 @@ def main(argv: list[str] | None = None) -> int:
     provision(iot, ssm, args.village, device_id, policy)
     print(f"endpoint  {ats_endpoint(iot)}:8883 (MQTT over TLS; ALPN x-amzn-mqtt-ca on 443 also works)")
     print(f"client id {device_id}")
-    print(f"topic     pukaar/gauge/{args.village}/{device_id}/reading")
+    for kind in ("reading", "backfill"):
+        print(f"topic     {topic(args.village, device_id, kind)}")
     return 0
 
 

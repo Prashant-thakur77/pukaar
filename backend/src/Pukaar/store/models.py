@@ -86,6 +86,22 @@ class GaugeConfig(BaseModel):
     thresholds_source: str = "seeded (illustrative)"
     thresholds_set_by: str | None = None
     thresholds_set_at: str | None = None
+    # The datum, kept on the server (services/gauge.py): the sensor face's height above the gauge
+    # zero, measured with a tape at installation. With it, a payload-v2 raw distance becomes the
+    # stage here, so a firmware bug or a wrong constant on the device cannot shift the stage.
+    mount_height_cm: float | None = None
+    # ultrasonic: the speed of sound is corrected for temp_c; radar (e.g. DFRobot SEN0676): no correction.
+    sensor: Literal["ultrasonic", "radar"] = "ultrasonic"
+    # A distance at or inside the blind zone, or at or beyond the maximum range, is out_of_range.
+    blind_zone_mm: float = 250.0
+    max_range_mm: float = 4500.0
+    # False-alarm guard: a change faster than this (cm per minute) is a spike and is not counted.
+    max_rise_cm_per_min: float = 30.0
+    # Rate of rise: at least rise_cm over rise_minutes, across 3 or more good readings, is "rising fast".
+    rise_cm: float = 30.0
+    rise_minutes: float = 30.0
+    # Health: a battery under this is low (3500 mV suits one Li-ion cell; use about 3100 for LiFePO4).
+    low_battery_mv: float = 3500.0
 
 
 class Village(BaseModel):
@@ -158,6 +174,32 @@ class SensorReading(BaseModel):
     received_at: str | None = None
     # How it arrived: a signed HTTPS POST, or MQTT over AWS IoT Core (X.509 per device).
     transport: Literal["https", "mqtt"] = "https"
+    # live: sent as it was measured. backfill: sent later from the device's buffer; stored and
+    # shown, never counted by the rules and never a trigger (services/gauge.py).
+    origin: Literal["live", "backfill"] = "live"
+    # Set at ingest (services/gauge.py). Only "good" readings count toward a level.
+    quality: Literal["good", "suspect", "spike", "out_of_range"] = "good"
+    quality_reasons: list[str] = Field(default_factory=list)
+    measured_level: str | None = None  # this reading's stage band on its own
+    confirmed_level: str | None = None  # 2 of the last 3 good live readings at or above
+    rising_fast: bool = False
+    rise_cm: float | None = None  # rise across the rate-of-rise window, when rising fast
+    effective_level: str | None = None  # what the rules count: confirmed, one step up if rising fast
+    # Payload v2 (docs/hardware/README.md), stored as sent.
+    schema_version: int = 1
+    seq: int | None = None
+    boot: int | None = None
+    distance_mm: float | None = None
+    samples_ok: int | None = None
+    samples_n: int | None = None
+    iqr_mm: float | None = None
+    device_quality: int | None = None
+    err: int | None = None
+    temp_c: float | None = None
+    solar_mv: float | None = None
+    fw: str | None = None
+    reset_cause: str | None = None
+    buffered: bool = False
 
 
 class ReportScreen(BaseModel):

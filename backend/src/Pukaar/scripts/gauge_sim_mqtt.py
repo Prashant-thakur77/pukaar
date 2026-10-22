@@ -17,6 +17,9 @@ at run time. Connects with the AWS IoT Device SDK (awsiotsdk) when installed, el
 Readings go to pukaar/gauge/<village>/<device>/reading; the topic rule hands them to the
 gauge-ingest Lambda, which stores them through the same path as the HTTPS route. MQTT gives no
 reply, so after each publish the simulator reads the village page until the reading shows up.
+The default mode first publishes three hours of a slow rise to .../backfill (stored and drawn,
+never alerted on), then five live readings just past the target band: the server counts a band
+only when 2 of the last 3 good readings reach it. Every reading is payload v2.
 """
 
 from __future__ import annotations
@@ -30,7 +33,7 @@ import sys
 import tempfile
 import time
 import urllib.request
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from Pukaar.core import clock
@@ -41,14 +44,18 @@ ROOT_CA_URL = "https://www.amazontrust.com/repository/AmazonRootCA1.pem"
 CONFIRM_TIMEOUT_S = 30
 
 
-def topic_for(village: str, device_id: str) -> str:
-    return f"pukaar/gauge/{village}/{device_id}/reading"
+def topic_for(village: str, device_id: str, kind: str = "reading") -> str:
+    return f"pukaar/gauge/{village}/{device_id}/{kind}"
 
 
 def payload(at: datetime, cm: float, battery: float) -> dict[str, Any]:
-    """What the device publishes. Its identity is the topic (pinned to its certificate by the IoT
-    policy); the rule adds village_id and device_id from the topic."""
-    return {"at": clock.iso(at), "water_level_cm": cm, "battery_v": battery, "rssi": -71, "simulated": True}
+    """What the device publishes (payload v2). Its identity is the topic (pinned to its certificate
+    by the IoT policy); the rule adds village_id, device_id and topic_kind from the topic."""
+    return gauge_sim.reading_body(at, cm, battery)
+
+
+def backfill_payload(points: list[tuple[datetime, float]]) -> dict[str, Any]:
+    return {"readings": [{**gauge_sim.reading_body(at, cm, 4.05), "buffered": True} for at, cm in points]}
 
 
 def _secret_dir() -> str:
@@ -170,8 +177,10 @@ def main(argv: list[str] | None = None) -> int:
 
     endpoint = ats_endpoint(boto3.client("iot", region_name=args.region))
     topic = topic_for(args.village, device_id)
-    steps = args.steps if args.slow else 5
-    stages = gauge_sim.profile(cfg, steps, args.to)
+    if args.slow:
+        back, live = [], [(datetime.now(UTC), cm) for cm in gauge_sim.profile(cfg, args.steps, args.to)]
+    else:
+        back, live = gauge_sim.fast_plan(cfg, args.to, datetime.now(UTC))
     tmp = _secret_dir()
     try:
         key, cert, ca = fetch_credentials(boto3.client("ssm", region_name=args.region), device_id, tmp)
@@ -179,12 +188,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"SIMULATED gauge {device_id} over MQTT ({pub.lib}, X.509) -> {endpoint}:8883 topic {topic}")
         print(f"  thresholds cm: watch {cfg['watch_cm']:g}, warning {cfg['warning_cm']:g}, "
               f"critical {cfg['critical_cm']:g}")
-        # Default: five readings 61 s apart in time (the server keeps one per device per minute),
-        # the oldest under five minutes ago, each confirmed before the next is sent.
-        start = datetime.now(UTC) - timedelta(seconds=gauge_sim.FAST_OLDEST_S)
+        # Default: the backfill first, then five readings 61 s apart in time (the server keeps one
+        # per device per minute), the oldest under five minutes ago, each confirmed before the next.
         try:
-            for i, cm in enumerate(stages):
-                at = datetime.now(UTC) if args.slow else start + timedelta(seconds=gauge_sim.FAST_STEP_S * i)
+            if back:
+                pub.publish(topic_for(args.village, device_id, "backfill"), backfill_payload(back))
+                print(f"  backfill {len(back)} readings {clock.iso(back[0][0])} .. {clock.iso(back[-1][0])} "
+                      "-> published (PUBACK); stored once per seq, never alerts")
+            for i, (planned, cm) in enumerate(live):
+                at = datetime.now(UTC) if args.slow else planned
                 body = payload(at, cm, round(4.05 - 0.01 * i, 2))
                 pub.publish(topic, body)
                 seen = confirm(base, args.village, body["at"])
@@ -192,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
                          if seen else f"not on the village page after {CONFIRM_TIMEOUT_S} s (check the "
                                       "gauge-ingest Lambda logs and the worker DLQ)")
                 print(f"  {body['at']}  {cm:7.1f} cm  -> published (PUBACK)  {shown}")
-                if args.slow and i < len(stages) - 1:
+                if args.slow and i < len(live) - 1:
                     time.sleep(args.interval)
         finally:
             pub.close()

@@ -1,5 +1,9 @@
 // Pukaar river gauge: ESP32-WROOM + JSN-SR04T waterproof ultrasonic sensor under a bridge deck.
 //
+// FIRMWARE v1 (payload v1, kept as the minimal HTTPS example; the server still accepts it). The
+// reference firmware is v2: esp32-gauge-mqtt/esp32-gauge-mqtt.ino (burst median, ring buffer
+// and backfill, watchdog, low-voltage hibernation, burst mode, local siren, payload v2).
+//
 // UNTESTED ON HARDWARE. Written against the arduino-esp32 core (2.x / 3.x) to compile in
 // principle; check pins, timings and the stage arithmetic on a bench before mounting it.
 //

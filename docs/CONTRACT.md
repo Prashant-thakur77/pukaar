@@ -36,7 +36,7 @@ Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`, 
 `POST /reports`, `POST /alerts/{id}/ack`, `GET /approval/{token}`,
 `POST /approval/{token}`, `POST /telegram/webhook`, `GET /public/overview`, `GET /public/pilot-metrics`,
 `GET /track/{code}`, `GET /replay/status`, `GET /alerts/{id}/audio`, `GET /safe/{token}`,
-`POST /sensors/{id}/readings` (river gauge, HMAC-signed body, see docs/hardware/README.md),
+`POST /sensors/{id}/readings` and `POST /sensors/{id}/backfill` (river gauge, HMAC-signed body, see docs/hardware/README.md),
 `GET /cap/alerts.atom` and `GET /cap/alerts/{id}.xml` (CAP 1.2 feed of published alerts, XML),
 `GET /agents`, `GET /agents/traces?limit=5`, `GET /sensors` (read-only, no personal data),
 `GET /push/vapid-public-key` (the Web Push applicationServerKey; `{key: null, configured: false}` until `make vapid-keys`),
@@ -112,7 +112,10 @@ GET  /media/{key}            local mode only: a stored file (AWS mode uses presi
 GET  /agents                 public: agent registry, model and guardrail status (services/agents.py)
 GET  /agents/traces?limit=5  public: round-by-round traces of recent alert drafts (limit 1-10)
 GET  /sensors                public: gauge board, latest readings, 24 h series and sensor findings
-POST /sensors/{id}/readings  public, HMAC-signed body (docs/hardware/README.md) -> 202
+POST /sensors/{id}/readings  public, HMAC-signed body, payload v1 or v2 (docs/hardware/README.md) -> 202
+                             {status, kind, gauge_level, quality, confirmed_level, effective_level, rising_fast, ...}
+POST /sensors/{id}/backfill  public, HMAC-signed {device_id, readings[<=60]} buffered readings, each stored once
+                             per (device, boot, seq); never alerts -> 202 {stored, duplicate, rejected[]}
 GET  /cap/alerts.atom        public: ATOM index of the latest 50 published alerts and all-clear Cancels
 GET  /cap/alerts/{id}.xml    public: one CAP 1.2 <alert> (application/cap+xml); 404 if not published.
                              id allclear-{village}-{UTC stamp}: the village's current all-clear Cancel
@@ -287,14 +290,14 @@ GET  /villages/{id} and /public/overview villages[] also carry
 | Lambda `worker` | CMD `Pukaar.handlers.worker.handler`; 1024 MB, 900 s (transcription, replay, delivery retries); DLQ |
 | Lambda `gauge-ingest` | CMD `Pukaar.handlers.gauge_ingest.handler`; 512 MB, 60 s; invoked by the IoT topic rule; 0 async retries; the worker's DLQ |
 | Bedrock Guardrail | `pukaar-report-screen-<stage>` plus a published version; only the worker may call `ApplyGuardrail` on it |
-| AWS IoT Core | policy `pukaar-gauge-<stage>`, topic rule `pukaar_gauge_<stage>` on `pukaar/gauge/+/+/reading` |
+| AWS IoT Core | policy `pukaar-gauge-<stage>`, topic rule `pukaar_gauge_<stage>` on `pukaar/gauge/+/+/reading` and `.../backfill` |
 | AppSync Events | API `pukaar-events-<stage>`, namespaces `public` (API key, subscribe only) and `officer` (Cognito); publish `AWS_IAM` only |
 | Step Functions | Standard, `infra/approval.asl.json`, execution name = alert id |
 | Scheduler | `rate(15 minutes)` -> `sweep`, retries 0, DLQ |
 | Cognito | user pool, groups `officer`, `pradhan`, attribute `custom:village_ids`, app client without secret, `USER_PASSWORD_AUTH` |
 | HTTP API | JWT authorizer on `$default`, public routes above, CORS to the web origin, throttling |
 | SSM | SecureString `/pukaar/telegram_token`, `/pukaar/telegram_webhook_secret`, `/pukaar/link_secret`, `/pukaar/vapid_private_key`, `/pukaar/after_action_to`, `/pukaar/gauge/<device>/key` and `/cert`, and for voice calls `/pukaar/voice_webhook_key`, `/pukaar/exotel_sid`, `/pukaar/exotel_api_key` (optional), `/pukaar/exotel_token`, `/pukaar/exotel_caller_id`, `/pukaar/exotel_app_id`, `/pukaar/plivo_auth_id`, `/pukaar/plivo_auth_token`, `/pukaar/plivo_caller_id`; String `/pukaar/vapid_public_key` |
-| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision`, `RollCallNeedHelp`, `GaugeReading`, `GaugeRejected`, `ReportScreened`, `GuardrailFallback`, `PushSent`, `PushFailed`, `EventPublishFailed`, `AfterActionSent`, `AfterActionFailed`, `VoiceCallPlaced`, `VoiceNotConnected`, `VoiceNoKey`, `VoiceUnreachable`, `VoiceNeedHelp` |
+| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision`, `RollCallNeedHelp`, `GaugeReading`, `GaugeRejected`, `GaugeBadReading`, `GaugeBackfill`, `GaugeUnhealthy`, `ReportScreened`, `GuardrailFallback`, `PushSent`, `PushFailed`, `EventPublishFailed`, `AfterActionSent`, `AfterActionFailed`, `VoiceCallPlaced`, `VoiceNotConnected`, `VoiceNoKey`, `VoiceUnreachable`, `VoiceNeedHelp` |
 
 Environment variables of every function: `PUKAAR_MODE=aws`,
 `PUKAAR_TABLE_NAME`, `PUKAAR_BUCKET`, `PUKAAR_STATE_MACHINE_ARN`,
