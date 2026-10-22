@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { CircleAlert, CircleCheck, Link2, LoaderCircle, ShieldCheck } from 'lucide-react';
-import { api, ApiError } from '../api';
+import { ApiError } from '../api';
 import { useT } from '../i18n';
 import { alertKey, explorerTx, readAnchor, rpcTransport, txMined, verifyCapHash } from '../lib/chain';
 import { fmtNumber, fmtTime } from '../lib/format';
 import type { RaahatAnchor } from '../types';
 import { ReplayChip } from './Chips';
 import '../raahat.css';
+import { raahatApi } from '../lib/raahatApi';
+import '../i18n-raahat';
 
 type Verify =
   | { state: 'idle' }
@@ -61,7 +63,7 @@ export default function ChainReceipt({ alertId }: { alertId: string }) {
   const [verify, setVerify] = useState<Verify>({ state: 'idle' });
   useEffect(() => {
     let live = true;
-    api.raahatAnchor(alertId).then(
+    raahatApi.raahatAnchor(alertId).then(
       (got) => live && setA(got),
       (e: ApiError) => live && e.status === 404 && setMissing(true),
     );

@@ -319,6 +319,37 @@ class RaahatChain:
                 done.append(f"gas {role} {who}: 0x{bytes(sent).hex()}")
         return done
 
+    def latest_block(self) -> int | None:
+        return self._safe("latest_block", lambda: int(self.w3.eth.block_number))
+
+    def read_events(self, from_block: int, to_block: int) -> list[dict] | None:
+        """Events of the Raahat contracts in [from_block, to_block] (keep the range within what the RPC allows:
+        the public Base endpoint serves at most 200 blocks)."""
+        from eth_abi import decode
+        from eth_utils import keccak
+        from web3 import Web3
+
+        topics = {"0x" + keccak(text=sig).hex(): name for sig, name in EVENTS.items()}
+
+        def read() -> list[dict]:
+            logs = self.w3.eth.get_logs({"address": list(self.cfg.addresses.values()),
+                                         "fromBlock": from_block, "toBlock": to_block})
+            out = []
+            for lg in logs:
+                name = topics.get(Web3.to_hex(lg["topics"][0])) if lg["topics"] else None
+                if name is None:
+                    continue
+                args: dict[str, Any] = {}
+                if name == "Funded":
+                    args = {"donor": Web3.to_checksum_address(bytes(lg["topics"][1])[-20:]),
+                            "amount": str(decode(["uint256"], bytes(lg["data"]))[0])}
+                elif name in ALERT_EVENTS:
+                    args = {"alert_key": Web3.to_hex(lg["topics"][1])}
+                out.append({"event": name, "block": int(lg["blockNumber"]), "log_index": int(lg["logIndex"]),
+                            "tx": Web3.to_hex(lg["transactionHash"]), "args": args})
+            return out
+        return self._safe("read_events", read)
+
     def read_pool(self) -> dict | None:
         """The pool's tINR balance (exact wei, as a string), the token and the block it was read at."""
         def read() -> dict:
@@ -347,6 +378,23 @@ def anchor_key(village_id: str) -> bytes:
     from eth_utils import keccak
 
     return keccak(text=village_id)
+
+
+# Every event the four contracts emit; the indexer stores each with its alert key when it has one.
+EVENTS = {
+    "AlertAnchored(bytes32,bytes32,uint8,bool,bytes32)": "AlertAnchored",
+    "OutcomeAnchored(bytes32,uint32,uint32,bytes32)": "OutcomeAnchored",
+    "Funded(address,uint256)": "Funded",
+    "RuleSet(uint8,uint256,uint256,uint32)": "RuleSet",
+    "RulesSealed(uint64)": "RulesSealed",
+    "HouseholdsSet(bytes32,bytes32,uint32)": "HouseholdsSet",
+    "CashOutAgentSet(bytes32,address)": "CashOutAgentSet",
+    "Released(bytes32,bytes32,uint8,uint32,uint256,bool)": "Released",
+    "PayoutReceipt(bytes32,bytes32,bytes32)": "PayoutReceipt",
+    "Attested(bytes32,uint8,address,uint8,bytes32)": "Attested",
+    "Confirmed(bytes32)": "Confirmed",
+}
+ALERT_EVENTS = {"AlertAnchored", "OutcomeAnchored", "Released", "PayoutReceipt", "Attested", "Confirmed"}
 
 
 def client() -> RaahatChain | None:

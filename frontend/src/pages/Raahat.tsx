@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, CircleAlert, CircleCheck, CircleDashed, CircleX, Landmark, LoaderCircle, ScrollText } from 'lucide-react';
 import { api, ApiError } from '../api';
-import { ChainReceiptLazy } from '../components/ChainReceiptLazy';
+import ChainReceipt from '../components/ChainReceipt';
 import { ReplayChip } from '../components/Chips';
 import { PageBand, StatStrip } from '../components/PageBand';
 import { EmptyState, ErrorState, Skeleton } from '../components/States';
@@ -14,6 +14,8 @@ import { inr, ledgerTotals, timelineSteps, type LedgerStep } from '../lib/ledger
 import { CHANNELS } from '../lib/live';
 import type { RaahatLedgerItem, RaahatPool, RaahatRule, Village } from '../types';
 import '../raahat.css';
+import { raahatApi } from '../lib/raahatApi';
+import '../i18n-raahat';
 
 type Check = { state: 'checking' } | { state: 'ok'; wei: bigint } | { state: 'failed' };
 
@@ -103,6 +105,10 @@ function PoolCard({ info }: { info: RaahatPool }) {
             </>
           )}
         </p>
+      )}
+      {info.cached && info.cached_at && <p className="small caveat">{t('raahat.pool.cached', { t: fmtTime(info.cached_at, lang) })}</p>}
+      {!!info.donors && info.funded_wei && (
+        <p className="small">{t('raahat.pool.donors', { d: fmtNumber(info.donors, lang), v: formatTinr(info.funded_wei, lang) })}</p>
       )}
       <p className="small muted">{t('raahat.pool.test')}</p>
       {!info.pool_is_contract && <p className="small caveat">{t('raahat.pool.placeholder')}</p>}
@@ -207,7 +213,7 @@ function LedgerRow({ item, village, focus }: { item: RaahatLedgerItem; village?:
           <button type="button" className="btn btn-sm btn-ghost" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
             <ChevronDown aria-hidden="true" className={open ? 'rot' : ''} /> {t('raahat.receipt.toggle')}
           </button>
-          {open && <ChainReceiptLazy alertId={item.alert_id} />}
+          {open && <ChainReceipt alertId={item.alert_id} />}
         </>
       )}
     </li>
@@ -218,7 +224,7 @@ function Ledger() {
   const { t, lang } = useT();
   const [params] = useSearchParams();
   const focus = params.get('alert') ?? '';
-  const ledger = usePoll(() => api.raahatLedger(), [], 30000, { live: [CHANNELS.raahat, CHANNELS.alerts, CHANNELS.deliveries] });
+  const ledger = usePoll(() => raahatApi.raahatLedger(), [], 30000, { live: [CHANNELS.raahat, CHANNELS.alerts, CHANNELS.deliveries] });
   const villages = usePoll(() => api.villages(), [], 300000);
   const byId = new Map((villages.data ?? []).map((v) => [v.id, v]));
   const items = ledger.data?.items ?? [];
@@ -263,7 +269,7 @@ export default function Raahat() {
   const [info, setInfo] = useState<RaahatPool | null | undefined>(undefined);
   const [error, setError] = useState<ApiError | null>(null);
   const load = () =>
-    api.raahatPool().then(
+    raahatApi.raahatPool().then(
       (got) => {
         setError(null);
         setInfo(got);

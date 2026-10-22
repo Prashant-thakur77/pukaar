@@ -6,6 +6,7 @@ import { api } from '../api';
 import { Kicker, ValleyLine, WordField } from '../components/Art';
 import { Call112, PukaarMark } from '../components/Shell';
 import { CounterRow } from '../components/CounterRow';
+import { RaahatCounter } from '../components/RaahatBits';
 import { DogStory } from '../components/DogStory';
 import { LevelBadge } from '../components/Level';
 import { DataBadge } from '../components/DataStatus';
@@ -275,6 +276,7 @@ export default function Landing() {
             zeroNote={allNormal && data ? t('landing.clear', { n: data.villages.length }) : null}
           />
           {error && !data && <p className="counter-error">{t('landing.counters.error')}</p>}
+          <RaahatCounter />
           {allNormal && data && (
             <p className="counter-clear">
               {/* the "None yet" tile already says every village is Normal; do not say it twice */}

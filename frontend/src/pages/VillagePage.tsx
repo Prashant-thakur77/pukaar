@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, Ruler, Tent, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, Hourglass, ListChecks, MapPin, Megaphone, RadioTower, Scale, TrendingUp, Users, Waves } from 'lucide-react';
 import { api } from '../api';
-import { ChainReceiptLazy } from '../components/ChainReceiptLazy';
+import { RaahatVillage } from '../components/RaahatBits';
 import { AlertStatusChip, DeliveryChips, ReplayChip, ReportStateChip } from '../components/Chips';
 import { Gauge } from '../components/Gauge';
 import { GaugeProposalPanel } from '../components/GaugeProposal';
@@ -33,6 +33,7 @@ import { humanizeSummary } from '../lib/humanize';
 import { useAuth } from '../store';
 import type { Alert, DecisionTrace, GaugeView, Level, PublicRollCall, RiverView, SoilView, TraceEvidence, Village } from '../types';
 import { Kicker, ValleyLine } from '../components/Art';
+import '../i18n-raahat';
 
 function AlertDetails({ alert }: { alert: Alert }) {
   const { t, lang } = useT();
@@ -97,7 +98,6 @@ function AlertDetails({ alert }: { alert: Alert }) {
 function AlertCard({ alert, signedIn }: { alert: Alert; signedIn: boolean }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
-  const [receipt, setReceipt] = useState(false);
   return (
     <li className={`alert-card lv-${alert.level}`}>
       <div className="ac-top">
@@ -115,12 +115,9 @@ function AlertCard({ alert, signedIn }: { alert: Alert; signedIn: boolean }) {
         <ListenButton alertId={alert.id} hasAudio={alert.has_audio} />
       </div>
       {alert.delivered_count > 0 && (
-        <>
-          <button type="button" className="btn btn-sm btn-ghost" aria-expanded={receipt} onClick={() => setReceipt((o) => !o)}>
-            <ChevronDown aria-hidden="true" className={receipt ? 'rot' : ''} /> {t('raahat.receipt.toggle')}
-          </button>
-          {receipt && <ChainReceiptLazy alertId={alert.id} />}
-        </>
+        <Link className="link small" to={`/raahat?alert=${encodeURIComponent(alert.id)}`}>
+          {t('raahat.receipt.toggle')} ↗
+        </Link>
       )}
       {signedIn && (
         <>
@@ -617,6 +614,8 @@ export default function VillagePage() {
             </ul>
           )}
         </section>
+
+        <RaahatVillage villageId={v.id} />
 
         <section aria-labelledby="rp-h">
           <h2 id="rp-h" className="h-sec">

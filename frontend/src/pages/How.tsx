@@ -1,3 +1,4 @@
+import { RaahatFlow } from '../components/RaahatBits';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, BatteryCharging, Cpu, ShieldAlert, ShieldCheck, Smartphone, Siren, Scale, Waves } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -339,6 +340,8 @@ export default function How() {
           </p>
         </div>
       </section>
+
+      <RaahatFlow />
 
       <section className="how-band how-cta" aria-labelledby="how-cta-h">
         <div className="wrap-wide">

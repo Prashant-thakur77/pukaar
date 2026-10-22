@@ -1338,6 +1338,12 @@ export interface RaahatPool {
   /** The sealed relief rule (ReliefPool), once the pool is the contract. */
   rule?: RaahatRule | null;
   illustrative?: string;
+  /** Set when the chain could not be read: the last sweep's snapshot is shown, from cached_at. */
+  cached?: boolean;
+  cached_at?: string;
+  /** From the indexer: distinct addresses that called fund(), and what they gave. */
+  donors?: number;
+  funded_wei?: string;
 }
 
 export interface RaahatRule {

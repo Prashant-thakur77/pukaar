@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from Pukaar.api.auth import Allowed, require_user, resource_facts
 from Pukaar.policy.guard import Principal, authorize
-from Pukaar.raahat import anchor, attest, chain, receipts, relief
+from Pukaar.raahat import anchor, attest, chain, indexer, receipts, relief
 from Pukaar.store.repo import get_repo
 
 router = APIRouter()
@@ -25,9 +25,14 @@ def pool() -> dict:
     base = {"configured": True, "reachable": read is not None, "chain_id": cfg.chain_id, "network": cfg.network,
             "explorer": chain.explorer_url(cfg.chain_id), "public_rpc_url": cfg.public_rpc_url,
             "addresses": cfg.addresses, "pool_is_contract": cfg.pool_is_contract}
-    from Pukaar.raahat.relief import ILLUSTRATIVE
-
-    return {**base, **(read or {}), "illustrative": ILLUSTRATIVE}
+    repo = get_repo()
+    cached: dict = {}
+    if read is None:  # the chain cannot be read now: the last sweep's snapshot, labelled as such
+        snap = indexer.pool_snapshot(repo)
+        if snap:
+            cached = {**{k: v for k, v in snap.items() if k != "indexed_at"}, "cached": True,
+                      "cached_at": snap["indexed_at"]}
+    return {**base, **(read or cached), **indexer.funds(repo), "illustrative": relief.ILLUSTRATIVE}
 
 
 @router.get("/raahat/alerts/{alert_id}")

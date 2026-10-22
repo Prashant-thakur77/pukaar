@@ -1,4 +1,3 @@
-import { ChainReceiptLazy } from '../../components/ChainReceiptLazy';
 import { useState } from 'react';
 import { TimeToEar } from '../../components/TimeToEar';
 import { Link, Navigate, useLocation } from 'react-router-dom';
@@ -33,6 +32,7 @@ import { SystemCard } from './System';
 import { PushAlerts } from './PushAlerts';
 import { TelegramLink } from './TelegramLink';
 import { VillageQueue } from './VillageQueue';
+import '../../i18n-raahat';
 
 export default function ConsolePage() {
   const token = useAuth((s) => s.token);
@@ -374,6 +374,14 @@ function RecentAlert({ alert: a, showAudit }: { alert: Alert; showAudit: boolean
             </a>
           </>
         )}
+        {sent && (
+          <>
+            {' · '}
+            <Link className="link" to={`/raahat?alert=${encodeURIComponent(a.id)}`}>
+              {t('raahat.receipt.toggle')} ↗
+            </Link>
+          </>
+        )}
       </p>
       {hasAfterAction(a) && <AfterActionLinks alert={a} />}
       {hasAfterAction(a) && showAudit && !a.replay && !a.decision_trace?.drill && <OutcomePicker alert={a} />}
@@ -383,12 +391,7 @@ function RecentAlert({ alert: a, showAudit }: { alert: Alert; showAudit: boolean
             {t('console.deliveries', { n: a.recipients_count || a.delivered_count })}
             <ChevronDown aria-hidden="true" className={open ? 'rot' : ''} />
           </button>
-          {open && (
-            <>
-              <Deliveries alertId={a.id} />
-              <ChainReceiptLazy alertId={a.id} />
-            </>
-          )}
+          {open && <Deliveries alertId={a.id} />}
         </>
       )}
     </li>

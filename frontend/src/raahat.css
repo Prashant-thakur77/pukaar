@@ -60,3 +60,14 @@
 .receipt-entry { display: flex; flex-wrap: wrap; gap: var(--s-1, 4px); align-items: center; }
 .receipt-entry input { min-width: 0; width: 11rem; }
 .relief .data-table th { text-transform: none; letter-spacing: normal; }
+/* Landing, How and village page (components/RaahatBits.tsx). */
+.raahat-counter { margin-top: var(--s-4); display: grid; gap: var(--s-1, 4px); }
+.raahat-counter-num { font-size: 1.15rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: var(--s-2); }
+.raahat-counter p { margin: 0; }
+.raahat-counter svg { width: 1.1em; height: 1.1em; }
+.raahat-flow { list-style: none; margin: var(--s-4) 0; padding: 0; display: grid; gap: var(--s-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); counter-reset: none; }
+.rf-step { display: grid; gap: var(--s-1, 4px); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface, transparent); position: relative; }
+.rf-num { display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--accent-soft); font-weight: 700; }
+.rf-anticipatory, .rf-confirm, .rf-receipts { border-color: var(--accent); }
+.raahat-village { display: grid; gap: var(--s-2); margin-block: var(--s-4); }
+.raahat-village .h-sec svg, .raahat-village li svg { width: 1em; height: 1em; vertical-align: -0.125em; }

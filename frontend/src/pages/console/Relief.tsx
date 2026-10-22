@@ -12,6 +12,8 @@ import { inr } from '../../lib/ledger';
 import type { RaahatLedgerItem, RaahatRelief, Village } from '../../types';
 import { AttestControls } from './RaahatAttest';
 import '../../raahat.css';
+import { raahatApi } from '../../lib/raahatApi';
+import '../../i18n-raahat';
 
 type Tier = RaahatRelief['tiers'][number];
 
@@ -25,7 +27,7 @@ function ReliefCard({ item, village, onReleased }: { item: RaahatLedgerItem; vil
   const [note, setNote] = useState<string | null>(null);
   const load = useCallback(
     () =>
-      api.raahatRelief(item.alert_id).then(
+      raahatApi.raahatRelief(item.alert_id).then(
         (r) => {
           setRelief(r);
           setError(null);
@@ -43,7 +45,7 @@ function ReliefCard({ item, village, onReleased }: { item: RaahatLedgerItem; vil
     setBusy(true);
     setNote(null);
     try {
-      await api.raahatRelease(item.alert_id, tier.tier);
+      await raahatApi.raahatRelease(item.alert_id, tier.tier);
     } catch (e) {
       const err = e as ApiError;
       const code = (err.detail as { code?: string } | null)?.code;
@@ -135,8 +137,8 @@ function ReliefCard({ item, village, onReleased }: { item: RaahatLedgerItem; vil
 /** Officer console: alerts recorded on chain with their relief tiers (PLAN.md Step 2). */
 export function Relief({ villages }: { villages: Village[] }) {
   const { t, lang } = useT();
-  const ledger = usePoll(() => api.raahatLedger(), [], 30000, { live: [CHANNELS.raahat, CHANNELS.alerts] });
-  const pool = usePoll(() => api.raahatPool(), [], 60000, { live: [CHANNELS.raahat] });
+  const ledger = usePoll(() => raahatApi.raahatLedger(), [], 30000, { live: [CHANNELS.raahat, CHANNELS.alerts] });
+  const pool = usePoll(() => raahatApi.raahatPool(), [], 60000, { live: [CHANNELS.raahat] });
   // Names: the console's list when it has them, else this panel's own (it can render before the console's arrives).
   const own = usePoll(() => api.villages(), [], 300000);
   const items = (ledger.data?.items ?? []).filter((i) => i.anchor_state === 'sent').slice(0, 8);

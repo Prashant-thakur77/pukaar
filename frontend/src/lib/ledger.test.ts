@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { dict } from '../i18n';
+import { raahatDict as dict } from '../i18n-raahat';
+import { translate } from '../i18n';
 import type { RaahatLedger } from '../types';
 import { inr, ledgerTotals, timelineSteps } from './ledger';
 import fixture from './fixtures/ledger.json';
@@ -59,7 +60,10 @@ describe('relief ledger timeline', () => {
       const e = dict[k as keyof typeof dict];
       expect(/[ऀ-ॿ]/.test(e.hi), k).toBe(true);
       expect(e.en.trim(), k).not.toBe('');
+      expect((e.hi.match(/\{\w+\}/g) ?? []).sort().join(','), k).toBe((e.en.match(/\{\w+\}/g) ?? []).sort().join(','));
     }
+    // registered on import: t() finds them although they are not in the main dictionary
+    expect(translate('hi', 'raahat.title')).toBe(dict['raahat.title'].hi);
     for (const step of ['anchored', 'heard', 'tier1', 'attested', 'tier2', 'receipts']) expect(dict[`raahat.step.${step}` as keyof typeof dict]).toBeTruthy();
     for (const code of ['not_anchored', 'rules_not_sealed', 'level_below_rule', 'already_released', 'cooldown', 'no_households',
       'no_agent', 'pool_too_small', 'not_confirmed', 'exercise_not_allowed', 'chain_unreachable', 'raahat_off'])

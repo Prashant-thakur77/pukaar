@@ -99,7 +99,7 @@ Footage and images are openly licensed and credited. The Telegram screens in the
 
 ## Contents
 
-[Judges' guide](#for-judges-check-every-part) · [At a glance](#at-a-glance) · [The problem](#the-problem) · [Research and evidence](#research-and-evidence) · [Moment by moment](#what-happens-moment-by-moment) · [Architecture](#architecture) · [AWS in depth](#aws-in-depth) · [Cheap phones](#built-for-cheap-phones-measured) · [Built versus planned](#built-versus-planned) · [Back-test](#what-the-back-test-shows-and-what-it-does-not) · [Safe places](#where-to-go-safe-places-routes-and-the-shelter-ledger) · [Run it locally](#run-it-locally-no-aws-account-needed) · [Team](#team)
+[Judges' guide](#for-judges-check-every-part) · [At a glance](#at-a-glance) · [The problem](#the-problem) · [Research and evidence](#research-and-evidence) · [Moment by moment](#what-happens-moment-by-moment) · [Architecture](#architecture) · [AWS in depth](#aws-in-depth) · [Cheap phones](#built-for-cheap-phones-measured) · [Built versus planned](#built-versus-planned) · [Raahat: where the money goes](#raahat-where-the-money-goes) · [Back-test](#what-the-back-test-shows-and-what-it-does-not) · [Safe places](#where-to-go-safe-places-routes-and-the-shelter-ledger) · [Run it locally](#run-it-locally-no-aws-account-needed) · [Team](#team)
 
 ## At a glance
 
@@ -422,6 +422,60 @@ sign-in; the demo user names are in [DEMO.md](DEMO.md#sign-in).
 | Delivery at scale (batches of 250 in a Step Functions Map, 4 at once, under Telegram's limits; every send claimed by a conditional write, a 429 waited out or put back unsent; the alert audio uploaded once) and the concurrent sweep (16 villages at once) | Deployed on dev (the `DeliverBatches` Map, `PUKAAR_DELIVERY_BATCH_SIZE=250`, `PUKAAR_DELIVERY_CONCURRENCY=4`, `PUKAAR_SWEEP_CONCURRENCY=16`); tested offline: a fake Telegram with its 30-a-second and one-a-second-per-chat limits took 5,000 recipients, each once, in under 5 minutes (docs/CONTRACT.md, "Delivery at scale"); 200 villages swept in under 60 s with mocked forecast I/O |
 | Wake-up call to the duty officer: at the nudge (3 minutes in), an officer who has not opened the approval link is phoned with Web Push and Telegram; "1" sends the link again, nothing on the call approves. A critical waits 5 minutes per officer, not 10 | Deployed on dev, but the call is off: there is no voice provider yet (`VoiceProvider=off`) and no officer's number on file (`make officer-phone`). Until both exist the alert timeline says the call was not possible, and the reminder goes by Web Push and Telegram only |
 | Spoken approval; grounded voice Q&A; AgentCore | Planned (stretch) |
+
+## Raahat: where the money goes
+
+Pukaar Raahat (पुकार राहत) is the relief layer on this branch, built for the Web3 for Social Good Hackathon 2026. Pukaar already predicts the flood and proves the warning reached each phone; Raahat pays the household before the water rises, by a rule sealed before the monsoon, and every rupee can be traced from forecast to phone on a public chain. Live: [the relief ledger](https://main.d227ld968f3fok.amplifyapp.com/raahat) on its own stack (`pukaar-raahat`, kept apart from `pukaar-dev`). Plan and reasoning: [PLAN.md](PLAN.md); submission: [docs/submission/w3sg-writeup.md](docs/submission/w3sg-writeup.md).
+
+It does three things:
+
+1. Every published alert is anchored: the keccak256 of the CAP 1.2 XML that `/cap/alerts/{id}.xml` serves, with the village, level, issue time and `exercise=true` for replays and drills, then at close the delivered and acknowledged counts and the hash of the after-action report. The "re-verify" button on every alert reads the hash from the chain, fetches the CAP feed and hashes it in the browser.
+2. The relief rule is a contract, sealed before the season: ₹1,500 per household when a village reaches Warning, ₹4,000 when the flood is confirmed, one anticipatory payout per village per 72 hours. The amounts are illustrative; SDRF norms are to be mapped with the DDMA. After `sealRules()` no amount or threshold can change.
+3. Relief goes out in two tiers. Code works out eligibility, a district officer releases in one tap (Cedar `release_relief`, audited) and the contract checks it again. The second tier needs two of three attesters: the pradhan (a verified photo report), a district officer and the satellite (the Sentinel-2 pair behind /impact). Each household's payout ends in a receipt with a Merkle proof of its salted hash and a hash of the UPI or cash reference.
+
+Contracts on Base Sepolia (chain 84532; addresses in [contracts/deployments/base-sepolia.json](contracts/deployments/base-sepolia.json)):
+
+| Contract | Address | What it holds |
+|---|---|---|
+| AlertRegistry | [0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3](https://sepolia.basescan.org/address/0x693F40F3C4321e4b0f9e282771a1ba19b4565Dd3) | Write-once alert anchors and outcomes |
+| ReliefPool | [0x61Ce8978cD5ea7F1F12cd7BDdCd959d4Eb0F49f0](https://sepolia.basescan.org/address/0x61Ce8978cD5ea7F1F12cd7BDdCd959d4Eb0F49f0) | The sealed rule, household roots, releases and receipts |
+| ImpactAttestation | [0x0d9D5139D215e1C341eaa298eF1ddb1BBe2769b7](https://sepolia.basescan.org/address/0x0d9D5139D215e1C341eaa298eF1ddb1BBe2769b7) | The three attesters; confirmed at two different keys with severity 2 or more |
+| TestINR (tINR) | [0x6b3C4E4E29233b8d3e336a6148702ab1D395a419](https://sepolia.basescan.org/address/0x6b3C4E4E29233b8d3e336a6148702ab1D395a419) | Test money with no value, minted by the deployer only |
+
+What is real, a replay, simulated or planned:
+
+| | |
+|---|---|
+| Real | The Pukaar warning loop on AWS; the contracts on Base Sepolia; every anchor, release, attestation and receipt transaction; the public ledger at /raahat; the Cedar policies and the audit row for every release, attestation and receipt |
+| Replay | The July 2023 Beas flood replay drives the money path on testnet, labelled REPLAY on every page and `exercise=true` on chain. Exercise cooldowns are kept apart from live ones, so a demo never blocks a real payout. A production deployment passes `allowExercisePayout=false` |
+| Simulated | tINR is a test token. The demo stack's household register adds labelled demo households (no name, no phone). On testnet the backend holds the three attester keys (derived per role, so they are different addresses on chain) and signs after Cedar checks the person, and the cash-out agent is the backend's own address. The satellite pair covers only Pandoh, for July 2023 |
+| Planned | A licensed INR stablecoin or a bank/UPI rail; SDRF norm mapping with the DDMA; each attester's own device key; the production chain chosen with the issuing authority |
+
+No personal data goes on chain. A household is `keccak256(villageId, HMAC(salt, householdNo))`; the salt is a SecureString; names, phones and chat ids stay in DynamoDB. There is no token sale, DAO, NFT or upgradeable proxy.
+
+How it is wired, and what the tests hold it to:
+
+- A chain failure never touches an alert. Every Raahat call is wrapped, logged, counted (`RaahatTxFailed`, alarmed, with a runbook section) and swallowed; [backend/tests/test_raahat_anchor.py](backend/tests/test_raahat_anchor.py) runs whole alerts with the chain down and with the Raahat code raising.
+- Each anchor, release, attestation and receipt is claimed with a conditional write before it is sent, so a re-run step or a double tap sends one transaction.
+- The anchored CAP hash equals the hash of what the feed serves after the alert closes (tested), and the browser's re-verify is tested against a fixture hashed separately in Python.
+- Cedar: only officers release relief; pradhans attest and record receipts for their own village only; the public demo accounts act on replay alerts only ([backend/tests/test_raahat_policy.py](backend/tests/test_raahat_policy.py), [backend/tests/test_raahat_attest.py](backend/tests/test_raahat_attest.py)).
+- Only the api and workflow roles can read the signer key's parameter, and the template never holds a key; [backend/tests/test_template_safety.py](backend/tests/test_template_safety.py) checks both, the alarm, and that the Raahat public routes are read-only.
+- The indexer copies the contracts' events into the table in 200-block windows from a checkpoint during the sweep; when the chain cannot be read, /raahat shows the last snapshot and says it is cached.
+- Foundry: 44 tests on the four contracts (roles, write-once anchors, sealing, cooldowns, the exercise flag, a token that tries to re-enter `release`, Merkle receipts valid, replayed and from another village, two roles on one key counting once, fuzzing on amounts and severities) with 100% line, statement, branch and function coverage (`forge coverage`). The Merkle proofs in those tests are built by the Python backend.
+- /raahat is its own chunk, kept out of the service worker's precache; the villager report page never downloads the chain library. axe reports no violations on /raahat, the console's relief and receipts panels, in Hindi and English, at 390 px.
+
+Run it locally (no AWS, no testnet):
+
+```bash
+make raahat-anvil              # a local chain on :8545 (leave it running)
+make raahat-deploy             # TestINR, AlertRegistry, ImpactAttestation, ReliefPool; the rule sealed
+make raahat-fund               # 5,00,000 tINR into the pool through fund()
+make raahat-seed-households    # household roots and cash-out agents
+make raahat-attesters          # the officer's and each village's pradhan's attester role
+make local                     # sign in as officer1, start the July 2023 replay
+```
+
+On the testnet the same targets take `RAAHAT_NETWORK=base-sepolia` (a funded key in `.env.deploy.local` as `RAAHAT_DEPLOYER_KEY`), and the stack is `make deploy STAGE=raahat`, which passes the addresses from the deployment file. Cost on Base Sepolia so far: under 0.0001 test ETH in fees for every deployment, seeding run, role grant and transaction above (plus 0.001 handed to each of the six attester keys for their own gas).
 
 ## What the back-test shows (and what it does not)
 

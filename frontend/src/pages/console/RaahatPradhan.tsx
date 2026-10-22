@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CircleCheck, ReceiptText } from 'lucide-react';
-import { api, ApiError } from '../../api';
+import { ApiError } from '../../api';
 import { ReplayChip } from '../../components/Chips';
 import { EmptyState, ErrorState, Skeleton } from '../../components/States';
 import { usePoll } from '../../hooks/usePoll';
@@ -9,6 +9,8 @@ import { CHANNELS } from '../../lib/live';
 import type { RaahatHousehold, RaahatLedgerItem } from '../../types';
 import { AttestControls } from './RaahatAttest';
 import '../../raahat.css';
+import { raahatApi } from '../../lib/raahatApi';
+import '../../i18n-raahat';
 
 /** One released alert: the pradhan's attestation and the household list with a reference box per household. */
 function ReleasedAlert({ item, onChange }: { item: RaahatLedgerItem; onChange: () => void }) {
@@ -18,7 +20,7 @@ function ReleasedAlert({ item, onChange }: { item: RaahatLedgerItem; onChange: (
   const [refs, setRefs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const load = useCallback(() => api.raahatHouseholds(item.alert_id).then(setRows, setError), [item.alert_id]);
+  const load = useCallback(() => raahatApi.raahatHouseholds(item.alert_id).then(setRows, setError), [item.alert_id]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -27,7 +29,7 @@ function ReleasedAlert({ item, onChange }: { item: RaahatLedgerItem; onChange: (
     setBusy(household);
     setMsg(null);
     try {
-      await api.raahatReceipt(item.alert_id, household, refs[household] ?? '');
+      await raahatApi.raahatReceipt(item.alert_id, household, refs[household] ?? '');
       onChange();
     } catch (err) {
       const code = ((err as ApiError).detail as { code?: string } | null)?.code;
@@ -96,7 +98,7 @@ function ReleasedAlert({ item, onChange }: { item: RaahatLedgerItem; onChange: (
 /** Pradhan console: relief released for their own villages, the attestation and the receipts (PLAN.md Step 3). */
 export function RaahatPradhan({ villageIds }: { villageIds: string[] }) {
   const { t } = useT();
-  const ledger = usePoll(() => api.raahatLedger(), [], 30000, { live: [CHANNELS.raahat] });
+  const ledger = usePoll(() => raahatApi.raahatLedger(), [], 30000, { live: [CHANNELS.raahat] });
   const items = (ledger.data?.items ?? []).filter(
     (i) => villageIds.includes(i.village_id) && i.releases.some((r) => r.state === 'sent'),
   );

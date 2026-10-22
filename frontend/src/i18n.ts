@@ -8,8 +8,9 @@
 import { useLocation } from 'react-router-dom';
 import { usePrefs, type Lang, type LangScope } from './store';
 import type { AlertStatus, DirectiveType, Level, ReportState, ReportType, Severity } from './types';
+import type { RaahatKey } from './i18n-raahat';
 
-type Entry = { hi: string; en: string };
+export type Entry = { hi: string; en: string };
 
 export const dict = {
   // brand + shell
@@ -695,129 +696,6 @@ export const dict = {
   'audit.reads': { hi: 'रोज़ के पढ़ने वाले रिकॉर्ड दिखाएँ ({n})', en: 'Show reads ({n})' },
   'audit.clear': { hi: 'फ़िल्टर हटाएँ', en: 'Clear filter' },
 
-  // raahat (relief ledger)
-  'raahat.eyebrow': { hi: 'पुकार राहत', en: 'Pukaar Raahat' },
-  'raahat.title': { hi: 'राहत का पैसा कहाँ गया', en: 'Where the relief money goes' },
-  'raahat.lead': {
-    hi: 'राहत का नियम बाढ़ से पहले तय होता है और सबके सामने चेन पर रहता है। पानी चढ़ने के बाद उसे कोई नहीं बदल सकता।',
-    en: 'The relief rule is fixed before the flood and kept in public on a chain. Nobody can change it after the water rises.',
-  },
-  'raahat.pool': { hi: 'राहत कोष', en: 'Relief pool' },
-  'raahat.pool.balance': { hi: 'कोष में अभी', en: 'In the pool now' },
-  'raahat.pool.test': { hi: 'tINR जाँच का पैसा है, इसकी कोई कीमत नहीं। असली रुपये के लिए लाइसेंस वाला साझेदार चाहिए।', en: 'tINR is test money with no value. Real rupees need a licensed partner.' },
-  'raahat.pool.placeholder': { hi: 'राहत कोष का अनुबंध (ReliefPool) अभी नहीं बना है, तब तक यह पैसा तैनात करने वाले पते पर रखा है।', en: 'The ReliefPool contract is not deployed yet; until it is, this money sits at the deployer’s address.' },
-  'raahat.network': { hi: 'चेन', en: 'Chain' },
-  'raahat.block': { hi: 'ब्लॉक {n} पर पढ़ा', en: 'Read at block {n}' },
-  'raahat.token': { hi: 'टोकन', en: 'Token' },
-  'raahat.address.pool': { hi: 'कोष का पता', en: 'Pool address' },
-  'raahat.explorer.none': { hi: 'स्थानीय चेन, कोई एक्सप्लोरर नहीं', en: 'Local chain, no explorer' },
-  'raahat.verify.checking': { hi: 'आपके ब्राउज़र से चेन पर जाँच हो रही है…', en: 'Checking the chain from your browser…' },
-  'raahat.verify.ok': { hi: 'आपके ब्राउज़र ने चेन से सीधे पढ़कर यही रकम पाई', en: 'Your browser read the chain directly and found the same amount' },
-  'raahat.verify.mismatch': { hi: 'आपके ब्राउज़र ने चेन पर अलग रकम पाई: {v}', en: 'Your browser found a different amount on the chain: {v}' },
-  'raahat.verify.failed': { hi: 'आपका ब्राउज़र चेन नहीं पढ़ सका', en: 'Your browser could not read the chain' },
-  'raahat.unreachable': { hi: 'सर्वर अभी चेन नहीं पढ़ सका। नीचे आपके ब्राउज़र की जाँच है।', en: 'The server could not read the chain just now. Your browser’s own check is below.' },
-  'raahat.none.title': { hi: 'राहत अभी जुड़ी नहीं है', en: 'Raahat is not connected yet' },
-  'raahat.none.body': { hi: 'राहत के अनुबंध अभी इस सर्वर से नहीं जुड़े हैं।', en: 'The Raahat contracts are not connected to this server yet.' },
-  'raahat.receipt.toggle': { hi: 'चेन पर रसीद', en: 'Chain receipt' },
-  'raahat.receipt.none': { hi: 'यह चेतावनी चेन पर दर्ज नहीं है (राहत तब चालू नहीं थी)।', en: 'This alert is not recorded on chain (Raahat was not on for it).' },
-  'raahat.receipt.title': { hi: 'सार्वजनिक चेन पर दर्ज', en: 'Recorded on a public chain' },
-  'raahat.receipt.lead': { hi: 'इस चेतावनी का CAP रिकॉर्ड चेन पर दर्ज है। बाद में कोई यह नहीं कह सकता कि चेतावनी नहीं दी गई।', en: 'This alert’s CAP record is anchored on chain. Nobody can later claim it was never issued.' },
-  'raahat.receipt.tx': { hi: 'लेन-देन', en: 'Transaction' },
-  'raahat.receipt.mined': { hi: 'ब्लॉक {n}, {t}', en: 'Block {n}, {t}' },
-  'raahat.receipt.pending': { hi: 'ब्लॉक में आना बाकी', en: 'Waiting for a block' },
-  'raahat.receipt.sending': { hi: 'चेन पर भेजा जा रहा है', en: 'Being sent to the chain' },
-  'raahat.receipt.failed': { hi: 'चेन पर दर्ज नहीं हो सका। चेतावनी फिर भी बिना बदले पहुँची।', en: 'Could not be recorded on chain. The alert still went out unchanged.' },
-  'raahat.receipt.outcome': { hi: 'मिल गया {a}/{d} · रिपोर्ट का हैश दर्ज', en: 'मिल गया {a}/{d} · report hash recorded' },
-  'raahat.receipt.exercise': { hi: 'अभ्यास (exercise=true)', en: 'Exercise (exercise=true)' },
-  'raahat.receipt.capHash': { hi: 'CAP हैश', en: 'CAP hash' },
-  'raahat.verify.button': { hi: 'फिर से जाँचें', en: 'Re-verify' },
-  'raahat.verify.running': { hi: 'चेन से रिकॉर्ड और CAP फ़ीड से XML लेकर आपके ब्राउज़र में हैश बन रहा है…', en: 'Reading the record from the chain and the XML from the CAP feed, hashing in your browser…' },
-  'raahat.verify.match': { hi: 'मेल खाता है: आज की CAP XML वही है जो चेन पर दर्ज हुई थी', en: 'Match: today’s CAP XML is exactly what was anchored' },
-  'raahat.verify.nomatch': { hi: 'मेल नहीं खाता: CAP XML दर्ज होने के बाद बदली है', en: 'No match: the CAP XML changed after it was anchored' },
-  'raahat.verify.error': { hi: 'जाँच नहीं हो सकी: {e}', en: 'Could not check: {e}' },
-  'raahat.illustrative': { hi: 'रकम उदाहरण के लिए है; SDRF मानदंड DDMA के साथ तय होने बाकी', en: 'Illustrative amounts; SDRF norms to be mapped with DDMA' },
-  'raahat.rule.title': { hi: 'मानसून से पहले तय और सील किया गया नियम', en: 'The rule, written and sealed before the monsoon' },
-  'raahat.rule.line': { hi: 'चेतावनी पर हर घर ₹{a}, बाढ़ की पुष्टि पर हर घर ₹{c}; एक गाँव को {h} घंटे में एक बार', en: 'At Warning ₹{a} per household; on confirmed flooding ₹{c} per household; once per village per {h} hours' },
-  'raahat.rule.sealed': { hi: '{d} से सील: अब कोई रकम या शर्त नहीं बदल सकता', en: 'Sealed since {d}: no amount or threshold can change now' },
-  'raahat.rule.unsealed': { hi: 'नियम अभी सील नहीं हुआ है', en: 'The rule is not sealed yet' },
-  'raahat.ledger.title': { hi: 'हर चेतावनी का हिसाब', en: 'Every alert, accounted for' },
-  'raahat.ledger.lead': { hi: 'पूर्वानुमान से चेतावनी, किसने सुनी, और किसे कितनी राहत मिली। हर कदम एक सार्वजनिक लेन-देन है।', en: 'From forecast to warning, who heard it, and what relief went where. Every step is a public transaction.' },
-  'raahat.ledger.none': { hi: 'अभी चेन पर कोई चेतावनी दर्ज नहीं है', en: 'No alert is recorded on chain yet' },
-  'raahat.ledger.total.live': { hi: 'असली अलर्ट पर जारी: ₹{v} · {n} घर', en: 'Released on live alerts: ₹{v} · {n} households' },
-  'raahat.ledger.total.exercise': { hi: 'रिप्ले और अभ्यास में (परीक्षण): ₹{v} · {n} घर', en: 'In replays and drills (test): ₹{v} · {n} households' },
-  'raahat.level.1': { hi: 'सतर्क', en: 'Watch' },
-  'raahat.level.2': { hi: 'चेतावनी', en: 'Warning' },
-  'raahat.level.3': { hi: 'गंभीर', en: 'Critical' },
-  'raahat.step.anchored': { hi: 'चेतावनी चेन पर दर्ज', en: 'Alert anchored' },
-  'raahat.step.heard': { hi: 'मिल गया', en: 'Heard (मिल गया)' },
-  'raahat.step.heard.counts': { hi: '{a}/{d} ने कहा मिल गया', en: '{a} of {d} said मिल गया' },
-  'raahat.step.tier1': { hi: 'पहले से राहत (चेतावनी पर)', en: 'Anticipatory relief (at Warning)' },
-  'raahat.step.tier2': { hi: 'पुष्टि के बाद राहत', en: 'Relief on confirmed impact' },
-  'raahat.step.released': { hi: '{n} घर, कुल ₹{v}', en: '{n} households, ₹{v} in all' },
-  'raahat.step.waiting': { hi: 'अभी नहीं', en: 'Not yet' },
-  'raahat.step.failed': { hi: 'चेन पर नहीं हो सका', en: 'Failed on chain' },
-  'raahat.why.no_satellite_coverage': { hi: 'इस अलर्ट के लिए उपग्रह चित्र नहीं है', en: 'No satellite imagery for this alert' },
-  'raahat.why.already_attested': { hi: 'पहले ही पुष्टि हो चुकी', en: 'Already attested' },
-  'raahat.why.report_not_verified': { hi: 'रिपोर्ट अभी सत्यापित नहीं', en: 'The report is not verified yet' },
-  'raahat.why.report_has_no_photo': { hi: 'रिपोर्ट में फ़ोटो नहीं', en: 'The report has no photo' },
-  'raahat.why.report_from_another_village': { hi: 'रिपोर्ट दूसरे गाँव की है', en: 'The report is from another village' },
-  'raahat.why.already_receipted': { hi: 'इस घर की रसीद पहले ही दर्ज है', en: 'This household already has a receipt' },
-  'raahat.why.nothing_released': { hi: 'अभी कोई राहत जारी नहीं हुई', en: 'Nothing has been released yet' },
-  'raahat.why.household_not_in_village': { hi: 'यह घर इस गाँव का नहीं', en: 'This household is not in the village' },
-  'raahat.why.register_changed': { hi: 'घरों की सूची चेन पर दर्ज सूची से मेल नहीं खाती', en: 'The household register does not match the one on chain' },
-  'raahat.why.no_reference': { hi: 'संदर्भ लिखें', en: 'Enter a reference' },
-  'raahat.why.raahat_off': { hi: 'राहत इस सर्वर पर चालू नहीं है', en: 'Raahat is not on for this server' },
-  'raahat.why.not_anchored': { hi: 'चेतावनी अभी चेन पर दर्ज नहीं हुई', en: 'The alert is not anchored on chain yet' },
-  'raahat.why.chain_unreachable': { hi: 'चेन से संपर्क नहीं हो सका', en: 'The chain could not be reached' },
-  'raahat.why.rules_not_sealed': { hi: 'नियम अभी सील नहीं हुआ', en: 'The rule is not sealed yet' },
-  'raahat.why.exercise_not_allowed': { hi: 'इस तैनाती पर अभ्यास से भुगतान नहीं होता', en: 'Exercises do not pay out on this deployment' },
-  'raahat.why.already_released': { hi: 'यह राहत पहले ही जारी हो चुकी', en: 'Already released' },
-  'raahat.why.level_below_rule': { hi: 'स्तर नियम से नीचे है (चेतावनी चाहिए)', en: 'Level is below the rule (Warning needed)' },
-  'raahat.why.cooldown': { hi: 'इस गाँव को हाल ही में राहत मिली है (प्रतीक्षा अवधि)', en: 'This village had relief recently (cooldown)' },
-  'raahat.why.not_confirmed': { hi: 'तीन में से दो पुष्टियाँ अभी नहीं मिलीं', en: 'Not yet confirmed by 2 of 3' },
-  'raahat.why.no_households': { hi: 'गाँव के घर अभी दर्ज नहीं', en: 'No households registered for the village' },
-  'raahat.why.no_agent': { hi: 'गाँव का भुगतान करने वाला (प्रधान/बैंक मित्र) तय नहीं', en: 'No cash-out agent for the village' },
-  'raahat.why.pool_too_small': { hi: 'कोष में इतना पैसा नहीं', en: 'The pool is too small for this release' },
-  'raahat.relief.title': { hi: 'राहत जारी करें', en: 'Release relief' },
-  'raahat.relief.lead': { hi: 'कोड पात्रता तय करता है, आप जारी करते हैं, और अनुबंध सील नियम लागू करता है।', en: 'Code decides eligibility, you release, the contract enforces the sealed rule.' },
-  'raahat.relief.none': { hi: 'राहत के लिए कोई चेतावनी नहीं', en: 'No alert to release relief for' },
-  'raahat.relief.tier': { hi: 'स्तर {t} · {n} घर × ₹{a} = ₹{v}', en: 'Tier {t} · {n} households × ₹{a} = ₹{v}' },
-  'raahat.relief.release': { hi: 'जारी करें', en: 'Release' },
-  'raahat.relief.confirm': { hi: '{village} के {n} घरों के लिए ₹{v} (परीक्षण tINR) जारी करें?', en: 'Release ₹{v} (test tINR) for {n} households in {village}?' },
-  'raahat.relief.confirm.body': { hi: 'यह सार्वजनिक चेन पर एक लेन-देन है; इसे वापस नहीं लिया जा सकता।', en: 'This is a transaction on a public chain; it cannot be undone.' },
-  'raahat.relief.released': { hi: 'जारी हुआ', en: 'Released' },
-  'raahat.relief.failed': { hi: 'चेन पर जारी नहीं हो सका, फिर से कोशिश करें', en: 'The chain did not take it; try again' },
-  'raahat.relief.pool': { hi: 'कोष में: ₹{v} tINR', en: 'In the pool: ₹{v} tINR' },
-  'raahat.attest.title': { hi: 'बाढ़ की पुष्टि (तीन में से दो)', en: 'Flood confirmation (2 of 3)' },
-  'raahat.attest.pradhan': { hi: 'प्रधान', en: 'Pradhan' },
-  'raahat.attest.officer': { hi: 'अधिकारी', en: 'Officer' },
-  'raahat.attest.satellite': { hi: 'उपग्रह', en: 'Satellite' },
-  'raahat.attest.none': { hi: 'अभी नहीं', en: 'Not yet' },
-  'raahat.attest.severity': { hi: 'गंभीरता {s}/3', en: 'Severity {s}/3' },
-  'raahat.attest.confirmed': { hi: 'पुष्टि हो गई: दूसरी किस्त जारी हो सकती है', en: 'Confirmed: the second tranche can be released' },
-  'raahat.attest.as_officer': { hi: 'अधिकारी के रूप में पुष्टि करें', en: 'Attest as officer' },
-  'raahat.attest.note': { hi: 'आपने क्या देखा (छोटा नोट)', en: 'What you saw (short note)' },
-  'raahat.attest.send': { hi: 'पुष्टि भेजें', en: 'Send attestation' },
-  'raahat.attest.satellite_run': { hi: 'उपग्रह जाँच चलाएँ (Sentinel-2)', en: 'Run the satellite check (Sentinel-2)' },
-  'raahat.attest.satellite_none': { hi: 'इस गाँव के लिए उपग्रह चित्र नहीं है', en: 'No satellite imagery covers this village' },
-  'raahat.attest.photo': { hi: 'सत्यापित फ़ोटो रिपोर्ट से पुष्टि करें', en: 'Attest from a verified photo report' },
-  'raahat.attest.photo_none': { hi: 'आपके गाँव की कोई सत्यापित फ़ोटो रिपोर्ट नहीं', en: 'No verified photo report from your village' },
-  'raahat.attest.failed': { hi: 'पुष्टि नहीं भेजी जा सकी: {e}', en: 'Could not attest: {e}' },
-  'raahat.sev.0': { hi: '0 · कुछ नहीं दिखा', en: '0 · nothing seen' },
-  'raahat.sev.1': { hi: '1 · थोड़ा नुकसान', en: '1 · minor' },
-  'raahat.sev.2': { hi: '2 · नुकसान', en: '2 · damaging' },
-  'raahat.sev.3': { hi: '3 · भारी नुकसान', en: '3 · severe' },
-  'raahat.receipts.title': { hi: 'भुगतान की रसीदें', en: 'Payout receipts' },
-  'raahat.receipts.lead': { hi: 'हर घर को पैसा देने के बाद UPI या नकद का संदर्भ लिखें। चेन पर केवल उसका हैश जाता है।', en: 'After paying each household, enter the UPI or cash reference. Only its hash goes on chain.' },
-  'raahat.receipts.none': { hi: 'आपके गाँव के लिए अभी कोई राहत जारी नहीं हुई', en: 'No relief released for your village yet' },
-  'raahat.receipts.ref': { hi: 'UPI / नकद संदर्भ', en: 'UPI / cash reference' },
-  'raahat.receipts.record': { hi: 'रसीद दर्ज करें', en: 'Record receipt' },
-  'raahat.receipts.done': { hi: 'रसीद दर्ज', en: 'Receipt recorded' },
-  'raahat.receipts.count': { hi: 'रसीदें {n}/{t}', en: 'Receipts {n}/{t}' },
-  'raahat.step.attested': { hi: 'बाढ़ की पुष्टि', en: 'Flood confirmed' },
-  'raahat.step.receipts': { hi: 'घरों तक पहुँचा', en: 'Reached households' },
-  'raahat.error': { hi: 'राहत की जानकारी नहीं मिल सकी', en: 'Could not load Raahat' },
-
   // impact
   'impact.eyebrow': { hi: 'असर', en: 'Impact' },
   'impact.title': { hi: 'हम क्या माप रहे हैं', en: 'What we can show, and what we cannot yet' },
@@ -1161,7 +1039,14 @@ export const dict = {
   'learn.never.auto': { hi: 'प्रस्ताव अपने-आप कभी लागू नहीं होता।', en: 'A proposal is never applied on its own.' },
 } satisfies Record<string, Entry>;
 
+// Strings of lazily loaded features (Pukaar Raahat: i18n-raahat.ts) are registered when their code loads, so they
+// never weigh on the villager report page's main bundle.
 export type Key = keyof typeof dict;
+export type AnyKey = Key | RaahatKey;
+const extra: Record<string, Entry> = {};
+export function registerStrings(d: Record<string, Entry>): void {
+  Object.assign(extra, d);
+}
 
 const LEVEL_KEYS: Record<Level, Key> = {
   normal: 'level.normal',
@@ -1225,8 +1110,9 @@ export function format(template: string, vars?: Record<string, string | number>)
   return template.replace(/\{(\w+)\}/g, (_, k: string) => (k in vars ? String(vars[k]) : `{${k}}`));
 }
 
-export function translate(lang: Lang, key: Key, vars?: Record<string, string | number>): string {
-  return format(dict[key][lang], vars);
+export function translate(lang: Lang, key: AnyKey, vars?: Record<string, string | number>): string {
+  const entry = (dict as Record<string, Entry>)[key] ?? extra[key];
+  return format(entry ? entry[lang] : key, vars);
 }
 
 /** The officer tools: the console, audit, roster, sign-in and the one-tap approval link. */
@@ -1246,7 +1132,7 @@ export function useT() {
   const scope = scopeFor(pathname);
   const lang = usePrefs((s) => s.lang[scope]);
   const setLang = usePrefs((s) => s.setLang);
-  const t = (key: Key, vars?: Record<string, string | number>) => translate(lang, key, vars);
+  const t = (key: AnyKey, vars?: Record<string, string | number>) => translate(lang, key, vars);
   const pick = (e: Entry) => e[lang];
   return { t, lang, scope, pick, setLang: (l: Lang) => setLang(scope, l), other: (lang === 'hi' ? 'en' : 'hi') as Lang };
 }

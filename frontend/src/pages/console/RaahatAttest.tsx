@@ -4,6 +4,8 @@ import { api, ApiError } from '../../api';
 import { Skeleton } from '../../components/States';
 import { useT } from '../../i18n';
 import type { RaahatAttestations, RaahatAttester, Report } from '../../types';
+import { raahatApi } from '../../lib/raahatApi';
+import '../../i18n-raahat';
 
 const VERIFIED = new Set(['verified_auto', 'verified', 'reviewed', 'actioned', 'resolved']);
 const ATTESTERS: RaahatAttester[] = ['pradhan', 'officer', 'satellite'];
@@ -23,7 +25,7 @@ export function AttestControls({ alertId, villageId, role, onChange }: { alertId
   const [photos, setPhotos] = useState<Report[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const load = useCallback(() => api.raahatAttestations(alertId).then(setSt, () => undefined), [alertId]);
+  const load = useCallback(() => raahatApi.raahatAttestations(alertId).then(setSt, () => undefined), [alertId]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -35,11 +37,11 @@ export function AttestControls({ alertId, villageId, role, onChange }: { alertId
     );
   }, [role, villageId]);
 
-  const send = async (body: Parameters<typeof api.raahatAttest>[1]) => {
+  const send = async (body: Parameters<typeof raahatApi.raahatAttest>[1]) => {
     setBusy(true);
     setMsg(null);
     try {
-      await api.raahatAttest(alertId, body);
+      await raahatApi.raahatAttest(alertId, body);
       onChange?.();
     } catch (err) {
       setMsg(t('raahat.attest.failed', { e: reason(err, t as never) }));
