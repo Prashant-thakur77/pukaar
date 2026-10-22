@@ -94,8 +94,9 @@ GET  /agents                 public: agent registry, model and guardrail status 
 GET  /agents/traces?limit=5  public: round-by-round traces of recent alert drafts (limit 1-10)
 GET  /sensors                public: gauge board, latest readings, 24 h series and sensor findings
 POST /sensors/{id}/readings  public, HMAC-signed body (docs/hardware/README.md) -> 202
-GET  /cap/alerts.atom        public: ATOM index of the latest 50 published alerts
-GET  /cap/alerts/{id}.xml    public: one CAP 1.2 <alert> (application/cap+xml); 404 if not published
+GET  /cap/alerts.atom        public: ATOM index of the latest 50 published alerts and all-clear Cancels
+GET  /cap/alerts/{id}.xml    public: one CAP 1.2 <alert> (application/cap+xml); 404 if not published.
+                             id allclear-{village}-{UTC stamp}: the village's current all-clear Cancel
 GET  /health/deep            officer: one 1-token Converse call now; {bedrock: "ok"|"pending model access"|"failed"|"disabled", model, detail}; refreshes the cached model-access flag
 GET  /me                     {username, role, village_ids}
 POST /me/telegram-link       officer: {} -> {code, command, expires_in_seconds}  (one-time; send the

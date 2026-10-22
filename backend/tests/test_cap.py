@@ -31,8 +31,8 @@ def make(level="warning", status="delivered", *, replay=False, drill=False, prev
                  text_hi="पुकार: गोहर के लिए चेतावनी।", text_en="Pukaar: Warning for Gohar.")
 
 
-def render(a: Alert, previous: Alert | None = None) -> ET.Element:
-    xml = cap.render(a, VILLAGE, sender="pukaar-test@example.org", web_url="https://web.example", previous=previous)
+def render(a: Alert, refs: list[Alert] | None = None, village: Village | None = VILLAGE) -> ET.Element:
+    xml = cap.render(a, village, sender="pukaar-test@example.org", web_url="https://web.example", refs=refs or [])
     SCHEMA.validate(xml.decode("utf-8"))  # raises on any schema violation
     return ET.fromstring(xml)
 
@@ -99,16 +99,59 @@ def test_auto_sent_and_failsafe_are_published_pending_and_declined_are_not():
         cap.render(make(status="pending"), VILLAGE, sender="s", web_url="w")
 
 
-def test_update_references_the_earlier_published_alert():
+def test_update_references_every_unexpired_earlier_alert():
     first = make("watch", created="2026-07-01T01:00:00Z", decided="2026-07-01T01:03:00Z")
-    second = make("critical", previous_level="watch")
-    prev = cap.previous_published(second, [second, first, make("warning", "declined", approved=False)])
-    assert prev is first
-    root = render(second, previous=prev)
+    second = make("warning", previous_level="watch", created="2026-07-01T01:30:00Z", decided="2026-07-01T01:31:00Z")
+    stale = make("watch", created="2026-06-30T10:00:00Z", decided="2026-06-30T10:01:00Z")  # expired by 02:04
+    third = make("critical", previous_level="warning")
+    pool = [third, second, first, stale, make("warning", "declined", approved=False),
+            make("watch", village="pandoh", created="2026-07-01T01:10:00Z"),
+            make("watch", drill=True, created="2026-07-01T01:20:00Z")]
+    refs = cap.references(third, pool)
+    assert refs == [first, second]  # oldest first; not the expired, declined, other-village or drill alerts
+    root = render(third, refs=refs)
     assert text(root, "cap:msgType") == "Update"
-    assert text(root, "cap:references") == f"pukaar-test@example.org,{first.id},2026-07-01T06:33:00+05:30"
-    # A replay never updates a live alert.
-    assert cap.previous_published(make("critical", previous_level="watch", replay=True), [first]) is None
+    assert text(root, "cap:references") == (f"pukaar-test@example.org,{first.id},2026-07-01T06:33:00+05:30 "
+                                            f"pukaar-test@example.org,{second.id},2026-07-01T07:01:00+05:30")
+    # A replay never updates a live alert, and a rise from normal starts a new event.
+    assert cap.references(make("critical", previous_level="watch", replay=True), pool) == []
+    assert cap.references(make("critical", previous_level="normal"), pool) == []
+    assert text(render(make("critical", previous_level="normal")), "cap:msgType") == "Alert"
+
+
+@pytest.mark.parametrize("trace,code,event", [
+    ({"rain_level": "warning", "river_level": "watch"}, "OET-079", "Flash Flood"),
+    ({"rain_level": "warning", "river_level": "normal", "gauge_level": "warning"}, "OET-081", "Flood"),
+    ({"rain_level": "normal", "river_level": "critical"}, "OET-081", "Flood"),
+    ({}, "OET-081", "Flood"),  # drills and failsafe: no readings recorded
+])
+def test_event_code_matches_the_alert_type(trace, code, event):
+    a = make("warning")
+    a.decision_trace.update(trace)
+    root = render(a)
+    for info in root.findall("cap:info", NS):
+        assert text(info, "cap:eventCode/cap:valueName") == "OET:v1.2"
+        assert text(info, "cap:eventCode/cap:value") == code
+    en = root.find("cap:info[cap:language='en-IN']", NS)
+    assert text(en, "cap:event") == event and text(en, "cap:headline").startswith(event.replace("Flood", "Flood Warning"))
+
+
+def test_area_desc_fits_50_characters_and_carries_the_lgd_district_code():
+    long = Village(id="janjehli", name="Janjehli Upper Seraj Valley", name_hi="जंजैहली ऊपरी सिराज घाटी बस्ती",
+                   district="Mandi", lat=31.5, lon=77.2)
+    for village in (VILLAGE, long, Village(id="sujanpur", name="Sujanpur", name_hi="सुजानपुर", district="Hamirpur",
+                                           lat=31.8, lon=76.5)):
+        root = render(make(village=village.id), village=village)
+        for info in root.findall("cap:info", NS):
+            desc = text(info, "cap:area/cap:areaDesc")
+            assert 0 < len(desc) <= cap.AREA_DESC_MAX, desc
+            geo = {text(g, "cap:valueName"): text(g, "cap:value") for g in info.findall("cap:area/cap:geocode", NS)}
+            assert geo == {"LGD District Code": {"Mandi": "22", "Hamirpur": "17"}[village.district]}
+    hi_desc = text(render(make()).find("cap:info[cap:language='hi-IN']", NS), "cap:area/cap:areaDesc")
+    assert hi_desc == "गोहर, मंडी, हिमाचल प्रदेश"
+    # No code for a district we could not verify; the circle still locates the area.
+    other = Village(id="x", name="Kasol", name_hi="कसोल", district="Kullu", lat=32.0, lon=77.3)
+    assert render(make(village="x"), village=other).find("cap:info/cap:area/cap:geocode", NS) is None
 
 
 # -- HTTP ----------------------------------------------------------------

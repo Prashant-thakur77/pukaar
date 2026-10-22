@@ -145,23 +145,32 @@ _CAP_CACHE = {"Cache-Control": "public, max-age=60"}
 def cap_feed(request: Request) -> Response:
     """ATOM index of the latest published alerts, each linking to its CAP 1.2 XML."""
     s = get_settings()
-    alerts = [a for a in get_repo().list_alerts(limit=200) if cap.is_published(a)]
-    body = cap.atom(alerts, api_base=_api_base(request), web_url=s.web_url)
+    repo = get_repo()
+    alerts = [a for a in repo.list_alerts(limit=200) if cap.is_published(a)]
+    # Cancels are derived here from each village's level, never stored (services/cap.py).
+    clears = [c for c in (cap.all_clear(v, alerts) for v in repo.list_villages()) if c is not None]
+    body = cap.atom(alerts, api_base=_api_base(request), web_url=s.web_url, all_clears=clears)
     return Response(content=body, media_type=cap.ATOM_CONTENT_TYPE, headers=_CAP_CACHE)
 
 
 @router.get("/cap/alerts/{alert_id}.xml")
 def cap_alert(alert_id: str) -> Response:
-    """One published alert as a CAP 1.2 <alert>. Unpublished alerts (pending, declined, expired) are 404."""
+    """One published alert (or a village's all-clear Cancel) as a CAP 1.2 <alert>. Anything else is 404."""
     s = get_settings()
     repo = get_repo()
+    village_id = cap.parse_all_clear_id(alert_id)
+    if village_id is not None:
+        village = repo.get_village(village_id)
+        clear = cap.all_clear(village, repo.list_alerts(village_id=village_id, limit=100)) if village else None
+        if clear is None or clear.identifier != alert_id:
+            raise HTTPException(404, "No current all-clear with this id")
+        body = cap.render_all_clear(clear, sender=s.cap_sender, web_url=s.web_url)
+        return Response(content=body, media_type=cap.CAP_CONTENT_TYPE, headers=_CAP_CACHE)
     a = repo.get_alert(alert_id)
     if a is None or not cap.is_published(a):
         raise HTTPException(404, "No published alert with this id")
-    previous = None
-    if a.previous_level != "normal":
-        previous = cap.previous_published(a, repo.list_alerts(village_id=a.village_id, limit=100))
-    body = cap.render(a, repo.get_village(a.village_id), sender=s.cap_sender, web_url=s.web_url, previous=previous)
+    refs = cap.references(a, repo.list_alerts(village_id=a.village_id, limit=100))
+    body = cap.render(a, repo.get_village(a.village_id), sender=s.cap_sender, web_url=s.web_url, refs=refs)
     return Response(content=body, media_type=cap.CAP_CONTENT_TYPE, headers=_CAP_CACHE)
 
 
