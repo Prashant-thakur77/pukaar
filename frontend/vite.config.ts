@@ -18,8 +18,8 @@ export default defineConfig({
           'नदी से पहले गाँव तक पहुँचने वाली पुकार। The call that reaches the village before the river does: approved, spoken Hindi flood alerts and voice reports.',
         lang: 'hi',
         dir: 'ltr',
-        theme_color: '#0b1026',
-        background_color: '#0b1026',
+        theme_color: '#f7f5f0',
+        background_color: '#f7f5f0',
         display: 'standalone',
         start_url: '/report',
         scope: '/',
@@ -39,13 +39,12 @@ export default defineConfig({
         // The app shell (including /report and its fonts) is precached so the
         // report page opens with no network; API calls are never cached. Left out, so a
         // phone on 2G does not download them in the background on its first visit:
-        // MapLibre and the 3D hero; Noto Sans Devanagari (120 kB, and a system font on
-        // Android, see theme.css) and the display italic; and the officer and explainer
-        // pages, which load on demand as before.
+        // MapLibre and the 3D terrain; the Noto Sans Devanagari subsets (a system font on
+        // Android, see tokens.css); and the officer and explainer pages, which load on demand.
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         globIgnores: [
           '**/maplibre*', '**/HeroScene*', '**/*latin-ext*', '**/*cyrillic*', '**/*greek*', '**/*vietnamese*',
-          '**/noto-sans-devanagari*', '**/*italic*',
+          '**/noto-sans-devanagari*',
           '**/ConsolePage-*', '**/Roster-*', '**/Audit-*', '**/Pilot-*', '**/Impact-*', '**/Agents-*', '**/How-*', '**/Sensors-*',
         ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,

@@ -7,7 +7,6 @@ import { capFeedUrl } from '../lib/cap';
 import { TourButton } from '../components/Tour';
 import { Reveal } from '../components/Reveal';
 import { useT } from '../i18n';
-import { ValleyLine } from '../components/Art';
 
 type Txt = { hi: string; en: string };
 type Source = { label: string; href: string };
@@ -344,7 +343,7 @@ export default function How() {
         <div className="wrap-wide">
           <h2 id="how-cta-h" className="how-h">
             {en ? 'See it ' : 'खुद '}
-            <em className="hl-gold">{en ? 'working' : 'देखें'}</em>
+            {en ? 'working' : 'देखें'}
           </h2>
           <div className="how-cta-row">
             <Link to="/live" className="btn btn-accent">
@@ -364,7 +363,6 @@ export default function How() {
             </Ext>
           </div>
         </div>
-        <ValleyLine className="cta-valley" />
       </section>
     </div>
   );

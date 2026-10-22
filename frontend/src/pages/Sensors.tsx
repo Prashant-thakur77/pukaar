@@ -38,7 +38,6 @@ import { useReducedMotion } from '../hooks/useMotion';
 import { useT } from '../i18n';
 import { fmtAgo, fmtNumber } from '../lib/format';
 import type { SensorVillage, WatchFinding } from '../types';
-import { ValleyLine } from '../components/Art';
 
 type Txt = { hi: string; en: string };
 const HW = 'https://github.com/Prashant-thakur77/pukaar/tree/main/docs/hardware';
@@ -341,7 +340,7 @@ export default function Sensors() {
           <p className="how-eyebrow">{en ? 'The device path' : 'डिवाइस का रास्ता'}</p>
           <h2 id="sn-path-h" className="how-h">
             {en ? 'Gauge to ' : 'गेज से '}
-            <em className="hl-gold">{en ? 'alert' : 'चेतावनी तक'}</em>
+            {en ? 'alert' : 'चेतावनी तक'}
           </h2>
           <DevicePath />
           <div className="sn-path-notes">
@@ -480,7 +479,7 @@ export default function Sensors() {
         <div className="wrap-wide">
           <h2 id="sn-cta-h" className="how-h">
             {en ? 'Who reads the ' : 'रीडिंग कौन '}
-            <em className="hl-gold">{en ? 'readings' : 'पढ़ता है'}</em>
+            {en ? 'readings' : 'पढ़ता है'}
           </h2>
           <div className="how-cta-row">
             <Link to="/agents" className="btn btn-accent">
@@ -494,7 +493,6 @@ export default function Sensors() {
             </Link>
           </div>
         </div>
-        <ValleyLine className="cta-valley" />
       </section>
     </div>
   );

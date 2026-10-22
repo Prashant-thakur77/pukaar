@@ -91,11 +91,19 @@ function initialTheme(): ThemePref {
   return v === 'light' || v === 'dark' ? v : 'system';
 }
 
-export function applyTheme(theme: ThemePref) {
+/**
+ * Pages a villager opens (home, a village, report, tracking, the family link, the map) are light unless the
+ * visitor chose dark: light reads better outdoors on a cheap screen. Officer pages follow the system.
+ * index.html's pre-paint script applies the same rule before the first frame.
+ */
+export const VILLAGER_THEME_PATH = /^\/(?:$|village\/|report|t\/|safe\/|live)/;
+
+export function applyTheme(theme: ThemePref, pathname = typeof location === 'undefined' ? '/' : location.pathname) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  if (theme === 'system') root.removeAttribute('data-theme');
-  else root.setAttribute('data-theme', theme);
+  const resolved = theme === 'system' && VILLAGER_THEME_PATH.test(pathname) ? 'light' : theme;
+  if (resolved === 'system') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', resolved);
 }
 
 export const usePrefs = create<PrefState>((set, get) => ({

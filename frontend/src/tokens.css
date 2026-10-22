@@ -1,0 +1,327 @@
+/*
+ * Pukaar design tokens: the only file allowed to hold raw colours, font sizes, shadows and durations
+ * (scripts/check-tokens.mjs enforces it). Everything else uses var(--…) from here.
+ *
+ * Principles: the answer before the brand; Hindi is the design, not the translation; colour is reserved for
+ * risk. Base: warm neutral paper and one river-blue accent, so the four level colours are the only loud
+ * thing on a screen. A level is always icon + Hindi word + English word, never colour alone.
+ * Contrast ratios below are WCAG 2.x, computed (scripts/check-tokens.mjs --contrast prints them).
+ */
+
+/* ------------------------------------------------------------------------------------------------
+ * Fonts. One family for everything people read: Noto Sans Devanagari draws Devanagari and Latin with one
+ * voice. Android ships it, so local() comes first and most target phones download nothing. Elsewhere a
+ * subset loads (wght 400-700): Devanagari 69 kB, Latin 13 kB, each only when the page has that script.
+ * font-display: optional on the UI face, so a font that arrives late never reflows the answer.
+ * Tiro Devanagari Hindi is the display face, used only on the story pages (/, /how, /impact, /pilot,
+ * /agents, /sensors: html[data-story]); the browser fetches it only when a story heading needs it.
+ * ------------------------------------------------------------------------------------------------ */
+@font-face {
+  font-family: 'Noto Sans Devanagari';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: optional;
+  src: local('Noto Sans Devanagari'), local('NotoSansDevanagari-Regular'),
+    url('./fonts/noto-sans-devanagari-hi.woff2') format('woff2');
+  unicode-range: U+0900-097F, U+200C-200D, U+20B9, U+25CC;
+}
+@font-face {
+  font-family: 'Noto Sans Devanagari';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: optional;
+  src: local('Noto Sans Devanagari'), local('NotoSansDevanagari-Regular'),
+    url('./fonts/noto-sans-devanagari-latin.woff2') format('woff2');
+  unicode-range: U+0020-007E, U+00A0-00BF, U+00D7, U+00F7, U+2010-2027, U+2030-203A, U+2190-2193, U+2212;
+}
+@font-face {
+  font-family: 'Tiro Devanagari Hindi';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/tiro-devanagari-hindi-devanagari-400.woff2') format('woff2');
+  unicode-range: U+0900-097F, U+1CD0-1CF4, U+1CF7-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF;
+}
+@font-face {
+  font-family: 'Tiro Devanagari Hindi';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/tiro-devanagari-hindi-latin-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  color-scheme: light;
+
+  /* ---------- type: families ---------- */
+  --font-ui: 'Noto Sans Devanagari', 'Noto Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Tiro Devanagari Hindi', 'Noto Serif Devanagari', Georgia, serif;
+  /* Off the story pages the display face is the UI face (no serif on villager or officer routes). */
+  --font-display: var(--font-ui);
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ---------- type: scale. Mobile under 640, desktop from 1024, clamp() between. ---------- */
+  --t-level: clamp(40px, 13.333px + 4.1667vw, 56px);
+  --t-display: clamp(40px, 6.25vw, 64px);
+  --t-h1: clamp(30px, 6.667px + 3.6458vw, 44px);
+  --t-h2: clamp(24px, 14px + 1.5625vw, 30px);
+  --t-h3: clamp(20px, 16.667px + 0.5208vw, 22px);
+  --t-action: clamp(21px, 19.333px + 0.2604vw, 22px);
+  --t-lead: clamp(19px, 15.667px + 0.5208vw, 21px);
+  --t-body: 18px;
+  --t-small: 16px;
+  /* Console only: table metadata. Never on a public route. */
+  --t-meta: 14px;
+  --t-num-xl: clamp(48px, 6.25vw, 72px);
+
+  /* Line heights: Latin here, Devanagari under :lang(hi) below (the matras need the room). */
+  --lh-level: 1.15;
+  --lh-display: 1.08;
+  --lh-h1: 1.18;
+  --lh-h2: 1.22;
+  --lh-h3: 1.3;
+  --lh-action: 1.4;
+  --lh-lead: 1.45;
+  --lh-body: 1.5;
+  --lh-small: 1.5;
+  --lh-meta: 1.43;
+  --lh-num: 1.06;
+
+  /* Latin labels of 14 px or more only; never on Devanagari. */
+  --track-label: 0.06em;
+
+  /* ---------- spacing (4 px base) and layout ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+  --sp-9: 96px;
+  --gutter: 16px;
+  --section: var(--sp-7);
+  --w-read: 680px;
+  --w-content: 1120px;
+  --w-console: 1600px;
+  --header-h: 56px;
+
+  /* tap targets */
+  --tap: 48px;
+  --tap-console: 44px;
+  --tap-primary: 56px;
+
+  /* ---------- radii: three, nothing else ---------- */
+  --r-1: 6px;
+  --r-2: 10px;
+  --r-pill: 999px;
+
+  /* ---------- motion ---------- */
+  --dur-press: 90ms;
+  --dur-quick: 160ms;
+  --dur-base: 240ms;
+  --dur-slow: 400ms;
+  --dur-story: 1200ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ---------- colour: light (default) ---------- */
+  --bg: #f7f5f0; /* paper */
+  --surface: #ffffff;
+  --surface-2: #f0ede6;
+  --ink: #111820; /* 16.4 on bg, 17.9 on surface */
+  --ink-2: #3b4652; /* 8.8 on bg */
+  --ink-3: #5a6570; /* 5.5 on bg */
+  --line: #d9d5cc; /* decorative */
+  --line-strong: #8c8578; /* input borders, 3:1 non-text: 3.4 on bg */
+  --accent: #0b5cad; /* links and primary: 6.1 on bg */
+  --accent-text: #0b5cad;
+  --on-accent: #ffffff; /* 6.7 on accent */
+  --accent-tint: #e3edf7;
+  --focus: #ffd400;
+  --focus-ring: #111820;
+  /* Text that stays white on a dark fill in both themes (level fills, the critical banner). */
+  --on-dark: #ffffff;
+  --scrim: rgb(17 24 32 / 0.5);
+  /* Behind white text laid over a photo or a satellite image: the same in both themes. */
+  --photo-scrim: rgb(12 17 22 / 0.78);
+  --elev-overlay: 0 8px 24px rgb(0 0 0 / 0.16), 0 1px 2px rgb(0 0 0 / 0.08);
+
+  /* Level colours: fill (bars, meter, markers), on (text on the fill), tint (banner ground), ink (text on tint
+   * or paper), line (chart threshold, 3:1 or more on paper). Warning text on its fill is ink, never white. */
+  --lv-normal-fill: #1c7a4c;
+  --lv-normal-on: #ffffff; /* 5.3 */
+  --lv-normal-tint: #e6f2eb;
+  --lv-normal-ink: #145c39; /* 7.0 on tint, 7.4 on paper */
+  --lv-normal-line: #1c7a4c;
+  --lv-watch-fill: #ffd43b;
+  --lv-watch-on: #111820; /* 12.5 */
+  --lv-watch-tint: #fff6cc;
+  --lv-watch-ink: #5c4400; /* 8.5 */
+  --lv-watch-line: #8a6d00;
+  --lv-warning-fill: #f27a1f;
+  --lv-warning-on: #111820; /* 6.5 */
+  --lv-warning-tint: #fdebdc;
+  --lv-warning-ink: #8a3a00; /* 6.7 on tint, 7.2 on paper */
+  --lv-warning-line: #b4560f;
+  --lv-critical-fill: #a3121f;
+  --lv-critical-on: #ffffff; /* 7.9 */
+  --lv-critical-tint: #fbe3e5;
+  --lv-critical-ink: #8a0f1a; /* 8.0 on tint, 8.9 on paper */
+  --lv-critical-line: #a3121f;
+  --lv-nodata-fill: #5a6570;
+  --lv-nodata-on: #ffffff; /* 5.9 */
+  --lv-nodata-tint: #ecebe4;
+  --lv-nodata-ink: #111820;
+  --lv-nodata-line: #5a6570;
+  /* A 1 px edge on level fills: none by day, the dark-ink colour at night (a critical fill is 2.4:1 on the dark bg). */
+  --lv-critical-edge: transparent;
+
+  /* Status words that are not levels: ok is normal ink, bad is critical ink (only beside an icon and a word). */
+  --ok: var(--lv-normal-ink);
+  --bad: var(--lv-critical-ink);
+  --bad-tint: var(--lv-critical-tint);
+}
+
+/* ---------- Devanagari line heights: taller, for the matras above and below the line ---------- */
+:lang(hi) {
+  --lh-level: 1.4;
+  --lh-display: 1.36;
+  --lh-h1: 1.42;
+  --lh-h2: 1.48;
+  --lh-h3: 1.58;
+  --lh-action: 1.6;
+  --lh-lead: 1.66;
+  --lh-body: 1.66;
+  --lh-small: 1.69;
+  --lh-meta: 1.71;
+}
+:lang(en) {
+  --lh-level: 1.15;
+  --lh-display: 1.08;
+  --lh-h1: 1.18;
+  --lh-h2: 1.22;
+  --lh-h3: 1.3;
+  --lh-action: 1.4;
+  --lh-lead: 1.45;
+  --lh-body: 1.5;
+  --lh-small: 1.5;
+  --lh-meta: 1.43;
+}
+
+/* Story pages only: the display face is the serif. */
+:root[data-story] {
+  --font-display: var(--font-serif);
+}
+
+@media (min-width: 640px) {
+  :root { --gutter: 24px; }
+}
+@media (min-width: 1024px) {
+  :root { --gutter: 40px; --section: var(--sp-9); --header-h: 64px; }
+}
+
+/* ---------- colour: dark. The same block for an explicit choice and for the system setting. ---------- */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0c1116;
+  --surface: #141b22;
+  --surface-2: #1b242d;
+  --ink: #eceff2; /* 16.4 on bg */
+  --ink-2: #b9c2cc; /* 10.5 on bg */
+  --ink-3: #8d98a4; /* 6.5 on bg, 5.4 on surface-2 */
+  --line: #26313c;
+  --line-strong: #5b6875; /* 3.3 on bg */
+  --accent: #6cb4ff; /* 8.7 on bg */
+  --accent-text: #6cb4ff;
+  --on-accent: #0c1116; /* 8.2 */
+  --accent-tint: #15283b;
+  --focus: #ffd400;
+  --focus-ring: #0c1116;
+  --scrim: rgb(0 0 0 / 0.6);
+  --elev-overlay: 0 0 0 1px var(--line);
+  --lv-normal-ink: #5bd08f;
+  --lv-normal-tint: color-mix(in srgb, #1c7a4c 16%, #141b22);
+  --lv-watch-ink: #ffd43b;
+  --lv-watch-tint: color-mix(in srgb, #ffd43b 16%, #141b22);
+  --lv-warning-ink: #ff9a4d;
+  --lv-warning-tint: color-mix(in srgb, #f27a1f 16%, #141b22);
+  --lv-critical-ink: #ff7a85;
+  --lv-critical-tint: color-mix(in srgb, #a3121f 16%, #141b22);
+  --lv-critical-edge: #ff7a85;
+  --lv-nodata-ink: #eceff2;
+  --lv-nodata-tint: color-mix(in srgb, #5a6570 22%, #141b22);
+  --lv-normal-line: #5bd08f;
+  --lv-watch-line: #ffd43b;
+  --lv-warning-line: #ff9a4d;
+  --lv-critical-line: #ff7a85;
+  --lv-nodata-line: #8d98a4;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0c1116;
+    --surface: #141b22;
+    --surface-2: #1b242d;
+    --ink: #eceff2;
+    --ink-2: #b9c2cc;
+    --ink-3: #8d98a4;
+    --line: #26313c;
+    --line-strong: #5b6875;
+    --accent: #6cb4ff;
+    --accent-text: #6cb4ff;
+    --on-accent: #0c1116;
+    --accent-tint: #15283b;
+    --focus: #ffd400;
+    --focus-ring: #0c1116;
+    --scrim: rgb(0 0 0 / 0.6);
+    --elev-overlay: 0 0 0 1px var(--line);
+    --lv-normal-ink: #5bd08f;
+    --lv-normal-tint: color-mix(in srgb, #1c7a4c 16%, #141b22);
+    --lv-watch-ink: #ffd43b;
+    --lv-watch-tint: color-mix(in srgb, #ffd43b 16%, #141b22);
+    --lv-warning-ink: #ff9a4d;
+    --lv-warning-tint: color-mix(in srgb, #f27a1f 16%, #141b22);
+    --lv-critical-ink: #ff7a85;
+    --lv-critical-tint: color-mix(in srgb, #a3121f 16%, #141b22);
+    --lv-critical-edge: #ff7a85;
+    --lv-nodata-ink: #eceff2;
+    --lv-nodata-tint: color-mix(in srgb, #5a6570 22%, #141b22);
+    --lv-normal-line: #5bd08f;
+    --lv-watch-line: #ffd43b;
+    --lv-warning-line: #ff9a4d;
+    --lv-critical-line: #ff7a85;
+    --lv-nodata-line: #8d98a4;
+  }
+}
+
+/* Level helpers: any element with .lv-<level> gets --lv (fill), --lv-on, --lv-tint, --lv-ink, --lv-line. */
+.lv-normal { --lv: var(--lv-normal-fill); --lv-on: var(--lv-normal-on); --lv-tint: var(--lv-normal-tint); --lv-ink: var(--lv-normal-ink); --lv-line: var(--lv-normal-line); }
+.lv-watch { --lv: var(--lv-watch-fill); --lv-on: var(--lv-watch-on); --lv-tint: var(--lv-watch-tint); --lv-ink: var(--lv-watch-ink); --lv-line: var(--lv-watch-line); }
+.lv-warning { --lv: var(--lv-warning-fill); --lv-on: var(--lv-warning-on); --lv-tint: var(--lv-warning-tint); --lv-ink: var(--lv-warning-ink); --lv-line: var(--lv-warning-line); }
+.lv-critical { --lv: var(--lv-critical-fill); --lv-on: var(--lv-critical-on); --lv-tint: var(--lv-critical-tint); --lv-ink: var(--lv-critical-ink); --lv-line: var(--lv-critical-line); }
+.lv-nodata { --lv: var(--lv-nodata-fill); --lv-on: var(--lv-nodata-on); --lv-tint: var(--lv-nodata-tint); --lv-ink: var(--lv-nodata-ink); --lv-line: var(--lv-nodata-line); }
+
+/* ---------- Hindi: never letter-spaced, upper-cased, italic or clipped to a gradient ---------- */
+:lang(hi) {
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  font-style: normal !important;
+}
+
+/* ---------- reduced motion: nothing moves; states change at once ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

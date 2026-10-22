@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Kicker, ValleyLine } from '../components/Art';
+import { Kicker } from '../components/Art';
 import { useT } from '../i18n';
 
 export default function NotFound() {
@@ -14,7 +14,6 @@ export default function NotFound() {
         <Link to="/" className="btn btn-accent btn-lg">
           {t('nav.home')} →
         </Link>
-        <ValleyLine quiet className="nf-valley" />
       </section>
     </div>
   );

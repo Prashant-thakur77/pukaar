@@ -33,7 +33,6 @@ import { usePoll } from '../hooks/usePoll';
 import { useT } from '../i18n';
 import { fmtAgo } from '../lib/format';
 import type { AgentCard, AgentRegistry, AgentState, AgentTrace, TraceKind, TraceRound } from '../types';
-import { ValleyLine } from '../components/Art';
 
 type Txt = { hi: string; en: string };
 const GITHUB = 'https://github.com/Prashant-thakur77/pukaar';
@@ -517,7 +516,7 @@ export default function Agents() {
             <p className="how-eyebrow">{en ? 'For district officers' : 'ज़िला अधिकारियों के लिए'}</p>
             <h2 id="ag-ask-h" className="how-h">
               {en ? 'Ask ' : 'पुकार से '}
-              <em className="hl-gold">{en ? 'Pukaar' : 'पूछें'}</em>
+              {en ? 'Pukaar' : 'पूछें'}
             </h2>
             <p className="how-lead">
               {en
@@ -591,7 +590,7 @@ export default function Agents() {
         <div className="wrap-wide">
           <h2 id="ag-cta-h" className="how-h">
             {en ? 'From the river ' : 'नदी से '}
-            <em className="hl-gold">{en ? 'to the rules' : 'नियमों तक'}</em>
+            {en ? 'to the rules' : 'नियमों तक'}
           </h2>
           <div className="how-cta-row">
             <Link to="/sensors" className="btn btn-accent">
@@ -605,7 +604,6 @@ export default function Agents() {
             </Ext>
           </div>
         </div>
-        <ValleyLine className="cta-valley" />
       </section>
     </div>
   );

@@ -7,7 +7,7 @@ import { QRCode } from '../components/QRCode';
 import { ErrorState } from '../components/States';
 import { useT, type Key } from '../i18n';
 import { useAuth } from '../store';
-import { Lehar, ValleyLine } from '../components/Art';
+import { Lehar } from '../components/Art';
 
 const DEMO: { username: string; label: Key }[] = [
   { username: 'officer1', label: 'login.demo.officer1' },
@@ -105,7 +105,6 @@ export default function Login() {
         <p className="login-art-tag" lang="hi">
           नदी से पहले, गाँव तक।
         </p>
-        <ValleyLine className="login-valley" />
       </section>
       <section className="login-panel">
         <div className="login-box">

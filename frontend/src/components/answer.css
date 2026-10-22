@@ -1,0 +1,147 @@
+/* The answer: level banner (C1), freshness (C6), what to do (C3), sticky action bar (C4), village rows (C7).
+   Painted in its final state; nothing here animates in. */
+
+/* ---------- C1 level banner ---------- */
+.lvb {
+  background: var(--lv-tint);
+  color: var(--ink);
+  border-left: 8px solid var(--lv);
+  border-radius: var(--r-2);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-4);
+}
+.lvb.lv-critical {
+  background: var(--lv);
+  color: var(--lv-on);
+  border-left-color: var(--lv);
+  outline: 1px solid var(--lv-critical-edge);
+}
+.lvb-head { display: flex; align-items: center; gap: var(--sp-3); }
+.lvb-head .lvb-icon { width: 36px; height: 36px; flex: none; color: var(--lv-ink); stroke-width: 2.4; }
+.lvb-word {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--t-level);
+  line-height: var(--lh-level);
+  font-weight: 700;
+  color: var(--lv-ink);
+}
+.lv-nodata .lvb-word { font-size: var(--t-h2); line-height: var(--lh-h2); }
+.lvb.lv-critical .lvb-icon,
+.lvb.lv-critical .lvb-word,
+.lvb.lv-critical .lvb-sub { color: inherit; }
+.lvb-sub { font-size: var(--t-lead); line-height: var(--lh-lead); font-weight: 600; color: var(--lv-ink); margin-top: var(--sp-1); }
+.lvb-place { font-size: var(--t-h3); line-height: var(--lh-h3); font-weight: 700; margin-top: var(--sp-3); }
+.lvb-place .lvb-en { font-weight: 400; color: var(--ink-2); }
+.lvb.lv-critical .lvb-place .lvb-en { color: inherit; }
+.lvb-why { font-size: var(--t-lead); line-height: var(--lh-lead); color: var(--ink-2); margin-top: var(--sp-2); max-width: 34em; }
+.lvb.lv-critical .lvb-why { color: inherit; }
+
+/* The four-step meter: bars that rise like a river gauge; filled up to the level. */
+.lv-meter { display: inline-flex; align-items: flex-end; gap: 3px; flex: none; height: 32px; }
+.lv-meter i { display: block; width: 9px; border: 2px solid var(--lv-line); border-radius: 0; }
+.lv-meter i:nth-child(1) { height: 14px; }
+.lv-meter i:nth-child(2) { height: 20px; }
+.lv-meter i:nth-child(3) { height: 26px; }
+.lv-meter i:nth-child(4) { height: 32px; }
+.lv-meter i.is-on { background: var(--lv-line); }
+.lvb.lv-critical .lv-meter i { border-color: var(--lv-on); }
+.lvb.lv-critical .lv-meter i.is-on { background: var(--lv-on); }
+
+/* ---------- C6 freshness ---------- */
+.fresh {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2);
+  font-size: var(--t-small); line-height: var(--lh-small); color: var(--ink-2); margin-top: var(--sp-3);
+  font-variant-numeric: tabular-nums;
+}
+.lvb.lv-critical .fresh { color: inherit; }
+.fresh-chip {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  background: var(--lv-warning-tint); color: var(--lv-warning-ink); font-weight: 600;
+  border-radius: var(--r-1); padding: 0 var(--sp-2);
+}
+.fresh-chip svg { width: 18px; height: 18px; }
+.fresh.is-offline .fresh-chip { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); }
+
+/* ---------- C3 what to do ---------- */
+.acts { margin-top: var(--sp-5); counter-reset: act; }
+.acts-h { font-size: var(--t-h2); line-height: var(--lh-h2); font-weight: 700; }
+.acts-list { margin-top: var(--sp-2); }
+.acts-list li {
+  counter-increment: act;
+  display: grid; grid-template-columns: 36px 1fr; column-gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--line);
+}
+.acts-list li:first-child { border-top: 0; }
+.acts-list li::before {
+  content: counter(act);
+  grid-row: span 2;
+  display: grid; place-items: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 2px solid var(--lv-line); color: var(--lv-ink);
+  font-weight: 700; font-size: var(--t-body); line-height: 1; font-variant-numeric: tabular-nums;
+}
+.acts.lv-critical .acts-list li::before,
+.acts.lv-warning .acts-list li::before { background: var(--lv); border-color: var(--lv); color: var(--lv-on); }
+.acts-hi { display: block; font-size: var(--t-action); line-height: var(--lh-action); font-weight: 600; color: var(--ink); }
+.acts-en { display: block; font-size: var(--t-small); line-height: var(--lh-small); color: var(--ink-3); margin-top: 2px; }
+.acts-more { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-4); }
+
+/* A plain text action: 48 px tall, the whole line is the target. */
+.go-link {
+  display: inline-flex; align-items: center; gap: var(--sp-2); min-height: var(--tap);
+  color: var(--accent-text); font-weight: 700; font-size: var(--t-body); text-decoration: underline; text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+}
+.go-link svg { width: 20px; height: 20px; }
+
+/* ---------- C4 sticky action bar ---------- */
+.sab {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  display: flex; justify-content: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4) calc(var(--sp-2) + env(safe-area-inset-bottom));
+  background: var(--surface); border-top: 1px solid var(--line); box-shadow: var(--elev-overlay);
+}
+.sab-btn {
+  flex: 1 1 0; max-width: 480px; min-height: var(--tap-primary);
+  display: inline-flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-4);
+  border-radius: var(--r-2); font-weight: 700; font-size: var(--t-body); line-height: 1.25; text-decoration: none;
+  transition: background-color var(--dur-quick) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.sab-btn:active { transform: scale(0.98); }
+.sab-btn svg { width: 22px; height: 22px; flex: none; }
+.sab-where { background: var(--accent); color: var(--on-accent); }
+.sab-112 { flex: 0 1 auto; background: var(--lv-critical-fill); color: var(--lv-critical-on); outline: 1px solid var(--lv-critical-edge); }
+.sab-text { flex: 1; min-width: 0; }
+.sab-place { font-weight: 400; }
+.sab-go { margin-left: auto; }
+.sab-spacer { height: calc(var(--tap-primary) + var(--sp-5) + env(safe-area-inset-bottom)); }
+
+/* ---------- C7 village rows ---------- */
+.vrows { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); overflow: hidden; }
+.vrows li + li { border-top: 1px solid var(--line); }
+.vrow {
+  display: grid; grid-template-columns: 1fr auto 20px; align-items: center; gap: var(--sp-3);
+  min-height: 56px; padding: var(--sp-2) var(--sp-4);
+  color: var(--ink); text-decoration: none;
+  box-shadow: inset 4px 0 0 var(--lv);
+  transition: background-color var(--dur-quick) var(--ease-out);
+}
+.vrow:hover { background: var(--surface-2); }
+.vrow-name { min-width: 0; }
+.vrow-name [lang='hi'] { font-size: var(--t-body); font-weight: 700; }
+.vrow-en { font-size: var(--t-small); color: var(--ink-3); }
+.vrow-level { display: inline-flex; align-items: center; gap: 6px; color: var(--lv-ink); font-weight: 700; font-size: var(--t-small); }
+.vrow-level svg { width: 20px; height: 20px; }
+.vrow-go { width: 20px; height: 20px; color: var(--ink-3); }
+
+@media (min-width: 1024px) {
+  .lvb { padding: var(--sp-5) var(--sp-5) var(--sp-5) var(--sp-6); }
+  .lvb-head .lvb-icon { width: 48px; height: 48px; }
+  .lv-meter { height: 40px; gap: 4px; }
+  .lv-meter i { width: 11px; }
+  .lv-meter i:nth-child(1) { height: 16px; }
+  .lv-meter i:nth-child(2) { height: 24px; }
+  .lv-meter i:nth-child(3) { height: 32px; }
+  .lv-meter i:nth-child(4) { height: 40px; }
+}

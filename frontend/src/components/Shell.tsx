@@ -1,60 +1,42 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import {
-  Bot,
-  ChevronDown,
-  ClipboardCheck,
-  History,
-  LogOut,
-  Menu,
-  Moon,
-  Phone,
-  RadioTower,
-  Sun,
-  SunMoon,
-  TriangleAlert,
-  Wifi,
-  WifiOff,
-  Workflow,
-  X,
-} from 'lucide-react';
+import { ChevronDown, CloudOff, History, LogOut, Menu, Moon, Phone, Sun, SunMoon, TriangleAlert, X } from 'lucide-react';
 import { api } from '../api';
-import { useT } from '../i18n';
+import { useT, type Key } from '../i18n';
 import { flushQueue, refreshQueueCount } from '../lib/queue';
-import { useAuth, useNet, usePrefs, type ThemePref } from '../store';
+import { applyTheme, useAuth, useNet, usePrefs, type ThemePref } from '../store';
 import { usePoll } from '../hooks/usePoll';
 import { fmtTime } from '../lib/format';
 import { REPLAY_EVENT } from '../lib/events';
 import { TourHost } from './Tour';
 import { LivePill } from './LivePill';
-import { ValleyLine } from './Art';
+import './shell.css';
 
-/** The villager pages stay light on cheap phones: no display font, not even in the header. */
-const isVillagerRoute = (p: string) => p.startsWith('/report') || p.startsWith('/t/');
+/** Officer pages: the live-push pill belongs in their header, not the public one. */
+const isStaffRoute = (p: string) => /^\/(console|audit|roster)(\/|$)/.test(p);
+/** The story pages are the only ones set in the display serif. */
+const isStoryRoute = (p: string) => /^\/(how|agents|sensors|impact|pilot)?\/?$/.test(p);
 
-const NAV = [
-  { to: '/live', key: 'nav.live' },
-  { to: '/how', key: 'nav.how' },
-  { to: '/report', key: 'nav.report' },
-  { to: '/console', key: 'nav.console' },
+type NavItem = { to: string; key: Key; sub?: Key };
+/** The four public places (spec 2.3): status, report, how it works, proof and pilot. */
+const HOW: NavItem[] = [
+  { to: '/how', key: 'nav.loop', sub: 'nav.loop.sub' },
+  { to: '/agents', key: 'nav.agents', sub: 'nav.agents.sub' },
+  { to: '/sensors', key: 'nav.sensors', sub: 'nav.sensors.sub' },
+];
+const PROOF: NavItem[] = [
   { to: '/impact', key: 'nav.impact' },
-] as const;
+  { to: '/pilot', key: 'nav.pilot', sub: 'nav.pilot.sub' },
+];
 
-/** "How it works" opens a small menu: the loop, the agents, the sensors, the pilot. */
-const HOW_GROUP = [
-  { to: '/how', key: 'nav.loop', sub: 'nav.loop.sub', icon: Workflow },
-  { to: '/agents', key: 'nav.agents', sub: 'nav.agents.sub', icon: Bot },
-  { to: '/sensors', key: 'nav.sensors', sub: 'nav.sensors.sub', icon: RadioTower },
-  { to: '/pilot', key: 'nav.pilot', sub: 'nav.pilot.sub', icon: ClipboardCheck },
-] as const;
-
-function HowMenu() {
+/** A header item that opens a short list (desktop). Closes on navigation, Escape and a click away. */
+function NavGroup({ label, items, id }: { label: string; items: NavItem[]; id: string }) {
   const { t } = useT();
   const { pathname } = useLocation();
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
   const ref = useRef<HTMLDivElement>(null);
-  const active = HOW_GROUP.some((g) => pathname === g.to);
+  const active = items.some((g) => pathname === g.to);
   useEffect(() => {
     if (!open) return;
     const away = (e: PointerEvent) => {
@@ -71,29 +53,21 @@ function HowMenu() {
     };
   }, [open]);
   return (
-    <div className={`hdr-group${open ? ' is-open' : ''}`} ref={ref}>
+    <div className={`hd-group${open ? ' is-open' : ''}`} ref={ref}>
       <button
         type="button"
-        className={`hdr-link hdr-group-btn${active ? ' is-active' : ''}`}
+        className={`hd-link${active ? ' is-active' : ''}`}
         aria-expanded={open}
-        aria-controls="hdr-how-menu"
+        aria-controls={id}
         onClick={() => setOpenOn(open ? null : pathname)}
       >
-        {t('nav.how')} <ChevronDown aria-hidden="true" className="hdr-caret" />
+        {label} <ChevronDown aria-hidden="true" className="hd-caret" />
       </button>
-      <span className="hdr-group-label" aria-hidden="true">
-        {t('nav.how')}
-      </span>
-      <div className="hdr-pop" id="hdr-how-menu">
-        {HOW_GROUP.map((g) => (
-          <NavLink key={g.to} to={g.to} end className={({ isActive }) => `hdr-pop-link${isActive ? ' is-active' : ''}`}>
-            <span className="hdr-pop-icon" aria-hidden="true">
-              <g.icon />
-            </span>
-            <span className="hdr-pop-text">
-              <span className="hdr-pop-title">{t(g.key)}</span>
-              <span className="hdr-pop-sub">{t(g.sub)}</span>
-            </span>
+      <div className="hd-pop" id={id}>
+        {items.map((g) => (
+          <NavLink key={g.to} to={g.to} end className={({ isActive }) => `hd-pop-link${isActive ? ' is-active' : ''}`}>
+            <span className="hd-pop-title">{t(g.key)}</span>
+            {g.sub && <span className="hd-pop-sub">{t(g.sub)}</span>}
           </NavLink>
         ))}
       </div>
@@ -103,127 +77,215 @@ function HowMenu() {
 
 const THEMES: ThemePref[] = ['system', 'light', 'dark'];
 
-/** The mark: a gold disc, two Himalayan peaks, the river under them and the call rising from the village. */
+/** The mark: the river-blue disc, two Himalayan peaks, the river under them and the call rising from the village. */
 export function PukaarMark({ size = 30 }: { size?: number }) {
   return (
     <svg className="pk-mark" width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-      <circle cx="16" cy="16" r="16" fill="var(--gold)" />
-      <path d="M4.5 22.5 11 12.5l3.6 5.2L19 10l8.5 12.5z" fill="var(--night-0)" />
-      <path d="M17.3 13.2 19 10.6l1.7 2.6c-.6.3-1.1.4-1.7.4s-1.1-.1-1.7-.4z" fill="var(--cream)" />
-      <path d="M4 25.6c2 0 2-1.2 4-1.2s2 1.2 4 1.2 2-1.2 4-1.2 2 1.2 4 1.2 2-1.2 4-1.2 2 1.2 4 1.2" fill="none" stroke="var(--night-0)" strokeWidth="1.6" strokeLinecap="round" />
-      <path className="pk-call" d="M8.2 9.6a4 4 0 0 1 0-4.6M5.6 11.4a7.2 7.2 0 0 1 0-8.2" fill="none" stroke="var(--night-0)" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="16" cy="16" r="16" fill="var(--accent)" />
+      <path d="M4.5 22.5 11 12.5l3.6 5.2L19 10l8.5 12.5z" fill="var(--on-accent)" />
+      <path d="M4 25.6c2 0 2-1.2 4-1.2s2 1.2 4 1.2 2-1.2 4-1.2 2 1.2 4 1.2 2-1.2 4-1.2 2 1.2 4 1.2" fill="none" stroke="var(--on-accent)" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M8.2 9.6a4 4 0 0 1 0-4.6M5.6 11.4a7.2 7.2 0 0 1 0-8.2" fill="none" stroke="var(--on-accent)" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
 
-export function Wordmark({ small }: { small?: boolean }) {
+export function Wordmark() {
   return (
-    <span className={`wordmark${small ? ' is-small' : ''}`}>
-      <PukaarMark size={small ? 26 : 30} />
+    <span className="wordmark">
+      <PukaarMark size={28} />
       <span lang="hi" className="wm-hi">
         पुकार
       </span>
-      <span className="wm-en">Pukaar</span>
+      <span className="wm-en" lang="en">
+        Pukaar
+      </span>
     </span>
   );
 }
 
-export function Call112({ variant = 'pill', breathe }: { variant?: 'pill' | 'fab'; breathe?: boolean }) {
+/** 112, a real tel: link, in the header on every route. The sticky bar and the footer reuse it. */
+export function Call112({ compact = false }: { compact?: boolean }) {
   const { t } = useT();
   return (
-    <a href="tel:112" className={`call112 call112-${variant}${breathe ? ' is-breathing' : ''}`} aria-label={t('shell.call112.aria')}>
+    <a href="tel:112" className={`call112${compact ? ' is-compact' : ''}`} aria-label={t('shell.call112.aria')}>
       <Phone aria-hidden="true" />
-      <span lang="hi" className="c112-hi">
-        आपातकाल
-      </span>
+      {!compact && (
+        <span lang="hi" className="c112-hi">
+          आपातकाल
+        </span>
+      )}
       <span className="c112-num">112</span>
     </a>
   );
 }
 
-function OnlineDot() {
+function ThemeButton({ inSheet = false }: { inSheet?: boolean }) {
   const { t } = useT();
-  const online = useNet((s) => s.online);
-  const queued = useNet((s) => s.queued);
+  const theme = usePrefs((s) => s.theme);
+  const setTheme = usePrefs((s) => s.setTheme);
+  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : SunMoon;
+  const nextTheme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  const label = `${t('shell.theme')}: ${t(`shell.theme.${theme}`)}`;
   return (
-    <span className={`net ${online ? 'is-on' : 'is-off'}`} role="status">
-      {online ? <Wifi aria-hidden="true" /> : <WifiOff aria-hidden="true" />}
-      <span className="net-word">{online ? t('shell.online') : t('shell.offline')}</span>
-      {queued > 0 && <span className="net-q">{t('shell.queued', { n: queued })}</span>}
-    </span>
+    <button type="button" className={inSheet ? 'sheet-row' : 'hd-icon'} onClick={() => setTheme(nextTheme)} aria-label={inSheet ? undefined : label} title={label}>
+      <ThemeIcon aria-hidden="true" />
+      {inSheet && <span>{label}</span>}
+    </button>
+  );
+}
+
+/** The menu on phones: a full-height sheet, 56 px rows. */
+function MenuSheet({ onClose }: { onClose: () => void }) {
+  const { t } = useT();
+  const user = useAuth((s) => s.user);
+  const signOut = useAuth((s) => s.signOut);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    closeRef.current?.focus();
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', esc);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', esc);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+  const row = ({ isActive }: { isActive: boolean }) => `sheet-row${isActive ? ' is-active' : ''}`;
+  return (
+    <div className="sheet" role="dialog" aria-modal="true" aria-label={t('nav.menu')} id="hd-sheet">
+      <div className="sheet-top">
+        <Wordmark />
+        <button ref={closeRef} type="button" className="hd-icon" onClick={onClose} aria-label={t('nav.close')}>
+          <X aria-hidden="true" />
+        </button>
+      </div>
+      <nav aria-label="Main" className="sheet-nav">
+        <NavLink to="/" end className={row}>
+          {t('nav.status')}
+        </NavLink>
+        <NavLink to="/report" className={row}>
+          {t('nav.report')}
+        </NavLink>
+        <NavLink to="/live" className={row}>
+          {t('nav.map')}
+        </NavLink>
+        <p className="sheet-h">{t('nav.how')}</p>
+        {HOW.map((g) => (
+          <NavLink key={g.to} to={g.to} end className={row}>
+            {t(g.key)}
+          </NavLink>
+        ))}
+        <p className="sheet-h">{t('nav.proof')}</p>
+        {PROOF.map((g) => (
+          <NavLink key={g.to} to={g.to} end className={row}>
+            {t(g.key)}
+          </NavLink>
+        ))}
+      </nav>
+      <div className="sheet-tools">
+        {user ? (
+          <>
+            <NavLink to="/console" className={row}>
+              {user.role === 'pradhan' ? t('console.title.pradhan') : t('nav.console')}
+            </NavLink>
+            <button type="button" className="sheet-row" onClick={signOut}>
+              <LogOut aria-hidden="true" /> <span>{t('shell.signout')}</span>
+            </button>
+          </>
+        ) : (
+          <NavLink to="/login" className={row}>
+            {t('nav.officer.signin')}
+          </NavLink>
+        )}
+        <ThemeButton inSheet />
+        <a className="sheet-row" href="https://github.com/Prashant-thakur77/pukaar" target="_blank" rel="noreferrer">
+          GitHub ↗
+        </a>
+      </div>
+    </div>
   );
 }
 
 function Header() {
   const { t, lang, setLang, other } = useT();
-  const theme = usePrefs((s) => s.theme);
-  const setTheme = usePrefs((s) => s.setTheme);
   const user = useAuth((s) => s.user);
   const signOut = useAuth((s) => s.signOut);
   const { pathname } = useLocation();
-  // The menu closes on navigation: it is only "open" for the path it was opened on.
+  // The sheet closes on navigation: it is only "open" for the path it was opened on.
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
-  const setOpen = (fn: (o: boolean) => boolean) => setOpenOn(fn(open) ? pathname : null);
-  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : SunMoon;
-  const nextTheme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-
+  const close = useCallback(() => setOpenOn(null), []);
   return (
-    <header className={`site-header${pathname === '/' ? ' is-over-hero' : ''}${isVillagerRoute(pathname) ? ' is-light' : ''}`}>
-      <div className="hdr-inner">
-        <Link to="/" className="hdr-brand" aria-label="Pukaar पुकार — home">
-          <Wordmark small />
+    <header className="hd">
+      <div className="hd-inner">
+        <Link to="/" className="hd-brand" aria-label="पुकार Pukaar: गाँवों का हाल · village status">
+          <Wordmark />
         </Link>
-        <nav className={`hdr-nav${open ? ' is-open' : ''}`} aria-label="Main">
-          {NAV.map((n) =>
-            n.to === '/how' ? (
-              <HowMenu key={n.to} />
-            ) : (
-              <NavLink key={n.to} to={n.to} className={({ isActive }) => `hdr-link${isActive ? ' is-active' : ''}`}>
-                {n.to === '/console' && user?.role === 'pradhan' ? t('console.title.pradhan') : t(n.key)}
-              </NavLink>
-            ),
-          )}
-          {user && (
-            <button type="button" className="hdr-link hdr-signout" onClick={signOut}>
-              <LogOut aria-hidden="true" /> {t('shell.signout')}
-            </button>
-          )}
+        <nav className="hd-nav" aria-label="Main">
+          <NavLink to="/" end className={({ isActive }) => `hd-link${isActive ? ' is-active' : ''}`}>
+            {t('nav.status')}
+          </NavLink>
+          <NavLink to="/report" className={({ isActive }) => `hd-link${isActive ? ' is-active' : ''}`}>
+            {t('nav.report')}
+          </NavLink>
+          <NavGroup label={t('nav.how')} items={HOW} id="hd-how" />
+          <NavGroup label={t('nav.proof')} items={PROOF} id="hd-proof" />
         </nav>
-        <div className="hdr-tools">
-          <OnlineDot />
-          <LivePill header />
-          <button
-            type="button"
-            className="icon-btn lang-btn"
-            onClick={() => setLang(other)}
-            aria-label={t('shell.lang')}
-            title={t('shell.lang')}
-          >
+        <div className="hd-tools">
+          {isStaffRoute(pathname) && <LivePill header />}
+          {user ? (
+            <span className="hd-desk hd-user">
+              <NavLink to="/console" className={({ isActive }) => `hd-link${isActive ? ' is-active' : ''}`}>
+                {user.role === 'pradhan' ? t('console.title.pradhan') : t('nav.console')}
+              </NavLink>
+              <button type="button" className="hd-icon" onClick={signOut} aria-label={t('shell.signout')} title={t('shell.signout')}>
+                <LogOut aria-hidden="true" />
+              </button>
+            </span>
+          ) : (
+            <NavLink to="/login" className={({ isActive }) => `hd-link hd-desk${isActive ? ' is-active' : ''}`}>
+              {t('nav.officer')}
+            </NavLink>
+          )}
+          <button type="button" className="hd-icon hd-lang" onClick={() => setLang(other)} aria-label={t('shell.lang')} title={t('shell.lang')}>
             <span lang={other}>{lang === 'hi' ? 'EN' : 'हि'}</span>
           </button>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => setTheme(nextTheme)}
-            aria-label={`${t('shell.theme')}: ${t(`shell.theme.${theme}`)}`}
-            title={`${t('shell.theme')}: ${t(`shell.theme.${theme}`)}`}
-          >
-            <ThemeIcon aria-hidden="true" />
-          </button>
+          <span className="hd-desk">
+            <ThemeButton />
+          </span>
           <Call112 />
           <button
             type="button"
-            className="icon-btn hdr-menu"
+            className="hd-icon hd-menu"
             aria-expanded={open}
-            aria-label={open ? t('nav.close') : t('nav.menu')}
-            onClick={() => setOpen((o) => !o)}
+            aria-controls="hd-sheet"
+            aria-label={t('nav.menu')}
+            onClick={() => setOpenOn(pathname)}
           >
-            {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+            <Menu aria-hidden="true" />
           </button>
         </div>
       </div>
+      {open && <MenuSheet onClose={close} />}
     </header>
+  );
+}
+
+/** Connectivity only by exception: a full-width line under the header when the phone is offline. */
+function OfflineBanner() {
+  const { t } = useT();
+  const online = useNet((s) => s.online);
+  const queued = useNet((s) => s.queued);
+  if (online && queued === 0) return null;
+  return (
+    <div className="offline-banner" role="status">
+      <CloudOff aria-hidden="true" />
+      <span>
+        {online ? null : t('shell.offline.banner')}
+        {queued > 0 && <> {online ? '' : '· '}{t('shell.queued', { n: queued })}</>}
+      </span>
+    </div>
   );
 }
 
@@ -233,7 +295,7 @@ function SampleRibbon() {
   if (!sample) return null;
   return (
     <aside className="sample-ribbon" aria-label="Sample data" title={t('shell.sample.note')}>
-      <strong>SAMPLE DATA</strong> <span lang="hi">नमूना डेटा</span>
+      <strong lang="en">Sample data</strong> <span lang="hi">नमूना डेटा</span>
       <span className="sr-only">{t('shell.sample.note')}</span>
     </aside>
   );
@@ -287,66 +349,51 @@ function ReplayBannerInner() {
   );
 }
 
+/** One slim band: the line, 112, two link columns and the data credits. No giant wordmark. */
 function Footer() {
   const { t, lang } = useT();
   const user = useAuth((s) => s.user);
   const signOut = useAuth((s) => s.signOut);
   const en = lang === 'en';
   return (
-    <footer className="site-footer">
-      <div className="ftr-inner">
-        <div className="ftr-brand">
-          <p className="ftr-script" lang="hi">
+    <footer className="ft">
+      <div className="ft-inner">
+        <div className="ft-brand">
+          <p className="ft-line" lang="hi">
             नदी से पहले, गाँव तक।
           </p>
-          <p className="ftr-lead">{t('shell.footer')}</p>
+          <p className="ft-lead">{t('shell.footer')}</p>
           <Call112 />
         </div>
-        <nav className="ftr-col" aria-label={en ? 'Explore' : 'देखें'}>
-          <span className="ftr-h">{en ? 'Explore' : 'देखें'}</span>
-          <Link to="/live">{t('nav.live')}</Link>
-          <Link to="/#story">{en ? 'The night the river rose' : 'जिस रात नदी चढ़ी'}</Link>
+        <nav className="ft-col" aria-label={en ? 'Use it' : 'इस्तेमाल करें'}>
+          <Link to="/">{t('nav.status')}</Link>
+          <Link to="/report">{t('nav.report')}</Link>
+          <Link to="/live">{t('nav.map')}</Link>
+          <a href="https://t.me/PukaarRescuebot" target="_blank" rel="noreferrer">
+            {en ? 'Alerts on Telegram' : 'Telegram पर चेतावनी'} ↗
+          </a>
+          {user ? (
+            <button type="button" className="ft-signout" onClick={signOut}>
+              <LogOut aria-hidden="true" /> {t('shell.signout')}
+            </button>
+          ) : (
+            <Link to="/login">{t('nav.officer.signin')}</Link>
+          )}
+        </nav>
+        <nav className="ft-col" aria-label={en ? 'How it works' : 'कैसे काम करता है'}>
           <Link to="/how">{t('nav.how')}</Link>
           <Link to="/agents">{t('nav.agents')}</Link>
           <Link to="/sensors">{t('nav.sensors')}</Link>
           <Link to="/impact">{t('nav.impact')}</Link>
           <Link to="/pilot">{t('nav.pilot')}</Link>
-        </nav>
-        <nav className="ftr-col" aria-label={en ? 'Use it' : 'इस्तेमाल करें'}>
-          <span className="ftr-h">{en ? 'Use it' : 'इस्तेमाल करें'}</span>
-          <Link to="/report">{t('nav.report')}</Link>
-          <a href="https://t.me/PukaarRescuebot" target="_blank" rel="noreferrer">
-            {en ? 'Alerts on Telegram' : 'Telegram पर चेतावनी'} ↗
-          </a>
-          <Link to="/console">{t('nav.console')}</Link>
-          {user ? (
-            <button type="button" className="ftr-signout" onClick={signOut}>
-              <LogOut aria-hidden="true" /> {t('shell.signout')}
-            </button>
-          ) : (
-            <Link to="/login">{t('login.submit')}</Link>
-          )}
-        </nav>
-        <nav className="ftr-col" aria-label={en ? 'Build' : 'बनावट'}>
-          <span className="ftr-h">{en ? 'How it is built' : 'कैसे बना'}</span>
           <a href="https://github.com/Prashant-thakur77/pukaar" target="_blank" rel="noreferrer">
-            {en ? 'Code on GitHub' : 'GitHub पर कोड'} ↗
+            GitHub ↗
           </a>
-          <a href="https://github.com/Prashant-thakur77/pukaar#aws-in-depth" target="_blank" rel="noreferrer">
-            {en ? 'AWS in depth' : 'AWS का पूरा ब्योरा'} ↗
-          </a>
-          <span className="ftr-note">{t('shell.footer.data')}</span>
         </nav>
       </div>
-      <div className="ftr-giant" aria-hidden="true">
-        <ValleyLine className="ftr-valley" />
-        <span lang="hi">पुकार</span>
-      </div>
-      <div className="ftr-base">
-        <span>{en ? 'Built in Mandi, Himachal' : 'मंडी, हिमाचल में बना'}</span>
-        <span lang="hi">पुकार · {en ? 'the call that reaches the village before the river does' : 'नदी से पहले, गाँव तक पहुँचने वाली पुकार'}</span>
-        <span>© 2026 Pukaar · {en ? 'Built on AWS' : 'AWS पर बना'}</span>
-      </div>
+      <p className="ft-credits">
+        <span>{t('shell.footer.data')}</span> <span>© 2026 Pukaar · {en ? 'Built in Mandi, Himachal' : 'मंडी, हिमाचल में बना'}</span>
+      </p>
     </footer>
   );
 }
@@ -379,10 +426,17 @@ function reducedMotion(): boolean {
 export default function Shell() {
   const { pathname, hash } = useLocation();
   const { lang } = useT();
+  const theme = usePrefs((s) => s.theme);
   useNetworkWatch();
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
+  // Villager pages are light unless dark was chosen; the serif only on the story pages.
+  useEffect(() => {
+    applyTheme(theme, pathname);
+    if (isStoryRoute(pathname)) document.documentElement.setAttribute('data-story', '');
+    else document.documentElement.removeAttribute('data-story');
+  }, [theme, pathname]);
   const lastPath = useRef(pathname);
   useEffect(() => {
     // Links like /#story land on that section; everything else starts at the top. A jump within
@@ -403,24 +457,20 @@ export default function Shell() {
     }, 900);
     return () => clearTimeout(tm);
   }, [pathname, hash]);
-  const villager = isVillagerRoute(pathname);
+  const villager = pathname.startsWith('/report') || pathname.startsWith('/t/');
   return (
     <>
       <a href="#main" className="skip-link">
         {lang === 'hi' ? 'सीधे सामग्री पर जाएँ' : 'Skip to content'}
       </a>
       <Header />
+      <OfflineBanner />
       <ReplayBanner />
       <SampleRibbon />
       <main id="main" className="page" key={pathname} tabIndex={-1}>
         <Outlet />
       </main>
       {villager ? null : <Footer />}
-      {pathname.startsWith('/t/') && (
-        <aside aria-label={lang === 'hi' ? 'आपातकाल' : 'Emergency'}>
-          <Call112 variant="fab" />
-        </aside>
-      )}
       <TourHost />
     </>
   );

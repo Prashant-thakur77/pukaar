@@ -1,0 +1,136 @@
+/* Site header (C24), menu sheet, offline line, 112 (C5) and the slim footer. */
+
+/* ---------- header: 56 px on phones, 64 px from 1024 ---------- */
+.hd {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--bg); color: var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+.hd-inner {
+  display: flex; align-items: center; gap: var(--sp-2);
+  min-height: var(--header-h); max-width: var(--w-console); margin: 0 auto; padding: 0 var(--gutter);
+}
+.hd-brand { display: inline-flex; align-items: center; min-height: var(--tap); text-decoration: none; color: inherit; margin-right: var(--sp-2); }
+.wordmark { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.wm-hi { font-size: var(--t-h3); line-height: 1; font-weight: 700; }
+.wm-en { font-size: var(--t-small); color: var(--ink-3); font-weight: 600; }
+.pk-mark { flex: none; }
+
+.hd-nav { display: none; align-items: center; gap: var(--sp-1); }
+.hd-link {
+  display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); padding: 0 var(--sp-3);
+  border: 0; border-radius: var(--r-1); background: none; color: var(--ink-2);
+  font: inherit; font-size: var(--t-small); font-weight: 600; text-decoration: none; cursor: pointer;
+  transition: background-color var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
+}
+.hd-link:hover { background: var(--surface-2); color: var(--ink); }
+.hd-link.is-active { color: var(--ink); box-shadow: inset 0 -3px 0 var(--accent); border-radius: 0; }
+.hd-caret { width: 16px; height: 16px; transition: transform var(--dur-quick) var(--ease-out); }
+.hd-group { position: relative; }
+.hd-group.is-open .hd-caret { transform: rotate(180deg); }
+.hd-pop {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; min-width: 280px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); box-shadow: var(--elev-overlay);
+  padding: var(--sp-2);
+}
+.hd-group.is-open .hd-pop { display: grid; }
+.hd-pop-link {
+  display: grid; gap: 2px; min-height: var(--tap); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-1);
+  text-decoration: none; color: var(--ink);
+}
+.hd-pop-link:hover, .hd-pop-link.is-active { background: var(--surface-2); }
+.hd-pop-title { font-weight: 700; font-size: var(--t-small); }
+.hd-pop-sub { font-size: var(--t-small); color: var(--ink-3); }
+
+.hd-tools { margin-left: auto; display: flex; align-items: center; gap: var(--sp-2); }
+.hd-desk { display: none; }
+.hd-user { align-items: center; gap: var(--sp-1); }
+.hd-icon {
+  display: inline-grid; place-items: center; min-width: var(--tap); min-height: var(--tap);
+  border: 0; border-radius: var(--r-1); background: none; color: var(--ink); cursor: pointer;
+}
+.hd-icon:hover { background: var(--surface-2); }
+.hd-icon svg { width: 22px; height: 22px; }
+.hd-lang span { font-weight: 700; font-size: var(--t-body); }
+.hd .livepill { display: none; }
+
+/* ---------- 112: always a real call, always 48 px ---------- */
+.call112 {
+  display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); padding: 0 var(--sp-4) 0 var(--sp-3);
+  border-radius: var(--r-pill); background: var(--lv-critical-fill); color: var(--lv-critical-on);
+  outline: 1px solid var(--lv-critical-edge);
+  font-weight: 700; text-decoration: none; white-space: nowrap;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.call112:active { transform: scale(0.98); }
+.call112 svg { width: 18px; height: 18px; }
+.c112-hi { font-size: var(--t-small); display: none; }
+.c112-num { font-size: var(--t-body); font-variant-numeric: tabular-nums; }
+
+/* ---------- menu sheet (phones) ---------- */
+.sheet {
+  position: fixed; inset: 0; z-index: 80; overflow-y: auto;
+  background: var(--bg); color: var(--ink);
+  padding: 0 var(--gutter) calc(var(--sp-6) + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column;
+}
+.sheet-top { display: flex; align-items: center; justify-content: space-between; min-height: var(--header-h); border-bottom: 1px solid var(--line); }
+.sheet-nav, .sheet-tools { display: grid; }
+.sheet-tools { margin-top: var(--sp-5); border-top: 1px solid var(--line); padding-top: var(--sp-2); }
+.sheet-h { font-size: var(--t-small); color: var(--ink-3); font-weight: 600; margin: var(--sp-5) 0 var(--sp-1); }
+.sheet-row {
+  display: flex; align-items: center; gap: var(--sp-3); min-height: 56px; padding: 0 var(--sp-1);
+  border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink);
+  font: inherit; font-size: var(--t-body); font-weight: 600; text-align: left; text-decoration: none; cursor: pointer; width: 100%;
+}
+.sheet-row svg { width: 22px; height: 22px; color: var(--ink-2); }
+.sheet-row.is-active { color: var(--accent-text); box-shadow: inset 4px 0 0 var(--accent); padding-left: var(--sp-4); }
+
+/* ---------- offline: a line under the header, only when it matters ---------- */
+.offline-banner {
+  display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--gutter);
+  background: var(--surface-2); color: var(--ink); border-bottom: 1px solid var(--line-strong);
+  font-size: var(--t-small); font-weight: 600;
+}
+.offline-banner svg { width: 20px; height: 20px; flex: none; }
+
+/* ---------- footer: one slim band ---------- */
+.ft { margin-top: var(--section); background: var(--surface-2); color: var(--ink-2); border-top: 1px solid var(--line); }
+.ft-inner {
+  max-width: var(--w-content); margin: 0 auto; padding: var(--sp-6) var(--gutter) var(--sp-4);
+  display: grid; gap: var(--sp-5); grid-template-columns: 1fr 1fr;
+}
+.ft-brand { grid-column: 1 / -1; display: grid; gap: var(--sp-2); justify-items: start; }
+.ft-line { font-size: var(--t-h3); line-height: var(--lh-h3); font-weight: 700; color: var(--ink); }
+.ft-lead { font-size: var(--t-small); line-height: var(--lh-small); max-width: 40ch; }
+.ft-col { display: grid; align-content: start; }
+.ft-col a, .ft-signout {
+  display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); min-width: var(--tap);
+  color: var(--ink); font-size: var(--t-small); font-weight: 600; text-decoration: none;
+  background: none; border: 0; padding: 0; font-family: inherit; cursor: pointer; justify-self: start;
+}
+.ft-col a:hover, .ft-signout:hover { color: var(--accent-text); text-decoration: underline; text-underline-offset: 4px; }
+.ft-signout svg { width: 18px; height: 18px; }
+.ft-credits {
+  max-width: var(--w-content); margin: 0 auto; padding: var(--sp-3) var(--gutter) calc(var(--sp-4) + env(safe-area-inset-bottom));
+  display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); font-size: var(--t-small); color: var(--ink-3);
+  border-top: 1px solid var(--line);
+}
+
+@media (min-width: 640px) {
+  .c112-hi { display: inline; }
+}
+@media (min-width: 1024px) {
+  .hd-nav { display: flex; }
+  .hd-desk { display: inline-flex; }
+  .hd-menu { display: none; }
+  .hd .livepill { display: inline-flex; }
+  .ft-inner { grid-template-columns: 2fr 1fr 1fr; }
+  .ft-brand { grid-column: auto; }
+}
+
+/* The page always reaches below the fold, so the footer never sits mid-screen while data loads and then jumps. */
+.page { min-height: calc(100dvh - var(--header-h)); }
+/* index.html's pre-JavaScript shell: the header with 112 and one line. */
+.boot-wait { padding: var(--sp-5) var(--gutter); font-size: var(--t-body); color: var(--ink-2); }
+.boot-wait [lang='en'] { display: block; font-size: var(--t-small); color: var(--ink-3); }

@@ -116,31 +116,16 @@ describe('Hindi number formatting', () => {
 });
 
 describe('CountUp', () => {
-  it('holds the final value once: copying and screen readers both get it, even mid-animation', () => {
+  it('shows the value at once, as plain text: live numbers never count up', () => {
     render(<CountUp value={1234} lang="en" className="counter-num" />);
     const el = host.querySelector('.countup') as HTMLElement;
-    // All the text in the element (what a copy takes) is the final value, exactly once.
     expect(el.textContent).toBe('1,234');
-    const frame = el.querySelector('.countup-frame') as HTMLElement;
-    expect(frame.getAttribute('aria-hidden')).toBe('true');
-    expect(frame.textContent).toBe(''); // the running digits are CSS generated content from data-n
-    expect(frame.dataset.n).toMatch(/^[\d,]+$/);
-    const sr = el.querySelector('.sr-only') as HTMLElement;
-    expect(sr.textContent).toBe('1,234');
-    expect(sr.closest('[aria-hidden="true"]')).toBeNull();
+    expect(el.classList.contains('counter-num')).toBe(true);
+    expect(el.querySelector('[aria-hidden="true"]')).toBeNull();
   });
 
   it('shows a dash for a missing value', () => {
     render(<CountUp value={null} lang="en" />);
     expect(host.textContent).toBe('—');
-    expect((host.querySelector('.countup-frame') as HTMLElement).dataset.n).toBe('—');
-  });
-
-  it('has the generated-content rule the frame depends on', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { join } = await import('node:path');
-    const css = readFileSync(join(__dirname, '..', 'app.css'), 'utf8');
-    expect(css).toMatch(/\.countup-frame::before\s*\{\s*content:\s*attr\(data-n\);?\s*\}/);
-    expect(css).toMatch(/\.countup-frame\s*\{[^}]*user-select:\s*none/);
   });
 });

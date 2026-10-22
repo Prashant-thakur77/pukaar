@@ -15,7 +15,8 @@
     "screens": "NODE_USE_ENV_PROXY=1 node scripts/screens.mjs",
     "check:loops": "node scripts/check-loops.mjs",
     "check:csp": "node scripts/csp-check.mjs",
-    "check:taps": "node scripts/tap-targets.mjs"
+    "check:taps": "node scripts/tap-targets.mjs",
+    "check:tokens": "node scripts/check-tokens.mjs --contrast"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",

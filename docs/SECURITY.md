@@ -198,7 +198,7 @@ Amplify sends these on every file (`infra/template.yaml`, `AmplifyApp.CustomHead
 | Directive | Sources | Why |
 |---|---|---|
 | `default-src` | `'self'` | everything else |
-| `script-src` | `'self' 'sha256-82ey…'` | the bundle, and the one inline snippet in `frontend/index.html` that applies the saved theme before first paint. No `'unsafe-inline'`, no `'unsafe-eval'` |
+| `script-src` | `'self' 'sha256-5c7x…'` | the bundle, and the one inline snippet in `frontend/index.html` that applies the saved theme (light on the villager pages unless dark was chosen) before first paint. No `'unsafe-inline'`, no `'unsafe-eval'` |
 | `style-src` | `'self'` | the bundled CSS; no `<style>` element from anywhere else |
 | `style-src-attr` | `'unsafe-inline'` | inline `style=""` attributes only: the after-action report is e-mail-safe HTML with inline styles, and the console opens it from a `blob:` URL, which inherits this policy. React's style props go through the CSSOM and need nothing |
 | `img-src` | `'self' data: blob:`, `tile.openstreetmap.org`, `s3.amazonaws.com/elevation-tiles-prod/`, `*.s3.amazonaws.com`, `*.s3.<region>.amazonaws.com` | map tiles, terrain tiles, inline SVG textures, presigned report photos |

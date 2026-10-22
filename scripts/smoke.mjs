@@ -9,8 +9,8 @@
 // Checks:
 //   every public page loads at 390 px and 1440 px with no page errors and no sideways scroll
 //   axe-core finds 0 WCAG 2.1 A/AA violations on each of them
-//   the landing counters copy as one value each (no "55" from the animated digits plus the
-//   screen-reader text), and the service worker registers
+//   the home page answers first: the status headline, the five villages as rows of at least 44 px,
+//   and the report button above the fold; and the service worker registers
 //   public API routes answer with the expected shape; protected routes answer 401 without a token
 // Exits 1 on any failure, after printing every result.
 //
@@ -206,40 +206,28 @@ async function settle(page) {
 }
 
 async function landingChecks(page) {
-  await check('landing', 'counters load', async () => {
+  await check('landing', 'status headline loads', async () => {
     await page.waitForFunction(
-      () => {
-        const nums = [...document.querySelectorAll('.counters .counter-num')];
-        return nums.length > 0 && nums.every((n) => !n.textContent?.includes('—'));
-      },
+      () => !document.querySelector('.home-wait') && (document.querySelector('#home-h')?.textContent ?? '').trim().length > 0,
       null,
       { timeout: 20000 },
     );
-    return `${await page.locator('.counters > li').count()} counters`;
+    return (await page.locator('#home-h').textContent()).trim().replace(/\s+/g, ' ');
   });
-  await check('landing', 'six counters, including forecast checks and drills', async () => {
-    const labels = await page.locator('.counters .counter-label').allTextContents();
-    expect(labels.length === 6, `${labels.length} counters: ${labels.join(' | ')}`);
-    expect(labels.some((l) => /Forecast checks|पूर्वानुमान जाँच/.test(l)), 'no forecast-checks counter');
-    expect(labels.some((l) => /Drill alerts|ड्रिल/.test(l)), 'no drills counter');
-  });
-  await check('landing', 'each counter copies as one value', async () => {
-    const copies = await page.evaluate(() =>
-      [...document.querySelectorAll('.counters .counter-num')].map((el) => {
-        const sel = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        sel.removeAllRanges();
-        sel.addRange(range);
-        const copied = sel.toString().trim();
-        sel.removeAllRanges();
-        const spoken = (el.querySelector('.sr-only')?.textContent ?? el.textContent ?? '').trim();
-        return { copied, spoken };
-      }),
+  await check('landing', 'five villages as rows, each at least 44 px tall', async () => {
+    const rows = await page.locator('.home-pick a[href^="/village/"]').evaluateAll((els) =>
+      els.map((e) => ({ href: e.getAttribute('href'), h: Math.round(e.getBoundingClientRect().height) })),
     );
-    const bad = copies.filter((c) => c.copied !== c.spoken);
-    expect(bad.length === 0, bad.map((c) => `copied "${c.copied}" for "${c.spoken}"`).join('; '));
-    return copies.map((c) => c.copied).join(' | ');
+    expect(rows.length === 5, `${rows.length} village rows`);
+    const short = rows.filter((r) => r.h < 44);
+    expect(short.length === 0, short.map((r) => `${r.href} ${r.h} px`).join('; '));
+    return rows.map((r) => `${r.href.split('/').pop()} ${r.h}px`).join(' ');
+  });
+  await check('landing', 'report button above the fold', async () => {
+    const box = await page.locator('.home-report').first().boundingBox();
+    const vh = page.viewportSize().height;
+    expect(box && box.y + box.height <= vh, box ? `bottom at ${Math.round(box.y + box.height)} px of ${vh}` : 'no report button');
+    return `bottom at ${Math.round(box.y + box.height)} px of ${vh}`;
   });
   await check('landing', 'service worker registers', async () => {
     const sw = await page.evaluate(async () => {

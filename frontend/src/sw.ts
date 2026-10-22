@@ -5,6 +5,7 @@
  * 1. The same offline behaviour the generated worker had: the app shell is precached, page
  *    navigations fall back to /index.html (never /api/), map and elevation tiles are cached
  *    first, old precaches are cleaned up, and a new worker takes over at once (autoUpdate).
+ *    The small village answer (/public/villages/{id}/now) is served stale-while-revalidate.
  * 2. Web Push for officers: the approval request shows with Approve / Decline buttons; a
  *    button POSTs the decision to /approval/{token} and shows the result, so it works with
  *    the console closed. A plain tap opens the approval page. Logic: src/lib/pushSw.ts.
@@ -13,7 +14,7 @@ import { clientsClaim } from 'workbox-core';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute, type PrecacheEntry } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { CacheFirst } from 'workbox-strategies';
+import { CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
 import { confirmation, isDecision, notificationFromPush, parsePush, sendDecision, type NotificationData } from './lib/pushSw';
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: (PrecacheEntry | string)[] };
@@ -34,6 +35,14 @@ registerRoute(
 registerRoute(
   ({ url }) => url.hostname === 's3.amazonaws.com' && url.pathname.startsWith('/elevation-tiles-prod/'),
   new CacheFirst({ cacheName: 'dem-tiles', plugins: [new ExpirationPlugin({ maxEntries: 300, maxAgeSeconds: 30 * 24 * 3600 })] }),
+  'GET',
+);
+
+// The village answer (GET /public/villages/{id}/now, about 2 kB): the last copy at once, refreshed behind it, so a
+// village page opens with its level on a weak signal or none. The page also keeps its own copy (lib/villageNow.ts).
+registerRoute(
+  ({ url }) => url.href.startsWith(API_BASE) && /^\/public\/villages\/[^/]+\/now$/.test(url.pathname.slice(new URL(API_BASE).pathname.replace(/\/$/, '').length)),
+  new StaleWhileRevalidate({ cacheName: 'village-now', plugins: [new ExpirationPlugin({ maxEntries: 20, maxAgeSeconds: 7 * 24 * 3600 })] }),
   'GET',
 );
 

@@ -51,6 +51,7 @@ import type {
   Village,
   VillageDetail,
 } from './types';
+import type { VillageNow } from './lib/villageNow';
 
 export const API_BASE: string = (import.meta.env.VITE_API_BASE ?? 'http://localhost:8000').replace(/\/$/, '');
 
@@ -213,7 +214,9 @@ export function prefetchRoute(pathname: string): void {
   } catch {
     return;
   }
+  // The small answer first: on 3G it lands seconds before the full detail and the page paints it at once.
   const calls: [string, RequestOpts][] = [
+    [`/public/villages/${enc(id)}/now`, { auth: false }],
     [`/villages/${enc(id)}`, {}],
     [`/villages/${enc(id)}/safe-places`, { auth: false }],
   ];
@@ -286,6 +289,7 @@ export const api = {
 
   villages: () => request<Village[]>('/villages'),
   village: (id: string) => takeOver<VillageDetail>(`/villages/${enc(id)}`),
+  villageNow: (id: string) => takeOver<VillageNow>(`/public/villages/${enc(id)}/now`, { auth: false }),
   setChecklist: (villageId: string, item: string, done: boolean) =>
     request<Checklist>(`/villages/${enc(villageId)}/checklist/${enc(item)}`, { method: 'POST', body: { done } }),
   safePlaces: (id: string) => takeOver<SafePlacesView>(`/villages/${enc(id)}/safe-places`, { auth: false }),

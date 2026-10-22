@@ -14,7 +14,7 @@ vi.mock('workbox-routing', () => ({
   NavigationRoute: vi.fn(),
   registerRoute: vi.fn((...args: unknown[]) => routes.push(args)),
 }));
-vi.mock('workbox-strategies', () => ({ CacheFirst: vi.fn() }));
+vi.mock('workbox-strategies', () => ({ CacheFirst: vi.fn(), StaleWhileRevalidate: vi.fn() }));
 
 type Handler = (event: unknown) => void;
 const handlers: Record<string, Handler> = {};
@@ -65,9 +65,14 @@ beforeAll(async () => {
 });
 
 describe('service worker', () => {
-  it('keeps the offline routes: navigation fallback plus the two tile caches', () => {
+  it('keeps the offline routes: navigation fallback, the two tile caches and the village answer', () => {
     expect(fakeSelf.skipWaiting).toHaveBeenCalled();
-    expect(routes).toHaveLength(3);
+    expect(routes).toHaveLength(4);
+    const match = (routes[3] as [(o: { url: URL }) => boolean])[0];
+    const api = 'http://localhost:8000';
+    expect(match({ url: new URL(`${api}/public/villages/gohar/now`) })).toBe(true);
+    expect(match({ url: new URL(`${api}/villages/gohar`) })).toBe(false);
+    expect(match({ url: new URL('https://elsewhere.example/public/villages/gohar/now') })).toBe(false);
   });
 
   it('shows a push as a notification with Approve and Decline', async () => {

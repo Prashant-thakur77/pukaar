@@ -1,3 +1,4 @@
+Noto Sans Devanagari (noto-sans-devanagari-*.woff2, subset to wght 400-700): Copyright 2022 The Noto Project Authors (https://github.com/notofonts/devanagari)
 Copyright 2020 The Indigo Project Authors (https://github.com/TiroTypeworks/Indigo)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.

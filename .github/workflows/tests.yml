@@ -39,5 +39,6 @@ jobs:
       - run: npm ci
       - run: npx tsc -b
       - run: npx eslint .
+      - run: npm run check:tokens
       - run: npm test
       - run: npm run build

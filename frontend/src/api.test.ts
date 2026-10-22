@@ -17,18 +17,22 @@ describe('api client', () => {
   it('a village page fetched at boot is taken over by the page, not fetched twice', async () => {
     fetchMock.mockImplementation(async (u) => json(200, { url: String(u) }));
     prefetchRoute('/village/thunag');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/villages\/thunag$/);
-    expect(String(fetchMock.mock.calls[1][0])).toMatch(/\/villages\/thunag\/safe-places$/);
+    // The small answer first, then the full detail and the safe places.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/public\/villages\/thunag\/now$/);
+    expect(String(fetchMock.mock.calls[1][0])).toMatch(/\/villages\/thunag$/);
+    expect(String(fetchMock.mock.calls[2][0])).toMatch(/\/villages\/thunag\/safe-places$/);
+    const now = (await api.villageNow('thunag')) as unknown as { url: string };
     const v = (await api.village('thunag')) as unknown as { url: string };
     await api.safePlaces('thunag');
+    expect(now.url).toMatch(/\/now$/);
     expect(v.url).toMatch(/\/villages\/thunag$/);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     // Taken once: the next poll fetches again. Other routes start nothing early.
     await api.village('thunag');
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     prefetchRoute('/report');
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     fetchMock.mockReset();
   });
 

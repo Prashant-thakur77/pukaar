@@ -1,22 +1,22 @@
 /* Siren layer (components/SirenList, SirenPanel, SirenLastTested). Every control is at least --tap (44 px). */
 .siren-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-.siren-card { border: 1px solid var(--line-2); border-radius: var(--r-lg, 16px); padding: 14px 16px; background: var(--surface, transparent); display: grid; gap: 10px; }
+.siren-card { border: 1px solid var(--line); border-radius: var(--r-2); padding: 14px 16px; background: var(--surface); display: grid; gap: 10px; }
 .siren-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.siren-card-name { margin: 0; font-size: 1.05rem; display: inline-flex; align-items: center; gap: 6px; }
+.siren-card-name { margin: 0; font-size: var(--t-body); display: inline-flex; align-items: center; gap: 6px; }
 .siren-card-name svg { width: 18px; height: 18px; flex: none; }
 .siren-id { margin: 2px 0 0; font-family: var(--font-mono); overflow-wrap: anywhere; }
 .siren-facts { margin: 0; display: grid; gap: 6px; }
 .siren-facts > div { display: grid; grid-template-columns: minmax(7rem, auto) 1fr; gap: 8px; }
-.siren-facts dt { color: var(--ink-3); font-size: 0.85rem; }
-.siren-facts dd { margin: 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+.siren-facts dt { color: var(--ink-3); font-size: var(--t-small); }
+.siren-facts dd { margin: 0; font-size: var(--t-small); overflow-wrap: anywhere; }
 .siren-tested { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 0; font-weight: 600; }
 .siren-tested svg { width: 16px; height: 16px; flex: none; }
 .siren-panel { margin: 6px 0 0; display: grid; gap: 8px; }
 .siren-tier { margin: 0; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
 .siren-tier svg { width: 16px; height: 16px; flex: none; }
 .siren-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.siren-rows li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.9rem; }
+.siren-rows li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--t-small); }
 .siren-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .siren-actions .btn { min-height: var(--tap); }
-.siren-sms { margin: 0; padding: 10px 12px; border: 1px dashed var(--line-2); border-radius: 12px; display: grid; gap: 6px; }
+.siren-sms { margin: 0; padding: 10px 12px; border: 1px dashed var(--line-strong); border-radius: var(--r-2); display: grid; gap: 6px; }
 .siren-sms code { font-family: var(--font-mono); overflow-wrap: anywhere; }

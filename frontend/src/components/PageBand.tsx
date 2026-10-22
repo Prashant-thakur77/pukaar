@@ -1,16 +1,12 @@
 import type { ReactNode } from 'react';
-import { Lehar, ValleyLine } from './Art';
+import { Lehar } from './Art';
 
-/** A display headline whose last word is set apart: italic and river-blue in English, river-blue in Hindi. */
+/**
+ * A headline as a plain statement. No word is set apart: in Hindi the last word is often grammar ("है",
+ * "हुई"), and a gradient or italic word clips the matras above the headline bar.
+ */
 export function Headline({ text, className = '' }: { text: string; className?: string }) {
-  const words = text.trim().split(/\s+/);
-  const last = words.pop() ?? '';
-  return (
-    <span className={`hl-split ${className}`}>
-      {words.length > 0 && <>{words.join(' ')} </>}
-      <em className="hl-gold">{last}</em>
-    </span>
-  );
+  return <span className={className || undefined}>{text}</span>;
 }
 
 export type Stat = { key: string; value: ReactNode; label: ReactNode; tone?: 'alert' };
@@ -69,7 +65,6 @@ export function PageBand({
         {aside && <div className="pg-aside">{aside}</div>}
       </div>
       {children && <div className="wrap-wide pg-extra">{children}</div>}
-      <ValleyLine quiet className="pg-valley" />
     </header>
   );
 }

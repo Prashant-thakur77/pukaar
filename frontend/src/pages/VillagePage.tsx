@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft, Ruler, Tent, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, Hourglass, ListChecks, MapPin, Megaphone, RadioTower, Scale, TrendingUp, Users, Waves } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Mountain, Ruler, Tent, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, ListChecks, Megaphone, RadioTower, Scale, TrendingUp, Waves } from 'lucide-react';
 import { api } from '../api';
 import { AlertStatusChip, DeliveryChips, ReplayChip, ReportStateChip } from '../components/Chips';
 import { Gauge } from '../components/Gauge';
@@ -16,9 +16,12 @@ import { Reveal } from '../components/Reveal';
 import { Sparkline } from '../components/Sparkline';
 import { TimeToEar } from '../components/TimeToEar';
 import { WhereToGo } from '../components/WhereToGo';
-import { WhatToDo } from '../components/WhatToDo';
-import { DataStatusNote, LiveLevelNote, ShownLevel } from '../components/DataStatus';
-import { levelIsKnown } from '../lib/dataStatus';
+import { ActionList, Freshness, LevelBanner, StickyActionBar } from '../components/Answer';
+import { Call112 } from '../components/Shell';
+import { useVillageNow } from '../hooks/useVillageNow';
+import './village.css';
+import { districtLine, shelterWord } from '../lib/villageNow';
+import { DataStatusNote, LiveLevelNote } from '../components/DataStatus';
 import { DeniedNote, EmptyState, ErrorState, Skeleton, SkeletonCards } from '../components/States';
 import { SirenLastTested } from '../components/SirenLastTested';
 import { usePoll } from '../hooks/usePoll';
@@ -32,7 +35,6 @@ import { holdLine } from '../lib/evidence';
 import { humanizeSummary } from '../lib/humanize';
 import { useAuth } from '../store';
 import type { Alert, DecisionTrace, GaugeView, Level, PublicRollCall, RiverView, SoilView, TraceEvidence, Village } from '../types';
-import { Kicker, ValleyLine } from '../components/Art';
 
 function AlertDetails({ alert }: { alert: Alert }) {
   const { t, lang } = useT();
@@ -387,10 +389,12 @@ export default function VillagePage() {
   const { t, lang, pick } = useT();
   const signedIn = Boolean(useAuth((s) => s.token));
   const user = useAuth((s) => s.user);
-  const { data, error, loading, refresh } = usePoll(() => api.village(id), [id], 15000, {
+  const { data, error, refresh } = usePoll(() => api.village(id), [id], 15000, {
     live: PUBLIC_CHANNELS,
     match: (e) => e.data.village_id === id,
   });
+  // The answer comes first: the phone's last copy, then the small /now answer, then each poll of the detail.
+  const answer = useVillageNow(id, data ?? null, error ?? null);
   // A link like /village/gohar#where lands on that section once the page has its data.
   const { hash } = useLocation();
   const ready = Boolean(data);
@@ -399,85 +403,129 @@ export default function VillagePage() {
     document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
   }, [ready, hash]);
 
-  if (loading && !data)
+  const now = answer.now;
+  if (!now) {
+    if (answer.missing || (error && error.status === 404))
+      return (
+        <div className="wrap village-page">
+          <EmptyState title={t('village.notfound')} action={<Link to="/" className="btn btn-ghost">{t('village.back')}</Link>} />
+        </div>
+      );
+    if (error && !data)
+      return (
+        <div className="wrap village-page">
+          <ErrorState error={error} onRetry={refresh} />
+        </div>
+      );
+    // Nothing on this phone yet and nothing back: say what is coming and what to do meanwhile. No skeleton.
     return (
-      <div className="wrap village-page">
-        <div className="skel" style={{ height: 180, borderRadius: 24 }} />
-        <SkeletonCards n={2} />
+      <div className="wrap village-page vtop-wait">
+        <p className="vwait-title">{lang === 'hi' ? 'गाँव का हाल आ रहा है…' : 'Getting the village’s level…'}</p>
+        <p className="vwait-body">
+          {lang === 'hi' ? 'ख़तरा दिखे तो इंतज़ार न करें: ऊँची जगह जाएँ और ' : 'If you see danger, do not wait: go to high ground and '}
+          <a href="tel:112" className="go-link">
+            {lang === 'hi' ? '112 पर कॉल करें' : 'call 112'}
+          </a>
+          .
+        </p>
       </div>
     );
-  if (error && !data)
-    return (
-      <div className="wrap village-page">
-        {error.status === 404 ? <EmptyState title={t('village.notfound')} action={<Link to="/live" className="btn btn-ghost">{t('village.back')}</Link>} /> : <ErrorState error={error} onRetry={refresh} />}
-      </div>
-    );
-  if (!data) return null;
+  }
 
-  const v = data.village;
-  const latestAlert = [...data.alerts].sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null;
+  const v = data?.village ?? null;
+  const latestAlert = data ? ([...data.alerts].sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null) : null;
   const trace = latestAlert?.decision_trace ?? null;
   // One time axis: live readings, or only the replay's while a replay runs (never 2023 and 2026 together).
-  const readings = data.readings.filter((r) => Boolean(r.replay) === Boolean(v.replay)).sort((a, b) => a.at.localeCompare(b.at));
+  const readings = data && v ? data.readings.filter((r) => Boolean(r.replay) === Boolean(v.replay)).sort((a, b) => a.at.localeCompare(b.at)) : [];
   // Hysteresis: a level rises at once but drops one step only after 3 calm sweeps.
-  const traceHolds = Boolean(trace && latestAlert?.level === v.level && holdLine(trace, lang));
+  const traceHolds = Boolean(v && trace && latestAlert?.level === v.level && holdLine(trace, lang));
   const hold =
-    v.level !== 'normal' && (v.calm_sweeps > 0 || traceHolds)
+    v && v.level !== 'normal' && (v.calm_sweeps > 0 || traceHolds)
       ? holdLine(null, lang, { level: v.level, raw: 'normal', calm: v.calm_sweeps, needed: trace?.hysteresis?.needed_to_drop ?? 3 })
       : null;
-  const pastHere = data.past_events.filter((e) => !e.level || e.level === v.level);
-  const past = pastHere.length ? pastHere : data.past_events;
+  const pastHere = data ? data.past_events.filter((e) => !e.level || (v && e.level === v.level)) : [];
+  const past = data ? (pastHere.length ? pastHere : data.past_events) : [];
+
+  const unknown = !now.level_known;
+  const shown = unknown ? 'nodata' : now.level;
+  const why = data?.nowcast ? (lang === 'hi' ? data.nowcast.text_hi : data.nowcast.text_en) : hold?.text ?? null;
+  const urgent = now.level === 'warning' || now.level === 'critical';
+  const place = now.safe_place;
+  const audioAlert = latestAlert && latestAlert.has_audio && now.level !== 'normal' ? latestAlert : null;
 
   return (
-    <div className="village-page">
-      <section className={`v-hero lv-${levelIsKnown(v) ? v.level : 'nodata'}`}>
-        <div className="wrap">
-          <Link to="/live" className="back-link">
-            <ArrowLeft aria-hidden="true" /> {t('village.back')}
+    <div className={`village-page${urgent ? ' is-urgent' : ''}`}>
+      <div className="wrap vtop">
+        <nav className="vcrumb" aria-label={lang === 'hi' ? 'आप यहाँ हैं' : 'You are here'}>
+          <Link to="/" className="go-link">
+            <ArrowLeft aria-hidden="true" /> {lang === 'hi' ? 'गाँवों का हाल' : 'Village status'}
           </Link>
-          <div className="v-hero-grid">
-            <div>
-              <Kicker className="v-kicker">{t('village.district', { d: v.district })}</Kicker>
-              <h1 className="v-name">
-                <span lang="hi">{v.name_hi}</span>
-                <span className="v-name-en">{v.name}</span>
-              </h1>
-              <p className="v-meta">
-                <span>
-                  <MapPin aria-hidden="true" /> {v.lat.toFixed(3)}, {v.lon.toFixed(3)}
-                  {!v.coords_verified && <span className="chip chip-muted">{t('common.approx')}</span>}
-                </span>
-                <span>
-                  <Users aria-hidden="true" /> {t('village.population')}: {v.population == null ? t('common.unknown') : fmtNumber(v.population, lang)}
-                </span>
-                {v.latest_reading?.replay && <ReplayChip />}
-              </p>
-            </div>
-            <div className="v-level">
-              <ShownLevel v={v} size="lg" />
-              <LiveLevelNote v={v} />
-              {v.level_since && <p className="small">{t('village.since', { t: fmtAgo(v.level_since, lang) })}</p>}
-              {v.latest_reading?.at && <p className="small v-checked">{t('village.checked', { t: fmtAgo(v.latest_reading.at, lang) })}</p>}
-            </div>
-          </div>
-          <DataStatusNote v={v} />
-          <SirenLastTested sirens={data.sirens} />
-          <WhatToDo level={v.level} whereId="where" unknown={!levelIsKnown(v)} />
-          {hold && (
-            <p className="v-hold" role="note">
-              <Hourglass aria-hidden="true" /> {hold.text}
-            </p>
-          )}
-          {data.nowcast && (
-            <p className={`nowcast lv-${data.nowcast.likely_level}`}>
-              <TrendingUp aria-hidden="true" />
-              <strong>{t('village.nowcast')}:</strong> <span lang={lang}>{lang === 'hi' ? data.nowcast.text_hi : data.nowcast.text_en}</span>
-            </p>
-          )}
+        </nav>
+        <div className="vtop-main">
+          <LevelBanner
+            id="v-title"
+            level={now.level}
+            unknown={unknown}
+            means={now.means}
+            why={why}
+            title={
+              <>
+                <span lang="hi">{now.name_hi}</span> <span className="lvb-en" lang="en">{now.name}</span>
+                <span className="lvb-en"> · {districtLine(now.district, lang)}</span>
+              </>
+            }
+          >
+            <Freshness at={now.checked_at} offline={answer.offline} every />
+          </LevelBanner>
+          <DataStatusNote v={now} />
+          <LiveLevelNote v={now} />
+          <ActionList lines={now.actions} level={shown}>
+            {audioAlert && <ListenButton alertId={audioAlert.id} hasAudio />}
+            {urgent ? (
+              <span className="vtop-112">
+                <Call112 />
+              </span>
+            ) : (
+              <a href="#where" className="go-link">
+                <Mountain aria-hidden="true" /> {lang === 'hi' ? 'ऊँची जगह और रास्ता देखें' : 'See the high place and the route'}
+                <ChevronRight aria-hidden="true" />
+              </a>
+            )}
+          </ActionList>
+          {data && <SirenLastTested sirens={data.sirens} />}
         </div>
-        <ValleyLine quiet className="v-valley" />
-      </section>
+        {place && (
+          <aside className="vtop-aside" aria-labelledby="vwhere-h">
+            <h2 id="vwhere-h" className="vside-h">
+              {lang === 'hi' ? 'कहाँ जाएँ' : 'Where to go'}
+            </h2>
+            <p className="vside-name">{lang === 'hi' ? place.name_hi || place.name : place.name || place.name_hi}</p>
+            <p className="vside-line">
+              <span className={`vside-status s-${place.status.toLowerCase()}`}>{shelterWord(place.status, lang)}</span>
+              {place.route_blocked && <span className="vside-status s-closed">{lang === 'hi' ? 'रास्ता बंद' : 'Route closed'}</span>}
+            </p>
+            <p className="vside-facts">
+              {[
+                place.headroom_m != null ? (lang === 'hi' ? `${Math.round(place.headroom_m)} मी ऊँचा` : `${Math.round(place.headroom_m)} m higher`) : null,
+                place.route_length_m != null ? `${fmtNumber(place.route_length_m / 1000, lang, 1)} ${lang === 'hi' ? 'किमी' : 'km'}` : null,
+                place.walk_min != null ? (lang === 'hi' ? `~${place.walk_min} मिनट पैदल` : `~${place.walk_min} min on foot`) : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+            <a href="#where" className="go-link">
+              {lang === 'hi' ? 'नक्शा और रास्ता' : 'Map and route'} <ChevronRight aria-hidden="true" />
+            </a>
+          </aside>
+        )}
+      </div>
 
+      {!data || !v ? (
+        <div className="wrap v-body">
+          {/* Below the answer only: the detail is still on its way. */}
+          <SkeletonCards n={2} />
+        </div>
+      ) : (
       <div className="wrap v-body">
         {data.rollcall?.open && <RollCallCount rc={data.rollcall} />}
         {(data.directives ?? []).filter((d) => d.active).length > 0 && (
@@ -510,32 +558,6 @@ export default function VillagePage() {
           <WhereToGo village={v} />
         </section>
 
-        <section aria-labelledby="why-h" data-tour="why">
-          <h2 id="why-h" className="h-sec">
-            <GaugeIcon aria-hidden="true" /> {t('village.why')}
-          </h2>
-          <p className="muted">{t('village.why.lead')}</p>
-          <Evidence village={v} trace={trace} traceReplay={Boolean(latestAlert?.replay)} gauge={data.gauge} soil={data.soil} river={data.river} onChanged={refresh} />
-        </section>
-
-        {(data.staff_gauges?.gauges.length || canManageStaffGauge(user, v.id)) && (
-          <section aria-labelledby="sg-h">
-            <h2 id="sg-h" className="h-sec">
-              <Ruler aria-hidden="true" /> {t('staff.title')}
-            </h2>
-            <p className="muted">{t('staff.lead')}</p>
-            <StaffGaugeList view={data.staff_gauges} canManage={signedIn && canManageStaffGauge(user, v.id)} villageId={v.id} onChanged={refresh} />
-          </section>
-        )}
-
-        <section aria-labelledby="ready-h">
-          <h2 id="ready-h" className="h-sec">
-            <ClipboardCheck aria-hidden="true" /> {t('ready.title')}
-          </h2>
-          <p className="muted">{t('ready.lead')}</p>
-          <ReadinessCard villageId={v.id} readiness={v.readiness} checklist={data.checklist} />
-        </section>
-
         {readings.length > 1 && (
           <section aria-labelledby="trend-h">
             <h2 id="trend-h" className="h-sec">
@@ -559,6 +581,24 @@ export default function VillagePage() {
                 <p className="small muted">{v.thresholds ? t('village.trend.lines') : t('village.no.thresholds')}</p>
               </div>
             </div>
+          </section>
+        )}
+
+        <section aria-labelledby="why-h" data-tour="why">
+          <h2 id="why-h" className="h-sec">
+            <GaugeIcon aria-hidden="true" /> {t('village.why')}
+          </h2>
+          <p className="muted">{t('village.why.lead')}</p>
+          <Evidence village={v} trace={trace} traceReplay={Boolean(latestAlert?.replay)} gauge={data.gauge} soil={data.soil} river={data.river} onChanged={refresh} />
+        </section>
+
+        {(data.staff_gauges?.gauges.length || canManageStaffGauge(user, v.id)) && (
+          <section aria-labelledby="sg-h">
+            <h2 id="sg-h" className="h-sec">
+              <Ruler aria-hidden="true" /> {t('staff.title')}
+            </h2>
+            <p className="muted">{t('staff.lead')}</p>
+            <StaffGaugeList view={data.staff_gauges} canManage={signedIn && canManageStaffGauge(user, v.id)} villageId={v.id} onChanged={refresh} />
           </section>
         )}
 
@@ -637,7 +677,17 @@ export default function VillagePage() {
             </ul>
           )}
         </section>
+
+        <section aria-labelledby="ready-h">
+          <h2 id="ready-h" className="h-sec">
+            <ClipboardCheck aria-hidden="true" /> {t('ready.title')}
+          </h2>
+          <p className="muted">{t('ready.lead')}</p>
+          <ReadinessCard villageId={v.id} readiness={v.readiness} checklist={data.checklist} />
+        </section>
       </div>
+      )}
+      <StickyActionBar level={unknown ? 'normal' : now.level} place={place} />
     </div>
   );
 }

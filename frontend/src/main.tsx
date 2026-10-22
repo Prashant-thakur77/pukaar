@@ -1,7 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@fontsource-variable/inter/wght.css';
-import './theme.css';
+import './tokens.css';
 import './app.css';
 import './pages.css';
 import './agents.css';
@@ -14,6 +13,9 @@ import { applyTheme, usePrefs } from './store';
 
 applyTheme(usePrefs.getState().theme);
 prefetchRoute(window.location.pathname);
+// The answer pages' own code starts downloading now, beside their data, not after React's first render.
+if (/^\/village\/[^/]+\/?$/.test(window.location.pathname)) void import('./pages/VillagePage').catch(() => {});
+else if (window.location.pathname === '/') void import('./pages/Landing').catch(() => {});
 
 // Vite fires this when a preloaded chunk of an older build is gone: reload once into the new build.
 window.addEventListener('vite:preloadError', () => {

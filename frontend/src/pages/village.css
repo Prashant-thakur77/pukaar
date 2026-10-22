@@ -1,0 +1,44 @@
+/* The top of /village/:id: the answer, then (on a desk) where to go beside it. */
+
+.vtop { display: grid; gap: var(--sp-4); padding-top: var(--sp-4); padding-bottom: var(--sp-5); grid-template-areas: 'main' 'aside' 'crumb'; }
+.vtop-main { grid-area: main; min-width: 0; }
+.vtop-aside { grid-area: aside; display: none; }
+.vcrumb { grid-area: crumb; }
+.vcrumb .go-link { font-size: var(--t-small); }
+.vcrumb svg { width: 18px; height: 18px; }
+.vtop .data-note, .vtop .live-level-note { margin-top: var(--sp-3); }
+.vtop-112 { display: none; }
+.lvb-en { font-weight: 400; color: var(--ink-2); }
+.lvb.lv-critical .lvb-en { color: inherit; }
+
+.vside-h { font-size: var(--t-h3); line-height: var(--lh-h3); font-weight: 700; }
+.vside-name { font-size: var(--t-lead); line-height: var(--lh-lead); font-weight: 600; margin-top: var(--sp-2); }
+.vside-line { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); }
+.vside-status {
+  display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--sp-2); border-radius: var(--r-1);
+  font-size: var(--t-small); font-weight: 700; background: var(--surface-2); color: var(--ink);
+}
+.vside-status.s-open, .vside-status.s-standby { background: var(--lv-normal-tint); color: var(--lv-normal-ink); }
+.vside-status.s-full { background: var(--lv-warning-tint); color: var(--lv-warning-ink); }
+.vside-status.s-closed { background: var(--lv-critical-tint); color: var(--lv-critical-ink); }
+.vside-facts { font-size: var(--t-body); color: var(--ink-2); margin-top: var(--sp-2); font-variant-numeric: tabular-nums; }
+
+/* Nothing on the phone yet and nothing back: words, not grey boxes. */
+.vtop-wait { padding-top: var(--sp-6); padding-bottom: var(--sp-8); }
+.vwait-title { font-size: var(--t-h2); line-height: var(--lh-h2); font-weight: 700; }
+.vwait-body { font-size: var(--t-lead); line-height: var(--lh-lead); color: var(--ink-2); margin-top: var(--sp-3); max-width: 30em; }
+.vwait-body .go-link { font-size: inherit; min-height: 0; display: inline; }
+
+@media (min-width: 1024px) {
+  .vtop {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-areas: 'crumb crumb' 'main aside';
+    column-gap: var(--sp-6);
+    padding-top: var(--sp-3);
+  }
+  .vtop-aside {
+    display: block; align-self: start;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); padding: var(--sp-5);
+  }
+  .vtop-112 { display: inline-flex; }
+}

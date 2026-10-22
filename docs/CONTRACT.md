@@ -35,6 +35,7 @@ Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`, 
 `GET /villages/{id}/staff-gauges`,
 `POST /reports`, `POST /alerts/{id}/ack`, `GET /approval/{token}`,
 `POST /approval/{token}`, `POST /telegram/webhook`, `GET /public/overview`, `GET /public/pilot-metrics`,
+`GET /public/villages/{id}/now` (the village page's first answer, about 2 kB gzipped),
 `GET /track/{code}`, `GET /replay/status`, `GET /alerts/{id}/audio`, `GET /safe/{token}`,
 `POST /sensors/{id}/readings` and `POST /sensors/{id}/backfill` (river gauge, HMAC-signed body, see docs/hardware/README.md),
 `GET /cap/alerts.atom` and `GET /cap/alerts/{id}.xml` (CAP 1.2 feed of published alerts, XML),
@@ -316,6 +317,13 @@ POST /ask/officer            officer: {question} -> {answer, chart|null, map|nul
                                       series[{name, points[{x, y}]}]}
                              map   = {village_ids[], points[{lat, lon, label}]}
                              tools = [{name, input, output_summary, decision}]
+GET  /public/villages/{id}/now  {id,name,name_hi,district,level,level_since,live_level,replay,level_known,
+                              data_status,data_ok_at,checked_at,means{hi,en},actions[{hi,en}] (at most 3;
+                              the no-data lines when level_known is false),
+                              safe_place{id,name,name_hi,kind_en,kind_hi,walk_min,route_length_m,headroom_m,
+                              status,route_blocked}|null, river{unit,thresholds|null,points[[at,discharge]] (<= 96)},
+                              generated_at}. Cache-Control: public, max-age=30. 404 for an unknown village.
+Every response of 1 kB or more is gzipped when the client sends Accept-Encoding: gzip.
 GET  /public/overview        {counters: Counters, villages[{id,name,name_hi,lat,lon,level,live_level,replay,
                               coords_verified,data_status,data_ok_at,rollcall}],
                               recent_alerts[{id,village_name,village_name_hi,level,status,created_at,

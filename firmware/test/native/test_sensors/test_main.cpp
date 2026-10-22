@@ -28,10 +28,14 @@ static void test_two_of_three_with_nan() {
   TEST_ASSERT_FALSE(pkr_two_of_three(c, 300));
   float d[3] = {NAN, NAN, NAN};
   TEST_ASSERT_FALSE(pkr_two_of_three(d, 0));
-  TEST_ASSERT_EQUAL_INT(3, pkr_count_at_or_above((float[3]){1, 2, 3}, 1));
-  TEST_ASSERT_TRUE(pkr_all_three((float[3]){300, 301, 302}, 300, 1));
-  TEST_ASSERT_FALSE(pkr_all_three((float[3]){300, NAN, 302}, 300, 1));  // NaN never agrees
-  TEST_ASSERT_TRUE(pkr_all_three((float[3]){270, 271, 272}, 280, 0));
+  float e[3] = {1, 2, 3};
+  TEST_ASSERT_EQUAL_INT(3, pkr_count_at_or_above(e, 1));
+  float f[3] = {300, 301, 302};
+  TEST_ASSERT_TRUE(pkr_all_three(f, 300, 1));
+  float g[3] = {300, NAN, 302};
+  TEST_ASSERT_FALSE(pkr_all_three(g, 300, 1));  // NaN never agrees
+  float h[3] = {270, 271, 272};
+  TEST_ASSERT_TRUE(pkr_all_three(h, 280, 0));
 }
 
 static pkr_gauge_cfg_t cfg() { return pkr_gauge_cfg_t{150, 250, 300, 300, 280, 150, 40000, 10, 2}; }

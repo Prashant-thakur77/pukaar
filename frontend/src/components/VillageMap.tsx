@@ -466,7 +466,8 @@ export function VillageMap({
       if (!mk) {
         const el = document.createElement('div');
         el.className = 'sp-host';
-        mk = new ml.Marker({ element: el, anchor: 'bottom', opacityWhenCovered: '0.6' }).setLngLat([place.lon, place.lat]).addTo(m);
+        // A safe place behind a ridge in 3D stays fully drawn: its label must stay readable (axe contrast).
+        mk = new ml.Marker({ element: el, anchor: 'bottom', opacityWhenCovered: '1' }).setLngLat([place.lon, place.lat]).addTo(m);
         el.removeAttribute('aria-label');
         el.removeAttribute('role');
         el.removeAttribute('tabindex');

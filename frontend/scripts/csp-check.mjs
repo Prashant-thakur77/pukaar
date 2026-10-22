@@ -29,11 +29,15 @@ const TEMPLATE = fileURLToPath(new URL('../../infra/template.yaml', import.meta.
 
 /** The headers block of AmplifyApp.CustomHeaders, as Amplify would send them. */
 export function amplifyHeaders(templateText, region) {
-  const start = templateText.indexOf('CustomHeaders: !Sub |');
+  // `!Sub |` (a plain string) or `!Sub [ |, {vars} ]` (the string plus variables such as ${EdgeConnect}).
+  const start = templateText.indexOf('CustomHeaders: !Sub');
   if (start < 0) throw new Error('AmplifyApp CustomHeaders not found in the template');
   const block = templateText.slice(start, templateText.indexOf('CustomRules:', start));
   const out = {};
-  for (const m of block.matchAll(/- key: (\S+)\s*\n\s*value: "(.*)"/g)) out[m[1]] = m[2].replaceAll('${AWS::Region}', region);
+  for (const m of block.matchAll(/- key: (\S+)\s*\n\s*value: "(.*)"/g)) {
+    // Template variables other than the region (the prod-only edge host) are empty here, as on the dev stack.
+    out[m[1]] = m[2].replaceAll('${AWS::Region}', region).replace(/\$\{[A-Za-z]+\}/g, '');
+  }
   return out;
 }
 
