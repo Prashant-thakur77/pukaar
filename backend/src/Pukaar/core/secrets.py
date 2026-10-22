@@ -28,7 +28,16 @@ def _ssm(name: str) -> str | None:
     s = get_settings()
     try:
         resp = boto3.client("ssm", region_name=s.aws_region).get_parameter(Name=f"{s.ssm_prefix}/{name}", WithDecryption=True)
-    except Exception:
+    except Exception as exc:
+        # None means "unavailable", not "configured as empty". Callers that send (delivery,
+        # roll-call) record a failure with this reason; they never fall back to a stub.
+        from Pukaar.core.log import get_logger, log, metric
+
+        not_found = "ParameterNotFound" in f"{type(exc).__name__} {exc}"
+        log(get_logger("secrets"), "secret not set" if not_found else "secret read failed", 30 if not_found else 40,
+            name=name, error=type(exc).__name__)
+        if not not_found:
+            metric("SecretReadFailed", 1)
         return None
     value = resp["Parameter"]["Value"]
     _CACHE[name] = (time.monotonic(), value)

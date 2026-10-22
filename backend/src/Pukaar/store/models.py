@@ -105,7 +105,20 @@ class Village(BaseModel):
     gauge: GaugeConfig | None = None
     soil: SoilRange | None = None
     open_alert_id: str | None = None
+    # The newest alert raised for this village (kept after it closes): a declined or expired alert
+    # is asked again while the level holds (decision_engine.reask_due).
+    last_alert_id: str | None = None
+    # Live villages: always False. A replay works on its own copy (repo REPLAY / VILLAGE#id), so
+    # starting, running or resetting a replay never changes the live record.
     replay: bool = False
+    # Data freshness (decision_engine.note_data): "ok" when the last sweep had complete forecast
+    # data; "stale" while the last complete values are carried forward (at most
+    # Settings.stale_max_sweeps sweeps); "unavailable" after that. A stale or unavailable sweep
+    # never counts as a calm sweep, so missing data never walks a level down to normal.
+    data_status: Literal["ok", "stale", "unavailable"] = "ok"
+    data_ok_at: str | None = None  # time of the last sweep with complete data
+    data_missing_sweeps: int = 0
+    data_note: str = ""
 
 
 class Reading(BaseModel):
@@ -124,6 +137,10 @@ class Reading(BaseModel):
     river_level: Level = "normal"
     source: str = "open-meteo"
     replay: bool = False
+    # What the provider left out (e.g. "rain", "discharge"): unknown, never read as 0.
+    missing: list[str] = Field(default_factory=list)
+    # Set on the copy the rules used when the last complete values were carried forward.
+    carried_from: str | None = None
 
 
 class SensorReading(BaseModel):
@@ -297,6 +314,8 @@ class Recipient(BaseModel):
     village_id: str
     name: str
     role: Literal["villager", "pradhan", "officer"] = "villager"
+    # "stub" only for demo recipients with no phone. A telegram recipient is never quietly sent
+    # to the stub: if Telegram cannot be reached the delivery is recorded as failed (dispatch.py).
     channel: Literal["telegram", "stub"] = "telegram"
     language: str = "hi"
 

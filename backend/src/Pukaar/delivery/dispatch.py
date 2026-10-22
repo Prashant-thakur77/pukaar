@@ -2,8 +2,10 @@
 
 Before any send: the Cedar guard (approved, or critical auto-send, or failsafe;
 replay never reaches a real phone) and the action guard (rate limit per
-village). Recipients without a live channel get a recorded stub delivery so
-the demo and tests see the same records.
+village). Replays, and demo recipients whose channel is "stub", get a recorded
+stub delivery so the demo and tests see the same records. A real (telegram)
+recipient is never sent to the stub: a missing token or a Telegram error is a
+failed delivery with its reason, counted in DeliveryFailed (alarmed).
 """
 
 from __future__ import annotations
@@ -23,13 +25,21 @@ _LOG = get_logger("dispatch")
 
 
 def _channel(recipient: Recipient, alert: Alert) -> str:
-    if alert.replay or recipient.channel != "telegram" or not telegram.configured():
+    """The stub channel is only for replays and for demo recipients that are explicitly stub.
+
+    A telegram recipient of a live alert always goes through Telegram: if the token cannot be
+    read or Telegram errors, the delivery is recorded as failed with the reason, never as a
+    "sent" stub.
+    """
+    if alert.replay or recipient.channel == "stub":
         return "stub"
     return "telegram"
 
 
 def _send_one(alert: Alert, recipient: Recipient, channel: str, audio: bytes | None) -> None:
     if channel == "telegram":
+        if not telegram.configured():
+            raise telegram.TelegramError("Telegram token unavailable (not configured, or SSM could not be read)")
         telegram.send_alert(recipient.id, alert.id, alert.text_hi, audio)
     else:
         log(_LOG, "stub delivery", alert_id=alert.id, recipient=recipient.id, replay=alert.replay)
@@ -68,6 +78,7 @@ def deliver(repo: Repo, alert: Alert, *, action: str = "deliver", recall: bool =
             repo.put_delivery(Delivery(alert_id=alert.id, recipient_id=r.id, name=r.name, channel=channel,
                                        status="failed", attempts=attempts, error=f"blocked: {reason}"))
             failed += 1
+            metric("DeliveryFailed", 1, Channel=channel)
             continue
         try:
             _send_one(alert, r, channel, audio)

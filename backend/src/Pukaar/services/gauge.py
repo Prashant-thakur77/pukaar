@@ -150,17 +150,18 @@ def ingest(repo: Repo, village_id: str, device_id: str, fields: ReadingFields, a
             log(_LOG, "gauge audit write failed", 40, error=str(exc)[:200])
 
     result = None
-    if risk_rules.level_rank(level) >= risk_rules.level_rank("watch"):
+    # A simulated reading is stored and shown but never sets a live level (risk_rules.assess),
+    # so it does not trigger a re-evaluation either. A running replay does not pause this:
+    # the replay works on its own copy of the village.
+    if not reading.simulated and risk_rules.level_rank(level) >= risk_rules.level_rank("watch"):
         # Re-evaluate now rather than at the next 15-minute sweep, but only to raise a level.
         from Pukaar.services.decision_engine import recompute_village
-        from Pukaar.services.replay import is_running
         from Pukaar.workflow.client import get_workflow
 
-        if not is_running(repo):
-            try:
-                result = recompute_village(repo, village, now=now, workflow=get_workflow(), only_if_rising=True)
-            except Exception as exc:  # the next sweep picks the reading up
-                log(_LOG, "gauge recompute failed", 40, village_id=village.id, error=str(exc)[:200])
+        try:
+            result = recompute_village(repo, village, now=now, workflow=get_workflow(), only_if_rising=True)
+        except Exception as exc:  # the next sweep picks the reading up
+            log(_LOG, "gauge recompute failed", 40, village_id=village.id, error=str(exc)[:200])
     return IngestResult("accepted", gauge_level=level, simulated=reading.simulated,
                         village_level=result.level if result else village.level,
                         alert_id=result.alert_id if result else None)

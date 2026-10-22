@@ -44,7 +44,9 @@ Parameters:
   AlarmEmail:
     Type: String
     Default: ""
-    Description: Optional address subscribed to the alarm topic.
+    Description: >
+      Address subscribed to the alarm topic (the owner confirms the e-mail SNS sends). `make deploy` passes
+      ALARM_EMAIL from the gitignored .env.deploy.local; with it empty, alarms notify nobody.
   AfterActionFrom:
     Type: String
     Default: ""
@@ -972,10 +974,31 @@ Resources:
       TreatMissingData: breaching
       AlarmActions: [!Ref AlarmTopic]
 
+  # The heartbeat above passes while any one village is swept. This one fires per village: the sweep
+  # emits VillageDataStale (dimension Village) for a village with no complete forecast in 45 minutes
+  # (PUKAAR_STALE_ALARM_MINUTES), whether the fetch failed or the provider left values out.
+  VillageDataStaleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-village-data-stale
+      AlarmDescription: A village has had no complete forecast data for 45 minutes; its level is held, not lowered. The village page says "data unavailable".
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(VillageDataStale) FROM Pukaar"
+          Period: 900
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
   DeliveryFailedAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub pukaar-${Stage}-delivery-failed
+      AlarmDescription: A delivery to a real phone failed (Telegram error, token unreadable, or blocked); nothing is ever recorded as a stub send instead.
       Metrics:
         - Id: q
           Expression: "SELECT SUM(DeliveryFailed) FROM Pukaar"
@@ -1030,7 +1053,8 @@ Resources:
               "title": "Sweep and alerts", "region": "${AWS::Region}", "period": 900,
               "metrics": [[{"expression": "SELECT SUM(SweepCompleted) FROM Pukaar", "id": "s1", "label": "SweepCompleted"}],
                           [{"expression": "SELECT MAX(UnacknowledgedAlerts) FROM Pukaar", "id": "s2", "label": "UnacknowledgedAlerts"}],
-                          [{"expression": "SELECT SUM(ApprovalDecision) FROM Pukaar", "id": "s3", "label": "ApprovalDecision"}]]}},
+                          [{"expression": "SELECT SUM(ApprovalDecision) FROM Pukaar", "id": "s3", "label": "ApprovalDecision"}],
+                          [{"expression": "SELECT SUM(VillageDataStale) FROM Pukaar GROUP BY Village", "id": "s4", "label": "VillageDataStale"}]]}},
             {"type": "metric", "x": 12, "y": 0, "width": 12, "height": 6, "properties": {
               "title": "Model", "region": "${AWS::Region}", "period": 300,
               "metrics": [[{"expression": "SELECT SUM(ModelError) FROM Pukaar", "id": "m1", "label": "ModelError"}],

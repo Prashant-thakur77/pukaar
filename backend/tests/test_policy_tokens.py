@@ -70,6 +70,51 @@ def test_approval_token_round_trip_and_tamper():
         tokens.verify(t, "ack")
 
 
+# -- the public demo accounts (password published in the README) -----------------------------
+JUDGE = Principal("judge", "officer")
+JUDGE_PRADHAN = Principal("judge_pradhan", "pradhan", ["thunag"])
+LIVE_ONLY = ["approve", "decline", "issue_directive", "send_drill", "set_shelter_status", "block_road",
+             "open_rollcall", "remind_rollcall", "tick_checklist", "set_report_state", "set_gauge_thresholds",
+             "manage_staff_gauge", "confirm_staff_reading", "dev_link"]
+
+
+@pytest.mark.parametrize("action", LIVE_ONLY)
+def test_judge_cannot_touch_live_alerts_or_villages(action):
+    for resource_type, rid in (("alert", "a1"), ("village", "thunag"), ("report", "r1")):
+        d = evaluate(JUDGE, action, resource_type, rid, {"village_id": "thunag", "replay": False})
+        assert not d.allowed and d.policy_ids == ["public-demo-accounts-replay-only"], (action, resource_type)
+        assert "Public demo account" in d.reason
+    # the same request with no replay flag at all is live too
+    assert not evaluate(JUDGE, action, "alert", "a1").allowed
+
+
+def test_judge_pradhan_is_held_to_replays_even_in_its_own_village():
+    ctx = {"village_id": "thunag", "replay": False}
+    for action in ("block_road", "set_shelter_status", "tick_checklist", "open_rollcall"):
+        d = evaluate(JUDGE_PRADHAN, action, "village", "thunag", ctx)
+        assert not d.allowed and d.policy_ids == ["public-demo-accounts-replay-only"]
+        # a real pradhan of the same village keeps the permission
+        assert evaluate(PRADHAN, action, "village", "thunag", ctx).allowed
+
+
+def test_judge_may_act_on_replay_alerts_and_read_freely():
+    assert evaluate(JUDGE, "approve", "alert", "a1", {"replay": True}).allowed
+    assert evaluate(JUDGE, "decline", "alert", "a1", {"replay": True}).allowed
+    assert evaluate(JUDGE, "set_report_state", "report", "r1", {"replay": True}).allowed
+    for action in ("view_console", "view_reports", "start_replay", "read_audit", "ask_analyst"):
+        assert evaluate(JUDGE, action, "app", "pukaar").allowed, action
+    # other officers are not affected
+    assert evaluate(OFFICER, "approve", "alert", "a1", {"replay": False}).allowed
+
+
+def test_judge_refusal_reason_is_in_the_audit_log(repo, frozen):
+    d = authorize(JUDGE, "approve", "alert", "a9", {"replay": False}, repo=repo)
+    assert not d.allowed
+    row = repo.list_audit("2026-07-01", "alert:a9")[0]
+    assert row.actor == "judge" and row.decision == "deny"
+    assert row.reason.startswith("Public demo account") and "replay alerts only" in row.reason
+
+
 def test_approval_token_expires_after_30_minutes():
     t = tokens.sign("alr_1", "officer1", 1, "approve", now=time.time() - 31 * 60)
     with pytest.raises(tokens.TokenError, match="expired"):

@@ -58,6 +58,13 @@ class Settings:
     ses_from: str = ""
     # AppSync Events HTTP domain (no scheme). Empty: live push is off and the web app polls.
     events_http_domain: str = ""
+    # Missing forecast data (decision_engine.note_data): the last complete values are carried
+    # forward for at most this many sweeps, then the village is marked "data unavailable".
+    stale_max_sweeps: int = 4
+    # A village with no complete forecast for this long emits VillageDataStale (alarmed).
+    stale_alarm_minutes: int = 45
+    # A declined or expired alert is asked again after this long if the level still holds.
+    reask_cooldown_minutes: int = 30
 
     @property
     def guardrail_enabled(self) -> bool:
@@ -110,4 +117,7 @@ def get_settings() -> Settings:
         guardrail_timeout_seconds=float(os.environ.get("PUKAAR_GUARDRAIL_TIMEOUT_SECONDS", "8")),
         ses_from=os.environ.get("PUKAAR_SES_FROM", "").strip(),
         events_http_domain=os.environ.get("PUKAAR_EVENTS_HTTP_DOMAIN", "").strip().removeprefix("https://").rstrip("/"),
+        stale_max_sweeps=int(os.environ.get("PUKAAR_STALE_MAX_SWEEPS", "4")),
+        stale_alarm_minutes=int(os.environ.get("PUKAAR_STALE_ALARM_MINUTES", "45")),
+        reask_cooldown_minutes=int(os.environ.get("PUKAAR_REASK_COOLDOWN_MINUTES", "30")),
     )

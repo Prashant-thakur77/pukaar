@@ -125,11 +125,14 @@ def assess(
     gauge: GaugeConfig | None = None,
     soil: SoilRange | None = None,
     soil_modifier: bool | None = None,
+    allow_simulated: bool = False,
 ) -> Assessment:
     """Raw level for one sweep, before hysteresis. reports = (report, created_at).
 
     sensor/gauge: the village gauge's latest reading and its stage thresholds. Only a
     reading at most GAUGE_FRESH_MINUTES old counts; a stale or missing one changes nothing.
+    A simulated reading (scripts/gauge_sim*.py, a "-sim" device) is evidence only: it never
+    sets a level unless allow_simulated (replays only).
     soil/soil_modifier: the village's soil range and whether the soil modifier may lower the
     rain bands (None reads the PUKAAR_SOIL_MODIFIER setting).
     """
@@ -160,8 +163,13 @@ def assess(
                 "river_level": river,
                 "thresholds": thresholds.model_dump() if thresholds else None,
                 "replay": reading.replay,
+                "missing": list(reading.missing),
+                "carried_from": reading.carried_from,
             }
         )
+        for part in reading.missing:
+            # Unknown, not 0 mm: decision_engine carries the last complete value or holds the level.
+            rules.append(f"{part}_carried_forward" if reading.carried_from else f"{part}_unknown")
         if soil_info["moisture_root"] is not None:
             evidence.append({"kind": "soil", "at": reading.at, **soil_info})
         if rain != "normal":
@@ -174,14 +182,17 @@ def assess(
     gauge_lvl = "normal"
     if gauge is not None and gauge_is_fresh(sensor, now):
         assert sensor is not None
-        gauge_lvl = gauge_level(sensor.water_level_cm, gauge)
+        measured = gauge_level(sensor.water_level_cm, gauge)
+        ignored = sensor.simulated and not allow_simulated
+        gauge_lvl = "normal" if ignored else measured
         evidence.append(
             {
                 "kind": "gauge",
                 "at": sensor.at,
                 "device_id": sensor.device_id,
                 "water_level_cm": sensor.water_level_cm,
-                "gauge_level": gauge_lvl,
+                "gauge_level": measured,
+                "counted": not ignored,
                 "thresholds_cm": {"watch": gauge.watch_cm, "warning": gauge.warning_cm, "critical": gauge.critical_cm},
                 "battery_v": sensor.battery_v,
                 "simulated": sensor.simulated,
@@ -189,7 +200,10 @@ def assess(
         )
         if gauge_lvl != "normal":
             rules.append(f"gauge>={getattr(gauge, gauge_lvl + '_cm'):g}cm:{gauge_lvl}")
-        if sensor.simulated:
+        if ignored:
+            # Stored and shown, never a live level: a simulator must not raise a real alert.
+            rules.append("gauge_simulated_ignored")
+        elif sensor.simulated:
             rules.append("gauge_simulated")
 
     level = _max(rain, river, gauge_lvl)

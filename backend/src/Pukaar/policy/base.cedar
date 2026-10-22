@@ -217,3 +217,27 @@ permit (
   resource is Pukaar::Alert
 )
 when { context.village_id != "" && principal.village_ids.contains(context.village_id) };
+
+// The judge accounts' password is published in the README so anyone can try the console. Whatever
+// group they are in, they may act on replay alerts only: nothing they do can reach a real phone,
+// change what a real alert says, or change a live village's shelters, roads or checklist.
+// context.replay comes from the record itself (api/auth.py resource_facts), never from the request.
+@id("public-demo-accounts-replay-only")
+@desc("Public demo account (judge, judge_pradhan; its password is published): it may act on replay alerts only, never on a live alert or a live village.")
+forbid (
+  principal,
+  action in [
+    Pukaar::Action::"approve", Pukaar::Action::"decline", Pukaar::Action::"issue_directive",
+    Pukaar::Action::"send_drill", Pukaar::Action::"set_shelter_status", Pukaar::Action::"block_road",
+    Pukaar::Action::"open_rollcall", Pukaar::Action::"remind_rollcall", Pukaar::Action::"tick_checklist",
+    Pukaar::Action::"set_report_state", Pukaar::Action::"set_gauge_thresholds",
+    Pukaar::Action::"manage_staff_gauge", Pukaar::Action::"confirm_staff_reading", Pukaar::Action::"dev_link",
+    Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe"
+  ],
+  resource
+)
+when {
+  [Pukaar::Officer::"judge", Pukaar::Pradhan::"judge",
+   Pukaar::Officer::"judge_pradhan", Pukaar::Pradhan::"judge_pradhan"].contains(principal) &&
+  context.replay != true
+};

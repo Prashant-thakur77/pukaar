@@ -15,9 +15,16 @@ from Pukaar.store.repo import Repo
 _ALERT_HIDDEN = {"task_token", "token_version", "execution_arn", "audio_key"}
 
 
-def village(repo: Repo, v: Village) -> dict[str, Any]:
+def village(repo: Repo, v: Village, shown: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Public village view. No officer usernames. While a replay runs, `shown` (replay.display)
+    puts the replay's level on a village whose live level is normal; live_level is always there."""
     latest = repo.list_readings(v.id, limit=1)
-    out = v.model_dump()
+    out = v.model_dump(exclude={"officers", "last_alert_id"})
+    if shown is None:
+        from Pukaar.services import replay
+
+        shown = replay.display(repo, [v])[v.id]
+    out.update(shown)
     out["latest_reading"] = latest[0].model_dump() if latest else None
     # The soft "get ready" outlook: never changes the level (services/readiness.py).
     out["readiness"] = readiness.outlook(latest[0] if latest else None, v.thresholds)
@@ -35,7 +42,23 @@ def alert(a: Alert) -> dict[str, Any]:
     return out
 
 
+# What a public (signed-out) page may show about a villager's report: the coarse facts only.
+# Never the words, the exact GPS, the voice or photo, a name or a tracking code; officers read
+# those on /reports, under Cedar.
+PUBLIC_REPORT_FIELDS = ("id", "village_id", "created_at", "report_type", "severity", "state", "replay")
+
+
+def public_report(r: Report) -> dict[str, Any]:
+    out: dict[str, Any] = {k: getattr(r, k) for k in PUBLIC_REPORT_FIELDS}
+    out["held"] = r.held
+    out["has_location"] = r.lat is not None and r.lon is not None
+    out["has_photo"], out["has_audio"] = bool(r.photo_key), bool(r.audio_key)
+    return out
+
+
 def report(r: Report, *, public: bool = False) -> dict[str, Any]:
+    if public:
+        return public_report(r)
     out = r.model_dump(exclude={"photo_key", "audio_key", "masked_text"})
     out["photo_url"] = storage.url_for(r.photo_key)
     out["audio_url"] = storage.url_for(r.audio_key)
@@ -43,9 +66,6 @@ def report(r: Report, *, public: bool = False) -> dict[str, Any]:
     if r.masked_text and r.screen is not None:
         # Show the guardrail's copy: phone numbers and e-mails masked. The original stays in the table.
         out[r.screen.field] = r.masked_text
-    if public and r.held:
-        # Words held for review are not published; officers read them in the console.
-        out.update(text="", transcript="", summary_en="", reply_hi="")
     return out
 
 

@@ -65,7 +65,9 @@ def dev_login(body: DevLogin) -> dict:
 @router.get("/villages")
 def villages() -> list[dict]:
     repo = get_repo()
-    return [views.village(repo, v) for v in repo.list_villages()]
+    villages = repo.list_villages()
+    shown = replay_svc.display(repo, villages)
+    return [views.village(repo, v, shown[v.id]) for v in villages]
 
 
 @router.get("/villages/{village_id}")
@@ -90,11 +92,16 @@ def village_safe_places(village_id: str) -> dict:
 def overview() -> dict:
     repo = get_repo()
     alerts = repo.list_alerts(limit=12)
+    villages = repo.list_villages()
+    shown = replay_svc.display(repo, villages)
     return {
         "counters": views.counters(repo),
-        "villages": [{"id": v.id, "name": v.name, "name_hi": v.name_hi, "lat": v.lat, "lon": v.lon, "level": v.level,
-                      "coords_verified": v.coords_verified, "replay": v.replay,
-                      "rollcall": rollcall.public_for_village(repo, v.id)} for v in repo.list_villages()],
+        # The village's own (approximate) location, never a villager's.
+        "villages": [{"id": v.id, "name": v.name, "name_hi": v.name_hi, "lat": v.lat, "lon": v.lon,
+                      "level": shown[v.id]["level"], "live_level": v.level, "replay": shown[v.id]["replay"],
+                      "coords_verified": v.coords_verified, "data_status": v.data_status,
+                      "data_ok_at": v.data_ok_at, "rollcall": rollcall.public_for_village(repo, v.id)}
+                     for v in villages],
         "recent_alerts": [{"id": a.id, "village_name": a.village_name, "village_name_hi": a.village_name_hi,
                            "level": a.level, "status": a.status, "created_at": a.created_at, "approved": a.approved,
                            "delivered_count": a.delivered_count, "acknowledged_count": a.acknowledged_count,
@@ -227,7 +234,9 @@ def approval_decide(token: str, body: LinkDecision) -> dict:
         raise HTTPException(400, "decision must be approve or decline")
     repo = get_repo()
     officer = Principal(t.subject, "officer")
-    d = authorize(officer, body.decision, "alert", t.alert_id, repo=repo)
+    a = repo.get_alert(t.alert_id)
+    d = authorize(officer, body.decision, "alert", t.alert_id,
+                  {"replay": bool(a and a.replay), "level": a.level if a else None}, repo=repo)
     if not d.allowed:
         raise HTTPException(403, {"code": "denied", "reason": d.reason})
     try:

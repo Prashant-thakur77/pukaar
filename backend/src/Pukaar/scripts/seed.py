@@ -41,7 +41,10 @@ def seed(repo: Repo) -> list[str]:
         )
         if existing is not None:
             village.level, village.level_since, village.calm_sweeps = existing.level, existing.level_since, existing.calm_sweeps
-            village.open_alert_id, village.replay = existing.open_alert_id, existing.replay
+            village.open_alert_id, village.last_alert_id = existing.open_alert_id, existing.last_alert_id
+            village.data_status, village.data_ok_at = existing.data_status, existing.data_ok_at
+            village.data_missing_sweeps, village.data_note = existing.data_missing_sweeps, existing.data_note
+            village.replay = False  # live records never carry the replay flag (services/replay.py)
         repo.put_village(village)
         for i in range(1, STUB_RECIPIENTS_PER_VILLAGE + 1):
             repo.put_recipient(Recipient(id=f"stub-{raw['id']}-{i}", village_id=raw["id"],

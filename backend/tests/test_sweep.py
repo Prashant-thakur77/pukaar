@@ -110,7 +110,7 @@ def test_one_failing_village_does_not_stop_the_sweep(repo, frozen, workflow):
 
 def _finish_replay(repo, frozen, minutes_ago):
     replay.start(repo, "himachal_2023_07")
-    repo.update_village("sujanpur", level="critical", calm_sweeps=0, replay=False)
+    repo.update_replay_village("sujanpur", level="critical", calm_sweeps=0)  # the replay's own copy
     st = repo.get_replay()
     st.active, st.updated_at = False, clock.iso(frozen["now"] - timedelta(minutes=minutes_ago))
     repo.put_replay(st)
@@ -120,6 +120,7 @@ def test_live_sweep_clears_a_replay_finished_over_30_minutes_ago(repo, frozen, w
     _finish_replay(repo, frozen, minutes_ago=31)
     de.sweep_all(repo, now=frozen["now"], fetch=lambda v, at: make_reading(v, at, 0.0), workflow=workflow)
     assert repo.get_replay().scenario is None
+    assert repo.get_replay_village("sujanpur") is None
     assert repo.get_village("sujanpur").level == "normal"
 
 
@@ -127,4 +128,5 @@ def test_live_sweep_keeps_a_recently_finished_replay(repo, frozen, workflow):
     _finish_replay(repo, frozen, minutes_ago=10)
     de.sweep_all(repo, now=frozen["now"], fetch=lambda v, at: make_reading(v, at, 0.0), workflow=workflow)
     assert repo.get_replay().scenario == "himachal_2023_07"
-    assert repo.get_village("sujanpur").level == "critical"  # hysteresis still holding the replay level
+    assert repo.get_replay_village("sujanpur").level == "critical"  # still on screen as the replay's level
+    assert repo.get_village("sujanpur").level == "normal"  # the live record was never the replay's

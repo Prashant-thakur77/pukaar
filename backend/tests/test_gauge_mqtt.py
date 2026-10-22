@@ -56,16 +56,24 @@ def test_valid_reading_is_stored_with_mqtt_transport():
 
 def test_rule_payload_extras_are_ignored_and_level_change_is_audited(monkeypatch):
     import Pukaar.services.decision_engine as de
-    import Pukaar.services.replay as rp
 
     calls = []
-    monkeypatch.setattr(rp, "is_running", lambda repo: False)
     monkeypatch.setattr(de, "recompute_village", lambda repo, v, **kw: calls.append((v.id, kw["only_if_rising"])))
     repo = FakeRepo()
     out = gauge_ingest.handle(event(water_level_cm=130, firmware="0.3.1"), repo=repo, now=NOW)
     assert out["status"] == "accepted" and out["gauge_level"] == "watch"
     assert repo.audit and "via mqtt" in repo.audit[0].reason and repo.audit[0].actor == "gauge-gohar-sim"
-    assert calls == [("gohar", True)]  # at watch: re-evaluated at once, only ever to raise the level
+    assert "(simulated)" in repo.audit[0].reason
+    assert calls == []  # simulated: stored, shown and audited, but never re-evaluates a live village
+
+    # real hardware at watch: re-evaluated at once, only ever to raise the level
+    repo.village = Village.model_construct(id="gohar", level="normal",
+                                           gauge=G.model_copy(update={"device_id": "gauge-gohar-01"}))
+    repo.readings.clear()
+    out = gauge_ingest.handle(event(device_id="gauge-gohar-01", simulated=False, water_level_cm=130,
+                                    at=clock.iso(NOW)), repo=repo, now=NOW)
+    assert out["status"] == "accepted" and out["simulated"] is False
+    assert calls == [("gohar", True)]
 
 
 def test_wrong_device_or_village_is_rejected():
@@ -136,12 +144,20 @@ def test_rising_mqtt_reading_raises_the_village_through_the_real_repo(repo, froz
 
     monkeypatch.setattr(wc, "get_workflow", lambda: workflow)
     v = repo.get_village("gohar")
-    out = gauge_ingest.handle(event(device_id=v.gauge.device_id, water_level_cm=v.gauge.warning_cm + 10,
+    # The seeded "-sim" device: stored and shown, never a live level or a live alert.
+    sim = gauge_ingest.handle(event(device_id=v.gauge.device_id, water_level_cm=v.gauge.warning_cm + 10,
+                                    at=clock.iso(NOW - timedelta(minutes=2))), repo=repo, now=NOW)
+    assert sim["status"] == "accepted" and sim["gauge_level"] == "warning" and sim["simulated"] is True
+    assert sim["village_level"] == "normal" and sim["alert_id"] is None and workflow.started == []
+    assert repo.latest_sensor_reading("gohar", 30, now=NOW).transport == "mqtt"
+
+    # Real hardware (no "-sim", not flagged simulated) raises the village at once.
+    real = v.gauge.model_copy(update={"device_id": "gauge-gohar-01"})
+    repo.update_village("gohar", gauge=real)
+    out = gauge_ingest.handle(event(device_id="gauge-gohar-01", simulated=False, water_level_cm=real.warning_cm + 10,
                                     at=clock.iso(NOW)), repo=repo, now=NOW)
-    assert out["status"] == "accepted" and out["gauge_level"] == "warning"
+    assert out["status"] == "accepted" and out["gauge_level"] == "warning" and out["simulated"] is False
     assert out["village_level"] in {"warning", "critical"} and out["alert_id"]
-    latest = repo.latest_sensor_reading("gohar", 30, now=NOW)
-    assert latest.transport == "mqtt" and latest.simulated is True
     assert workflow.started == [out["alert_id"]]
 
 

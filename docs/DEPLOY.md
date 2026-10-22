@@ -112,10 +112,22 @@ Parameters (override with
 | `BedrockModelId` | `us.amazon.nova-2-lite-v1:0` | |
 | `BedrockFallbackRegion` | `us-west-2` | Second region on throttling or 5xx |
 | `Architecture` | `x86_64` | `arm64` when building on ARM |
-| `ReplayEnabled` | `true` | |
-| `AlarmEmail` | empty | Confirm the SNS e-mail after deploy |
+| `ReplayEnabled` | `true` | A replay never touches live levels or live alerts, but a real pilot should still set `false` |
+| `AlarmEmail` | empty | `make deploy` passes `ALARM_EMAIL` from `.env.deploy.local`. Confirm the SNS e-mail after deploy. Empty means the alarms notify nobody |
 | `AfterActionFrom` | empty | Verified SES sender for after-action reports (section 5a). Empty = no e-mail, no SES permission |
 | `EventsApiKeyExpires` | a fixed date | Expiry (epoch seconds) of the public, subscribe-only live-push API key; `make deploy` passes now + 360 days |
+
+Set the on-call address for the alarms before the first deploy. It is kept
+out of git, like `AFTER_ACTION_FROM`:
+
+```
+echo "ALARM_EMAIL=duty-officer@example.org" >> .env.deploy.local   # gitignored; make deploy reads it
+make deploy
+```
+
+SNS e-mails a confirmation link to that address, and nothing is delivered
+until its owner clicks it. `make deploy` prints a warning when `ALARM_EMAIL`
+is not set.
 
 Stack outputs: `ApiUrl`, `WebUrl`, `AmplifyAppId`, `AmplifyBranch`,
 `UserPoolId`, `UserPoolClientId`, `TableName`, `BucketName`,
@@ -252,8 +264,9 @@ Things that cost money even when small:
 - Bedrock Nova tokens (per call; no model call at level `normal`).
 - Polly generative voice, Transcribe minutes after the 12-month free tier.
 - ECR storage for the images (two images, roughly 0.5 to 1 GB each).
-- CloudWatch: ten alarms and one dashboard; the free tier covers ten alarms
-  and three dashboards. X-Ray traces past the free tier.
+- CloudWatch: eleven alarms and one dashboard; the free tier covers ten alarms
+  and three dashboards, so the eleventh is billed (cents a month). X-Ray
+  traces past the free tier.
 - DynamoDB point-in-time recovery is billed per GB stored (tiny here).
 - Amplify Hosting bandwidth and build minutes beyond the free tier.
 

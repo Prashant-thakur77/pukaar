@@ -339,3 +339,53 @@ def test_live_push_grant_is_publish_only_and_scoped_to_the_two_namespaces():
     assert outs["EventsHttpDomain"]["Value"] == {"Fn::GetAtt": "PukaarEvents.Dns.Http"}
     assert outs["EventsRealtimeDomain"]["Value"] == {"Fn::GetAtt": "PukaarEvents.Dns.Realtime"}
     assert outs["EventsApiKey"]["Value"] == {"Fn::GetAtt": "PublicEventsKey.ApiKey"}
+
+
+# -- alarms that reach someone ---------------------------------------------------------------
+ROOT = TEMPLATE.parents[1]
+SRC = ROOT / "backend" / "src" / "Pukaar"
+
+
+def _alarms() -> dict[str, dict]:
+    return {n: r["Properties"] for n, r in RES.items() if r["Type"] == "AWS::CloudWatch::Alarm"}
+
+
+def test_every_alarm_notifies_the_alarm_topic():
+    for name, props in _alarms().items():
+        assert props.get("AlarmActions") == [{"Fn::Ref": "AlarmTopic"}], name
+
+
+def test_alarm_email_is_subscribed_and_make_deploy_passes_it_from_the_local_env_file():
+    sub = RES["AlarmEmailSubscription"]
+    assert sub["Condition"] == "HasAlarmEmail"
+    assert sub["Properties"]["Endpoint"] == {"Fn::Ref": "AlarmEmail"}
+    assert sub["Properties"]["TopicArn"] == {"Fn::Ref": "AlarmTopic"}
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    assert "-include .env.deploy.local" in makefile
+    assert "$(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL))" in makefile
+    deploy = makefile.split("\ndeploy:", 1)[1].split("\n\n", 1)[0]
+    assert "$(DEPLOY_EXTRA)" in deploy and "ALARM_EMAIL is not set" in deploy
+    # the address itself is never committed
+    assert "AlarmEmail=" not in (ROOT / "samconfig.toml").read_text(encoding="utf-8")
+
+
+def test_per_village_stale_data_alarm_watches_the_metric_the_sweep_emits():
+    props = _alarms()["VillageDataStaleAlarm"]
+    expr = props["Metrics"][0]["Expression"]
+    assert "VillageDataStale" in expr and props["Metrics"][0]["Period"] <= 900
+    assert props["ComparisonOperator"] == "GreaterThanOrEqualToThreshold" and props["Threshold"] == 1
+    engine = (SRC / "services" / "decision_engine.py").read_text(encoding="utf-8")
+    assert 'metric("VillageDataStale", 1, Village=village.id)' in engine
+
+
+def test_delivery_failed_alarm_watches_the_metric_dispatch_emits():
+    expr = _alarms()["DeliveryFailedAlarm"]["Metrics"][0]["Expression"]
+    assert "DeliveryFailed" in expr
+    dispatch = (SRC / "delivery" / "dispatch.py").read_text(encoding="utf-8")
+    assert dispatch.count('metric("DeliveryFailed"') >= 2  # Telegram errors and blocked sends
+
+
+def test_replay_can_be_switched_off_for_a_real_pilot():
+    p = T["Parameters"]["ReplayEnabled"]
+    assert set(p["AllowedValues"]) == {"true", "false"}
+    assert T["Globals"]["Function"]["Environment"]["Variables"]["PUKAAR_REPLAY_ENABLED"] == {"Fn::Ref": "ReplayEnabled"}

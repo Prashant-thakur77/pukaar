@@ -61,10 +61,21 @@ def test_gauge_and_forecast_agree_bumps_one_level():
     assert b.level == "warning" and "two_sources_agree:+1" in b.rules_fired
 
 
-def test_simulated_gauge_is_labelled():
-    a = rr.assess(reading(rain=0, peak=1), TH, [], NOW, sensor=sensor(130, simulated=True), gauge=G)
-    assert "gauge_simulated" in a.rules_fired
-    assert next(e for e in a.evidence if e["kind"] == "gauge")["simulated"] is True
+def test_simulated_gauge_is_shown_but_never_sets_a_live_level():
+    a = rr.assess(reading(rain=0, peak=1), TH, [], NOW, sensor=sensor(290, simulated=True), gauge=G)
+    assert a.level == "normal" and a.gauge_level == "normal"
+    assert "gauge_simulated_ignored" in a.rules_fired and not any(r.startswith("gauge>=") for r in a.rules_fired)
+    ev = next(e for e in a.evidence if e["kind"] == "gauge")
+    assert ev["simulated"] is True and ev["gauge_level"] == "critical" and ev["counted"] is False
+    # it does not count as a second source either
+    b = rr.assess(reading(rain=0, peak=12), TH, [], NOW, sensor=sensor(130, simulated=True), gauge=G)
+    assert b.level == "watch" and "two_sources_agree:+1" not in b.rules_fired
+
+
+def test_simulated_gauge_may_drive_a_replay_only():
+    a = rr.assess(reading(rain=0, peak=1), TH, [], NOW, sensor=sensor(210, simulated=True), gauge=G,
+                  allow_simulated=True)
+    assert a.level == "warning" and "gauge_simulated" in a.rules_fired
 
 
 # -- repo and sweep -------------------------------------------------------
@@ -86,12 +97,29 @@ def test_sweep_uses_fresh_gauge_and_traces_it(repo, frozen, workflow):
     v = repo.get_village("thunag")
     assert v.gauge is not None and v.gauge.installed is False  # seeded, illustrative
     repo.put_sensor_reading(SensorReading(village_id="thunag", device_id=v.gauge.device_id, at=clock.iso(NOW),
-                                          water_level_cm=v.gauge.warning_cm + 5, simulated=True))
+                                          water_level_cm=v.gauge.warning_cm + 5, simulated=False))
     res = recompute_village(repo, v, now=NOW, reading=reading(rain=0, peak=0.1), workflow=workflow)
     assert res.level == "warning" and res.alert_id
     trace = repo.get_alert(res.alert_id).decision_trace
     assert trace["gauge_level"] == "warning"
-    assert "gauge_simulated" in trace["rules_fired"]
+    assert "gauge>=" + f"{v.gauge.warning_cm:g}cm:warning" in trace["rules_fired"]
+
+
+def test_simulated_gauge_never_raises_a_live_village(repo, frozen, workflow):
+    from Pukaar.services.decision_engine import recompute_village
+
+    v = repo.get_village("gohar")
+    repo.put_sensor_reading(SensorReading(village_id="gohar", device_id=v.gauge.device_id, at=clock.iso(NOW),
+                                          water_level_cm=v.gauge.critical_cm + 20, simulated=True))
+    res = recompute_village(repo, v, now=NOW, reading=Reading(village_id="gohar", at=clock.iso(NOW), rain_24h_mm=0,
+                                                              discharge_peak=0.0), workflow=workflow)
+    assert res.level == "normal" and res.alert_id is None and workflow.started == []
+    assert repo.get_village("gohar").level == "normal"
+    # the reading is still stored and shown on the village page
+    from Pukaar.api import views
+
+    g = views.village_detail(repo, repo.get_village("gohar"))["gauge"]
+    assert g["latest"]["simulated"] is True and g["latest"]["water_level_cm"] == v.gauge.critical_cm + 20
 
 
 # -- ingestion API --------------------------------------------------------
@@ -130,6 +158,7 @@ def test_ingest_rejects_bad_signature_old_timestamp_and_wrong_device(client):
 
 def test_ingest_accepts_rate_limits_and_shows_on_village_page(client):
     first = {"device_id": "gauge-sujanpur-sim", "at": _at(200), "water_level_cm": 50.5, "battery_v": 3.9}
+    before = client.get("/villages/sujanpur").json()["village"]["live_level"]
     r = _post(client, "sujanpur", first)
     assert r.status_code == 202 and r.json()["status"] == "accepted" and r.json()["simulated"] is True
     again = _post(client, "sujanpur", first)  # exact replay of a signed body
@@ -138,7 +167,9 @@ def test_ingest_accepts_rate_limits_and_shows_on_village_page(client):
     assert too_soon.json()["status"] == "ignored"
     rising = _post(client, "sujanpur", {**first, "at": _at(100), "water_level_cm": 310.0})
     assert rising.status_code == 202 and rising.json()["gauge_level"] == "warning"
-    assert rising.json()["village_level"] in {"warning", "critical"}
+    # simulated: stored and shown, but the live village level and alerts are untouched
+    assert rising.json()["village_level"] == before and rising.json()["alert_id"] is None
+    assert client.get("/villages/sujanpur").json()["village"]["live_level"] == before
 
     g = client.get("/villages/sujanpur").json()["gauge"]
     assert g["config"]["device_id"] == "gauge-sujanpur-sim" and g["config"]["installed"] is False

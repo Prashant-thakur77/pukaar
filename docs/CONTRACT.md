@@ -49,11 +49,17 @@ pradhan token and passes `policy.guard.authorize()`.
 Village   {id, name, name_hi, district, lat, lon, coords_verified, population|null,
            level, level_since, calm_sweeps, thresholds{watch,warning,critical}|null,
            latest_reading: Reading|null, open_alert_id|null, soil{dry,wet,source}|null,
-           readiness: Readiness}
-Reading   {village_id, at, rain_24h_mm, rain_hourly[{t,mm}], discharge|null,
+           readiness: Readiness, replay, live_level, live_level_since|null, replay_level|null,
+           data_status: "ok"|"stale"|"unavailable", data_ok_at|null, data_missing_sweeps, data_note}
+          (no officer usernames. While a replay runs, level/replay show the replay's copy only
+           when the live level is normal with no open live alert; live_level is always the live one.
+           data_status "stale": the last complete forecast is carried forward; "unavailable": none for
+           more than PUKAAR_STALE_MAX_SWEEPS sweeps, level held. Neither is ever a calm sweep.)
+Reading   {village_id, at, rain_24h_mm|null, rain_hourly[{t,mm}], discharge|null,
            discharge_forecast[{date,value}], discharge_peak|null,
            discharge_outlook[{date,value}] (today..+7 days), soil_moisture_root|null (m³/m³),
-           rain_level, river_level, source: "open-meteo"|"replay", replay}
+           rain_level, river_level, source: "open-meteo"|"replay", replay,
+           missing["rain"|"discharge"] (unknown, never read as 0), carried_from|null}
 Readiness {state: "none"|"get_ready", available, horizon_days|null, peak_day|null,
            peak_vs_watch_ratio|null, peak_discharge|null, watch|null, source,
            window_days[2,7], days[{date,days_ahead,value}], from_reading|null, replay}
@@ -73,6 +79,9 @@ Delivery  {alert_id, recipient_id, name, channel: "telegram"|"stub", status,
 Report    {id, village_id, created_at, text, transcript, report_type, severity,
            summary_en, reply_hi, lat|null, lon|null, photo_url|null, audio_url|null,
            state, previous_state|null, parser_source, flags[], track_code, replay}
+          (officer routes only. Public pages get PublicReport.)
+PublicReport {id, village_id, created_at, report_type, severity, state, held, replay,
+           has_location, has_photo, has_audio}   (never words, GPS, media links, names or codes)
 Directive {id, village_id, type, text_hi, text_en, issued_by, issued_at, active}
 Audit     {at, id, actor, role, action, resource, decision: "allow"|"deny", reason}
 Event     {at, step, detail}          (alert timeline)
@@ -194,7 +203,8 @@ POST /ask/officer            officer: {question} -> {answer, chart|null, map|nul
                                       series[{name, points[{x, y}]}]}
                              map   = {village_ids[], points[{lat, lon, label}]}
                              tools = [{name, input, output_summary, decision}]
-GET  /public/overview        {counters: Counters, villages[{id,name,name_hi,lat,lon,level,coords_verified}],
+GET  /public/overview        {counters: Counters, villages[{id,name,name_hi,lat,lon,level,live_level,replay,
+                              coords_verified,data_status,data_ok_at,rollcall}],
                               recent_alerts[{id,village_name,village_name_hi,level,status,created_at,
                               approved,delivered_count,acknowledged_count,replay}], replay{active}}
 Counters  every one counted from stored records, nothing estimated (api/views.py counters()):

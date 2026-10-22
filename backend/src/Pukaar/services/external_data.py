@@ -34,19 +34,28 @@ OUTLOOK_DAYS = 7  # the "get ready" outlook reads days 2..7 (services/readiness.
 _LOG = get_logger("external_data")
 
 
-def _reading(village: Village, at: datetime, hourly: list[tuple[str, float]], daily: list[tuple[str, float]],
+def _reading(village: Village, at: datetime, hourly: list[tuple[str, float | None]], daily: list[tuple[str, float]],
              source: str, replay: bool, soil_root: float | None = None) -> Reading:
-    rain_24h = round(sum(mm for _, mm in hourly[:24]), 1) if hourly else None
+    # A missing hour is unknown, not 0 mm: the 24-hour sum is known only when all 24 hours are.
+    window = hourly[:24]
+    known = [(t, mm) for t, mm in window if mm is not None]
+    rain_24h = round(sum(mm for _, mm in known), 1) if window and len(known) == len(window) == 24 else None
     today = at.date().isoformat()
     future = [(d, q) for d, q in daily if d >= today]
     ahead = future[: DISCHARGE_LOOKAHEAD_DAYS + 1]
     current = next((q for d, q in daily if d == today), None)
     peak = max((q for _, q in ahead), default=None)
+    missing = []
+    if rain_24h is None:
+        missing.append("rain")
+    if peak is None and village.thresholds is not None:
+        missing.append("discharge")
     reading = Reading(
         village_id=village.id,
         at=clock.iso(at),
         rain_24h_mm=rain_24h,
-        rain_hourly=[{"t": t, "mm": mm} for t, mm in hourly[:24]],
+        rain_hourly=[{"t": t, "mm": mm} for t, mm in known],
+        missing=missing,
         discharge=current,
         discharge_forecast=[{"date": d, "value": q} for d, q in ahead],
         discharge_peak=peak,
@@ -81,7 +90,8 @@ def fetch_live(village: Village, at: datetime | None = None) -> Reading:
         )
         flood.raise_for_status()
     h = rain.json().get("hourly", {})
-    hourly = [(t, float(v or 0.0)) for t, v in zip(h.get("time", []), h.get("precipitation", []))]
+    # None stays None: a gap in the forecast is unknown rain, never 0 mm (decision_engine handles it).
+    hourly = [(t, None if v is None else float(v)) for t, v in zip(h.get("time", []), h.get("precipitation", []))]
     soil_root = soil.root_zone(h, 0)  # the current hour: the antecedent state, not a forecast
     d = flood.json().get("daily", {})
     daily = [(t, float(v)) for t, v in zip(d.get("time", []), d.get("river_discharge", [])) if v is not None]

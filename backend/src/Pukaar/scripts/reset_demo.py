@@ -30,7 +30,8 @@ def main() -> None:
     replay.reset(repo)
     removed = repo.delete_where(_removable)
     for v in repo.list_villages():
-        repo.update_village(v.id, level="normal", calm_sweeps=0, level_since=None, open_alert_id=None, replay=False)
+        repo.update_village(v.id, level="normal", calm_sweeps=0, level_since=None, open_alert_id=None,
+                            last_alert_id=None, replay=False)
     seed(repo)
     print(f"demo reset: {removed} items removed, villages back to normal")
 

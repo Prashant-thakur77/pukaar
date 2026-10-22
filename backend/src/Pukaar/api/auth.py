@@ -24,6 +24,9 @@ DEV_USERS = {
     "officer1": ("officer", []),
     "officer2": ("officer", []),
     "pradhan_thunag": ("pradhan", ["thunag"]),
+    # The public demo accounts, as on the live stack: Cedar holds them to replay alerts only.
+    "judge": ("officer", []),
+    "judge_pradhan": ("pradhan", ["thunag"]),
 }
 
 
@@ -87,6 +90,22 @@ def require_user(request: Request) -> Principal:
     return p
 
 
+def resource_facts(repo, resource_type: str, resource_id: str) -> dict:
+    """Policy context read from the record itself (never from the request): whether an alert or
+    report is a replay's, and an alert's level. Anything unreadable is left out, so context.replay
+    stays false and the stricter rule applies."""
+    try:
+        if resource_type == "alert":
+            a = repo.get_alert(resource_id)
+            return {"replay": a.replay, "level": a.level} if a else {}
+        if resource_type == "report":
+            r = repo.get_report(resource_id)
+            return {"replay": r.replay} if r else {}
+    except Exception:
+        return {}
+    return {}
+
+
 class Allowed:
     """Dependency factory: authorize(action) against a resource taken from the path.
 
@@ -105,7 +124,9 @@ class Allowed:
             village = str(request.path_params.get(self.path_param or "village_id", ""))
         else:
             village = request.query_params.get("village_id", "")
-        decision = authorize(principal, self.action, self.resource_type, rid, {"village_id": village}, repo=get_repo())
+        repo = get_repo()
+        context = {"village_id": village, **resource_facts(repo, self.resource_type, rid)}
+        decision = authorize(principal, self.action, self.resource_type, rid, context, repo=repo)
         if not decision.allowed:
             raise HTTPException(status_code=403, detail={"code": "denied", "reason": decision.reason,
                                                          "action": self.action, "role": principal.role})

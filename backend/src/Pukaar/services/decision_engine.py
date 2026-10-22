@@ -2,6 +2,10 @@
 
 recompute_village() is called by the 15-minute sweep, by each new report and
 by the replay. Code decides the level; the model is never consulted here.
+
+Also here: missing forecast data is unknown, never 0 (carried forward for a few
+sweeps, then "data unavailable", and never counted as a calm sweep); and a live
+alert that went unsent (declined or expired) is asked again while the level holds.
 """
 
 from __future__ import annotations
@@ -13,7 +17,7 @@ from typing import Callable, Protocol
 from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.core.ids import new_id
-from Pukaar.core.log import get_logger, log
+from Pukaar.core.log import get_logger, log, metric
 from Pukaar.services import events, readiness, risk_rules
 from Pukaar.services.nowcast import nowcast
 from Pukaar.store.models import OPEN_ALERT_STATUSES, VERIFIED_STATES, Alert, Reading, Village, level_rank
@@ -118,6 +122,105 @@ def _escalate(repo: Repo, alert: Alert, village: Village, new_level: str, trace:
     events.alert_changed(repo.get_alert(alert.id), kind="escalated")
 
 
+# -- data freshness -----------------------------------------------------------
+# Fields a provider can leave out, and the reading fields carried forward for each.
+_CARRY = {
+    "rain": ("rain_24h_mm", "rain_hourly", "rain_level"),
+    "discharge": ("discharge", "discharge_forecast", "discharge_peak", "discharge_outlook", "river_level"),
+}
+
+
+def _last_complete(repo: Repo, village_id: str, limit: int) -> Reading | None:
+    for r in repo.list_readings(village_id, limit=limit):
+        if not r.replay and not r.missing and r.carried_from is None:
+            return r
+    return None
+
+
+def _carry_forward(reading: Reading, last: Reading) -> Reading:
+    update: dict = {"carried_from": last.at}
+    for part in reading.missing:
+        for name in _CARRY.get(part, ()):
+            update[name] = getattr(last, name)
+    return reading.model_copy(update=update)
+
+
+def _stale_minutes(village: Village, now: datetime, missing_sweeps: int) -> float:
+    if village.data_ok_at:
+        return (now - clock.parse(village.data_ok_at)).total_seconds() / 60
+    return missing_sweeps * SWEEP_MINUTES
+
+
+def _data_quality(repo: Repo, village: Village, reading: Reading | None, now: datetime) -> tuple[Reading | None, dict]:
+    """Missing values are unknown, never 0: carry the last complete values forward for at most
+    stale_max_sweeps sweeps (status "stale"), then mark the village "data unavailable"."""
+    s = get_settings()
+    missing = ["rain", "discharge"] if reading is None else list(reading.missing)
+    if not missing:
+        return reading, {"status": "ok", "ok_at": clock.iso(now), "missing_sweeps": 0, "missing": [], "note": ""}
+    sweeps = village.data_missing_sweeps + 1
+    last = _last_complete(repo, village.id, s.stale_max_sweeps + 2) if sweeps <= s.stale_max_sweeps else None
+    if reading is not None and last is not None:
+        effective = _carry_forward(reading, last)
+        status, note = "stale", f"{', '.join(missing)} missing from the forecast; using the values from {last.at}"
+    else:
+        effective = reading
+        status = "unavailable"
+        note = f"{', '.join(missing)} missing for {sweeps} sweeps; level held, not lowered"
+    return effective, {"status": status, "ok_at": village.data_ok_at, "missing_sweeps": sweeps, "missing": missing,
+                       "carried_from": last.at if status == "stale" and last else None, "note": note,
+                       "stale_minutes": round(_stale_minutes(village, now, sweeps), 1)}
+
+
+def _emit_stale(village: Village, quality: dict, now: datetime) -> None:
+    minutes = quality.get("stale_minutes") or 0
+    if quality["status"] != "ok" and minutes >= get_settings().stale_alarm_minutes:
+        metric("VillageDataStale", 1, Village=village.id)
+        log(_LOG, "village data stale", 30, village_id=village.id, minutes=minutes, status=quality["status"])
+
+
+def note_fetch_failure(repo: Repo, village: Village, now: datetime, error: str) -> Village:
+    """The forecast fetch failed: the level is held (nothing recomputed) and the village says so."""
+    sweeps = village.data_missing_sweeps + 1
+    status = "stale" if sweeps <= get_settings().stale_max_sweeps and village.data_ok_at else "unavailable"
+    quality = {"status": status, "stale_minutes": round(_stale_minutes(village, now, sweeps), 1)}
+    _emit_stale(village, quality, now)
+    return repo.update_village(village.id, data_status=status, data_missing_sweeps=sweeps,
+                               data_note=f"forecast fetch failed ({error[:80]}); level held, not lowered")
+
+
+# -- re-ask -------------------------------------------------------------------
+def _went_unsent(a: Alert) -> bool:
+    """Declined, expired, or ended by the failsafe without being broadcast."""
+    if a.status in {"declined", "expired"}:
+        return True
+    return a.status in {"failsafe", "closed"} and not a.approved and a.level != "critical"
+
+
+def reask_due(repo: Repo, village: Village, level: str, now: datetime) -> dict | None:
+    """A live alert that nobody sent (declined or expired) is asked again when the village is still
+    at or above its level after the cooldown. Returns what the new alert's trace records."""
+    if village.open_alert_id:
+        current = repo.get_alert(village.open_alert_id)
+        if current is not None and current.status in OPEN_ALERT_STATUSES:
+            return None
+    last = repo.get_alert(village.last_alert_id) if village.last_alert_id else None
+    if last is None:  # villages from before last_alert_id: the newest live alert in the log
+        last = next((a for a in repo.list_alerts(village_id=village.id, limit=10) if not a.replay), None)
+    if last is None or last.replay or last.decision_trace.get("drill") or not _went_unsent(last):
+        return None
+    if level_rank(level) < level_rank(last.level):
+        return None
+    cooldown = get_settings().reask_cooldown_minutes
+    ended = clock.parse(last.decided_at or last.updated_at)
+    if now - ended < timedelta(minutes=cooldown):
+        return None
+    return {"previous_alert_id": last.id, "previous_status": last.status, "previous_level": last.level,
+            "previous_ended_at": clock.iso(ended), "previous_decided_by": last.decided_by,
+            "cooldown_minutes": cooldown}
+
+
+# -- one village ----------------------------------------------------------------
 def recompute_village(
     repo: Repo,
     village: Village,
@@ -135,44 +238,83 @@ def recompute_village(
     window_prefix set: a scheduled sweep, deduplicated per 15-minute window.
     fetch set: a new reading is fetched and stored; otherwise the latest stored
     reading is reused (a new report triggered this).
+    replay: works on the replay's own copy of the village (repo REPLAY / VILLAGE#id); the live
+    record is never read for its level nor written. Without a running replay nothing happens.
     only_if_rising: change nothing unless the raw level is above the current one (a gauge
     reading arrives every minute; it must not count as a calm sweep for hysteresis).
     """
     now = now or clock.now()
+    if replay:
+        copy = repo.get_replay_village(village.id)
+        if copy is None:
+            return SweepResult(village.id, skipped=True, level=village.level, note="no replay copy; nothing changed")
+        village = copy
+    update = repo.update_replay_village if replay else repo.update_village
     if window_prefix is not None and not repo.claim_sweep(village.id, sweep_window(now, window_prefix)):
         return SweepResult(village.id, skipped=True, level=village.level, note="window already swept")
 
+    fetched = False
     if reading is None and fetch is not None:
         reading = fetch(village, now)
+        fetched = True
         if reading is not None:
             repo.put_reading(reading)
-    if reading is None:
+    if reading is None and not fetched:
         latest = repo.list_readings(village.id, limit=1)
         reading = latest[0] if latest and (latest[0].replay == replay) else None
+
+    quality: dict | None = None
+    if not replay:
+        if fetched:
+            reading, quality = _data_quality(repo, village, reading, now)
+        elif reading is not None and reading.missing and village.data_status == "stale":
+            last = _last_complete(repo, village.id, get_settings().stale_max_sweeps + 2)
+            reading = _carry_forward(reading, last) if last else reading
+    data_ok = (quality["status"] if quality else village.data_status) == "ok" or replay
 
     reports = _recent_reports(repo, village.id, now, include_replay=replay)
     # Gauge readings are live data: never mixed into a replay.
     sensor = None if replay or village.gauge is None else repo.latest_sensor_reading(
         village.id, risk_rules.GAUGE_FRESH_MINUTES, now=now)
     assessment = risk_rules.assess(reading, village.thresholds, reports, now, sensor=sensor, gauge=village.gauge,
-                                   soil=village.soil)
+                                   soil=village.soil, allow_simulated=replay)
     previous = village.level
     if only_if_rising and level_rank(assessment.level) <= level_rank(previous):
         return SweepResult(village.id, skipped=True, level=previous, raw_level=assessment.level, note="not rising")
-    new_level, calm, rose = risk_rules.apply_hysteresis(previous, village.calm_sweeps, assessment.level)
+    if not data_ok and level_rank(assessment.level) < level_rank(previous):
+        # Missing data is not a calm sweep: hold the level and the calm count.
+        new_level, calm, rose = previous, village.calm_sweeps, False
+    else:
+        new_level, calm, rose = risk_rules.apply_hysteresis(previous, village.calm_sweeps, assessment.level)
     trace = build_trace(village, reading, assessment, previous, new_level, calm, now)
+    if quality is not None:
+        trace["data"] = quality
+        _emit_stale(village, quality, now)
 
     fields: dict = {"level": new_level, "calm_sweeps": calm}
     if new_level != previous:
         fields["level_since"] = clock.iso(now)
-    village = repo.update_village(village.id, **fields)
+    if quality is not None:
+        fields.update(data_status=quality["status"], data_missing_sweeps=quality["missing_sweeps"],
+                      data_note=quality["note"])
+        if quality["status"] == "ok":
+            fields["data_ok_at"] = quality["ok_at"]
+    village = update(village.id, **fields)
     events.level_changed(village.id, new_level, previous, replay=replay)
     result = SweepResult(village.id, level=new_level, raw_level=assessment.level, rose=rose)
     log(_LOG, "village evaluated", village_id=village.id, previous=previous, raw=assessment.level,
-        level=new_level, rose=rose, rules=assessment.rules_fired, replay=replay)
+        level=new_level, rose=rose, rules=assessment.rules_fired, replay=replay,
+        data=quality["status"] if quality else village.data_status)
 
-    if not rose or new_level == "normal":
+    if new_level == "normal":
         return result
+    reask = None
+    if not rose:
+        # The level held. Ask again only if the last live alert went unsent and the cooldown passed.
+        reask = None if replay or only_if_rising else reask_due(repo, village, new_level, now)
+        if reask is None:
+            return result
+        trace["reask"] = reask
 
     # Quiet rules: no new alert while an open one already covers this level; daily cap.
     if village.open_alert_id:
@@ -198,8 +340,16 @@ def recompute_village(
         decision_trace=trace, replay=replay,
     )
     repo.put_alert(alert)
-    repo.update_village(village.id, open_alert_id=alert.id)
-    repo.add_timeline(alert.id, "created", f"level {previous} -> {new_level}; rules: {', '.join(assessment.rules_fired)}")
+    update(village.id, open_alert_id=alert.id, last_alert_id=alert.id)
+    if reask is not None:
+        repo.add_timeline(alert.id, "created",
+                          f"asked again: {reask['previous_status']} alert {reask['previous_alert_id']} "
+                          f"({reask['previous_level']}) at {reask['previous_ended_at']}; level still {new_level} "
+                          f"after {reask['cooldown_minutes']} min")
+        result.note = "asked again after an unsent alert"
+    else:
+        repo.add_timeline(alert.id, "created",
+                          f"level {previous} -> {new_level}; rules: {', '.join(assessment.rules_fired)}")
     events.alert_changed(alert)
     result.alert_id = alert.id
     if workflow is not None:
@@ -236,32 +386,27 @@ def restart_stuck(repo: Repo, workflow: WorkflowStarter, now: datetime, min_age_
 
 
 def sweep_all(repo: Repo, *, now: datetime | None = None, fetch=None, workflow: WorkflowStarter | None = None) -> list[SweepResult]:
+    """The live sweep. It runs in full whether or not a replay is running: a replay works on its
+    own copies of the villages and never pauses live levels or live alerts."""
     from Pukaar.services.external_data import fetch_live
 
     now = now or clock.now()
     results = []
-    from Pukaar.services.replay import clear_if_finished, is_running
+    from Pukaar.services.replay import clear_if_finished
 
-    clear_if_finished(repo, now)  # a finished replay must not leak into live levels
-    replay_active = is_running(repo)
+    clear_if_finished(repo, now)  # removes a finished replay's own items only
     if workflow is not None:
         restart_stuck(repo, workflow, now)
     for village in repo.list_villages():
-        if replay_active:
-            # Live data is still recorded, but the replay owns the levels until reset.
-            try:
-                reading = (fetch or (lambda v, t: fetch_live(v, t)))(village, now)
-                if reading is not None:
-                    repo.put_reading(reading)
-                results.append(SweepResult(village.id, skipped=True, level=village.level, note="replay active; reading stored only"))
-            except Exception as exc:
-                log(_LOG, "village fetch failed", 40, village_id=village.id, error=str(exc)[:300])
-                results.append(SweepResult(village.id, skipped=True, note=f"error: {type(exc).__name__}"))
-            continue
         try:
             results.append(recompute_village(repo, village, now=now, fetch=fetch or (lambda v, t: fetch_live(v, t)),
                                              workflow=workflow, window_prefix="live"))
         except Exception as exc:  # one bad village never stops the sweep
             log(_LOG, "village sweep failed", 40, village_id=village.id, error=str(exc)[:300])
-            results.append(SweepResult(village.id, skipped=True, note=f"error: {type(exc).__name__}"))
+            try:
+                note_fetch_failure(repo, repo.get_village(village.id) or village, now, f"{type(exc).__name__}: {exc}")
+            except Exception as inner:
+                log(_LOG, "data status update failed", 40, village_id=village.id, error=str(inner)[:200])
+            results.append(SweepResult(village.id, skipped=True, level=village.level,
+                                       note=f"error: {type(exc).__name__}"))
     return results

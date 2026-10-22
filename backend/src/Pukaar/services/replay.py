@@ -1,9 +1,14 @@
 """Replay archived hours through the same sweep code with a simulated clock.
 
-Everything replay writes carries replay=True. While a replay is active the live
-sweep still stores readings but does not change village levels; reset() puts
-every village back to normal and removes replay-labelled items (audit rows
-stay: they are append-only).
+A replay never touches live state:
+  - it works on its own copy of each village (repo REPLAY / VILLAGE#id: level, hysteresis, open
+    alert), made at start(); the live village record is never written;
+  - everything it writes (copies, readings, alerts, reports) carries replay=True, and reset()
+    removes only those items: live alerts, live readings and live levels are left alone;
+  - the live sweep keeps running, and keeps raising live alerts, while a replay runs.
+The public views show the replay's level on a village only while its live level is normal and it
+has no open live alert, always with the live level beside it (views.village).
+Audit rows stay: they are append-only. ReplayEnabled=false turns replays off for a real pilot.
 """
 
 from __future__ import annotations
@@ -15,7 +20,7 @@ from Pukaar.core import clock
 from Pukaar.core.log import get_logger, log
 from Pukaar.services import external_data, risk_rules
 from Pukaar.services.decision_engine import recompute_village
-from Pukaar.store.models import ReplayState, level_rank
+from Pukaar.store.models import ReplayState, Village, level_rank
 from Pukaar.store.repo import Repo
 
 _LOG = get_logger("replay")
@@ -31,7 +36,7 @@ def max_speed(hours_total: int) -> float:
 
 
 def is_running(repo: Repo) -> bool:
-    """Active and still making progress; a replay whose worker died stops owning the levels."""
+    """Active and still making progress; a replay whose worker died stops being shown as running."""
     st = repo.get_replay()
     if not st.active:
         return False
@@ -49,23 +54,37 @@ def status(repo: Repo) -> dict:
     return {**st.model_dump(), "stale": st.active and not is_running(repo), "available": scenarios, **meta}
 
 
+def _replay_copy(v: Village) -> Village:
+    """The replay's own copy of a village: same places and thresholds, its own level and alerts."""
+    return v.model_copy(update={"level": "normal", "calm_sweeps": 0, "level_since": None, "open_alert_id": None,
+                                "last_alert_id": None, "replay": True, "data_status": "ok", "data_ok_at": None,
+                                "data_missing_sweeps": 0, "data_note": ""})
+
+
 def reset(repo: Repo) -> ReplayState:
+    """Stop the replay and remove what it wrote. Only replay-labelled items are touched."""
+    shown = repo.list_replay_villages()
     repo.put_replay(ReplayState(active=False))
     removed = repo.delete_where(lambda item: bool(item.get("replay")) and item.get("kind") != "village")
     from Pukaar.services import events
 
     for v in repo.list_villages():
-        repo.update_village(v.id, level="normal", calm_sweeps=0, level_since=None, open_alert_id=None, replay=False)
-        events.level_changed(v.id, "normal", v.level, replay=True)
+        if v.replay:
+            # A flag the old shared-record replay left on a live record: only the flag is cleared.
+            repo.update_village(v.id, replay=False)
+        copy = shown.get(v.id)
+        if copy is not None and copy.level != v.level:
+            # Pages that showed the replay's level go back to the live level, which never changed.
+            events.level_changed(v.id, v.level, copy.level, replay=True)
     log(_LOG, "replay reset", removed=removed)
     return repo.get_replay()
 
 
 def clear_if_finished(repo: Repo, now: datetime | None = None) -> bool:
-    """Reset a replay that finished (or whose worker died) more than 30 minutes ago.
+    """Remove a replay that finished (or whose worker died) more than 30 minutes ago.
 
-    Called by the live sweep: otherwise hysteresis walks down from the replay's
-    last level for hours and the "replay finished" banner never goes away.
+    Called by the live sweep, so the "replay finished" banner does not stay for ever. It only
+    removes replay items; live levels and alerts are not touched.
     """
     st = repo.get_replay()
     if not st.scenario or is_running(repo):
@@ -86,10 +105,10 @@ def start(repo: Repo, scenario: str = DEFAULT_SCENARIO) -> ReplayState:
         raise PermissionError("replay is disabled on this stack (ReplayEnabled=false)")
     if scenario not in external_data.list_scenarios():
         raise ValueError(f"unknown scenario {scenario}; run python -m Pukaar.scripts.fetch_replay")
-    reset(repo)
+    reset(repo)  # an earlier replay's items only
     hours = external_data.replay_hours(scenario)
     for v in repo.list_villages():
-        repo.update_village(v.id, replay=True)
+        repo.put_replay_village(_replay_copy(v))
     now = clock.iso(clock.now())
     st = ReplayState(active=True, scenario=scenario, clock=clock.iso(hours[0]), hours_total=len(hours), hours_done=0,
                      started_at=now, updated_at=now, source=external_data.load_scenario(scenario).get("title"))
@@ -113,6 +132,7 @@ def run(repo: Repo, *, speed_seconds_per_hour: float = 2.0, workflow=None) -> Re
             reading = external_data.replay_reading(st.scenario, village, at)
             if reading is not None:
                 repo.put_reading(reading)
+            # replay=True: recompute_village works on the replay's copy, never the live record.
             recompute_village(repo, village, now=at, reading=reading, workflow=workflow,
                               window_prefix=f"replay-{st.scenario}-{current.started_at}", replay=True)
         current.clock, current.hours_done, current.updated_at = clock.iso(at), i + 1, clock.iso(clock.now())
@@ -121,8 +141,6 @@ def run(repo: Repo, *, speed_seconds_per_hour: float = 2.0, workflow=None) -> Re
     final = repo.get_replay()
     final.active = False
     repo.put_replay(final)
-    for v in repo.list_villages():
-        repo.update_village(v.id, replay=False)
     log(_LOG, "replay finished", scenario=st.scenario)
     return final
 
@@ -164,3 +182,27 @@ def backtest(scenario: str, villages, soil_modifier: bool | None = None) -> list
             else "reached " + max((k for k, t in first.items() if t), key=level_rank),
         })
     return rows
+
+
+def display(repo: Repo, villages: list[Village]) -> dict[str, dict]:
+    """What the public views show for each village while a replay's copies exist.
+
+    The replay's level is shown only while the live level is normal and no live alert is open,
+    so a replay can never hide a live warning. The live level is always given beside it.
+    """
+    copies = repo.list_replay_villages()
+    out: dict[str, dict] = {}
+    for v in villages:
+        copy = copies.get(v.id)
+        shown = copy is not None and v.level == "normal" and not v.open_alert_id
+        out[v.id] = {
+            "level": copy.level if shown else v.level,  # type: ignore[union-attr]
+            "level_since": copy.level_since if shown else v.level_since,  # type: ignore[union-attr]
+            "calm_sweeps": copy.calm_sweeps if shown else v.calm_sweeps,  # type: ignore[union-attr]
+            "open_alert_id": copy.open_alert_id if shown else v.open_alert_id,  # type: ignore[union-attr]
+            "replay": shown,
+            "live_level": v.level,
+            "live_level_since": v.level_since,
+            "replay_level": copy.level if copy is not None else None,
+        }
+    return out

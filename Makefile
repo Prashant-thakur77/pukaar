@@ -12,9 +12,12 @@ STACK_ENV = eval "$$(scripts/stack_env.sh)"
 # expiry (now + 360 days; AppSync allows at most 365). Re-deploying extends the same key.
 SAM_PARAMS     = $(shell sed -n 's/^parameter_overrides = "\(.*\)"$$/\1/p' samconfig.toml)
 EVENTS_KEY_EXP = $(shell date -u -d '+360 days' +%s 2>/dev/null || date -u -v+360d +%s)
-# Optional, kept out of git: AFTER_ACTION_FROM=<SES-verified sender> in .env.deploy.local
+# Kept out of git, in .env.deploy.local:
+#   ALARM_EMAIL=<on-call address>          subscribed to the alarm topic (confirm the e-mail SNS sends)
+#   AFTER_ACTION_FROM=<SES-verified sender> optional after-action e-mail
 -include .env.deploy.local
-DEPLOY_EXTRA   = $(if $(AFTER_ACTION_FROM),AfterActionFrom=$(AFTER_ACTION_FROM))
+DEPLOY_EXTRA   = $(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL)) \
+                 $(if $(AFTER_ACTION_FROM),AfterActionFrom=$(AFTER_ACTION_FROM))
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
         seed reset-demo drill gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke
@@ -44,7 +47,8 @@ validate: ## Lint the SAM template offline
 build: ## Build the Lambda images (needs Docker)
 	$(SAM) build
 
-deploy: build ## Deploy the stack, then publish the web app to Amplify
+deploy: build ## Deploy the stack, then publish the web app to Amplify (set ALARM_EMAIL in .env.deploy.local)
+	@test -n "$(ALARM_EMAIL)" || echo "WARNING: ALARM_EMAIL is not set in .env.deploy.local: CloudWatch alarms will notify nobody." >&2
 	$(SAM) deploy --parameter-overrides $(SAM_PARAMS) EventsApiKeyExpires=$(EVENTS_KEY_EXP) $(DEPLOY_EXTRA)
 	$(MAKE) deploy-web
 

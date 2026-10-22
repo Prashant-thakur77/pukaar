@@ -77,7 +77,9 @@ def current_open(repo: Repo, village_id: str) -> RollCall | None:
 
 
 def _channel(r: Recipient) -> str:
-    return "telegram" if r.channel == "telegram" and telegram.configured() else "stub"
+    # Only an explicitly stub (demo) recipient is stub. A telegram recipient stays telegram even
+    # when the token cannot be read: the ask is then recorded with the error, not as a stub.
+    return "stub" if r.channel == "stub" else "telegram"
 
 
 def _first_name(name: str) -> str | None:
@@ -102,6 +104,8 @@ def _ask(repo: Repo, rc: RollCall, recipients: list[Recipient], *, reminder: boo
         error = None
         if channel == "telegram":
             try:
+                if not telegram.configured():
+                    raise telegram.TelegramError("Telegram token unavailable (not configured, or SSM could not be read)")
                 telegram.send_rollcall(r.id, rc.id, text)
                 sent += 1
             except Exception as exc:

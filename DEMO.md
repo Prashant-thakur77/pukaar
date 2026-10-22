@@ -10,8 +10,8 @@ a judge account at https://main.d15r7ktz99l46x.amplifyapp.com/login:
 
 | User | Role | Password |
 |---|---|---|
-| `judge` | district officer: every village, approves alerts, runs replays | `Judge-E5FCkUl3uY-2026` |
-| `judge_pradhan` | village head (pradhan) of Thunag only: Cedar refuses an approval | `Judge-E5FCkUl3uY-2026` |
+| `judge` | district officer: every village, runs replays, approves replay alerts (Cedar refuses it on live alerts and live villages) | `Judge-E5FCkUl3uY-2026` |
+| `judge_pradhan` | village head (pradhan) of Thunag only: Cedar refuses an approval, and any change to a live village | `Judge-E5FCkUl3uY-2026` |
 
 These two accounts exist for judging and will be removed afterwards. Locally (`make local`) the sign-in page has a button for each
 demo user and needs no password.

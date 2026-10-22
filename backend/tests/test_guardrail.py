@@ -205,7 +205,8 @@ def test_public_village_page_hides_held_words(repo, frozen):
     r = svc.process(repo, _intake(repo, text=INJECTION_EN).id, None)
     detail = views.village_detail(repo, repo.get_village("thunag"))
     shown = next(x for x in detail["reports"] if x["id"] == r.id)
-    assert shown["held"] is True and shown["text"] == "" and shown["summary_en"] == ""
+    # The public page never carries a villager's words at all, held or not; officers read them on /reports.
+    assert shown["held"] is True and "text" not in shown and "summary_en" not in shown and "transcript" not in shown
 
 
 def test_old_report_items_without_screen_still_load(repo, frozen):

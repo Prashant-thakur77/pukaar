@@ -138,7 +138,9 @@ class Steps:
     def step_expire(self, e: dict) -> dict:
         alert = self._alert(e["alert_id"])
         events.alert_changed(self.repo.update_alert(alert.id, status="expired", task_token=None))
-        self.repo.add_timeline(alert.id, "expired", "no officer answered; not critical, so nothing was sent")
+        self.repo.add_timeline(alert.id, "expired",
+                               "no officer answered; not critical, so nothing was sent. If the level holds, the sweep "
+                               f"asks again after {get_settings().reask_cooldown_minutes} min")
         return {"alert_id": alert.id, "outcome": "expired"}
 
     def step_deliver(self, e: dict) -> dict:
@@ -209,9 +211,15 @@ class Steps:
                 return {"alert_id": alert_id, "status": "missing"}
             status = outcome if outcome in {"delivered", "declined", "expired", "auto_sent_unapproved", "failsafe"} else "closed"
             events.alert_changed(self.repo.update_alert(alert.id, status=status, task_token=None), kind="closed")
-            village = self.repo.get_village(alert.village_id)
-            if village and village.open_alert_id == alert.id:
-                self.repo.update_village(village.id, open_alert_id=None)
+            # A replay alert belongs to the replay's copy of the village, never the live record.
+            if alert.replay:
+                village = self.repo.get_replay_village(alert.village_id)
+                if village and village.open_alert_id == alert.id:
+                    self.repo.update_replay_village(village.id, open_alert_id=None)
+            else:
+                village = self.repo.get_village(alert.village_id)
+                if village and village.open_alert_id == alert.id:
+                    self.repo.update_village(village.id, open_alert_id=None)
             self.repo.add_timeline(alert.id, "closed", f"outcome={outcome}")
             out: dict[str, Any] = {"alert_id": alert.id, "status": status}
             try:  # "Surakshit Hoon": live warning/critical alerts that reached phones open a safety roll-call

@@ -171,7 +171,8 @@ async function authChecks() {
 
 // ---------------------------------------------------------------- browser
 async function trackCode() {
-  // Tracking codes appear on public village pages; any real one makes /t/<code> show a real report.
+  // Public village pages no longer carry tracking codes (no personal data on public routes), so this
+  // normally falls back to a code that does not exist; /t/<code> must still render its "not found" state.
   try {
     const { body } = await get('/public/overview');
     for (const v of body.villages ?? []) {

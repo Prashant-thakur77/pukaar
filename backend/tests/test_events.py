@@ -176,11 +176,14 @@ def test_declined_reaches_the_officer_channel(repo, frozen, workflow, live):
     assert ("/officer/alerts", "declined") in [(ch, e.get("kind")) for ch, e in live.published()]
 
 
-def test_replay_reset_pushes_levels_back_to_normal(repo, frozen, workflow, live):
+def test_replay_reset_pushes_pages_back_to_the_live_level(repo, frozen, workflow, live):
     from Pukaar.services import replay
 
-    repo.update_village("gohar", level="warning")
+    replay.start(repo, "himachal_2023_07")
+    repo.update_replay_village("gohar", level="warning")  # the replay's own copy
     live.calls.clear()
     replay.reset(repo)
     levels = [e for ch, e in live.published() if ch == "/public/levels"]
+    # pages showing the replay's warning go back to the live level, which the replay never changed
     assert [(e["village_id"], e["level"], e["previous"]) for e in levels] == [("gohar", "normal", "warning")]
+    assert repo.get_village("gohar").level == "normal"

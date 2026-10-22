@@ -13,7 +13,7 @@ Keys:
   REPORTREF#id META                   (pointer to the report item)
   TRACK#code  META                    (pointer from a tracking code to its report)
   AUDIT#date  iso#id                  (append only; no update or delete path)
-  REPLAY      META
+  REPLAY      META | VILLAGE#id (the replay's own copy of a village: level, hysteresis, open alert)
   OFFICER#username META (Telegram chat) | PUSH#id (Web Push subscription; TTL 180 days) | PUSHTEST (rate limit)
   MODELPROBE  META                   (last Bedrock model-access probe; at most one per 6 hours)
 Sparse GSI gsi1: gsi1pk = "OPEN#ALERT" / "OPEN#REPORT" while work is open.
@@ -654,6 +654,25 @@ class Repo:
 
     def put_replay(self, state: ReplayState) -> None:
         self._put({"pk": "REPLAY", "sk": "META", **state.model_dump()})
+
+    # A replay never writes the live village record: it works on its own copy, labelled
+    # replay=True, which replay.reset() removes with every other replay item.
+    def put_replay_village(self, v: Village) -> None:
+        self._put({"pk": "REPLAY", "sk": f"VILLAGE#{v.id}", "kind": "replay_village", **v.model_dump(),
+                   "replay": True})
+
+    def get_replay_village(self, village_id: str) -> Village | None:
+        item = self._get("REPLAY", f"VILLAGE#{village_id}")
+        return _model(Village, item) if item else None
+
+    def list_replay_villages(self) -> dict[str, Village]:
+        return {v.id: v for v in (_model(Village, i) for i in self._query("REPLAY", "VILLAGE#"))}
+
+    def update_replay_village(self, village_id: str, **fields: Any) -> Village:
+        remove = [k for k, v in fields.items() if v is None]
+        sets = {k: (v.model_dump() if isinstance(v, BaseModel) else v) for k, v in fields.items() if v is not None}
+        return _model(Village, self._update("REPLAY", f"VILLAGE#{village_id}", sets, remove=remove,
+                                            condition=Attr("pk").exists()))
 
     # -- maintenance -----------------------------------------------------
     def delete_where(self, predicate) -> int:
