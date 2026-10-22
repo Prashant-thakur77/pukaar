@@ -48,6 +48,9 @@ DEPLOY_EXTRA   = $(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL)) \
 # Pukaar Raahat contract addresses, for STAGE=raahat only (contracts/deployments/<RAAHAT_STACK_NETWORK>.json, which
 # make raahat-deploy writes). Any other stage deploys with Raahat off, as before.
 RAAHAT_STACK_NETWORK ?= base-sepolia
+# The stack's server-side RPC (never sent to browsers): a keyless endpoint that does not rate-limit Lambda's shared
+# addresses as sepolia.base.org does (HTTP 429). Browsers keep the chain's own public endpoint (RaahatPublicRpcUrl).
+RAAHAT_STACK_RPC_URL ?= https://base-sepolia-rpc.publicnode.com
 RAAHAT_DEPLOYMENT = contracts/deployments/$(RAAHAT_STACK_NETWORK).json
 raahat_json = $(shell jq -r '.$(1) // empty' $(RAAHAT_DEPLOYMENT) 2>/dev/null)
 RAAHAT_STACK_PARAMS = $(if $(filter raahat,$(STAGE)),$(if $(wildcard $(RAAHAT_DEPLOYMENT)),\
@@ -55,7 +58,7 @@ RAAHAT_STACK_PARAMS = $(if $(filter raahat,$(STAGE)),$(if $(wildcard $(RAAHAT_DE
                  RaahatPool=$(call raahat_json,pool) RaahatPoolIsContract=true \
                  RaahatAlertRegistry=$(call raahat_json,alert_registry) RaahatOracle=$(call raahat_json,oracle) \
                  $(if $(call raahat_json,impact_attestation),RaahatImpactAttestation=$(call raahat_json,impact_attestation)) \
-                 RaahatFromBlock=$(call raahat_json,deployed_at_block)))
+                 RaahatFromBlock=$(call raahat_json,deployed_at_block) RaahatRpcUrl=$(RAAHAT_STACK_RPC_URL)))
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
         seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke \

@@ -307,12 +307,12 @@ def test_anchor_waits_until_every_batch_has_been_sent(repo, frozen, workflow, fa
 def test_rpc_client_never_retries_on_the_alert_path_and_retries_a_little_elsewhere():
     """web3's HTTPProvider retries each call 5 times by default; on the alert path that turns a sick RPC into
     minutes, so the anchor's client gets one try per call and a short timeout. An officer's release or a page read
-    is not on the alert path: a flaky public RPC gets two more tries there, with backoff."""
+    is not on the alert path: a flaky or rate-limiting public RPC gets three more tries there, with backoff."""
     alert_path = chain._provider_for(_cfg(), alert_path=True)
     assert alert_path.exception_retry_configuration is None
     assert alert_path.get_request_kwargs()["timeout"] <= 3
     other = chain._provider_for(_cfg())
-    assert other.exception_retry_configuration.retries == 2
+    assert other.exception_retry_configuration.retries == 3
 
 
 def test_the_anchor_uses_the_alert_path_client(monkeypatch):
