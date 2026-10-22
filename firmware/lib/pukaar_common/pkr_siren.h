@@ -92,6 +92,9 @@ struct Order {
   bool sms_replied = false;
 };
 
+// A command id and its LoRa form (12 hex chars of cmd_id48) name the same command.
+bool same_command(const char* a, const char* b);
+
 class SirenCore {
  public:
   SirenCore(SirenHal& hal, Clock& clock, Kv& kv, KeyRing& keys, EventSink& sink, SmsPort* sms, FramePort* lora);

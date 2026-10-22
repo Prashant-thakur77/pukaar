@@ -161,6 +161,14 @@ def frames() -> list[dict[str, Any]]:
     return out
 
 
+def relay_cmd(good: list[dict[str, Any]]) -> dict[str, Any]:
+    """A box's shadow `relay_cmd` entry for the siren, and the frame the box sends from it (its own ctr 79)."""
+    w1 = _signed(_cmd())
+    wrapped = next(f for f in good if f["name"] == "siren_cmd_wrapped_by_box")
+    return {"box": BOX, "siren": SIREN, "shadow": {"relay_cmd": {SIREN: p.relay_cmd(key(SIREN), w1, SIREN, ADDR[SIREN])}},
+            "box_ctr": wrapped["header"]["ctr"], "box_ts": wrapped["header"]["ts"], "frame_hex": wrapped["frame_hex"]}
+
+
 def frame_rejects(good: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Each case: the frame bytes and why a receiver configured as `senders` refuses it."""
     alarm = bytes.fromhex(good[0]["frame_hex"])
@@ -292,6 +300,7 @@ def build() -> dict[str, Any]:
         "command_checks": command_checks(),
         "frames": good_frames,
         "frame_rejects": frame_rejects(good_frames),
+        "relay_cmd": relay_cmd(good_frames),
         "sms": sms(),
         "verification": verification(),
     }

@@ -16,9 +16,11 @@
 #include <string>
 #include <vector>
 
+#include "pkr_box.h"
 #include "pkr_codec.h"
 #include "pkr_command.h"
 #include "pkr_crypto.h"
+#include "pkr_event.h"
 #include "pkr_frame.h"
 #include "pkr_guard.h"
 #include "pkr_lora.h"
@@ -244,6 +246,14 @@ static void test_commands() {
     pkr_cmd_sig_b64(&s, sig);
     TEST_ASSERT_EQUAL_STRING_MESSAGE(v["sig"].as<const char*>(), sig, nm.c_str());
     TEST_ASSERT_TRUE_MESSAGE(pkr_cmd_verify(&c, key, 32), nm.c_str());
+    // the same object as the shadow carries it (desired.cmd has no "device": the receiver signs over
+    // its own name), through the device's own JSON parser
+    std::string doc;
+    serializeJson(v["cmd"], doc);
+    pkr_cmd_t parsed;
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, parse_cmd_json(doc.c_str(), doc.size(), &parsed), nm.c_str());
+    strncpy(parsed.device, v["device"] | "", sizeof parsed.device - 1);
+    TEST_ASSERT_TRUE_MESSAGE(pkr_cmd_verify(&parsed, key, 32), nm.c_str());
     c.ctr++;  // any change breaks it
     TEST_ASSERT_FALSE_MESSAGE(pkr_cmd_verify(&c, key, 32), nm.c_str());
     n++;
@@ -603,6 +613,52 @@ static void test_verification() {
   TEST_MESSAGE(msg);
 }
 
+// ---------------------------------------------------------------- a box's relay_cmd
+
+static const char* device_key_hex(const char* device) {
+  for (JsonObjectConst d : root()["derivation"]["devices"].as<JsonArrayConst>())
+    if (!strcmp(d["device"] | "", device) && (d["kid"] | 0) == 1) return d["key_hex"];
+  return nullptr;
+}
+
+static void test_relay_cmd() {
+  REQUIRE_FILE();
+  JsonObjectConst v = root()["relay_cmd"];
+  TEST_ASSERT_FALSE_MESSAGE(v.isNull(), "relay_cmd");
+  const char* box = v["box"];
+  const char* siren = v["siren"];
+  std::string doc;
+  serializeJson(v["shadow"], doc);
+  BoxShadow s;
+  TEST_ASSERT_EQUAL_INT(0, parse_box_shadow(doc.c_str(), doc.size(), &s));
+  TEST_ASSERT_EQUAL_UINT8(1, s.n_relay);
+  const RelayCmd& c = s.relay[0];
+  TEST_ASSERT_EQUAL_STRING(siren, c.siren);
+  TEST_ASSERT_EQUAL_UINT16(root()["derivation"]["lora_addr"][siren] | 0, c.dst);
+  // the frame the box sends: its own header and outer MAC around the payload, unchanged
+  pkr_frame_t f{};
+  f.ver = PKR_FRAME_VERSION;
+  f.type = PKR_FT_SIREN_CMD_WRAPPED;
+  f.src = root()["derivation"]["lora_addr"][box] | 0;
+  f.dst = c.dst;
+  f.ctr = v["box_ctr"] | 0u;
+  f.ts = v["box_ts"] | 0u;
+  f.len = sizeof c.payload;
+  memcpy(f.payload, c.payload, sizeof c.payload);
+  uint8_t box_key[32], siren_key[32], out[PKR_FRAME_MAX_LEN];
+  key_from_hex(device_key_hex(box), box_key, "box key");
+  key_from_hex(device_key_hex(siren), siren_key, "siren key");
+  int n = pkr_frame_encode(&f, box_key, 32, out, sizeof out);
+  TEST_ASSERT_GREATER_THAN(0, n);
+  TEST_ASSERT_EQUAL_STRING(v["frame_hex"] | "", to_hex(out, (size_t)n).c_str());
+  // only the siren's own key opens it: the box carried it and could not have made it
+  pkr_wrapped_cmd_t w;
+  pkr_wrapped_decode(c.payload, &w);
+  TEST_ASSERT_TRUE(pkr_wrapped_verify(&w, siren, siren_key, 32));
+  TEST_ASSERT_FALSE(pkr_wrapped_verify(&w, siren, box_key, 32));
+  TEST_ASSERT_EQUAL_UINT32(v["shadow"]["relay_cmd"][siren]["exp"] | 0u, w.exp);
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_enums_and_constants);
@@ -613,5 +669,6 @@ int main() {
   RUN_TEST(test_frame_rejects);
   RUN_TEST(test_sms);
   RUN_TEST(test_verification);
+  RUN_TEST(test_relay_cmd);
   return UNITY_END();
 }

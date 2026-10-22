@@ -27,6 +27,7 @@ struct Event {
   int8_t lora_acked = -1;    // manual_trigger from a box: a siren ACKed the LoRa frame (0/1)
   uint16_t faults = 0;       // FAULT_* bits, sent as a list of names
   char frame_src[PKR_DEVICE_MAX] = {0};
+  char alert_id[PKR_ID_MAX] = {0};  // a box "ack": the alert its shadow showed
   bool has_meas = false;
   Meas meas;
   int8_t would_sound = -1;   // shadow-mode autonomy: 0/1, -1 omitted

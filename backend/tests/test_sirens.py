@@ -102,7 +102,7 @@ def test_approved_warning_commands_each_siren_once_with_a_signed_w1(repo, frozen
     assert again["commanded"] == 0 and len(fake_shadow.cmds()) == 2
     alert = repo.get_alert(a.id)
     assert alert.sirens_total == 2 and alert.siren_pattern == "W1"
-    boxes = [d for t, n, d in fake_shadow.docs if t == BOX]
+    boxes = [d for t, n, d in fake_shadow.docs if t == BOX and "level" in d]
     assert boxes and boxes[0]["level"] == "warning"
 
 
@@ -320,6 +320,65 @@ def test_the_pradhan_box_trigger_is_audited_told_reported_capped_and_passed_on(r
     assert acked["manual"]["commanded"] == 0
 
 
+def test_box_water_rising_is_a_watch_report_and_rate_limited(repo, frozen, fake_shadow):
+    out = event(repo, BOX, "report", seq=1, kind="box", button="water_rising", src="pradhan_box")
+    assert out["status"] == "accepted" and out["report"]["report_id"]
+    report = repo.get_report(out["report"]["report_id"])
+    assert (report.report_type, report.severity, report.state, report.parser_source) == \
+        ("water_rising", "medium", "verified_auto", "pradhan_box")
+    assessed = risk_rules.assess(None, None, [(report, clock.now())], clock.now(), soil_modifier=False,
+                                 rain_intensity_on=False)
+    assert assessed.report_level == "watch"  # the pradhan's word alone: Watch
+    assert all(event(repo, BOX, "report", seq=s, kind="box", button="water_rising")["report"]["report_id"]
+               for s in (2, 3))
+    assert event(repo, BOX, "report", seq=4, kind="box", button="water_rising")["report"]["reason"] == "rate_limited"
+    # a press that comes late, from the box's buffer, is recorded but never acted on
+    late = sirens.box_report(repo, repo.get_device(BOX), {"type": "report", "at": clock.iso(clock.now())}, live=False)
+    assert late["report_id"] is None
+    # a siren cannot send a box event
+    assert "report" not in event(repo, SIM, "report", seq=5)
+
+
+def test_box_mil_gaya_acknowledges_the_pradhans_own_delivery(repo, frozen, fake_shadow):
+    from Pukaar.store.models import Delivery
+
+    a = approved(repo)
+    repo.put_delivery(Delivery(alert_id=a.id, recipient_id="stub-thunag-1", name="Pradhan", channel="telegram",
+                               status="sent", sent_at=clock.iso(clock.now()), attempts=1))
+    out = event(repo, BOX, "ack", seq=1, kind="box", button="ack", alert_id=a.id)
+    assert out["status"] == "accepted" and out["ack"] == {"alert_id": a.id, "acknowledged": True}
+    (row,) = repo.get_deliveries(a.id, ["stub-thunag-1"])
+    assert row.acknowledged_at and row.status == "acknowledged"
+    assert event(repo, BOX, "ack", seq=2, kind="box", alert_id=a.id)["ack"]["acknowledged"] is False  # once
+    other = approved(repo, village="gohar")
+    assert event(repo, BOX, "ack", seq=3, kind="box", alert_id=other.id)["ack"]["reason"] == "no_alert"
+
+
+def test_each_siren_command_reaches_the_box_as_a_relay_cmd_it_cannot_forge(repo, frozen, fake_shadow):
+    sirens.sound_for_alert(repo, approved(repo))
+    (cmd,) = fake_shadow.cmds(SIM)
+    entries = [d["relay_cmd"] for t, n, d in fake_shadow.docs if t == BOX and n == "siren" and "relay_cmd" in d]
+    entry = entries[0][SIM]
+    assert (entry["cmd_id"], entry["dst"], entry["exp"]) == (cmd["id"], repo.get_device(SIM).lora_addr, cmd["exp"])
+    payload = protocol.b64url_decode(entry["payload"])
+    inner = protocol.open_compact_command(keys.derive(SIM, 1), payload, SIM)
+    assert inner["cmd_id48"] == protocol.cmd_id48(cmd["id"]).hex() and inner["pattern"] == "W1"
+    assert inner["ctr"] == cmd["ctr"] and inner["level"] == "warning"
+    assert protocol.open_compact_command(keys.derive(BOX, 1), payload, SIM) is None  # the box cannot sign one
+    # the siren names a command it took over LoRa by its cmd_id48; the cloud maps it back
+    started = event(repo, SIM, "started", seq=1, cmd_id=inner["cmd_id48"], via="lora")
+    assert started["cmd_id"] == cmd["id"] and repo.get_command(SIM, cmd["id"]).state == "started"
+    with pytest.raises(protocol.ProtocolError):
+        protocol.relay_cmd(keys.derive(SIM, 1), cmd, SIM, protocol.BROADCAST)
+    # never a test: the compact form has no volume, so a silent test relayed on LoRa would play aloud
+    before = len(fake_shadow.docs)
+    sirens.test(repo, repo.get_device(SIM), "silent", Principal("officer1", "officer"), reason="weekly")
+    assert not [d for t, n, d in fake_shadow.docs[before:] if t == BOX]
+    # one entry per siren survives the shadow merge (IoT Core merges nested objects; so does local mode)
+    assert shadow.merge_desired({"level": "watch", "relay_cmd": {"a": {"x": 1}}}, {"relay_cmd": {"b": {"x": 2}}}) == \
+        {"level": "watch", "relay_cmd": {"a": {"x": 1}, "b": {"x": 2}}}
+
+
 def test_a_pradhan_cannot_trigger_another_village(repo, frozen, fake_shadow):
     pradhan = Principal("pradhan_thunag", "pradhan", ["thunag"])
     with pytest.raises(PermissionError):
@@ -408,6 +467,25 @@ def test_events_are_idempotent_across_live_and_backfill(repo, frozen, fake_shado
     second = device_ingest.handle(body, repo)
     assert (first["stored"], second["stored"], second["duplicate"]) == (2, 0, 2)
     assert repo.get_alert(a.id).sirens_started == 1
+
+
+def test_one_old_event_on_the_live_topic_is_kept_as_backfill_not_rejected(repo, frozen, fake_shadow):
+    """A node back online drains a single queued record to /event: history, stored, and still deduped."""
+    from datetime import timedelta
+
+    a = approved(repo)
+    sirens.sound_for_alert(repo, a)
+    cmd = fake_shadow.cmds(SIM)[0]
+    hour_ago = clock.iso(clock.now() - timedelta(hours=1))
+    out = event(repo, SIM, "cmd_received", seq=1, cmd_id=cmd["id"], at=hour_ago)
+    assert out["status"] == "accepted"
+    rows = repo.list_device_events(SIM)
+    assert len(rows) == 1 and rows[0]["live"] is False
+    assert event(repo, SIM, "cmd_received", seq=1, cmd_id=cmd["id"], at=hour_ago)["status"] == "duplicate"
+    too_old = clock.iso(clock.now() - timedelta(days=30))
+    assert event(repo, SIM, "started", seq=2, cmd_id=cmd["id"], at=too_old)["code"] == "stale"
+    future = clock.iso(clock.now() + timedelta(hours=1))
+    assert event(repo, SIM, "started", seq=3, cmd_id=cmd["id"], at=future)["code"] == "stale"
 
 
 def test_a_lora_heartbeat_is_checked_with_the_origins_key_and_a_forwarder_cannot_forge(repo, frozen):

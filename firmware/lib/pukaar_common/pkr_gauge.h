@@ -6,6 +6,8 @@
 
 #include <stdint.h>
 
+#include "pkr_frame.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,6 +53,24 @@ typedef struct {
   int burst;                /* next sleep is the 60 s burst cadence */
   int16_t rise_cm;          /* newest minus oldest of the last three good stages (0 if unknown) */
 } pkr_gauge_decision_t;
+
+/* One burst of distance samples reduced as the v2 sketch does: impossible values dropped (0 = no echo;
+ * at or inside the blind zone, or at or beyond max_mm: out of range), median, then samples further than
+ * max(3 x IQR, 30 mm) from it dropped and the median of the rest taken. err gets the v2 bits
+ * (PKR_ERR_NO_ECHO, _SENSOR_RANGE, _FEW_SAMPLES, _HIGH_SPREAD over 150 mm). blind_hit: at least half
+ * the samples sat within 50 mm of the blind zone (a blocked face reads as the shortest distance). */
+typedef struct {
+  uint16_t distance_mm;     /* 0 = no reading */
+  uint8_t ok, n;
+  uint16_t iqr_mm;
+  uint16_t err;
+  uint8_t blind_hit;
+} pkr_burst_t;
+void pkr_burst_reduce(const uint16_t *samples, int n, uint16_t blind_mm, uint16_t max_mm, pkr_burst_t *out);
+
+/* The GAUGE_STATUS / GAUGE_ALARM payload of this wake (stage NaN -> 0, rain in tenths of a mm). */
+void pkr_gauge_payload_from(const pkr_gauge_decision_t *d, float stage_cm, uint8_t quality, int cloud_ok,
+                            uint16_t rain_15min_tenths, pkr_gauge_payload_t *out);
 
 void pkr_gauge_state_init(pkr_gauge_state_t *s);
 /* Pushes the reading and decides. good readings must also clear the blind zone + 50 mm. */

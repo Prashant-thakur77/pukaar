@@ -3,9 +3,9 @@ name: firmware
 on:
   push:
     branches: [main]
-    paths: ["firmware/**", ".github/workflows/firmware.yml"]
+    paths: ["firmware/**", "backend/src/Pukaar/services/devices/**", ".github/workflows/firmware.yml"]
   pull_request:
-    paths: ["firmware/**", ".github/workflows/firmware.yml"]
+    paths: ["firmware/**", "backend/src/Pukaar/services/devices/**", ".github/workflows/firmware.yml"]
   schedule:
     - cron: "30 21 * * *"  # nightly, 03:00 IST
   workflow_dispatch:
@@ -28,6 +28,10 @@ jobs:
       - run: pip install "platformio==6.2.0" "pyyaml==6.0.3"
       - name: Generated schema.h is up to date
         run: python tools/gen_schema.py --check
+      - name: Wokwi scenarios are up to date (signed with TEST ONLY keys by the backend's codec)
+        run: python tools/gen_wokwi.py --check
+      - name: Provisioning tool derives keys as the backend does
+        run: python tools/provision.py --self-test
       - name: Unit tests on the host (Unity), including every golden vector
         run: pio test -e native
 
@@ -37,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [siren_node, siren_node_sim]
+        env: [siren_node, siren_node_sim, gauge_v3, gauge_v3_sim, rain_node, pradhan_box, lora_relay]
     defaults:
       run:
         working-directory: firmware
@@ -51,11 +55,60 @@ jobs:
           path: ~/.platformio
           key: pio-${{ hashFiles('firmware/platformio.ini') }}
       - run: pip install "platformio==6.2.0"
-      - run: pio run -e ${{ matrix.env }}
-      - if: matrix.env == 'siren_node_sim'
+      - run: pio run -e ${{ matrix.env }} -j 2
+      - if: endsWith(matrix.env, '_sim')
         uses: actions/upload-artifact@v4
         with:
-          name: siren_node_sim
+          name: ${{ matrix.env }}
           path: |
-            firmware/.pio/build/siren_node_sim/firmware.bin
-            firmware/.pio/build/siren_node_sim/firmware.elf
+            firmware/.pio/build/${{ matrix.env }}/firmware.bin
+            firmware/.pio/build/${{ matrix.env }}/firmware.elf
+
+  # The Wokwi scenarios (spec 8.2) run only when the repository has a WOKWI_CLI_TOKEN secret, and not
+  # nightly (the free tier is 50 simulated minutes a month). A job-level `if` cannot read a secret, so
+  # this job says whether there is one.
+  wokwi-token:
+    name: Wokwi token present?
+    runs-on: ubuntu-latest
+    outputs:
+      present: ${{ steps.t.outputs.present }}
+    steps:
+      - id: t
+        env:
+          TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
+        run: if [ -n "$TOKEN" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
+  wokwi:
+    name: Wokwi (${{ matrix.target }} ${{ matrix.scenario }})
+    needs: [build, wokwi-token]
+    if: needs.wokwi-token.outputs.present == 'true' && github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: siren_node, env: siren_node_sim, scenario: warning_signed }
+          - { target: siren_node, env: siren_node_sim, scenario: bad_sig }
+          - { target: siren_node, env: siren_node_sim, scenario: replay }
+          - { target: siren_node, env: siren_node_sim, scenario: expired }
+          - { target: siren_node, env: siren_node_sim, scenario: critical_preempts }
+          - { target: siren_node, env: siren_node_sim, scenario: manual_hold }
+          - { target: siren_node, env: siren_node_sim, scenario: short_hold }
+          - { target: siren_node, env: siren_node_sim, scenario: autonomy }
+          - { target: siren_node, env: siren_node_sim, scenario: shadow_mode }
+          - { target: siren_node, env: siren_node_sim, scenario: silent_test_fault }
+          - { target: gauge_v3, env: gauge_v3_sim, scenario: critical_alarm }
+          - { target: gauge_v3, env: gauge_v3_sim, scenario: blind_zone }
+          - { target: gauge_v3, env: gauge_v3_sim, scenario: rain_burst }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.env }}
+          path: firmware/.pio/build/${{ matrix.env }}
+      - uses: wokwi/wokwi-ci-action@v1
+        with:
+          token: ${{ secrets.WOKWI_CLI_TOKEN }}
+          path: firmware/wokwi/${{ matrix.target }}
+          scenario: scenarios/${{ matrix.scenario }}.yaml
+          timeout: 60000

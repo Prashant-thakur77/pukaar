@@ -16,6 +16,27 @@ static void scopy(char* dst, size_t cap, const char* src) {
 }
 #define SCOPY(dst, src) scopy(dst, sizeof(dst), src)
 
+static bool hex12(const char* s) {
+  if (strlen(s) != 12) return false;
+  for (const char* p = s; *p; p++)
+    if (!((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f'))) return false;
+  return true;
+}
+
+// The cloud's command id and its LoRa form (12 hex chars of cmd_id48, as handle_wrapped names it)
+// are the same command: the shadow and a box's relay_cmd copy of it must not start it twice.
+bool same_command(const char* a, const char* b) {
+  if (!a || !b || !a[0] || !b[0]) return false;
+  if (!strcmp(a, b)) return true;
+  bool ha = hex12(a), hb = hex12(b);
+  if (ha == hb) return false;
+  uint8_t id48[6];
+  char x[13];
+  pkr_cmd_id48(ha ? b : a, id48);
+  pkr_hex_encode(id48, 6, x);
+  return !strcmp(x, ha ? a : b);
+}
+
 SirenCore::SirenCore(SirenHal& hal, Clock& clock, Kv& kv, KeyRing& keys, EventSink& sink, SmsPort* sms, FramePort* lora)
     : hal_(hal), clock_(clock), kv_(kv), keys_(keys), sink_(sink), sms_(sms), lora_(lora) {}
 
@@ -154,6 +175,8 @@ int SirenCore::act(const Request& r) {
     }
     return 0;
   }
+  // already sounding this very command, which came again by a second path (shadow, then the box's LoRa copy)
+  if (order_.active && same_command(order_.cmd_id, r.id)) return 0;
   // a drill plays D1 only: whatever else a drill command asks for, it never sounds a real pattern
   if (r.src == PKR_SRC_DRILL && r.pattern != PKR_PATTERN_D1) return reject(PKR_REASON_DRILL_PATTERN, r.id, r.via);
   if (r.action == PKR_ACTION_TEST && r.pattern != PKR_PATTERN_T1 && r.pattern != PKR_PATTERN_D1)
@@ -461,6 +484,10 @@ int SirenCore::handle_wrapped(const RxResult& rx) {
   if (!key) return reject(PKR_REASON_NO_KEYS, id, PKR_VIA_LORA, rx.sender->device);
   // the outer MAC was the forwarder's; this one is the siren's own key: a box or relay cannot forge it
   if (!pkr_wrapped_verify(&w, keys_.device(), key, 32)) return reject(PKR_REASON_BAD_SIG, id, PKR_VIA_LORA, rx.sender->device);
+  // the compact form carries no volume, so a T1 on LoRa could never be the silent test: tests come by
+  // the shadow or SMS only (the cloud never relays one)
+  if (w.action == PKR_ACTION_TEST && w.pattern == PKR_PATTERN_T1)
+    return reject(PKR_REASON_BAD_FORMAT, id, PKR_VIA_LORA, rx.sender->device);
   int why = guard_.accept_checked(id, w.ctr, w.exp, GUARD_LORA, clock_.synced(), clock_.unix_s());
   if (why) return reject((uint8_t)why, id, PKR_VIA_LORA, rx.sender->device);
   bool level_ok = w.level == 0 || pkr_cmd_level_name(w.level)[0] != '?';

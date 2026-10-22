@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "author": "Pukaar",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-s3-devkitc-1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-pushbutton", "id": "bucket", "top": 40, "left": 240, "attrs": { "color": "blue", "label": "RAIN TIP" } },
+    { "type": "wokwi-led", "id": "strobe", "top": 140, "left": 240, "attrs": { "color": "orange" } },
+    { "type": "wokwi-buzzer", "id": "chirp", "top": 200, "left": 240, "attrs": { "volume": "0.1" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:8", "bucket:1.l", "blue", [] ],
+    [ "bucket:2.l", "esp:GND.1", "black", [] ],
+    [ "esp:7", "strobe:A", "orange", [] ],
+    [ "strobe:C", "esp:GND.2", "black", [] ],
+    [ "esp:9", "chirp:1", "orange", [] ],
+    [ "chirp:2", "esp:GND.2", "black", [] ]
+  ],
+  "dependencies": {}
+}

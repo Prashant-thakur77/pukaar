@@ -1,0 +1,10 @@
+# Pukaar siren node in Wokwi (spec 8.2): the siren_node_sim image, which speaks lines on the serial
+# port instead of a modem and a radio (firmware/README.md lists them) and models the INA226 currents
+# and the microphone from its own relays (no custom chips). TEST ONLY keys are compiled in.
+#   pio run -d firmware -e siren_node_sim
+#   wokwi-cli firmware/wokwi/siren_node --scenario scenarios/warning_signed.yaml --timeout 60000
+# The scenarios come from firmware/tools/gen_wokwi.py. Untested: they need a WOKWI_CLI_TOKEN.
+[wokwi]
+version = 1
+firmware = '../../.pio/build/siren_node_sim/firmware.bin'
+elf = '../../.pio/build/siren_node_sim/firmware.elf'

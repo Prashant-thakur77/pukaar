@@ -1,0 +1,11 @@
+# Pukaar river gauge v3 in Wokwi (spec 8.2): the gauge_v3_sim image. No deep sleep, no modem, no
+# radar: `>STAGE <cm>` sets the water, `>BLIND` blocks the sensor face, `>WAKE` runs one wake, and the
+# RAIN TIP pushbutton is counted every 5 ms through the ULP's own step function (pkr_ulp_rain_step).
+# LoRa frames come out as `<LORA <base64>`, readings as `<READING {json}`. TEST ONLY keys.
+#   pio run -d firmware -e gauge_v3_sim
+#   wokwi-cli firmware/wokwi/gauge_v3 --scenario scenarios/critical_alarm.yaml --timeout 60000
+# The scenarios come from firmware/tools/gen_wokwi.py. Untested: they need a WOKWI_CLI_TOKEN.
+[wokwi]
+version = 1
+firmware = '../../.pio/build/gauge_v3_sim/firmware.bin'
+elf = '../../.pio/build/gauge_v3_sim/firmware.elf'

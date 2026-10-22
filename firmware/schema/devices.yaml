@@ -96,8 +96,8 @@ events:            # event envelope `type` (section 5.1)
   fault: 13
   power: 14
   config_applied: 15
-  report: 16          # box button A (water rising): not yet in the backend's EVENT_CODES
-  ack: 17             # box button B (mil gaya): not yet in the backend's EVENT_CODES
+  report: 16          # box button A (water rising): the cloud makes a report (Watch on its own)
+  ack: 17             # box button B (mil gaya): acknowledges the alert the box shows (alert_id)
   heartbeat: 18       # telemetry queue only (published on the heartbeat topic)
 
 # Events that go to the outbox's `alarm` queue: never dropped, sent first (section 6.3).

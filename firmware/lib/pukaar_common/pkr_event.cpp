@@ -83,6 +83,7 @@ size_t event_to_json(const Event& e, uint32_t boot, uint32_t seq, char* out, siz
   if (e.level[0]) d["level"] = e.level;
   if (e.lora_acked >= 0) d["lora_acked"] = e.lora_acked == 1;
   if (e.frame_src[0]) d["frame_src"] = e.frame_src;
+  if (e.alert_id[0]) d["alert_id"] = e.alert_id;
   if (e.has_meas) {
     JsonObject m = d["meas"].to<JsonObject>();
     if (e.meas.amp_a >= 0) m["amp_a"] = round1(e.meas.amp_a);
@@ -217,7 +218,9 @@ int parse_cmd_json(const char* json, size_t len, pkr_cmd_t* c) {
   JsonObjectConst o = find_cmd(d);
   if (o.isNull()) return PKR_REASON_BAD_FORMAT;
   bool ok = copy_str(o["id"], c->id, sizeof c->id, true, false) &&
-            copy_str(o["device"], c->device, sizeof c->device, true, false) &&
+            // optional: the cloud's desired.cmd has no device, and the siren checks every command as signed
+            // for its own name whatever this says (SirenCore::accept_command)
+            copy_str(o["device"], c->device, sizeof c->device, false, true) &&
             copy_str(o["action"], c->action, sizeof c->action, true, false) &&
             copy_str(o["pattern"], c->pattern, sizeof c->pattern, false, true) &&
             copy_str(o["clip"], c->clip, sizeof c->clip, false, true) &&

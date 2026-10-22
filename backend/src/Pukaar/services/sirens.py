@@ -33,6 +33,7 @@ re-issues of one alert count once. Every decision passes Cedar and is on the aud
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -193,6 +194,7 @@ def issue(repo: Repo, d: Device, *, action: str, pattern: str | None, level: str
     except Exception as exc:
         repo.update_command(d.device_id, cmd.id, state="failed", reason=f"shadow: {type(exc).__name__}"[:200])
         raise
+    _relay_via_boxes(repo, d, wire)
     try:
         repo.update_device(d.village_id, d.device_id, pending_cmd={
             "cmd_id": cmd.id, "pattern": pattern, "action": action, "at": cmd.commanded_at, "state": "commanded",
@@ -210,6 +212,28 @@ def wire_command(cmd: SirenCommand) -> dict[str, Any]:
             "cycles": cmd.cycles, "repeat_every_s": cmd.repeat_every_s, "repeat_cycles": cmd.repeat_cycles,
             "cap_on_s": cmd.cap_on_s, "volume": cmd.volume, "iat": cmd.iat, "exp": cmd.exp, "ctr": cmd.ctr,
             "src": cmd.src, "kid": cmd.kid}
+
+
+def _relay_via_boxes(repo: Repo, d: Device, wire: dict[str, Any]) -> int:
+    """The same command, in its compact LoRa form, for the village's pradhan boxes to forward to a siren
+    that has lost its cell link (box shadow desired.relay_cmd.<siren>, protocol.relay_cmd). The inner
+    signature is the siren's own: a box carries it but cannot make or change it. Sound and stop only: the
+    compact form has no volume, so a silent test sent this way would play aloud. Never raises."""
+    if d.lora_addr is None or wire.get("action") not in {"sound", "stop"}:
+        return 0
+    try:
+        entry = protocol.relay_cmd(keys.derive(d.device_id, d.kid), wire, d.device_id, d.lora_addr)
+    except Exception as exc:
+        log(_LOG, "no compact form for the box relay", 30, device_id=d.device_id, error=str(exc)[:200])
+        return 0
+    n = 0
+    for b in boxes_of(repo, d.village_id):
+        try:
+            shadow.get_client(repo).update_desired(b.device_id, "siren", {"relay_cmd": {d.device_id: entry}})
+            n += 1
+        except Exception as exc:
+            log(_LOG, "box relay_cmd update failed", 30, device_id=b.device_id, error=str(exc)[:200])
+    return n
 
 
 def _box_update(repo: Repo, village_id: str, desired: dict[str, Any]) -> int:
@@ -737,6 +761,10 @@ def on_event(repo: Repo, d: Device, ev: dict[str, Any], *, via: str = "cell", no
     etype = str(ev.get("type"))
     at = str(ev.get("at") or clock.iso(now))
     cmd = repo.get_command(d.device_id, str(ev["cmd_id"])) if ev.get("cmd_id") else None
+    if cmd is None and re.fullmatch(r"[0-9a-f]{12}", str(ev.get("cmd_id") or "")):
+        # a command the siren took over LoRa (a box's relay_cmd) is named by its cmd_id48
+        cmd = next((c for c in repo.list_commands(d.device_id, limit=20)
+                    if protocol.cmd_id48(c.id).hex() == ev["cmd_id"]), None)
     meas = ev.get("meas") if isinstance(ev.get("meas"), dict) else None
     out: dict[str, Any] = {"type": etype, "cmd_id": cmd.id if cmd else None}
     if etype in {"cmd_received", "started"} and cmd:
@@ -781,6 +809,10 @@ def on_event(repo: Repo, d: Device, ev: dict[str, Any], *, via: str = "cell", no
         out["manual"] = pradhan_trigger(repo, d, ev, now=now, live=live)
     elif etype == "autonomous_trigger":
         out["autonomous"] = autonomous_trigger(repo, d, ev, now=now, live=live)
+    elif etype == "report" and d.kind == "box":
+        out["report"] = box_report(repo, d, ev, now=now, live=live)
+    elif etype == "ack" and d.kind == "box":
+        out["ack"] = box_ack(repo, d, ev, now=now)
     registry.touch(repo, d.village_id, d.device_id, at, via)
     return out
 
@@ -950,6 +982,76 @@ def pradhan_trigger(repo: Repo, box: Device, ev: dict[str, Any], *, now: datetim
         out["alert_id"] = res.alert_id
     except Exception as exc:
         log(_LOG, "recompute after the pradhan trigger failed", 40, village_id=village.id, error=str(exc)[:200])
+    return out
+
+
+def box_report(repo: Repo, box: Device, ev: dict[str, Any], *, now: datetime | None = None,
+               live: bool = True) -> dict[str, Any]:
+    """Box button A ("पानी बढ़ रहा है"): the pradhan says the water is rising.
+
+    A report (water_rising, severity medium, verified_auto: Watch on its own) goes to the rules, which may
+    only raise the village. Audited; at most 3 per hour per box. A backfilled press is recorded and audited,
+    never acted on late."""
+    now = now or clock.now()
+    village = repo.get_village(box.village_id)
+    out: dict[str, Any] = {"report_id": None}
+    if village is None:
+        return out
+    if not live:
+        _audit(repo, box.device_id, "device", "box_report", f"village:{village.id}", "allow",
+               f"water rising, pressed at {ev.get('at')} (reported late, from the device's buffer)")
+        return out
+    if repo.bump_rate("box_report", box.device_id, now.strftime("%Y-%m-%dT%H"), ttl_seconds=7200) > BOX_PRESSES_PER_HOUR:
+        out["reason"] = "rate_limited"
+        return out
+    _audit(repo, box.device_id, "device", "box_report", f"village:{village.id}", "allow", "water rising (button A)")
+    report = Report(id=new_id("rep"), village_id=village.id, created_at=clock.iso(now),
+                    text=hi.box_water_rising_text(village.name_hi), report_type="water_rising", severity="medium",
+                    summary_en="The pradhan pressed 'water rising' on the box.", state="verified_auto",
+                    parser_source="pradhan_box", flags=["pradhan_box", "box_button"],
+                    verified_by=f"device:{box.device_id}")
+    repo.put_report(report)
+    out["report_id"] = report.id
+    if box.simulated:
+        return out  # a labelled simulator never raises a village
+    try:
+        from Pukaar.services.decision_engine import recompute_village
+        from Pukaar.workflow.client import get_workflow
+
+        res = recompute_village(repo, village, now=now, workflow=get_workflow(), only_if_rising=True)
+        out["alert_id"] = res.alert_id
+    except Exception as exc:
+        log(_LOG, "recompute after a box report failed", 40, village_id=village.id, error=str(exc)[:200])
+    return out
+
+
+def box_ack(repo: Repo, box: Device, ev: dict[str, Any], *, now: datetime | None = None) -> dict[str, Any]:
+    """Box button B ("मिल गया"): the pradhan acknowledges the alert the box shows (the event's alert_id, else the
+    village's open alert). It acknowledges the pradhan's own delivery row (the box's owner_recipient_id), like a
+    Telegram tap, which stops re-sends to them. Only an alert of the box's own village; idempotent."""
+    from Pukaar.delivery import dispatch
+
+    out: dict[str, Any] = {"alert_id": None, "acknowledged": False}
+    if not box.owner_recipient_id:
+        out["reason"] = "no_owner"
+        return out
+    village = repo.get_village(box.village_id)
+    alert_id = str(ev.get("alert_id") or "") or (village.open_alert_id if village else None)
+    alert = repo.get_alert(alert_id) if alert_id else None
+    if alert is None or alert.village_id != box.village_id:
+        out["reason"] = "no_alert"
+        return out
+    out["alert_id"] = alert.id
+    for channel in ("", "voice"):
+        if dispatch.acknowledge(repo, alert.id, box.owner_recipient_id, channel) is not None:
+            out["acknowledged"] = True
+            break
+    if out["acknowledged"]:
+        _audit(repo, box.device_id, "device", "box_ack", f"alert:{alert.id}", "allow",
+               f"the pradhan pressed 'mil gaya' on the box at {ev.get('at')}")
+        _timeline(repo, alert.id, "box_ack", f"the pradhan acknowledged on the box ({box.device_id})")
+    else:
+        out["reason"] = "already_or_not_sent"
     return out
 
 

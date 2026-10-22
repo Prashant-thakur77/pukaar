@@ -5,9 +5,11 @@ today. This page is the design for the part that has to work when the towers are
 solar siren in each hamlet cluster, a rain gauge in each khad's catchment, an indoor box in the
 pradhan's house, and a short LoRa link from the upstream gauge to the downstream siren.
 
-**Nothing on this page has been tested on hardware.** No siren node, rain node, pradhan box, relay or
-firmware has been built, bench-tested or installed. The cloud side exists (below) and is tested
-against a Python siren simulator. Every price is a quote to re-check before buying, marked:
+**Nothing on this page has been tested on hardware.** No siren node, rain node, pradhan box or relay
+has been built, bench-tested or installed. The firmware for all five exists in `firmware/` and
+compiles, and its logic passes host tests, but it has never run on a board. The cloud side exists
+(below) and is tested against a Python siren simulator. Every price is a quote to re-check before
+buying, marked:
 
 - **V**: read on the vendor page on 22 October 2026;
 - **S**: from a search-index copy of the seller page (real, may be stale);
@@ -33,9 +35,16 @@ Software only, demonstrable with no kit:
   `make gauge-sim-mqtt VILLAGE=gohar RAIN=120` (a 120 mm/h burst). Everything they send carries
   `simulated: true`; a simulated reading never raises a live village.
 
-Not built: firmware, PCBs, Wokwi scenarios, the audio clips, LoRa and SMS on a real modem, the KMS key.
-The build order is S (this), then M (firmware on a bench kit, 3-5 weeks), then L (a field pilot of the
-Janjehli to Thunag pair before a monsoon).
+Firmware (`firmware/README.md` has the status of each image): the siren node, gauge v3, rain node,
+pradhan box and LoRa relay images build for the ESP32-S3, with the shared logic host-tested against
+the backend's golden vectors, a provisioning tool (`firmware/tools/provision.py`) and Wokwi scenarios
+for the siren and the gauge (written, not yet run: they need a Wokwi token). None of it has run on a
+board.
+
+Not built: PCBs, the audio clips, LoRa and SMS on a real modem, the ULP tip counter in an image (the
+gauge wakes on each tip instead), OTA download, the KMS key. The build order is S (this), then M
+(firmware on a bench kit, 3-5 weeks), then L (a field pilot of the Janjehli to Thunag pair before a
+monsoon).
 
 ## In short
 
@@ -178,10 +187,13 @@ State of charge comes from coulomb counting on the battery shunt (LiFePO4 voltag
 ### Gauge v3 G and rain node R
 
 Changes from v2 (docs/hardware/README.md): 12 V power (12.8 V 20 Ah LiFePO4, 30-50 W panel, buck to
-5 V 3 A); a tipping bucket counted by the ULP-RISC-V in deep sleep (poll 5 ms, debounce 25 ms, minimum
-tip interval 400 ms, anything shorter counted as bounce, a cumulative counter never cleared, mirrored to
-NVS); an E22 LoRa transmitter with a 2 s ack window; v2's 3-of-3 bridge siren latch kept as a strobe and
-short chirps (B1) for people at the riverbank, not a village alarm.
+5 V 3 A); a tipping bucket counted in deep sleep (poll 5 ms, debounce 25 ms, minimum tip interval
+400 ms, anything shorter counted as bounce, a cumulative counter never cleared, mirrored to NVS); an E22
+LoRa transmitter with a 2 s ack window; v2's 3-of-3 bridge siren latch kept as a strobe and short chirps
+(B1) for people at the riverbank, not a village alarm. The spec counts tips on the ULP-RISC-V; that
+program is written (`firmware/ulp_riscv/rain_counter.c`) but needs the ESP-IDF build to link, so the
+`gauge_v3` image wakes the main CPU on each tip instead (about 0.2 s at 40 mA a tip; measure it on the
+bench). A cold boot that loses the count says so (`rain_err` counter reset) rather than sending a jump.
 
 | Rain gauge | Price | Mark | Note |
 |---|---|---|---|
@@ -202,7 +214,12 @@ never on a roof.
 level LEDs and a link LED. Buttons: **A "पानी बढ़ रहा है"** (a water-rising report), **B "मिल गया"**
 (acknowledges the pradhan's own alert), **C "सायरन"** (key switch Warning/Critical plus a 3-second hold),
 **D "बंद"** (stops the pradhan's own manual siren). Mains plus 12.8 V 6 Ah battery (about 3.5 days). It
-plays the alert clip indoors at every level (only a chime at Watch) and forwards LoRa frames.
+plays the alert clip indoors at every level (only a chime at Watch) and forwards LoRa frames. A sends a
+`report` event (the cloud files a water-rising report from the pradhan, Watch on its own); B sends an
+`ack` event for the alert the box shows, which acknowledges the pradhan's own delivery as a Telegram tap
+would. Every sound or stop command the cloud sends a siren also reaches the box as a `relay_cmd`,
+signed with that siren's key, which the box sends once on LoRa: a siren whose cell link is down still
+gets it, and the box cannot make or change one.
 
 **Relay** (`relay-<area>-NN`, about Rs 15-19k; Heltec WiFi LoRa 32 V3 at Rs 2,499-2,568, S; not the
 433 MHz variant): stores and forwards signed frames without being able to forge them (it holds no keys),
@@ -270,6 +287,12 @@ degrees down, facing away from the river towards the houses, no gorge bend betwe
 phone app); measure A1 and C1 at the farthest house to be covered: at least ambient + 10 dB, otherwise
 that house is "phone and relay only" on the coverage map. Record `coverage_m` and the current
 references. No install at Pandoh until the BBMB system is mapped.
+
+**Provisioning a device** (before it leaves the office): flash its image, then write its identity
+and keys with `firmware/tools/provision.py` (its own key from a file, each trusted sender's key and
+role, the officers' SMS numbers, the village's thresholds and downstream sirens), and upload its MQTT
+certificate to LittleFS `/certs`. The tool's NVS image holds keys: delete it once flashed. Its
+`--test-only` mode is for the labelled `-sim` devices only.
 
 **Lightning and surge:** a Franklin rod above the mast on its own down-conductor; chemical earthing at
 10 ohm or less, measured; one earth bar bonding everything; Type 2 SPD on the PV string, TVS on the 12 V

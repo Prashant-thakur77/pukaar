@@ -5,10 +5,20 @@
 
 namespace pkr {
 
-bool E22Radio::begin(HardwareSerial& port, int rx, int tx, int m0, int m1, uint16_t addr, uint32_t freq_hz) {
+bool E22Radio::begin(HardwareSerial& port, int rx, int tx, int m0, int m1, uint16_t addr, uint32_t freq_hz,
+                     bool configure) {
   port_ = &port;
+  m0_ = m0;
+  m1_ = m1;
   pinMode(m0, OUTPUT);
   pinMode(m1, OUTPUT);
+  if (!configure) {  // transparent mode with the saved registers
+    digitalWrite(m0, LOW);
+    digitalWrite(m1, LOW);
+    port.begin(9600, SERIAL_8N1, rx, tx);
+    delay(30);
+    return true;
+  }
   // configuration mode (M0=0, M1=1) at 9600 8N1
   digitalWrite(m0, LOW);
   digitalWrite(m1, HIGH);
@@ -30,6 +40,13 @@ bool E22Radio::begin(HardwareSerial& port, int rx, int tx, int m0, int m1, uint1
   digitalWrite(m1, LOW);
   delay(50);
   return ok;
+}
+
+void E22Radio::sleep() {
+  if (m0_ < 0) return;
+  if (port_) port_->flush();
+  digitalWrite(m0_, HIGH);
+  digitalWrite(m1_, HIGH);
 }
 
 bool E22Radio::transmit(const uint8_t* buf, size_t n) {

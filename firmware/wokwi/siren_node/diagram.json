@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "author": "Pukaar",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-s3-devkitc-1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-relay-module", "id": "k1", "top": -120, "left": 220, "attrs": {} },
+    { "type": "wokwi-relay-module", "id": "k3", "top": -40, "left": 220, "attrs": {} },
+    { "type": "wokwi-led", "id": "strobe", "top": 40, "left": 240, "attrs": { "color": "red" } },
+    { "type": "wokwi-led", "id": "status", "top": 40, "left": 300, "attrs": { "color": "green" } },
+    { "type": "wokwi-buzzer", "id": "horn", "top": 120, "left": 240, "attrs": { "volume": "0.2" } },
+    { "type": "wokwi-pushbutton", "id": "hold", "top": 220, "left": 220, "attrs": { "color": "red", "label": "HOLD" } },
+    { "type": "wokwi-slide-switch", "id": "key", "top": 220, "left": 340, "attrs": { "label": "KEY C / off" } },
+    { "type": "wokwi-slide-switch", "id": "door", "top": 300, "left": 340, "attrs": { "label": "DOOR closed / open" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:5", "k1:IN", "green", [] ],
+    [ "k1:VCC", "esp:5V", "red", [] ],
+    [ "k1:GND", "esp:GND.1", "black", [] ],
+    [ "esp:6", "k3:IN", "green", [] ],
+    [ "k3:VCC", "esp:5V", "red", [] ],
+    [ "k3:GND", "esp:GND.1", "black", [] ],
+    [ "esp:7", "strobe:A", "red", [] ],
+    [ "strobe:C", "esp:GND.2", "black", [] ],
+    [ "esp:14", "status:A", "green", [] ],
+    [ "status:C", "esp:GND.2", "black", [] ],
+    [ "esp:15", "horn:1", "orange", [] ],
+    [ "horn:2", "esp:GND.2", "black", [] ],
+    [ "esp:16", "hold:1.l", "blue", [] ],
+    [ "hold:2.l", "esp:GND.3", "black", [] ],
+    [ "esp:21", "key:2", "blue", [] ],
+    [ "key:1", "esp:GND.3", "black", [] ],
+    [ "esp:18", "door:2", "blue", [] ],
+    [ "door:1", "esp:GND.4", "black", [] ]
+  ],
+  "dependencies": {}
+}

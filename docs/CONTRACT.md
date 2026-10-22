@@ -423,18 +423,26 @@ Every simulator message carries `simulated: true`.
 ```
 Event     {v: 1, seq, boot, at, type: "cmd_received"|"started"|"verified"|"not_verified"|"finished"|
            "stopped"|"rejected"|"test_result"|"manual_trigger"|"autonomous_trigger"|"gauge_alarm_heard"|
-           "tamper"|"fault"|"power"|"config_applied", cmd_id?, pattern?, via?: "mqtt"|"sms"|"lora",
+           "tamper"|"fault"|"power"|"config_applied"|"report"|"ack", cmd_id?, pattern?, via?: "mqtt"|"sms"|"lora",
            src?: "approval"|"officer_manual"|"pradhan_box"|"key_switch"|"autonomy"|"schedule"|"drill"|
            "all_clear", meas?{amp_a, amp_a_ref, siren_a, spl_rise_db, ambient_db_rel, soc, batt_mv},
            reason?: "bad_sig"|"expired"|"replayed"|"lower_priority"|"low_power"|..., button?, frame_src?,
-           kind?, ok?, detail?, simulated?}
+           kind?, ok?, detail?, alert_id?, simulated?}
 Heartbeat {v: 1, at, seq, boot, state, soc, batt_mv, solar_wh_today, temp_c, rssi, lora_noise_dbm, fw,
            clips, uptime_s, outbox_depth, faults[], path, simulated?}
 ```
 
+A pradhan box sends `report` for button A ("water rising": the server files a verified_auto
+water_rising report at medium severity, Watch on its own; at most 3 an hour per box) and `ack` for
+button B ("mil gaya", with the `alert_id` its shadow showed, else the village's open alert: the box
+owner's delivery row is acknowledged, once). A siren names a command it took over LoRa by the 12 hex
+characters of its cmd_id48; the server maps that back to the command.
+
 The server re-checks "verified": the amplifier current within 0.6-1.5 times the device's reference and
 a sound rise of at least the minimum (15 dB), or a known dead microphone. A live event's `at` must be
-within 10 minutes of the server clock; older ones come through `backfill`. Presence events update
+within 10 minutes of the server clock to be acted on live; an older one (up to the backfill window) that
+arrives on `/event`, such as a single record drained after a reconnect, is stored as backfill, never acted
+on live. Presence events update
 `connected`; a device is offline only after 20 minutes with nothing on any path.
 
 **Named shadow `siren`** (the single source of commands; never IoT Jobs, whose offline catch-up would
@@ -445,7 +453,11 @@ ctr, src, kid, sig}`, `reported = {cmd_id, state: "idle"|"sounding"|"testing"|"m
 `PKR1|id|device|action|pattern|clip|clip_sha256_16|level|alert_id|cycles|repeat_every_s|repeat_cycles|
 cap_on_s|volume|iat|exp|ctr|src|kid` (empty fields as `-`); `sig` is base64url (no padding) of the first
 16 bytes of HMAC-SHA256 with the device's key. `exp` is at most 30 minutes after `iat`. A pradhan box's
-`siren` shadow gets `{level, alert_id, clip, relay_cmd}` (the signed siren command, for LoRa forwarding).
+`siren` shadow gets `{level, alert_id, clip, relay_cmd}`; `relay_cmd` is one entry per siren of the
+village, `{"<siren id>": {cmd_id, dst: the siren's LoRa address, exp, payload: base64url (no padding) of
+the 36-byte SIREN_CMD_WRAPPED payload}}`, written with every sound or stop command for that siren (never
+a test: the compact form has no volume). The box sends each once before its exp, as a frame of its own;
+the inner signature is the siren's.
 Named shadow `config`: LoRa settings, trusted senders (no keys), salted SHA-256 hashes of the SMS
 allow-list, autonomy flags, test schedule, voice slot, current references. The LoRa frame and the
 signed SMS formats, and golden vectors for all three, are in

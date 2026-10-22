@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "pkr_codec.h"
+#include "pkr_pattern.h"
+
 namespace pkr {
 
 // ---------------------------------------------------------------- event log
@@ -23,11 +26,11 @@ void EventLog::emit(const Event& e) {
   if (mirror_) mirror_->emit(e);
 }
 
-size_t build_backfill(const OutRecord* recs, size_t n, char* out, size_t cap) {
+size_t build_backfill(const OutRecord* recs, size_t n, char* out, size_t cap, const char* key) {
   size_t len = 0;
-  const char* head = "{\"events\":[";
-  size_t hl = strlen(head);
-  if (cap < hl + 3) return 0;
+  char head[24];
+  size_t hl = (size_t)snprintf(head, sizeof head, "{\"%s\":[", key);
+  if (hl >= sizeof head || cap < hl + 3) return 0;
   memcpy(out, head, hl);
   len = hl;
   for (size_t i = 0; i < n; i++) {
@@ -78,6 +81,7 @@ void BoxCore::pressed(uint8_t b) {
     Event e = ev(b == BOX_A_WATER ? PKR_EVT_REPORT : PKR_EVT_ACK);
     strcpy(e.button, b == BOX_A_WATER ? "water_rising" : "ack");
     e.src = PKR_SRC_PRADHAN_BOX;
+    if (b == BOX_B_ACK) strcpy(e.alert_id, alert_);  // empty: the cloud takes the village's open alert
     sink_.emit(e);
   } else if (b == BOX_D_STOP) {
     port_.lora_button(PKR_BUTTON_STOP, PKR_KEY_OFF, 0);
@@ -152,6 +156,129 @@ void BoxCore::set_level(uint8_t level, uint8_t clip_role) {
   level_ = level;
   port_.level_leds(level);
   if (level >= PKR_LEVEL_WATCH) port_.play(clip_role, level == PKR_LEVEL_WATCH);  // a chime only at Watch
+}
+
+void BoxCore::set_alert(const char* alert_id) {
+  strncpy(alert_, alert_id ? alert_id : "", sizeof alert_ - 1);
+  alert_[sizeof alert_ - 1] = 0;
+}
+
+void BoxCore::apply_shadow(const BoxShadow& s) {
+  bool new_alert = s.has_alert && strcmp(s.alert_id, alert_) != 0;
+  if (s.has_alert) set_alert(s.alert_id);
+  // a shadow get on every reconnect must not replay the clip: only a change plays
+  if (s.has_level && (!level_known_ || s.level != level_ || new_alert)) {
+    level_known_ = true;
+    set_level(s.level, s.clip_role);
+  }
+  for (uint8_t i = 0; i < s.n_relay; i++) relay(s.relay[i]);
+}
+
+RelayResult BoxCore::relay(const RelayCmd& c) {
+  for (auto& id : sent_ids_)
+    if (id[0] && !strcmp(id, c.cmd_id)) return RELAY_DUPLICATE;
+  // past its exp the siren would refuse it anyway; without a clock the siren decides
+  if (clock_.synced() && clock_.unix_s() >= c.exp) return RELAY_EXPIRED;
+  if (!port_.lora_wrapped(c.dst, c.payload, sizeof c.payload)) return RELAY_FAILED;  // tried again on the next shadow
+  strncpy(sent_ids_[sent_i_], c.cmd_id, PKR_ID_MAX - 1);
+  sent_i_ = (uint8_t)((sent_i_ + 1) % 8);
+  relayed++;
+  return RELAY_SENT;
+}
+
+uint8_t clip_role_from_name(const char* clip) {
+  if (!clip || !clip[0]) return CLIP_NONE;
+  struct { const char* word; uint8_t role; } map[] = {{".warning.", CLIP_WARNING}, {".critical.", CLIP_CRITICAL},
+                                                      {".auto.", CLIP_AUTO},       {".allclear.", CLIP_ALL_CLEAR},
+                                                      {"test.", CLIP_TEST},        {".drill.", CLIP_DRILL}};
+  for (auto& m : map)
+    if (strstr(clip, m.word)) return m.role;
+  return CLIP_NONE;
+}
+
+int parse_box_shadow(const char* json, size_t len, BoxShadow* out) {
+  *out = BoxShadow();
+  JsonDocument d;
+  if (deserializeJson(d, json, len)) return PKR_REASON_BAD_FORMAT;
+  JsonObjectConst o = d.as<JsonObjectConst>();
+  JsonObjectConst st = o["state"];
+  if (!st.isNull()) o = !st["desired"].isNull() ? st["desired"].as<JsonObjectConst>() : st;
+  if (o.isNull()) return PKR_REASON_BAD_FORMAT;
+  if (o["level"].is<const char*>()) {
+    int lv = pkr_level_from_name(o["level"].as<const char*>());
+    if (lv >= 0) {
+      out->has_level = true;
+      out->level = (uint8_t)lv;
+    }
+  }
+  if (!o["alert_id"].isUnbound()) {  // null clears it
+    const char* a = o["alert_id"] | "";
+    if (strlen(a) < sizeof out->alert_id) {
+      out->has_alert = true;
+      strcpy(out->alert_id, a);
+    }
+  }
+  out->clip_role = clip_role_from_name(o["clip"] | "");
+  for (JsonPairConst kv : o["relay_cmd"].as<JsonObjectConst>()) {
+    if (out->n_relay >= 4) break;
+    JsonObjectConst e = kv.value();
+    RelayCmd& c = out->relay[out->n_relay];
+    const char* id = e["cmd_id"] | "";
+    const char* p = e["payload"] | "";
+    uint32_t dst = e["dst"] | 0u;
+    bool ok = strlen(kv.key().c_str()) < sizeof c.siren && id[0] && strlen(id) < sizeof c.cmd_id && dst > 0 &&
+              dst < PKR_FRAME_BROADCAST && e["exp"].is<uint32_t>() &&
+              pkr_b64url_decode(p, strlen(p), c.payload, sizeof c.payload) == (int)sizeof c.payload;
+    if (!ok) {
+      c = RelayCmd();
+      out->bad_relay++;
+      continue;
+    }
+    strcpy(c.siren, kv.key().c_str());
+    strcpy(c.cmd_id, id);
+    c.dst = (uint16_t)dst;
+    c.exp = e["exp"].as<uint32_t>();
+    out->n_relay++;
+  }
+  return 0;
+}
+
+// ---------------------------------------------------------------- mesh batch
+
+bool MeshBatch::add(const uint8_t* buf, size_t n, uint32_t now_ms) {
+  pkr_frame_t f;
+  if (pkr_frame_parse(buf, n, &f) != PKR_FRAME_OK || f.src == self_) return false;
+  for (auto& s : seen_)
+    if (s.used && s.src == f.src && s.ctr == f.ctr && now_ms - s.t < PKR_LIMIT_RELAY_DEDUPE_S * 1000u) return false;
+  if (n_ >= MAX) return false;  // full until the next publish
+  Seen& s = seen_[seen_i_];
+  seen_i_ = (uint8_t)((seen_i_ + 1) % 32);
+  s = {f.src, f.ctr, now_ms, true};
+  if (!n_) first_ms_ = now_ms;
+  memcpy(buf_[n_], buf, n);
+  len_[n_++] = (uint8_t)n;
+  return true;
+}
+
+size_t MeshBatch::build(char* out, size_t cap) const {
+  static const char head[] = "{\"frames\":[";
+  size_t len = sizeof head - 1;
+  if (cap < len + 3) return 0;
+  memcpy(out, head, len);
+  for (uint8_t i = 0; i < n_; i++) {
+    char b64[2 * PKR_FRAME_MAX_LEN];
+    size_t k = pkr_b64_encode(buf_[i], len_[i], b64, sizeof b64);
+    if (len + k + 6 > cap) return 0;
+    if (i) out[len++] = ',';
+    out[len++] = '"';
+    memcpy(out + len, b64, k);
+    len += k;
+    out[len++] = '"';
+  }
+  out[len++] = ']';
+  out[len++] = '}';
+  out[len] = 0;
+  return len;
 }
 
 void BoxCore::tick() {

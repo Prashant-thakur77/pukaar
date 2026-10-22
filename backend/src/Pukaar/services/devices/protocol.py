@@ -28,6 +28,15 @@ Keys
     PKR1 <device> <A><L> <ctr, 6 digits or more> <exp, base36> <sig, Crockford base32, 16 chars>
     sig = the first 10 bytes of HMAC-SHA256(K_dev, "PKR1|<device>|<A>|<L>|<ctr>|<exp>"), ctr and exp
     in plain decimal. The prefix, codes and encodings are read in any case; the device id is exact.
+
+4. relay_cmd (a pradhan box's "siren" shadow, desired.relay_cmd, one entry per siren of its village):
+    {"<siren device id>": {"cmd_id", "dst": <the siren's LoRa address>, "exp", "payload": base64url (no
+    padding) of the 36-byte SIREN_CMD_WRAPPED payload}}. The box sends the payload unchanged in a frame of
+    its own (its outer MAC) to dst, once per command and only before exp. The inner signature is the
+    siren's, so the box carries the command but cannot make or alter it.
+
+Box events "report" (button A, water rising) and "ack" (button B, "mil gaya": the pradhan acknowledges
+the alert the box shows, and the event carries that alert_id).
 """
 
 from __future__ import annotations
@@ -177,7 +186,8 @@ STATE_CODES = {"idle": 0, "sounding": 1, "testing": 2, "manual": 3, "autonomous"
                "boot": 7}
 EVENT_CODES = {"cmd_received": 1, "started": 2, "verified": 3, "not_verified": 4, "finished": 5, "stopped": 6,
                "rejected": 7, "test_result": 8, "manual_trigger": 9, "autonomous_trigger": 10,
-               "gauge_alarm_heard": 11, "tamper": 12, "fault": 13, "power": 14, "config_applied": 15}
+               "gauge_alarm_heard": 11, "tamper": 12, "fault": 13, "power": 14, "config_applied": 15,
+               "report": 16, "ack": 17}
 
 
 def _rev(table: Mapping[str, int]) -> dict[int, str]:
@@ -284,6 +294,15 @@ def open_compact_command(key: bytes, payload: bytes, device: str) -> dict[str, A
     cid, action, pattern, level, cycles, cap, exp, ctr = _COMPACT.unpack(body)
     return {"cmd_id48": cid.hex(), "action": _rev(ACTION_CODES).get(action), "pattern": _rev(PATTERN_CODES).get(pattern),
             "level": _rev(CMD_LEVEL_CODES).get(level), "cycles": cycles, "cap_on_s": cap, "exp": exp, "ctr": ctr}
+
+
+def relay_cmd(key: bytes, cmd: Mapping[str, Any], device: str, dst: int) -> dict[str, Any]:
+    """One relay_cmd entry for a pradhan box's shadow: the compact command for `device` (signed with that
+    siren's key) and where to send it. ProtocolError if it does not fit the compact form."""
+    if not 0 < int(dst) < BROADCAST:
+        raise ProtocolError("relay_cmd needs the siren's own LoRa address")
+    return {"cmd_id": str(cmd["id"]), "dst": int(dst), "exp": int(cmd["exp"]),
+            "payload": b64url(compact_command(key, cmd, device))}
 
 
 # -- 3. signed SMS --------------------------------------------------------------------------------------

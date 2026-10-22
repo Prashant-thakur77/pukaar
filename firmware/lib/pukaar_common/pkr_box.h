@@ -29,9 +29,9 @@ class EventLog : public EventSink {
   uint32_t boot_ = 0, seq_ = 0;
 };
 
-// {"events":[<payload>,...]} from outbox records (the `backfill` topic body). Returns the length,
-// or 0 if it does not fit.
-size_t build_backfill(const OutRecord* recs, size_t n, char* out, size_t cap);
+// {"events":[<payload>,...]} from outbox records (the `backfill` topic body; a gauge's is "readings").
+// Returns the length, or 0 if it does not fit.
+size_t build_backfill(const OutRecord* recs, size_t n, char* out, size_t cap, const char* key = "events");
 
 // ---------------------------------------------------------------- pradhan box
 
@@ -45,9 +45,64 @@ class BoxPort {
   virtual void level_leds(uint8_t level) = 0;  // PKR_LEVEL_*: one of green, yellow, orange, red
   virtual void link_led(uint8_t colour) = 0;   // 0 off, 1 green blink (cloud), 2 amber (LoRa only), 3 red
   virtual void play(uint8_t clip_role, bool chime_only) = 0;
+  // SIREN_CMD_WRAPPED to one siren, the payload exactly as the shadow gave it (an alarm frame).
+  virtual bool lora_wrapped(uint16_t dst, const uint8_t* payload, uint8_t len) { return false; }
 };
 
 enum BoxButton : uint8_t { BOX_A_WATER = 0, BOX_B_ACK = 1, BOX_C_HOLD = 2, BOX_D_STOP = 3 };
+
+// ---------------------------------------------------------------- the box's "siren" shadow
+
+// desired.relay_cmd.<siren> (backend protocol.relay_cmd): a compact command already signed with the
+// siren's own key, which the box sends once, before exp, as a frame of its own.
+struct RelayCmd {
+  char siren[PKR_DEVICE_MAX] = {0};
+  char cmd_id[PKR_ID_MAX] = {0};
+  uint16_t dst = 0;
+  uint32_t exp = 0;
+  uint8_t payload[PKR_FT_SIREN_CMD_WRAPPED_LEN] = {0};
+};
+
+struct BoxShadow {
+  bool has_level = false;
+  uint8_t level = PKR_LEVEL_NORMAL;
+  bool has_alert = false;
+  char alert_id[PKR_ID_MAX] = {0};
+  uint8_t clip_role = 0;  // CLIP_* from the clip name; 0 none
+  RelayCmd relay[4];
+  uint8_t n_relay = 0;
+  uint8_t bad_relay = 0;  // entries that did not parse (skipped)
+};
+// From the shadow document ({"state":{"desired":{...}}}), a delta ({"state":{...}}) or the bare
+// object. Returns 0 or PKR_REASON_BAD_FORMAT.
+int parse_box_shadow(const char* json, size_t len, BoxShadow* out);
+// "<village>.warning.hi.v1" -> CLIP_WARNING ... "chime" -> CLIP_NONE (the chime is the speaker's own)
+uint8_t clip_role_from_name(const char* clip);
+
+enum RelayResult : uint8_t { RELAY_SENT = 0, RELAY_DUPLICATE = 1, RELAY_EXPIRED = 2, RELAY_FAILED = 3 };
+
+// Heard LoRa frames, batched for the cloud (pukaar/mesh/<village>/<box>/relay, {"frames":[base64]}):
+// well-formed, not the box's own, each (src, ctr) once in 10 minutes, at most 30 a message. The
+// cloud checks every inner MAC with the origin's key: the box vouches for nothing.
+class MeshBatch {
+ public:
+  static const uint8_t MAX = 30;
+  void begin(uint16_t self_addr) { self_ = self_addr; }
+  bool add(const uint8_t* buf, size_t n, uint32_t now_ms);
+  bool due(uint32_t now_ms) const { return n_ && (n_ >= MAX || now_ms - first_ms_ >= 30000u); }
+  size_t build(char* out, size_t cap) const;  // 0 if it does not fit
+  void clear() { n_ = 0; }
+  uint8_t count() const { return n_; }
+
+ private:
+  uint16_t self_ = 0;
+  struct Seen { uint16_t src; uint32_t ctr, t; bool used; } seen_[32] = {};
+  uint8_t seen_i_ = 0;
+  uint8_t buf_[MAX][PKR_FRAME_MAX_LEN];
+  uint8_t len_[MAX] = {0};
+  uint8_t n_ = 0;
+  uint32_t first_ms_ = 0;
+};
 
 class BoxCore {
  public:
@@ -61,6 +116,11 @@ class BoxCore {
   void on_ack(uint16_t acked_src, uint32_t acked_ctr);  // an ACK frame from a siren
   void on_lora_heard();                                // any valid frame: the LoRa link works
   void set_level(uint8_t level, uint8_t clip_role);    // box shadow desired.level
+  void set_alert(const char* alert_id);                // what button B ("mil gaya") acknowledges
+  // The shadow: LEDs and the indoor clip when the level or the alert changes, then every relay_cmd.
+  void apply_shadow(const BoxShadow& s);
+  RelayResult relay(const RelayCmd& c);
+  uint32_t relayed = 0;
   void tick();
 
   bool waiting_ack() const { return pending_.active; }
@@ -92,6 +152,10 @@ class BoxCore {
   uint32_t last_lora_ms_ = 0;
   bool lora_seen_ = false;
   uint8_t level_ = 0;
+  bool level_known_ = false;
+  char alert_[PKR_ID_MAX] = {0};
+  char sent_ids_[8][PKR_ID_MAX] = {};
+  uint8_t sent_i_ = 0;
   uint32_t last_ab_ms_[2] = {0, 0};
 };
 
@@ -106,6 +170,11 @@ class RelayCore {
   // returns true if the frame was queued for re-transmission
   bool on_rx(const uint8_t* buf, size_t n, uint32_t now_ms);
   void tick(uint32_t now_ms, uint32_t now_unix, bool synced, const pkr_beacon_payload_t& beacon);
+  bool pending() const {  // a frame waits for its backoff (the image does not sleep long then)
+    for (const auto& p : q_)
+      if (p.used) return true;
+    return false;
+  }
   uint32_t forwarded = 0, duplicates = 0, malformed = 0;
 
  private:

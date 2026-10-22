@@ -75,6 +75,7 @@ class DeviceEvent(BaseModel):
     detail: str | None = Field(default=None, max_length=200)
     faults: list[str] | None = Field(default=None, max_length=16)
     lora_acked: bool | None = None
+    alert_id: str | None = Field(default=None, max_length=64)  # a box "ack": the alert the box showed
     simulated: bool = False
 
 
@@ -186,6 +187,10 @@ def _event(repo: Repo, d: Device, raw: dict[str, Any], now: datetime, *, live: b
     except (ValueError, ValidationError) as exc:
         return _reject("bad_payload", str(exc)[:200], {"device_id": d.device_id, "village_id": d.village_id})
     age = (now - at).total_seconds()
+    if live and WINDOW_SECONDS < age <= BACKFILL_MAX_HOURS * 3600:
+        # An old event on the live topic is history (a reconnecting node drains a single queued record to
+        # /event): kept as backfill, never acted on live. Same device, same (boot, seq) dedupe as /backfill.
+        live = False
     if live and abs(age) > WINDOW_SECONDS:
         return _reject("stale", f"a live event must be within {WINDOW_SECONDS // 60} minutes of now; "
                                 "history goes to /backfill", {"device_id": d.device_id})

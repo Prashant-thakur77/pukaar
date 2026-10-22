@@ -7,6 +7,7 @@
 #include "pkr_box.h"
 #include "pkr_event.h"
 #include "pkr_lora.h"
+#include "pkr_node.h"
 #include "pkr_outbox.h"
 #include "pkr_store.h"
 
@@ -51,6 +52,11 @@ struct ProvisionedSender {
   uint8_t key[32];
 };
 bool load_provisioned_keys(KeyRing& keys, char* device_out, size_t cap);
+// The provisioned settings: NVS namespace "pkr-cfg", string "cfg" (pkr_node.h has the shape).
+// false (defaults kept) when there is none or it does not parse.
+bool load_node_settings(NodeSettings& s);
+// The officers' and pradhan's numbers (NVS "pkr-keys" sms_to0..3), never in a shadow.
+void sms_numbers(void (*fn)(const char* e164, void* ctx), void* ctx);
 
 // ---------------------------------------------------------------- time
 
@@ -73,13 +79,18 @@ class EspClock : public Clock {
 // packet is the bytes up to a 20 ms gap (plus the RSSI byte the config asks for, stripped here).
 class E22Radio : public RadioPort {
  public:
-  bool begin(HardwareSerial& port, int rx, int tx, int m0, int m1, uint16_t addr, uint32_t freq_hz);
+  // configure=false: the module keeps the registers it saved (a gauge waking from deep sleep: the
+  // E22's own flash is not rewritten every five minutes).
+  bool begin(HardwareSerial& port, int rx, int tx, int m0, int m1, uint16_t addr, uint32_t freq_hz,
+             bool configure = true);
   bool transmit(const uint8_t* buf, size_t n) override;
   size_t receive(uint8_t* buf, size_t cap) override;
   int last_rssi() const { return rssi_; }
+  void sleep();  // M0 = M1 = 1: the module's own sleep (a few uA) while the ESP32 deep-sleeps
 
  private:
   HardwareSerial* port_ = nullptr;
+  int m0_ = -1, m1_ = -1;
   uint8_t rx_[PKR_FRAME_MAX_LEN + 2];
   size_t n_ = 0;
   uint32_t last_byte_ms_ = 0;
@@ -159,9 +170,14 @@ class MqttLink : public CloudLink {
   void poll_sms(SmsFn fn) override;
   int rssi() override;
   static void dispatch(const char* topic, const char* payload, int len);
+  // A gauge's short wake: try again now instead of after the backoff, and power the modem down
+  // before deep sleep.
+  void retry_now() { next_try_ms_ = 0; }
+  void end();
 
  private:
   bool bring_up();
+  Pins pins_{-1, -1, -1, -1};
   char thing_[48] = {0};
   char endpoint_[96] = {0};
   uint32_t next_try_ms_ = 0, fails_ = 0, last_sms_poll_ms_ = 0;
@@ -188,13 +204,18 @@ class SerialLink : public CloudLink {
 // circuit breaker on failures (section 6.3).
 class Uplink {
  public:
-  void begin(Outbox* ob, CloudLink* link, const char* kind, const char* village, const char* device);
+  // live: the single-record topic ("event"; a gauge's "reading", where a buffered:true record is
+  // history to the server); key: the backfill list ("events"; a gauge's "readings").
+  void begin(Outbox* ob, CloudLink* link, const char* kind, const char* village, const char* device,
+             const char* live = "event", const char* key = "events");
   void loop(uint32_t now_s);
+  bool idle() const { return !ob_ || !ob_->depth() || breaker_.open(); }
 
  private:
   Outbox* ob_ = nullptr;
   CloudLink* link_ = nullptr;
   char t_event_[128], t_backfill_[128];
+  char key_[12] = "events";
   Breaker breaker_;
   uint32_t attempt_ = 0, next_at_ = 0;
 };

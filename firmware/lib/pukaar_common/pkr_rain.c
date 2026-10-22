@@ -92,6 +92,71 @@ uint16_t pkr_rain_minutes_peak(const pkr_rain_minutes_t *m, uint32_t now_s, unsi
   return peak;
 }
 
+void pkr_ulp_rain_init(pkr_ulp_rain_t *u, uint8_t active_level, uint8_t level_now, uint32_t tips_total) {
+  u->magic = PKR_ULP_RAIN_MAGIC;
+  u->tick = 0;
+  u->clock_s = 0;
+  u->wake_minute = 0xFFFFFFFFu;
+  pkr_rain_init(&u->rain, active_level, level_now);
+  u->rain.tips_total = tips_total;
+  pkr_rain_minutes_init(&u->minutes);
+}
+
+static int counted(pkr_ulp_rain_t *u, uint32_t now_s, uint16_t burst) {
+  pkr_rain_minutes_add(&u->minutes, now_s, 1);
+  uint32_t minute = now_s / 60u;
+  if (pkr_rain_minutes_sum(&u->minutes, now_s, 1) >= burst && u->wake_minute != minute) {
+    u->wake_minute = minute;
+    return 1;
+  }
+  return 0;
+}
+
+int pkr_ulp_rain_step(pkr_ulp_rain_t *u, uint8_t level, uint16_t burst) {
+  u->tick++;
+  u->clock_s = u->tick / (1000u / PKR_RAIN_POLL_MS);
+  if (pkr_rain_poll(&u->rain, level, u->tick * PKR_RAIN_POLL_MS) != 1) return 0;
+  return counted(u, u->clock_s, burst);
+}
+
+int pkr_ulp_rain_tip(pkr_ulp_rain_t *u, uint32_t now_ms, uint32_t now_s, uint16_t burst) {
+  u->clock_s = now_s;
+  if (pkr_rain_edge(&u->rain, now_ms) != 1) return 0;
+  return counted(u, now_s, burst);
+}
+
+void pkr_rain_take_report(pkr_ulp_rain_t *u, pkr_rain_mark_t *mark, uint32_t now_s, uint16_t mm_per_tip_x1000,
+                          int counter_reset, int ulp_fault, pkr_rain_report_t *out) {
+  uint32_t total = u->rain.tips_total, bounce = u->rain.bounce;
+  uint32_t window = 0, b = 0;
+  if (mark->have) {
+    window = total - mark->last_total; /* wrap-safe */
+    b = bounce - mark->last_bounce;
+    /* a restarted state (bounce back to 0) or a counter behind the mark: not rain */
+    if (counter_reset || window > 0x7FFFFFFFu) window = 0;
+    if (b > 0x7FFFFFFFu) b = 0;
+  }
+  unsigned since_min = 16;
+  if (mark->have && now_s >= mark->last_s) {
+    uint32_t m = (now_s - mark->last_s + 59u) / 60u + 1u;
+    since_min = m < 16 ? (unsigned)m : 16;
+  }
+  out->tips_total = total;
+  out->window = window > 0xFFFF ? 0xFFFF : (uint16_t)window;
+  out->max_1min = pkr_rain_minutes_peak(&u->minutes, now_s, since_min);
+  out->min_tip_ms = u->rain.min_tip_ms > 0xFFFE ? 0xFFFF : (uint16_t)u->rain.min_tip_ms;
+  out->bounce = b > 0xFFFF ? 0xFFFF : (uint16_t)b;
+  out->last_min = pkr_rain_minutes_peak(&u->minutes, now_s, 2); /* this minute or the one before */
+  out->rain_15min_tenths = pkr_rain_15min_tenths(&u->minutes, now_s, mm_per_tip_x1000);
+  out->err = (uint8_t)((b ? PKR_RAIN_ERR_BOUNCE : 0) | (counter_reset ? PKR_RAIN_ERR_COUNTER_RESET : 0) |
+                       (ulp_fault ? PKR_RAIN_ERR_ULP_FAULT : 0));
+  mark->last_total = total;
+  mark->last_bounce = bounce;
+  mark->last_s = now_s;
+  mark->have = 1;
+  pkr_rain_report_reset(&u->rain);
+}
+
 uint16_t pkr_rain_15min_tenths(const pkr_rain_minutes_t *m, uint32_t now_s, uint16_t mm_per_tip_x1000) {
   uint32_t tips = pkr_rain_minutes_sum(m, now_s, 15);
   uint32_t tenths = (tips * mm_per_tip_x1000 + 50) / 100;

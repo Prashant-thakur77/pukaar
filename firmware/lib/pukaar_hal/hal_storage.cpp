@@ -154,6 +154,26 @@ bool load_provisioned_keys(KeyRing& keys, char* device_out, size_t cap) {
   return any && dev.length() > 0;
 }
 
+bool load_node_settings(NodeSettings& s) {
+  Preferences p;
+  if (!p.begin("pkr-cfg", true)) return false;
+  String cfg = p.getString("cfg", "");
+  p.end();
+  return cfg.length() && parse_node_settings(cfg.c_str(), cfg.length(), &s) == 0;
+}
+
+void sms_numbers(void (*fn)(const char*, void*), void* ctx) {
+  Preferences p;
+  if (!p.begin("pkr-keys", true)) return;
+  for (int i = 0; i < 4; i++) {
+    char k[8];
+    snprintf(k, sizeof k, "sms_to%d", i);
+    String n = p.getString(k, "");
+    if (n.length()) fn(n.c_str(), ctx);
+  }
+  p.end();
+}
+
 uint32_t EspClock::unix_s() { return (uint32_t)time(nullptr); }
 
 bool EspClock::synced() {

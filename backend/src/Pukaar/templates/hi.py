@@ -229,6 +229,11 @@ def siren_report_text(village_hi: str, level: str) -> str:
     return f"प्रधान ने {village_hi} में सायरन बजाया ({LEVEL_HI.get(level, level)}) · pradhan sounded the village siren"
 
 
+def box_water_rising_text(village_hi: str) -> str:
+    """The report a pradhan's box button A ("पानी बढ़ रहा है") becomes (verified_auto, Watch on its own)."""
+    return f"प्रधान: {village_hi} में पानी बढ़ रहा है · pradhan: the water is rising"
+
+
 def nudge_officer(village_hi: str, level: str, minutes_left: int, url: str, replay: bool = False) -> str:
     flag = " [REPLAY]" if replay else ""
     return (f"पुकार{flag}, याद दिलाना: {village_hi} – {LEVEL_HI.get(level, level)}। आपकी मंज़ूरी बाकी है; "

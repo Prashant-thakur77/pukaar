@@ -98,7 +98,9 @@
       "tamper": 12,
       "fault": 13,
       "power": 14,
-      "config_applied": 15
+      "config_applied": 15,
+      "report": 16,
+      "ack": 17
     },
     "sms_action": {
       "sound": "S",
@@ -1123,6 +1125,23 @@
       }
     }
   ],
+  "relay_cmd": {
+    "box": "box-thunag-01",
+    "siren": "siren-thunag-01",
+    "shadow": {
+      "relay_cmd": {
+        "siren-thunag-01": {
+          "cmd_id": "cmd_01jb6x7k8m9n0p1q2r3s4t5v6w",
+          "dst": 257,
+          "exp": 1761123600,
+          "payload": "ExyBrFkeAQECBbAEEJ34aJwBAABhtCuqdTD8pOJI1P2xG3oG"
+        }
+      }
+    },
+    "box_ctr": 79,
+    "box_ts": 1761121805,
+    "frame_hex": "0110020101014f0000000d96f86824131c81ac591e01010205b004109df8689c01000061b42baa7530fca4e248d4fdb11b7a06067b728595a3c19d"
+  },
   "sms": {
     "good": [
       {

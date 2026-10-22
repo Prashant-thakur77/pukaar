@@ -34,13 +34,22 @@ class IotShadow:
         return doc.get("version")
 
 
+def merge_desired(current: dict[str, Any], desired: dict[str, Any]) -> dict[str, Any]:
+    """IoT Core's merge: nested objects merge key by key (a box's relay_cmd keeps one entry per siren);
+    any other value replaces."""
+    out = dict(current)
+    for k, v in desired.items():
+        out[k] = merge_desired(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
 class LocalShadow:
     def __init__(self, repo: Any) -> None:
         self.repo = repo
 
     def update_desired(self, thing: str, name: str, desired: dict[str, Any]) -> int | None:
         current = self.repo.get_local_shadow(thing, name) or {"desired": {}}
-        merged = {**current["desired"], **desired}
+        merged = merge_desired(current["desired"], desired)
         return self.repo.put_local_shadow(thing, name, merged)
 
 

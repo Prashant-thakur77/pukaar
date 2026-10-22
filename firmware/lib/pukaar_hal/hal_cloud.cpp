@@ -33,6 +33,7 @@ void MqttLink::dispatch(const char* topic, const char* payload, int len) {
 
 bool MqttLink::begin(const char* thing, const char* endpoint, const char* apn, Pins pins) {
   g_link = this;
+  pins_ = pins;
   strncpy(thing_, thing, sizeof thing_ - 1);
   strncpy(endpoint_, endpoint, sizeof endpoint_ - 1);
   g_ca = read_file("/certs/ca.pem");
@@ -87,6 +88,13 @@ void MqttLink::loop() {
 }
 
 bool MqttLink::connected() { return g_mqtt.connected(); }
+
+void MqttLink::end() {
+  g_mqtt.disconnect();
+  g_net.stop();
+  PPP.end();
+  if (pins_.pwr >= 0) digitalWrite(pins_.pwr, LOW);
+}
 
 bool MqttLink::publish(const char* topic, const char* payload, size_t len) {
   if (!g_mqtt.connected()) return false;
@@ -153,18 +161,22 @@ void SerialLink::set_up(bool up) {
   if (up && !was && conn_) conn_();
 }
 
-void Uplink::begin(Outbox* ob, CloudLink* link, const char* kind, const char* village, const char* device) {
+void Uplink::begin(Outbox* ob, CloudLink* link, const char* kind, const char* village, const char* device,
+                   const char* live, const char* key) {
   ob_ = ob;
   link_ = link;
-  snprintf(t_event_, sizeof t_event_, "pukaar/%s/%s/%s/event", kind, village, device);
+  snprintf(t_event_, sizeof t_event_, "pukaar/%s/%s/%s/%s", kind, village, device, live);
   snprintf(t_backfill_, sizeof t_backfill_, "pukaar/%s/%s/%s/backfill", kind, village, device);
+  snprintf(key_, sizeof key_, "%s", key);
 }
 
 void Uplink::loop(uint32_t now_s) {
   if (!link_->connected() || !ob_->depth()) return;
   if ((int32_t)(now_s - next_at_) < 0 || !breaker_.allow(now_s)) return;
   static OutRecord recs[PKR_OUTBOX_BACKFILL_BATCH];
-  static char body[PKR_OUTBOX_BACKFILL_BATCH * 160 + 64];
+  // the MQTT client's 4096-byte write buffer holds the topic and this body: a bigger batch shrinks
+  // below (a body that never fits would trip the breaker on every try)
+  static char body[3800];
   bool alarm = false;
   size_t n = ob_->peek(recs, PKR_OUTBOX_BACKFILL_BATCH, &alarm);
   if (!n) return;
@@ -174,7 +186,7 @@ void Uplink::loop(uint32_t now_s) {
     ok = link_->publish(t_event_, recs[0].payload.c_str(), recs[0].payload.size());
   } else {
     size_t len = 0;
-    while (used > 1 && !(len = build_backfill(recs, used, body, sizeof body))) used--;
+    while (used > 1 && !(len = build_backfill(recs, used, body, sizeof body, key_))) used--;
     ok = len ? link_->publish(t_backfill_, body, len) : link_->publish(t_event_, recs[0].payload.c_str(), recs[0].payload.size());
     if (!len) used = 1;
   }
