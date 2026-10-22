@@ -3,7 +3,7 @@
 The pradhan attests from a verified photo report of their own village. In a replay there is none, so this files
 one: a photo labelled DEMO in Hindi and English, as a replay report (never on the live village page, never able to
 raise a live level), verified by the demo officer. The live report route (POST /reports) is never used for it.
-Refused on a prod stack.
+File it after the replay has started: starting a replay clears the last one's items. Refused on a prod stack.
 """
 
 from __future__ import annotations

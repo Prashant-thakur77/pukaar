@@ -82,7 +82,7 @@ def _client() -> chain.RaahatChain | None:
     cfg = chain.load_config()
     if cfg is None or "alert_registry" not in cfg.addresses:
         return None
-    return chain.RaahatChain(cfg, provider=chain._provider_for(cfg))
+    return chain.RaahatChain(cfg, provider=chain._provider_for(cfg, alert_path=True))
 
 
 def on_delivered(repo: Repo, alert_id: str) -> None:

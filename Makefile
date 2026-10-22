@@ -239,7 +239,7 @@ raahat-attesters: ## Grant the officer and each village's pradhan attester role 
 	    RAAHAT_DEPLOYMENTS=$(abspath $(RAAHAT_DEPLOYMENT)) PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.attest setup; \
 	else cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.attest setup; fi
 
-raahat-demo-photo: ## Demo only: file a labelled DEMO photo as a verified replay report for the pradhan's attestation (VILLAGE=pandoh)
+raahat-demo-photo: ## Demo only, after starting the replay: a labelled DEMO photo as a verified replay report for the pradhan (VILLAGE=pandoh)
 	@test "$(STAGE)" != prod || { echo "never on STAGE=prod" >&2; exit 2; }
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.raahat.demo $(or $(VILLAGE),pandoh) $(abspath data/raahat/demo-photo-labelled.jpg)
 

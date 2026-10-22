@@ -117,10 +117,16 @@ def load_config() -> ChainConfig | None:
         return None
 
 
-def _provider_for(cfg: ChainConfig):
+def _provider_for(cfg: ChainConfig, alert_path: bool = False):
+    """alert_path: the anchor, which runs in the delivery workflow: one try per call. Everything else (an
+    officer's release, a page read, the indexer) retries twice with backoff, since public RPCs drop calls."""
     from web3 import HTTPProvider
 
-    return HTTPProvider(cfg.rpc_url, request_kwargs={"timeout": RPC_TIMEOUT_SECONDS}, exception_retry_configuration=None)
+    provider = HTTPProvider(cfg.rpc_url, request_kwargs={"timeout": RPC_TIMEOUT_SECONDS})
+    default = provider.exception_retry_configuration
+    provider.exception_retry_configuration = (
+        None if alert_path else default.model_copy(update={"retries": 2, "backoff_factor": 0.3}))
+    return provider
 
 
 def _aws_mode() -> bool:

@@ -131,7 +131,7 @@ def test_pool_route_falls_back_to_the_cached_snapshot(repo, fake, monkeypatch):
     indexer.run(repo)
     monkeypatch.setattr(routes, "get_repo", lambda: repo)
     monkeypatch.setattr(chain, "load_config", lambda: _cfg())
-    monkeypatch.setattr(chain, "_provider_for", lambda cfg: ScriptedProvider(fail="*"))
+    monkeypatch.setattr(chain, "_provider_for", lambda cfg, **kw: ScriptedProvider(fail="*"))
     body = TestClient(app).get("/raahat/pool").json()
     assert body["reachable"] is False and body["cached"] is True
     assert body["pool"]["balance_wei"] == "500" and body["cached_at"]

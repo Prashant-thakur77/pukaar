@@ -158,7 +158,7 @@ def test_pool_route_not_configured(api_client, monkeypatch, tmp_path):
 def test_pool_route_reports_unreachable_with_addresses(api_client, monkeypatch):
     """The page still gets the addresses, so the browser can try the chain itself and say what failed."""
     monkeypatch.setattr(chain, "load_config", lambda: _config())
-    monkeypatch.setattr(chain, "_provider_for", lambda cfg: ScriptedProvider(fail="*"))
+    monkeypatch.setattr(chain, "_provider_for", lambda cfg, **kw: ScriptedProvider(fail="*"))
     body = api_client.get("/raahat/pool").json()
     assert body["configured"] is True and body["reachable"] is False
     assert body["chain_id"] == 31337
@@ -171,7 +171,7 @@ def test_pool_route_never_exposes_the_server_rpc_url(api_client, monkeypatch):
     cfg = _config(chain_id=84532, network="base-sepolia", rpc_url="https://base-sepolia.example/v2/SECRETKEY",
                   public_rpc_url="https://sepolia.base.org")
     monkeypatch.setattr(chain, "load_config", lambda: cfg)
-    monkeypatch.setattr(chain, "_provider_for", lambda c: ScriptedProvider(chain_id=84532, fail="eth_call"))
+    monkeypatch.setattr(chain, "_provider_for", lambda c, **kw: ScriptedProvider(chain_id=84532, fail="eth_call"))
     r = api_client.get("/raahat/pool")
     assert "SECRETKEY" not in r.text
     assert r.json()["public_rpc_url"] == "https://sepolia.base.org"
@@ -179,7 +179,7 @@ def test_pool_route_never_exposes_the_server_rpc_url(api_client, monkeypatch):
 
 def test_pool_route_reads_balance(api_client, monkeypatch):
     monkeypatch.setattr(chain, "load_config", lambda: _config())
-    monkeypatch.setattr(chain, "_provider_for", lambda cfg: ScriptedProvider(balance=7 * 10**18))
+    monkeypatch.setattr(chain, "_provider_for", lambda cfg, **kw: ScriptedProvider(balance=7 * 10**18))
     body = api_client.get("/raahat/pool").json()
     assert body["reachable"] is True
     assert body["pool"]["balance_wei"] == str(7 * 10**18)

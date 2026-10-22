@@ -81,7 +81,7 @@ def fake_chain(monkeypatch):
     """Raahat configured against one scripted endpoint for the whole test."""
     endpoint = Chain()
     monkeypatch.setattr(chain, "load_config", lambda: _cfg())
-    monkeypatch.setattr(chain, "_provider_for", lambda cfg: endpoint)
+    monkeypatch.setattr(chain, "_provider_for", lambda cfg, **kw: endpoint)
     return endpoint
 
 
@@ -101,7 +101,7 @@ def _deliver(repo, workflow, *, replay=False, level="warning"):
 # -- the alert path never depends on the chain ------------------------------------------------------
 def test_chain_down_never_stops_an_alert(repo, frozen, workflow, monkeypatch, capsys):
     monkeypatch.setattr(chain, "load_config", lambda: _cfg())
-    monkeypatch.setattr(chain, "_provider_for", lambda cfg: Chain(down=True))
+    monkeypatch.setattr(chain, "_provider_for", lambda cfg, **kw: Chain(down=True))
     s, a, out = _deliver(repo, workflow)
     assert out["sent"] == 2 and out["failed"] == 0
     s.handle({"step": "close", "alert_id": a.id, "outcome": "delivered"})
@@ -213,7 +213,7 @@ def test_close_anchors_the_outcome_with_the_after_action_hash(repo, frozen, work
 def test_close_retries_a_failed_alert_anchor_first(repo, frozen, workflow, monkeypatch):
     endpoint = Chain(down=True)
     monkeypatch.setattr(chain, "load_config", lambda: _cfg())
-    monkeypatch.setattr(chain, "_provider_for", lambda cfg: endpoint)
+    monkeypatch.setattr(chain, "_provider_for", lambda cfg, **kw: endpoint)
     s, a, _ = _deliver(repo, workflow)
     assert anchor.get(repo, a.id)["state"] == "failed"
     anchor.on_delivered(repo, a.id)  # a later batch does not retry: only close does, once
@@ -229,7 +229,7 @@ def test_no_registry_configured_skips_quietly(repo, frozen, workflow, monkeypatc
     cfg = chain.ChainConfig(**{**cfg.__dict__, "addresses": {"test_inr": TOKEN, "pool": ORACLE}})
     endpoint = Chain()
     monkeypatch.setattr(chain, "load_config", lambda: cfg)
-    monkeypatch.setattr(chain, "_provider_for", lambda c: endpoint)
+    monkeypatch.setattr(chain, "_provider_for", lambda c, **kw: endpoint)
     _deliver(repo, workflow)
     assert endpoint.sent == []
 
@@ -239,7 +239,7 @@ def test_a_configured_key_signs_locally(repo, frozen, workflow, monkeypatch):
     acct = Account.create()
     endpoint = Chain(chain_id=84532)
     monkeypatch.setattr(chain, "load_config", lambda: _cfg(84532))
-    monkeypatch.setattr(chain, "_provider_for", lambda cfg: endpoint)
+    monkeypatch.setattr(chain, "_provider_for", lambda cfg, **kw: endpoint)
     monkeypatch.setenv("RAAHAT_SIGNER_KEY", acct.key.hex())
     _deliver(repo, workflow)
     assert endpoint.sent[0]["from"] == acct.address
@@ -251,7 +251,7 @@ def test_a_public_chain_without_a_key_fails_and_is_counted(repo, frozen, workflo
     monkeypatch.delenv("RAAHAT_SIGNER_KEY", raising=False)
     endpoint = Chain(chain_id=84532)
     monkeypatch.setattr(chain, "load_config", lambda: _cfg(84532))
-    monkeypatch.setattr(chain, "_provider_for", lambda cfg: endpoint)
+    monkeypatch.setattr(chain, "_provider_for", lambda cfg, **kw: endpoint)
     _, a, out = _deliver(repo, workflow)
     assert out["sent"] == 2 and endpoint.sent == []
     assert anchor.get(repo, a.id)["state"] == "failed"
@@ -304,9 +304,20 @@ def test_anchor_waits_until_every_batch_has_been_sent(repo, frozen, workflow, fa
         config.get_settings.cache_clear()
 
 
-def test_rpc_client_never_retries_and_times_out_fast():
+def test_rpc_client_never_retries_on_the_alert_path_and_retries_a_little_elsewhere():
     """web3's HTTPProvider retries each call 5 times by default; on the alert path that turns a sick RPC into
-    minutes. The client gets one try per call and a short timeout."""
-    provider = chain._provider_for(_cfg())
-    assert provider.exception_retry_configuration is None
-    assert provider.get_request_kwargs()["timeout"] <= 3
+    minutes, so the anchor's client gets one try per call and a short timeout. An officer's release or a page read
+    is not on the alert path: a flaky public RPC gets two more tries there, with backoff."""
+    alert_path = chain._provider_for(_cfg(), alert_path=True)
+    assert alert_path.exception_retry_configuration is None
+    assert alert_path.get_request_kwargs()["timeout"] <= 3
+    other = chain._provider_for(_cfg())
+    assert other.exception_retry_configuration.retries == 2
+
+
+def test_the_anchor_uses_the_alert_path_client(monkeypatch):
+    seen = []
+    monkeypatch.setattr(chain, "load_config", lambda: _cfg())
+    monkeypatch.setattr(chain, "_provider_for", lambda cfg, alert_path=False: seen.append(alert_path) or Chain())
+    anchor._client()
+    assert seen == [True]

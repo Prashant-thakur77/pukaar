@@ -4,11 +4,12 @@ Recorded on the deployed stack (`pukaar-raahat`, Base Sepolia) during a labelled
 
 ## Before recording
 
-1. `make reset-demo STAGE=raahat`, then `make raahat-demo-photo STAGE=raahat` (a labelled DEMO photo, filed as a verified replay report for Pandoh's pradhan).
+1. `make reset-demo STAGE=raahat`.
 2. Sign in as `officer1` in one browser profile and `pradhan_pandoh` in another.
 3. Check `/raahat`: the pool shows its balance, the rule card says "sealed", and the browser check line is green.
 4. Open BaseScan on the AlertRegistry, ReliefPool and ImpactAttestation addresses.
 5. Start the replay with `speed_seconds_per_hour` at 2 so Pandoh and Sujanpur reach Warning within two minutes. The money path is shown on Pandoh: it is the one village the Sentinel-2 pair covers.
+6. After the replay has started (starting one clears the last replay's items), `make raahat-demo-photo STAGE=raahat`: a labelled DEMO photo, filed as a verified replay report for Pandoh's pradhan.
 
 ## Shots
 
