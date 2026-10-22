@@ -1,5 +1,5 @@
 {
-  "rules": "risk-rules-v3",
+  "rules": "risk-rules-v4",
   "ground_truth": "data/ground_truth.json",
   "scenarios": [
     {

@@ -137,8 +137,8 @@ class ReadingFields(BaseModel):
     battery_v: float | None = Field(default=None, ge=0, le=20)
     rssi: int | None = Field(default=None, ge=-150, le=0)
     simulated: bool = False
-    # payload v2
-    v: int | None = Field(default=None, ge=1, le=2)
+    # payload v2 (v3 adds the tipping bucket, below)
+    v: int | None = Field(default=None, ge=1, le=3)
     seq: int | None = Field(default=None, ge=0, le=4_294_967_295)
     boot: int | None = Field(default=None, ge=0, le=4_294_967_295)
     distance_mm: float | None = Field(default=None, ge=0, le=60_000)
@@ -153,6 +153,14 @@ class ReadingFields(BaseModel):
     fw: str | None = Field(default=None, max_length=32, pattern=r"^[A-Za-z0-9_.+-]+$")
     reset_cause: str | None = Field(default=None, max_length=24, pattern=r"^[A-Za-z0-9_]+$")
     buffered: bool = False
+    # payload v3: the tipping bucket (gauge v3 and rain nodes; services/rain_obs.py)
+    rain_tips_total: int | None = Field(default=None, ge=0, le=4_294_967_295)
+    rain_tips_window: int | None = Field(default=None, ge=0, le=100_000)
+    rain_mm_per_tip: float | None = Field(default=None, gt=0, le=2)
+    rain_max_tips_1min: int | None = Field(default=None, ge=0, le=10_000)
+    rain_min_tip_ms: int | None = Field(default=None, ge=0, le=3_600_000)
+    rain_bounce: int | None = Field(default=None, ge=0, le=100_000)
+    rain_err: int | None = Field(default=None, ge=0, le=65_535)
 
     @model_validator(mode="after")
     def _one_measurement(self) -> ReadingFields:
@@ -166,7 +174,11 @@ class ReadingFields(BaseModel):
     def schema_version(self) -> int:
         v2 = ("seq", "boot", "distance_mm", "samples_ok", "samples_n", "iqr_mm", "quality", "err", "temp_c",
               "battery_mv", "solar_mv", "fw", "reset_cause")
-        return self.v or (2 if any(getattr(self, k) is not None for k in v2) else 1)
+        if self.v:
+            return self.v
+        if self.rain_tips_total is not None or self.rain_tips_window is not None:
+            return 3
+        return 2 if any(getattr(self, k) is not None for k in v2) else 1
 
 
 class IngestError(Exception):
@@ -181,6 +193,7 @@ class IngestError(Exception):
 class IngestResult:
     status: Literal["accepted", "ignored"]
     gauge_level: str | None = None  # this reading's own stage band
+    rain_level: str | None = None  # observed rain at this reading, as evaluated (services/rain_obs.py)
     simulated: bool = False
     village_level: str | None = None
     alert_id: str | None = None
@@ -193,7 +206,8 @@ class IngestResult:
     def as_dict(self) -> dict[str, Any]:
         if self.status == "ignored":
             return {"status": "ignored", "reason": "more than one reading per minute, out of order, or already stored"}
-        return {"status": "accepted", "kind": self.kind, "gauge_level": self.gauge_level, "simulated": self.simulated,
+        return {"status": "accepted", "kind": self.kind, "gauge_level": self.gauge_level, "rain_level": self.rain_level,
+                "simulated": self.simulated,
                 "quality": self.quality, "confirmed_level": self.confirmed_level,
                 "effective_level": self.effective_level, "rising_fast": self.rising_fast,
                 "village_level": self.village_level, "alert_id": self.alert_id}
@@ -347,6 +361,9 @@ def _reading(village: Village, device_id: str, fields: ReadingFields, at: dateti
         iqr_mm=fields.iqr_mm, device_quality=fields.quality, err=fields.err, temp_c=fields.temp_c,
         solar_mv=fields.solar_mv, fw=fields.fw, reset_cause=fields.reset_cause,
         buffered=fields.buffered or kind == "backfill",
+        rain_tips_total=fields.rain_tips_total, rain_tips_window=fields.rain_tips_window,
+        rain_mm_per_tip=fields.rain_mm_per_tip, rain_max_tips_1min=fields.rain_max_tips_1min,
+        rain_min_tip_ms=fields.rain_min_tip_ms, rain_bounce=fields.rain_bounce, rain_err=fields.rain_err,
         measured_level=risk_rules.gauge_level(cm, g),
     )
     reasons = []
@@ -413,6 +430,10 @@ def ingest(repo: Repo, village_id: str, device_id: str, fields: ReadingFields, a
         return IngestResult("ignored")
     if reading.quality != "good":
         metric("GaugeBadReading", 1, Quality=reading.quality)
+    rain = _rain(repo, village, device_id, fields, at, now, transport, "live")
+    from Pukaar.services.devices import registry
+
+    registry.touch(repo, village.id, device_id, clock.iso(now), "cell", fw=fields.fw)
 
     level = reading.effective_level
     if level != before:
@@ -432,7 +453,9 @@ def ingest(repo: Repo, village_id: str, device_id: str, fields: ReadingFields, a
     # A simulated reading is stored and shown but never sets a live level (risk_rules.assess),
     # so it does not trigger a re-evaluation either. A running replay does not pause this:
     # the replay works on its own copy of the village.
-    if not reading.simulated and level_rank(level) >= level_rank("watch"):
+    rain_level = rain.eval_level if rain is not None else None
+    if not reading.simulated and (level_rank(level) >= level_rank("watch")
+                                  or level_rank(rain_level or "normal") >= level_rank("watch")):
         # Re-evaluate now rather than at the next 15-minute sweep, but only to raise a level.
         from Pukaar.services.decision_engine import recompute_village
         from Pukaar.workflow.client import get_workflow
@@ -441,7 +464,7 @@ def ingest(repo: Repo, village_id: str, device_id: str, fields: ReadingFields, a
             result = recompute_village(repo, village, now=now, workflow=get_workflow(), only_if_rising=True)
         except Exception as exc:  # the next sweep picks the reading up
             log(_LOG, "gauge recompute failed", 40, village_id=village.id, error=str(exc)[:200])
-    return IngestResult("accepted", gauge_level=reading.measured_level, simulated=reading.simulated,
+    return IngestResult("accepted", gauge_level=reading.measured_level, rain_level=rain_level, simulated=reading.simulated,
                         village_level=result.level if result else village.level,
                         alert_id=result.alert_id if result else None, quality=reading.quality,
                         confirmed_level=reading.confirmed_level, effective_level=level,
@@ -494,6 +517,7 @@ def _store_backfill(repo: Repo, village: Village, device_id: str, items: list[Re
         history.append(r)
         if repo.put_sensor_backfill(r):
             out.stored += 1
+            _rain(repo, village, device_id, f, at, now, transport, "backfill")
         else:
             out.duplicate += 1
     if out.stored:
@@ -501,6 +525,21 @@ def _store_backfill(repo: Repo, village: Village, device_id: str, items: list[Re
     log(_LOG, "gauge backfill", village_id=village.id, device_id=device_id, stored=out.stored,
         duplicate=out.duplicate, rejected=len(out.rejected))
     return out
+
+
+def _rain(repo: Repo, village: Village, device_id: str, fields: ReadingFields, at: datetime, now: datetime,
+          transport: str, origin: str):
+    """A v3 reading's tipping bucket, as observed rain (services/rain_obs.py). Never raises: the river
+    reading is stored whatever happens to its rain."""
+    from Pukaar.services import rain_obs
+
+    if not rain_obs.has_rain(fields):
+        return None
+    try:
+        return rain_obs.ingest(repo, village, device_id, fields, at, now=now, transport=transport, origin=origin)
+    except Exception as exc:
+        log(_LOG, "rain reading failed", 40, village_id=village.id, device_id=device_id, error=str(exc)[:200])
+        return None
 
 
 # -- health ---------------------------------------------------------------

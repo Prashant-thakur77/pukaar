@@ -140,6 +140,15 @@ class Settings:
     voice_calls_per_second: float = 2.0  # call requests to the voice provider, all batches together
     # -- the 15-minute sweep (services/decision_engine.sweep_all): villages evaluated at once --
     sweep_concurrency: int = 16
+    # -- the alarm layer (services/sirens.py) --
+    # Where siren commands go: "iot" (AWS IoT Core named shadows) or "local" (kept in the table).
+    device_shadow: str = "local"
+    # A command not verified this long after it was commanded is "not confirmed": the duty officer is told.
+    siren_check_seconds: int = 180
+    # Sound commands per village per hour (re-issues for the same alert not counted).
+    siren_commands_per_village_per_hour: int = 6
+    # Observed rain (services/rain_obs.py) may raise a level (never lower one; alone at most Warning).
+    rain_obs_enabled: bool = True
 
     def reask_cooldown(self, level: str) -> int:
         """Minutes before an unsent alert at this level is asked again while the level holds."""
@@ -242,6 +251,11 @@ def get_settings() -> Settings:
         telegram_chat_interval_seconds=max(0.0, float(os.environ.get("PUKAAR_TELEGRAM_CHAT_INTERVAL_SECONDS", "1"))),
         voice_calls_per_second=max(0.1, float(os.environ.get("PUKAAR_VOICE_CALLS_PER_SECOND", "2"))),
         sweep_concurrency=max(1, min(64, int(os.environ.get("PUKAAR_SWEEP_CONCURRENCY", "16")))),
+        device_shadow="iot" if os.environ.get("PUKAAR_DEVICE_SHADOW", "iot" if mode == "aws" else "local")
+        .strip().lower() == "iot" else "local",
+        siren_check_seconds=max(30, int(os.environ.get("PUKAAR_SIREN_CHECK_SECONDS", "180"))),
+        siren_commands_per_village_per_hour=max(1, int(os.environ.get("PUKAAR_SIREN_COMMANDS_PER_HOUR", "6"))),
+        rain_obs_enabled=_bool("PUKAAR_RAIN_OBS", True),
     )
 
 

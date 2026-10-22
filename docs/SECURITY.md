@@ -1,7 +1,8 @@
-# Security: report abuse and browser headers
+# Security: report abuse, device signing and browser headers
 
-Two protections for a public pilot: the anonymous report page cannot be used to raise a public level
-or to crowd villagers out, and the web app tells browsers what it may load. Operations (what to do
+Three protections for a public pilot: the anonymous report page cannot be used to raise a public level
+or to crowd villagers out, nobody can sound a siren without a command signed for that one device, and
+the web app tells browsers what it may load. Operations (what to do
 when the report-surge alarm fires) are in [RUNBOOK.md](RUNBOOK.md).
 
 ## Report-abuse protection
@@ -103,6 +104,76 @@ the month. The CSP's `connect-src` gains `https://*.cloudfront.net` on that prod
   MFA ON, no SMS) and has no demo users; dev keeps TOTP optional (docs/DEPLOY.md, "Production stage").
 - **Retention.** With `RetentionDays` set (365 on prod), a report, its photo and its voice note
   expire that many days after they were made (DynamoDB TTL and an S3 lifecycle rule).
+
+## Device signing (sirens, pradhan boxes, gauges)
+
+The alarm layer (docs/hardware/ALARM.md) lets the cloud command outdoor sirens. A siren that sounds on a
+forged command, or sounds a stale one hours late, is as harmful as one that stays silent, so every
+command is signed for one device and carries a counter and an expiry. None of this has run on hardware
+yet: the signing and checks are tested in Python and against a Python siren simulator, and the same
+golden vectors (`firmware/test/vectors/protocol_vectors.json`, TEST ONLY keys) are what the firmware
+will be tested against.
+
+Code: `backend/src/Pukaar/services/devices/protocol.py` (the one codec and signer for the MQTT command,
+the LoRa frame and the signed SMS), `services/devices/keys.py`, `services/devices/siren_model.py` (the
+reference verifier), `services/sirens.py`.
+
+**Keys.**
+- One root secret, SSM SecureString `/pukaar/device_root` (32 random bytes), made by `make secrets`.
+- Each device's key is derived from it, in memory, when needed:
+  `K_dev = HKDF-SHA256(ikm=root, salt="pukaar-device-root-v1", info="pukaar-dev|<device id>|<kid>")`.
+  Device keys are never stored server side and never logged. A real device gets its key flashed at
+  provisioning (with flash encryption and Secure Boot v2 turned on for production); only a labelled
+  `-sim` device's key is kept in SSM (`/pukaar/siren/<device>/hmac`), for the simulator.
+- Only the API, the approval workflow and the device-ingest function (the gauge-ingest Lambda, which also
+  takes device messages) can read the root. The worker function has an explicit Deny on it; the sweep
+  has no SSM access at all. A mis-scoped role or a console write to a device shadow cannot sound a siren:
+  the siren checks a signature that only these roles can make.
+- Rotation and revocation: bump the device's `kid` and deliver the new key, then switch it; revoke a
+  stolen device by deactivating its certificate and bumping the `kid` of every receiver that trusted it.
+
+**Why no AWS KMS key.** The spec proposed a KMS HMAC key (`GenerateMac`), which keeps the root inside
+KMS. A KMS key costs $1 a month whatever the traffic, and the dev stack must stay free
+(`backend/tests/test_template_safety.py`). The SSM root with HKDF gives the same property that matters
+here (no role outside the three named ones can make a valid signature) at no cost. Moving prod to a KMS
+key behind the prod-only condition is a change to one function (`keys.derive`) and the key policy; it
+is not built.
+
+**What a device checks** (the reference verifier, and what the firmware must do):
+- the signature: the command's canonical string signed with HMAC-SHA256, the first 16 bytes sent;
+- replay: a per-path counter (MQTT, SMS, LoRa) that must go up, and the last 32 command ids; on boot the
+  stored counter is taken plus 16, so a reboot between persists never accepts an old command;
+- expiry: `exp` is at most 30 minutes after issue (sooner if the alert expires first); a command that
+  arrives after `exp` is rejected and reported, never sounded late. With no synced clock, `exp` must
+  fall within 12 hours of the last known time;
+- LoRa frames carry an 8-byte HMAC with the sender's key, a per-sender counter and, when both clocks are
+  synced, a timestamp within 15 minutes. A relay stores and forwards frames but holds no keys, so it
+  cannot forge one; the cloud verifies every frame forwarded on `pukaar/mesh/...` with the origin's key,
+  never the forwarder's;
+- signed SMS (`PKR1 <device> <A><L> <ctr> <exp> <sig>`): the sender's number must be on the node's
+  allow-list, which holds only salted SHA-256 hashes (no phone number sits in a shadow), then the
+  signature, the counter and the expiry, in that order.
+
+**Who can make the cloud sign** (Cedar, `policy/base.cedar`; every decision is written to the audit
+trail, and a decision that cannot be audited is a deny):
+- the approval workflow, for an approved Warning or Critical, or a Critical sent under the flagged
+  critical auto-send. The Critical pattern C1 needs machine evidence at Critical in the decision trace
+  or a second, different officer; without either the siren plays W1 (never silence);
+- the failsafe, for a critical or already-approved alert;
+- an officer by hand: Warning alone, Critical only with a second officer's confirmation within 120 s;
+- a pradhan for their own village only; a pradhan's local trigger is propagated to the other sirens of
+  the same village only;
+- never a replay on a real siren (only `-sim` devices), never `sound_siren` for a drill (drills play D1
+  through `test_siren`), never an external CAP alert, and at most 6 sound commands per village per hour.
+- The published demo accounts (`judge`, `judge_pradhan`) may see devices but every siren action
+  (sound, stop, test, manage) is forbidden to them, live or replay. A model agent can never sound,
+  stop, test or manage a device.
+
+**AWS IoT.** Each kind of device has its own IoT policy (`pukaar-siren-<stage>`, `pukaar-box-<stage>`,
+`pukaar-relay-<stage>`): a certificate connects only as its own thing, publishes only to its own
+`event`, `heartbeat`, `backfill` and mesh `relay` topics, and reads only its own named shadows and jobs.
+No `iot:*`, no other thing's topics, no gauge topics. Thing name equals client id equals the device id
+in the topic, so the topic is the identity.
 
 ## Browser security headers
 

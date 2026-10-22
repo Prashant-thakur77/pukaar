@@ -24,6 +24,13 @@ or runs the batches with sends still queued again (dispatch.py, docs/CONTRACT.md
 The all-clear (stand_down): when a village is back to normal, or an officer issues the all-clear,
 everyone contacted for its alerts hears so on the channel they were warned on, and so does every
 officer who was asked. A replay never reaches a real phone, here as everywhere.
+
+Sirens (services/sirens.py): after approval (or the flagged critical auto-send) the SoundSirens state runs
+step "sirens" before Deliver. It never blocks or fails delivery: it catches everything here, and the
+state machine catches anything else and goes on to Deliver. Recall first checks the sirens (a command
+not verified in time is "not confirmed": SirenUnconfirmed, the duty officer is told) and re-issues the
+command to the ones that did not verify; the failsafe sounds them under its own rule; the all-clear
+sends the all-clear pattern (A1) to the sirens that started. Siren rows are never people.
 """
 
 from __future__ import annotations
@@ -42,7 +49,7 @@ from Pukaar.core.log import get_logger, log, metric
 from Pukaar.delivery import dispatch, officer_call, telegram, voice
 from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.policy.guard import SYSTEM, authorize
-from Pukaar.services import after_action, events, officer_push, rollcall, roster
+from Pukaar.services import after_action, events, officer_push, rollcall, roster, sirens
 from Pukaar.services.drafting import draft_alert
 from Pukaar.store.models import Alert, Delivery
 from Pukaar.store.repo import ConflictError, Repo
@@ -399,6 +406,18 @@ class Steps:
                                f"sweep asks again after {cooldown} min")
         return {"alert_id": alert.id, "outcome": "expired"}
 
+    def step_sirens(self, e: dict) -> dict:
+        """SoundSirens: command the village's sirens and pradhan boxes (signed named-shadow commands). Never
+        raises: whatever happens to a siren, the people's delivery goes next."""
+        try:
+            alert = self._alert(e["alert_id"])
+            if alert.status not in {"approved", "auto_sent_unapproved"}:
+                return {"alert_id": alert.id, "commanded": 0, "reason": f"status {alert.status}"}
+            return {"alert_id": alert.id, **sirens.sound_for_alert(self.repo, alert, src="approval")}
+        except Exception as exc:
+            log(_LOG, "sirens step error", 40, alert_id=e.get("alert_id"), error=str(exc)[:300])
+            return {"alert_id": e.get("alert_id"), "commanded": 0, "error": type(exc).__name__}
+
     def step_deliver(self, e: dict) -> dict:
         alert = self._alert(e["alert_id"])
         action = "auto_send" if alert.status == "auto_sent_unapproved" else "deliver"
@@ -421,6 +440,8 @@ class Steps:
         action = "auto_send" if alert.status == "auto_sent_unapproved" else "deliver"
         rounds = alert.recall_rounds + 1
         alert = self.repo.update_alert(alert.id, recall_rounds=rounds)
+        if rounds == 1:  # the sirens: check, then re-issue to the ones that did not verify (never raises)
+            sirens.recall(self.repo, alert)
         return self._start_round(alert, "recall", action, recall=True)
 
     # -- delivery at scale: the first batch here, the rest in the Map state --------------------------
@@ -561,6 +582,7 @@ class Steps:
                                                                    else "not critical and not approved: officers notified, nothing sent"))
             if not broadcast:
                 return {"alert_id": alert.id, "sent": 0, "mode": "failsafe", "more": False}
+            sirens.sound_for_alert(self.repo, alert, src="failsafe")  # never raises
             out = self._start_round(alert, "failsafe", "failsafe")  # the rest, if any, in the Map state
             return {**out, "sent": out.get("sent", out.get("counts", {}).get("sent", 0))}
         except Exception as exc:
@@ -640,6 +662,14 @@ def _stand_down_one(repo: Repo, alert: Alert, by: str, reason: str, done: dict, 
                     summary: dict[str, Any]) -> None:
     rows = [d for d in repo.list_deliveries(alert.id) if d.status in CONTACTED and d.all_clear_status is None]
     if not rows:
+        if alert.all_clear_at is None and any(r.status in sirens.STARTED for r in repo.list_siren_rows(alert.id)):
+            try:  # nobody's phone was reached, but a siren sounded: it still hears the all-clear, once
+                alert = repo.update_alert(alert.id, condition=Attr("all_clear_at").not_exists(),
+                                          all_clear_at=clock.iso(clock.now()), all_clear_by=by,
+                                          all_clear_reason=reason[:200])
+            except ConflictError:
+                return
+            sirens.all_clear(repo, alert)
         return
     at = clock.iso(clock.now())
     try:
@@ -648,6 +678,7 @@ def _stand_down_one(repo: Repo, alert: Alert, by: str, reason: str, done: dict, 
     except ConflictError:
         return  # stood down already (a second sweep, or an officer at the same moment)
     drill = bool(alert.decision_trace.get("drill"))
+    sirens.all_clear(repo, alert)  # the all-clear pattern on the sirens that started (never raises)
     text = hi.all_clear_message(alert.village_name_hi, alert.village_name, drill)
     decisions: dict[str, Any] = {}
     sent: set[str] = set()

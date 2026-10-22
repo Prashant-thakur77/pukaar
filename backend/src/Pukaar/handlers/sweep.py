@@ -6,7 +6,7 @@ import time
 from typing import Any
 
 from Pukaar.core.log import get_logger, log, metric
-from Pukaar.services import gauge, model_probe, roster
+from Pukaar.services import gauge, model_probe, roster, sirens
 from Pukaar.services.decision_engine import sweep_all
 from Pukaar.store.repo import get_repo
 from Pukaar.workflow.client import get_workflow
@@ -26,6 +26,10 @@ def handler(event: dict[str, Any] | None = None, context: Any = None) -> dict[st
     empty = roster.nobody_on_duty(repo)
     # Gauge health: silent, low battery or mostly bad readings -> GaugeUnhealthy (never raises).
     unhealthy = [h["village_id"] for h in gauge.health_scan(repo) if h["unhealthy"]]
+    # Sirens and boxes: offline, test overdue -> SirenOffline (alarmed), SirenTestOverdue; and the siren check:
+    # a command not verified 180 s after it was sent -> SirenUnconfirmed (alarmed), the duty officer told. Never raise.
+    siren_health = sirens.health_scan(repo)
+    unconfirmed = sirens.check_unconfirmed(repo)
     summary = {r.village_id: {"level": r.level, "raw": r.raw_level, "rose": r.rose, "alert_id": r.alert_id,
                               "skipped": r.skipped, "note": r.note} for r in results}
     errors = sum(1 for r in results if r.note.startswith("error"))
@@ -33,4 +37,5 @@ def handler(event: dict[str, Any] | None = None, context: Any = None) -> dict[st
     metric("SweepSeconds", seconds)
     if errors < len(results):
         metric("SweepCompleted", 1)
-    return {"villages": summary, "errors": errors, "nobody_on_duty": empty, "gauges_unhealthy": unhealthy}
+    return {"villages": summary, "errors": errors, "nobody_on_duty": empty, "gauges_unhealthy": unhealthy,
+            "sirens_offline": siren_health.get("offline", []), "sirens_unconfirmed": unconfirmed}

@@ -101,6 +101,29 @@ class SoilRange(BaseModel):
     source: str = "default"
 
 
+class RainGaugeConfig(BaseModel):
+    """A tipping-bucket rain gauge on a river gauge (v3) or a rain-only node (services/rain_obs.py).
+
+    The bands are ILLUSTRATIVE: calibrate them per khad with IMD and HPSDMA before relying on them
+    (Nepal's Birendranagar rain siren uses 60 mm/h). Observed rain alone never goes above Warning.
+    """
+
+    mm_per_tip: float = Field(default=0.2, gt=0, le=2)
+    # Intensity correction for the water lost while the bucket tips: mm x (1 + c x max(0, I - i0)).
+    correction_c: float = Field(default=0.0005, ge=0, le=0.01)
+    i0_mm_h: float = 50.0
+    max_plausible_mm_h: float = 300.0  # a 5-minute rate above this is chatter, not rain
+    min_tip_ms: int = 400
+    watch_15min: float = 10.0
+    watch_1h: float = 15.0
+    watch_3h: float = 40.0
+    warning_15min: float = 20.0
+    warning_1h: float = 30.0
+    warning_3h: float = 70.0
+    installed: bool = False
+    thresholds_source: str = "illustrative; calibrate per khad with IMD/HPSDMA"
+
+
 class GaugeConfig(BaseModel):
     """A river-stage gauge at the village (e.g. ESP32 + JSN-SR04T under a bridge deck).
 
@@ -135,6 +158,8 @@ class GaugeConfig(BaseModel):
     rise_minutes: float = 30.0
     # Health: a battery under this is low (3500 mV suits one Li-ion cell; use about 3100 for LiFePO4).
     low_battery_mv: float = 3500.0
+    # Gauge v3 / rain node: the tipping bucket's calibration and the observed-rain bands (rain_obs).
+    rain: RainGaugeConfig | None = None
 
 
 class Village(BaseModel):
@@ -241,6 +266,55 @@ class SensorReading(BaseModel):
     fw: str | None = None
     reset_cause: str | None = None
     buffered: bool = False
+    # Payload v3 (gauge v3 and rain nodes): the tipping bucket, stored as sent.
+    rain_tips_total: int | None = None
+    rain_tips_window: int | None = None
+    rain_mm_per_tip: float | None = None
+    rain_max_tips_1min: int | None = None
+    rain_min_tip_ms: int | None = None
+    rain_bounce: int | None = None
+    rain_err: int | None = None
+
+
+class RainReading(BaseModel):
+    """One observed-rain reading (VILLAGE#<v> / RAIN#<iso>#<device>) from a gauge v3's tipping bucket or a
+    rain-only node, with what services/rain_obs.py made of it at ingest.
+
+    mm_raw: this reading's rain (the counter difference times the server's mm_per_tip); mm: corrected for
+    the water a bucket loses while it tips at high intensity. windows: the corrected 15 min, 1 h and 3 h
+    totals ending at this reading (live, good readings only). eval_level: the band those windows reach;
+    confirmed_level: a band reached in 2 of the last 3 evaluations. quality "suspect" never counts."""
+
+    village_id: str
+    device_id: str
+    at: str
+    source: Literal["gauge", "rain_node"] = "gauge"
+    origin: Literal["live", "backfill"] = "live"
+    simulated: bool = False
+    received_at: str | None = None
+    transport: Literal["https", "mqtt"] = "mqtt"
+    seq: int | None = None
+    boot: int | None = None
+    tips_total: int | None = None
+    tips_window: int | None = None
+    device_mm_per_tip: float | None = None  # what the device says; the server's calibration is used
+    max_tips_1min: int | None = None
+    min_tip_ms: int | None = None
+    bounce: int | None = None
+    err: int | None = None
+    battery_v: float | None = None
+    rssi: int | None = None
+    fw: str | None = None
+    tips: int = 0
+    minutes: float = 5.0
+    mm_raw: float = 0.0
+    mm: float = 0.0
+    rate_mm_h: float = 0.0
+    quality: Literal["good", "suspect"] = "good"
+    quality_reasons: list[str] = Field(default_factory=list)
+    windows: dict[str, float] = Field(default_factory=dict)
+    eval_level: str = "normal"
+    confirmed_level: str = "normal"
 
 
 class ReportScreen(BaseModel):
@@ -439,9 +513,18 @@ class Alert(BaseModel):
     outcome: AlertOutcome | None = None
     outcome_by: str | None = None
     outcome_at: str | None = None
+    # The siren tier (services/sirens.py), kept apart from people: commanded, started (the device said
+    # so), verified (current and microphone evidence). Never counted in delivered or acknowledged.
+    sirens_total: int = 0
+    sirens_started: int = 0
+    sirens_verified: int = 0
+    siren_first_started_at: str | None = None
+    siren_first_verified_at: str | None = None
+    siren_pattern: str | None = None
+    siren_note: str | None = None
 
 
-E164 = re.compile(r"^\+[1-9]\d{7,14}$")
+E164 =re.compile(r"^\+[1-9]\d{7,14}$")
 VOICE_CHANNELS = {"voice", "both"}
 TELEGRAM_CHANNELS = {"telegram", "both"}
 # Village relays (the Practical Action "cascade" pattern): the pradhan, the gauge reader and the task-force
@@ -770,3 +853,143 @@ class PushSubscription(BaseModel):
     created_at: str
     user_agent: str = ""  # a short summary such as "Chrome on Android", never the full header
     last_sent_at: str | None = None
+
+
+# -- the alarm layer's devices (services/devices, services/sirens.py) ------------------------------
+DeviceKind = Literal["siren", "gauge", "box", "relay", "rain"]
+DEVICE_KINDS: tuple[str, ...] = ("siren", "gauge", "box", "relay", "rain")
+DeviceHealth = Literal["ok", "degraded", "offline", "fault", "unknown"]
+
+
+class Device(BaseModel):
+    """One device in the registry (VILLAGE#<v> / DEVICE#<d>): placement, configuration and live health.
+
+    Nothing secret is kept here: keys are derived when needed (services/devices/keys.py). sim_number is
+    the siren SIM's phone number for the officer's SMS fallback; it is never on a public view.
+    """
+
+    device_id: str = Field(min_length=3, max_length=64, pattern=r"^[A-Za-z0-9_.-]+$")
+    village_id: str
+    kind: DeviceKind
+    installed: bool = False
+    simulated: bool = False
+    hw_rev: str | None = None
+    fw: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    horn_azimuth_deg: float | None = None
+    coverage_m: float | None = None  # measured at acceptance (SPL >= ambient + 10 dB at the farthest house)
+    voice_slot: int = 0
+    owner_recipient_id: str | None = None  # a box: the pradhan's recipient row ("मिल गया" acknowledges it)
+    lora_addr: int | None = Field(default=None, ge=0, le=0xFFFE)
+    kid: int = 1
+    allowed_senders: list[str] = Field(default_factory=list)
+    test_schedule: str = "SUN 11:00"
+    autonomy: dict[str, Any] = Field(default_factory=lambda: {"enabled": False, "fast_path": False,
+                                                              "shadow_mode": True})
+    amp_a_ref: float = 3.3
+    siren_a_ref: float = 1.5
+    spl_rise_min_db: float = 15.0
+    sim_number: str | None = None
+    note: str = ""
+    # -- live health, from heartbeats, events and presence (services/devices/registry.py)
+    last_seen: str | None = None
+    last_seen_path: Literal["cell", "lora", "sms"] | None = None
+    connected: bool | None = None
+    conn_version: int | None = None
+    state: str | None = None  # the device's own: idle, sounding, testing, manual, autonomous, fault, low_power
+    state_since: str | None = None
+    soc: int | None = None
+    batt_mv: int | None = None
+    solar_wh_today: float | None = None
+    rssi: int | None = None
+    lora_noise_dbm: int | None = None
+    temp_c: float | None = None
+    outbox_depth: int | None = None
+    faults: list[str] = Field(default_factory=list)
+    last_test_silent: dict[str, Any] | None = None  # {at, ok, detail}
+    last_test_audible: dict[str, Any] | None = None  # {at, ok, amp_a, spl_rise_db}
+    last_sound: dict[str, Any] | None = None  # {alert_id, at, pattern, verified}
+    tamper_at: str | None = None
+    pending_cmd: dict[str, Any] | None = None  # {cmd_id, pattern, at, state, alert_id}
+    pour_test_until: str | None = None
+    created_at: str | None = None
+
+
+CommandState = Literal["commanded", "started", "verified", "not_confirmed", "expired", "rejected", "stopped",
+                       "finished", "failed"]
+
+
+class SirenCommand(BaseModel):
+    """A signed command as issued (DEVICE#<d> / CMD#<id>), without its signature."""
+
+    id: str
+    device_id: str
+    village_id: str
+    action: Literal["sound", "stop", "test"]
+    pattern: str | None = None
+    clip: str | None = None
+    clip_sha256_16: str | None = None
+    level: str | None = None
+    alert_id: str | None = None
+    cycles: int = 0
+    repeat_every_s: int = 0
+    repeat_cycles: int = 0
+    cap_on_s: int = 0
+    volume: int = 0
+    iat: int
+    exp: int
+    ctr: int
+    src: str
+    kid: int = 1
+    round: int = 0
+    by: str = "system"
+    simulated: bool = False
+    state: CommandState = "commanded"
+    via: str | None = None
+    commanded_at: str
+    started_at: str | None = None
+    verified_at: str | None = None
+    meas: dict[str, Any] | None = None
+    reason: str | None = None
+
+
+SirenRowStatus = Literal["commanded", "started", "verified", "not_confirmed", "rejected", "failed", "skipped"]
+
+
+class SirenDelivery(BaseModel):
+    """The siren tier of one alert (ALERT#<id> / SIREN#<device>#<round>): kept apart from the people
+    rows, so it is never counted as a person reached, re-sent to, or told the all-clear by phone."""
+
+    alert_id: str
+    device_id: str
+    village_id: str
+    round: int = 0
+    cmd_id: str | None = None
+    pattern: str | None = None
+    level: str | None = None
+    src: str = "approval"
+    status: SirenRowStatus = "commanded"
+    commanded_at: str | None = None
+    started_at: str | None = None
+    verified_at: str | None = None
+    meas: dict[str, Any] | None = None
+    error: str | None = None
+    simulated: bool = False
+
+
+class SirenRequest(BaseModel):
+    """Two-person rule (SIRENREQ#<id>): a Critical sounded by hand, or a Critical alert without machine
+    evidence, needs a second, different officer within 120 s."""
+
+    id: str
+    village_id: str
+    level: Literal["warning", "critical"]
+    reason: str = ""
+    requested_by: str
+    requested_at: str
+    expires_at: str
+    alert_id: str | None = None
+    confirmed_by: str | None = None
+    confirmed_at: str | None = None
+    status: Literal["open", "confirmed", "expired"] = "open"

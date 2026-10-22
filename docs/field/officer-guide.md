@@ -239,8 +239,29 @@ Pradhans see a disabled **Approve (officers only)** button and cannot approve.
    roll-call (section 11). The after-action report is written (section 14).
 6. The alert is also published in the CAP feed as an official-format message ("CAP XML ↗").
 
-**If no relay has pressed within 10 minutes of approval, phone the pradhan.** The siren is the village's
-fastest channel and it is not automatic.
+**If no relay has pressed and no siren is verified within 10 minutes of approval, phone the
+pradhan.** In most villages the siren is the pradhan's hand-held one and it is not automatic.
+
+**सायरन · Village sirens (where a siren node is installed).** No siren node is installed in a pilot village
+yet; the console shows the demo's labelled simulator (**Simulated**). Where one is:
+- On approval the siren sounds by itself, before the phones are sent: **"तीन लंबी" (W1)** for a Warning,
+  **"लहर" (C1)** for a Critical, no outdoor sound for a Watch (the pradhan's indoor box only). The alert
+  shows a siren line apart from the people: **Sirens 1/1 verified** means the node reported the amplifier
+  current and the sound rise, not just that a command was sent. "Started" without "verified" means it
+  got the command but the evidence is missing.
+- A Critical sounds C1 only when the river, a confirmed gauge or official data is at Critical, or a
+  **second officer** confirms within 2 minutes (a share link appears: "needs a second officer"). Until
+  then the siren plays W1, never silence.
+- **Siren not confirmed** (Telegram and Web Push: "<village> का सायरन पुष्टि नहीं कर पाया: प्रधान को फ़ोन करें"):
+  phone the pradhan first. If the siren is silent, press **SMS से भेजें · Send by SMS** on the alert: it
+  opens your phone's SMS app with the signed command to the siren's SIM; send it from your own phone (your
+  number must be on the node's list). Tell the pradhan to use the key switch, the hand-crank siren and the
+  megaphone.
+- **Stop (बंद)** stops the sirens of the village. Phone the pradhan before you press it. A drill plays only
+  the drill pattern; a replay never sounds a real siren.
+- Sounding a siren by hand outside an alert (**Sound Warning**, **Sound Critical**) is for an evacuate
+  order: a Warning needs you alone, a Critical needs a second officer. **Test** (silent any time, audible
+  09:00-18:00 only) never plays a warning pattern. Every press is on the audit trail.
 
 **What happens after you decline:** nothing is sent; the decision and your reason are on the audit trail.
 If the level still holds, the sweep asks again with a new alert that names this one: after 5 minutes
@@ -316,8 +337,8 @@ Critical means "leave now". The villager advice at Critical is: "अभी ऊ�
   while waiting — fixed template for the new level"); the next officer gets the critical window.
 - **Target: decide a Critical within 2 minutes of the phone buzzing.** Listen if you can, read the first
   lines of Why this level, approve.
-- After approving: watch **Relay done** on the recipients; if no relay pressed within 5 minutes, phone the
-  pradhan. Ask the pradhan which safe place is open and set it on the village page (section 12).
+- After approving: watch **Relay done** on the recipients and the siren line; if no relay pressed and no
+  siren is verified within 5 minutes, phone the pradhan. Ask the pradhan which safe place is open and set it on the village page (section 12).
 - A Critical with no approval is never sent on the pilot (above). If you see a Critical card with
   "Time ran out" in Recent alerts, phone the village and the DDMO now; the sweep will ask again in 30
   minutes.
@@ -449,6 +470,8 @@ DDMA. The ones a duty officer acts on:
 | [report-surge](../RUNBOOK.md#pukaar-stage-report-surge) | "Possible duplicate or flood of reports" in the report feed | Read the held reports; in a real event verify the true ones |
 | [nobody-on-duty](../RUNBOOK.md#pukaar-stage-nobody-on-duty) | "Nobody is rostered for this shift" on the roster | Fill the shift or take it over (section 3) |
 | [api-5xx](../RUNBOOK.md#pukaar-stage-api-5xx), [approval-failed](../RUNBOOK.md#pukaar-stage-approval-failed) | The console fails, or an alert stopped half way | Engineer at once; confirm by phone that the village was warned |
+| [siren-unconfirmed](../RUNBOOK.md#pukaar-stage-siren-unconfirmed) | "Siren not confirmed" on the alert and on your phone | Phone the pradhan; send the SMS fallback; tell the DDMA for a live alert |
+| [siren-offline](../RUNBOOK.md#pukaar-stage-siren-offline), [siren-test-failed](../RUNBOOK.md#pukaar-stage-siren-test-failed) | A siren or box **Offline** or **Fault** on `/sensors` | Tell the pradhan the siren may not sound (hand-crank siren and megaphone); engineer and technician |
 
 **River gauge.** On the village page and `/sensors`, a gauge that says **No reading in 30 min** (30 मिनट से
 कोई माप नहीं) or shows low battery or bad readings is not counted towards the level. Its last reading is not

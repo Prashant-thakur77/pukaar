@@ -1,0 +1,1291 @@
+{
+  "_warning": "TEST ONLY. Every key in this file is derived from a public root (bytes 0x00..0x1f). Never flash these keys or use this root on a device or a stack.",
+  "version": 1,
+  "generator": "backend/src/Pukaar/scripts/protocol_vectors.py (python -m Pukaar.scripts.protocol_vectors)",
+  "source": "backend/src/Pukaar/services/devices/protocol.py, siren_model.py",
+  "constants": {
+    "proto": "PKR1",
+    "cmd_sig_bytes": 16,
+    "frame_mac_bytes": 8,
+    "inner_sig_bytes": 16,
+    "sms_sig_bytes": 10,
+    "frame_max": 64,
+    "payload_max": 40,
+    "frame_version": 1,
+    "broadcast": 65535,
+    "recent_ids": 32,
+    "boot_ctr_bump": 16,
+    "unsynced_exp_window_s": 43200,
+    "frame_skew_s": 900,
+    "sms_max": 160,
+    "crockford_alphabet": "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+    "hkdf_salt": "pukaar-device-root-v1",
+    "hkdf_info": "pukaar-dev|<device>|<kid>",
+    "now": 1761121805
+  },
+  "enums": {
+    "frame_types": {
+      "GAUGE_STATUS": 1,
+      "GAUGE_ALARM": 2,
+      "SIREN_CMD_WRAPPED": 16,
+      "SIREN_EVENT": 17,
+      "BUTTON": 32,
+      "HEARTBEAT": 48,
+      "RELAY_BEACON": 49,
+      "ACK": 127
+    },
+    "level": {
+      "normal": 0,
+      "watch": 1,
+      "warning": 2,
+      "critical": 3
+    },
+    "action": {
+      "sound": 1,
+      "stop": 2,
+      "test": 3
+    },
+    "pattern": {
+      "-": 0,
+      "W1": 1,
+      "C1": 2,
+      "A1": 3,
+      "T1": 4,
+      "D1": 5
+    },
+    "cmd_level": {
+      "-": 0,
+      "warning": 2,
+      "critical": 3,
+      "all_clear": 4,
+      "test": 5,
+      "drill": 6
+    },
+    "button": {
+      "water_rising": 1,
+      "ack": 2,
+      "siren": 3,
+      "stop": 4
+    },
+    "key_pos": {
+      "off": 0,
+      "warning": 1,
+      "critical": 2
+    },
+    "state": {
+      "idle": 0,
+      "sounding": 1,
+      "testing": 2,
+      "manual": 3,
+      "autonomous": 4,
+      "fault": 5,
+      "low_power": 6,
+      "boot": 7
+    },
+    "event": {
+      "cmd_received": 1,
+      "started": 2,
+      "verified": 3,
+      "not_verified": 4,
+      "finished": 5,
+      "stopped": 6,
+      "rejected": 7,
+      "test_result": 8,
+      "manual_trigger": 9,
+      "autonomous_trigger": 10,
+      "gauge_alarm_heard": 11,
+      "tamper": 12,
+      "fault": 13,
+      "power": 14,
+      "config_applied": 15
+    },
+    "sms_action": {
+      "sound": "S",
+      "stop": "X",
+      "test": "T"
+    },
+    "sms_level": {
+      "warning": "W",
+      "critical": "C",
+      "all_clear": "A",
+      "test": "T",
+      "drill": "D"
+    },
+    "payload_layouts": {
+      "GAUGE_STATUS": {
+        "struct": "<BhhBBH",
+        "fields": [
+          "level",
+          "stage_cm",
+          "rise_10min_cm",
+          "quality",
+          "cloud_ok",
+          "rain_15min_tenths_mm"
+        ]
+      },
+      "GAUGE_ALARM": {
+        "struct": "<BhhBBH",
+        "fields": [
+          "level",
+          "stage_cm",
+          "rise_10min_cm",
+          "quality",
+          "cloud_ok",
+          "rain_15min_tenths_mm"
+        ]
+      },
+      "SIREN_CMD_WRAPPED": {
+        "struct": "<6sBBBBHII16s",
+        "fields": [
+          "cmd_id48",
+          "action",
+          "pattern",
+          "level",
+          "cycles",
+          "cap_on_s",
+          "exp",
+          "ctr",
+          "sig16"
+        ]
+      },
+      "SIREN_EVENT": {
+        "struct": "<B6sBBB",
+        "fields": [
+          "type",
+          "cmd_id48",
+          "verified",
+          "amp_a_x10",
+          "spl_rise_db"
+        ]
+      },
+      "BUTTON": {
+        "struct": "<BBH",
+        "fields": [
+          "button",
+          "key_pos",
+          "hold_ms"
+        ]
+      },
+      "HEARTBEAT": {
+        "struct": "<BBHHH",
+        "fields": [
+          "state",
+          "soc",
+          "batt_dv",
+          "faults",
+          "outbox"
+        ]
+      },
+      "RELAY_BEACON": {
+        "struct": "<HHBb",
+        "fields": [
+          "bus_dv",
+          "bus_ma",
+          "soc",
+          "noise_dbm"
+        ]
+      },
+      "ACK": {
+        "struct": "<HI",
+        "fields": [
+          "acked_src",
+          "acked_ctr"
+        ]
+      }
+    },
+    "pattern_defaults": {
+      "W1": {
+        "cycles": 5,
+        "repeat_every_s": 900,
+        "repeat_cycles": 2,
+        "cap_on_s": 1200,
+        "volume": 100
+      },
+      "C1": {
+        "cycles": 10,
+        "repeat_every_s": 600,
+        "repeat_cycles": 3,
+        "cap_on_s": 2700,
+        "volume": 100
+      },
+      "A1": {
+        "cycles": 1,
+        "repeat_every_s": 300,
+        "repeat_cycles": 1,
+        "cap_on_s": 120,
+        "volume": 100
+      },
+      "T1": {
+        "cycles": 1,
+        "repeat_every_s": 0,
+        "repeat_cycles": 0,
+        "cap_on_s": 30,
+        "volume": 50
+      },
+      "D1": {
+        "cycles": 1,
+        "repeat_every_s": 0,
+        "repeat_cycles": 0,
+        "cap_on_s": 120,
+        "volume": 100
+      }
+    }
+  },
+  "derivation": {
+    "root_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "devices": [
+      {
+        "device": "siren-thunag-01",
+        "kid": 1,
+        "key_hex": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62"
+      },
+      {
+        "device": "siren-thunag-01",
+        "kid": 2,
+        "key_hex": "d4ce808b5344d59d8cbc24a6b6d0783c0dd11a3936740293956e49a65d1f266c"
+      },
+      {
+        "device": "box-thunag-01",
+        "kid": 1,
+        "key_hex": "5172c8d200eeb2687a45e6ec28650e0c7bafc8d8f2a29fb620979b1c860a8340"
+      },
+      {
+        "device": "gauge-janjehli-01",
+        "kid": 1,
+        "key_hex": "87a7d1ada3c9395dc7e48fd3a7ee6212890ce9bccc1040fe6b39c630dc0ca103"
+      },
+      {
+        "device": "relay-seraj-01",
+        "kid": 1,
+        "key_hex": "eb94817c155ee794d5f8bce9aa5ae928827a615ed7de6ad9f0ca64a20438f8db"
+      }
+    ],
+    "lora_addr": {
+      "siren-thunag-01": 257,
+      "box-thunag-01": 258,
+      "gauge-janjehli-01": 513,
+      "relay-seraj-01": 769
+    }
+  },
+  "commands": [
+    {
+      "name": "warning_w1",
+      "device": "siren-thunag-01",
+      "kid": 1,
+      "key_hex": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62",
+      "cmd": {
+        "id": "cmd_01jb6x7k8m9n0p1q2r3s4t5v6w",
+        "action": "sound",
+        "pattern": "W1",
+        "clip": "thunag.warning.hi.v3",
+        "clip_sha256_16": "9f1c2a7be03d4c55",
+        "level": "warning",
+        "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+        "cycles": 5,
+        "repeat_every_s": 900,
+        "repeat_cycles": 2,
+        "cap_on_s": 1200,
+        "volume": 100,
+        "iat": 1761121800,
+        "exp": 1761123600,
+        "ctr": 412,
+        "src": "approval",
+        "kid": 1,
+        "sig": "qOZ8V54fgXGsX5WPmFWLsw"
+      },
+      "canonical": "PKR1|cmd_01jb6x7k8m9n0p1q2r3s4t5v6w|siren-thunag-01|sound|W1|thunag.warning.hi.v3|9f1c2a7be03d4c55|warning|alr_01jb5zz0a1b2c3d4e5f6g7h8j9|5|900|2|1200|100|1761121800|1761123600|412|approval|1",
+      "sig": "qOZ8V54fgXGsX5WPmFWLsw"
+    },
+    {
+      "name": "critical_c1",
+      "device": "siren-thunag-01",
+      "kid": 1,
+      "key_hex": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62",
+      "cmd": {
+        "id": "cmd_01jb6x7k8m9n0p1q2r3s4t5v6x",
+        "action": "sound",
+        "pattern": "C1",
+        "clip": "thunag.critical.hi.v3",
+        "clip_sha256_16": "0a1b2c3d4e5f6071",
+        "level": "critical",
+        "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+        "cycles": 10,
+        "repeat_every_s": 600,
+        "repeat_cycles": 3,
+        "cap_on_s": 2700,
+        "volume": 100,
+        "iat": 1761121800,
+        "exp": 1761123600,
+        "ctr": 413,
+        "src": "approval",
+        "kid": 1,
+        "sig": "dVwGQ5GxdQ8voGNmFBowDQ"
+      },
+      "canonical": "PKR1|cmd_01jb6x7k8m9n0p1q2r3s4t5v6x|siren-thunag-01|sound|C1|thunag.critical.hi.v3|0a1b2c3d4e5f6071|critical|alr_01jb5zz0a1b2c3d4e5f6g7h8j9|10|600|3|2700|100|1761121800|1761123600|413|approval|1",
+      "sig": "dVwGQ5GxdQ8voGNmFBowDQ"
+    },
+    {
+      "name": "stop",
+      "device": "siren-thunag-01",
+      "kid": 1,
+      "key_hex": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62",
+      "cmd": {
+        "id": "cmd_01jb6x7k8m9n0p1q2r3s4t5v6y",
+        "action": "stop",
+        "pattern": null,
+        "clip": null,
+        "clip_sha256_16": null,
+        "level": null,
+        "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+        "cycles": 0,
+        "repeat_every_s": 0,
+        "repeat_cycles": 0,
+        "cap_on_s": 0,
+        "volume": 0,
+        "iat": 1761121800,
+        "exp": 1761123600,
+        "ctr": 414,
+        "src": "officer_manual",
+        "kid": 1,
+        "sig": "o-zwukeACOjIflSmxlz0yA"
+      },
+      "canonical": "PKR1|cmd_01jb6x7k8m9n0p1q2r3s4t5v6y|siren-thunag-01|stop|-|-|-|-|alr_01jb5zz0a1b2c3d4e5f6g7h8j9|0|0|0|0|0|1761121800|1761123600|414|officer_manual|1",
+      "sig": "o-zwukeACOjIflSmxlz0yA"
+    },
+    {
+      "name": "test_t1_kid2",
+      "device": "siren-thunag-01",
+      "kid": 2,
+      "key_hex": "d4ce808b5344d59d8cbc24a6b6d0783c0dd11a3936740293956e49a65d1f266c",
+      "cmd": {
+        "id": "cmd_01jb6x7k8m9n0p1q2r3s4t5v6z",
+        "action": "test",
+        "pattern": "T1",
+        "clip": "test.hi.v3",
+        "clip_sha256_16": "1122334455667788",
+        "level": "test",
+        "alert_id": null,
+        "cycles": 1,
+        "repeat_every_s": 0,
+        "repeat_cycles": 0,
+        "cap_on_s": 30,
+        "volume": 50,
+        "iat": 1761121800,
+        "exp": 1761123600,
+        "ctr": 415,
+        "src": "officer_manual",
+        "kid": 2,
+        "sig": "zYb5dw00IO-8AYLQbrnWMQ"
+      },
+      "canonical": "PKR1|cmd_01jb6x7k8m9n0p1q2r3s4t5v6z|siren-thunag-01|test|T1|test.hi.v3|1122334455667788|test|-|1|0|0|30|50|1761121800|1761123600|415|officer_manual|2",
+      "sig": "zYb5dw00IO-8AYLQbrnWMQ"
+    },
+    {
+      "name": "all_clear_a1",
+      "device": "siren-thunag-01",
+      "kid": 1,
+      "key_hex": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62",
+      "cmd": {
+        "id": "cmd_01jb6x7k8m9n0p1q2r3s4t5v70",
+        "action": "sound",
+        "pattern": "A1",
+        "clip": "thunag.allclear.hi.v3",
+        "clip_sha256_16": "8899aabbccddeeff",
+        "level": "all_clear",
+        "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+        "cycles": 1,
+        "repeat_every_s": 300,
+        "repeat_cycles": 1,
+        "cap_on_s": 120,
+        "volume": 100,
+        "iat": 1761121800,
+        "exp": 1761123600,
+        "ctr": 416,
+        "src": "all_clear",
+        "kid": 1,
+        "sig": "nUomId7jeZE3hQ9fQf_JBw"
+      },
+      "canonical": "PKR1|cmd_01jb6x7k8m9n0p1q2r3s4t5v70|siren-thunag-01|sound|A1|thunag.allclear.hi.v3|8899aabbccddeeff|all_clear|alr_01jb5zz0a1b2c3d4e5f6g7h8j9|1|300|1|120|100|1761121800|1761123600|416|all_clear|1",
+      "sig": "nUomId7jeZE3hQ9fQf_JBw"
+    }
+  ],
+  "command_checks": [
+    {
+      "name": "acceptance_matrix",
+      "device": "siren-thunag-01",
+      "keys_by_kid": {
+        "1": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62",
+        "2": "d4ce808b5344d59d8cbc24a6b6d0783c0dd11a3936740293956e49a65d1f266c"
+      },
+      "initial_state": {
+        "last_ctr": {
+          "mqtt": 0,
+          "sms": 0,
+          "lora": 0
+        },
+        "recent_ids": [],
+        "last_known_time": 0
+      },
+      "steps": [
+        {
+          "label": "w1 first time",
+          "via": "mqtt",
+          "now": 1761121805,
+          "cmd": {
+            "id": "cmd_01jb6x7k8m9n0p1q2r3s4t5v6w",
+            "action": "sound",
+            "pattern": "W1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "warning",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 5,
+            "repeat_every_s": 900,
+            "repeat_cycles": 2,
+            "cap_on_s": 1200,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761123600,
+            "ctr": 412,
+            "src": "approval",
+            "kid": 1,
+            "sig": "qOZ8V54fgXGsX5WPmFWLsw"
+          },
+          "accept": true,
+          "reason": "ok"
+        },
+        {
+          "label": "the same command again",
+          "via": "mqtt",
+          "now": 1761121805,
+          "cmd": {
+            "id": "cmd_01jb6x7k8m9n0p1q2r3s4t5v6w",
+            "action": "sound",
+            "pattern": "W1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "warning",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 5,
+            "repeat_every_s": 900,
+            "repeat_cycles": 2,
+            "cap_on_s": 1200,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761123600,
+            "ctr": 412,
+            "src": "approval",
+            "kid": 1,
+            "sig": "qOZ8V54fgXGsX5WPmFWLsw"
+          },
+          "accept": false,
+          "reason": "replayed"
+        },
+        {
+          "label": "an older counter",
+          "via": "mqtt",
+          "now": 1761121805,
+          "cmd": {
+            "id": "cmd_old",
+            "action": "sound",
+            "pattern": "W1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "warning",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 5,
+            "repeat_every_s": 900,
+            "repeat_cycles": 2,
+            "cap_on_s": 1200,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761123600,
+            "ctr": 411,
+            "src": "approval",
+            "kid": 1,
+            "sig": "aC6zttGHubdcAXqlSiQdaw"
+          },
+          "accept": false,
+          "reason": "replayed"
+        },
+        {
+          "label": "signature from other fields",
+          "via": "mqtt",
+          "now": 1761121805,
+          "cmd": {
+            "id": "cmd_c1",
+            "action": "sound",
+            "pattern": "W1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "critical",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 10,
+            "repeat_every_s": 600,
+            "repeat_cycles": 3,
+            "cap_on_s": 2700,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761123600,
+            "ctr": 420,
+            "src": "approval",
+            "kid": 1,
+            "sig": "gZ8KWxxXhyPFUuMhrpZ5VA"
+          },
+          "accept": false,
+          "reason": "bad_sig"
+        },
+        {
+          "label": "c1 newer counter",
+          "via": "mqtt",
+          "now": 1761121805,
+          "cmd": {
+            "id": "cmd_c1",
+            "action": "sound",
+            "pattern": "C1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "critical",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 10,
+            "repeat_every_s": 600,
+            "repeat_cycles": 3,
+            "cap_on_s": 2700,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761123600,
+            "ctr": 420,
+            "src": "approval",
+            "kid": 1,
+            "sig": "gZ8KWxxXhyPFUuMhrpZ5VA"
+          },
+          "accept": true,
+          "reason": "ok"
+        },
+        {
+          "label": "unknown kid",
+          "via": "mqtt",
+          "now": 1761121805,
+          "cmd": {
+            "id": "cmd_k3",
+            "action": "sound",
+            "pattern": "W1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "warning",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 5,
+            "repeat_every_s": 900,
+            "repeat_cycles": 2,
+            "cap_on_s": 1200,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761123600,
+            "ctr": 430,
+            "src": "approval",
+            "kid": 3,
+            "sig": "EjoOb5aUann5UvN962O6RA"
+          },
+          "accept": false,
+          "reason": "wrong_kid"
+        },
+        {
+          "label": "arrives after exp",
+          "via": "mqtt",
+          "now": 1761121805,
+          "cmd": {
+            "id": "cmd_late",
+            "action": "sound",
+            "pattern": "W1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "warning",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 5,
+            "repeat_every_s": 900,
+            "repeat_cycles": 2,
+            "cap_on_s": 1200,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761121804,
+            "ctr": 431,
+            "src": "approval",
+            "kid": 1,
+            "sig": "8Bi7dRZXaN2od88KKm81Zw"
+          },
+          "accept": false,
+          "reason": "expired"
+        },
+        {
+          "label": "lora path keeps its own counter",
+          "via": "lora",
+          "now": 1761121805,
+          "cmd": {
+            "id": "cmd_lora",
+            "action": "sound",
+            "pattern": "W1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "warning",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 5,
+            "repeat_every_s": 900,
+            "repeat_cycles": 2,
+            "cap_on_s": 1200,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761123600,
+            "ctr": 412,
+            "src": "approval",
+            "kid": 1,
+            "sig": "iaQ9CvGxYyOksN_DJ5SrJg"
+          },
+          "accept": true,
+          "reason": "ok"
+        },
+        {
+          "label": "clock unsynced, exp beyond 12 h of the last known time",
+          "via": "mqtt",
+          "now": null,
+          "cmd": {
+            "id": "cmd_far",
+            "action": "sound",
+            "pattern": "W1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "warning",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 5,
+            "repeat_every_s": 900,
+            "repeat_cycles": 2,
+            "cap_on_s": 1200,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761165065,
+            "ctr": 440,
+            "src": "approval",
+            "kid": 1,
+            "sig": "vqhuPgXBo9Wxubgcve_D_g"
+          },
+          "accept": false,
+          "reason": "exp_window"
+        },
+        {
+          "label": "clock unsynced, exp within 12 h",
+          "via": "mqtt",
+          "now": null,
+          "cmd": {
+            "id": "cmd_near",
+            "action": "sound",
+            "pattern": "W1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "warning",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 5,
+            "repeat_every_s": 900,
+            "repeat_cycles": 2,
+            "cap_on_s": 1200,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761122405,
+            "ctr": 441,
+            "src": "approval",
+            "kid": 1,
+            "sig": "ZnbDi8LFWzDi0naiivD8lQ"
+          },
+          "accept": true,
+          "reason": "ok"
+        }
+      ]
+    },
+    {
+      "name": "boot_bump",
+      "device": "siren-thunag-01",
+      "keys_by_kid": {
+        "1": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62"
+      },
+      "stored_state": {
+        "last_ctr": {
+          "mqtt": 441,
+          "sms": 0,
+          "lora": 412
+        },
+        "recent_ids": [],
+        "last_known_time": 1761121805
+      },
+      "boot_ctr_bump": 16,
+      "steps": [
+        {
+          "label": "after boot, a counter within the +16 bump",
+          "via": "mqtt",
+          "now": 1761121805,
+          "cmd": {
+            "id": "cmd_boot_450",
+            "action": "sound",
+            "pattern": "W1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "warning",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 5,
+            "repeat_every_s": 900,
+            "repeat_cycles": 2,
+            "cap_on_s": 1200,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761123600,
+            "ctr": 450,
+            "src": "approval",
+            "kid": 1,
+            "sig": "6uNHjOJb6VLcmRfjLgGiog"
+          },
+          "accept": false,
+          "reason": "replayed"
+        },
+        {
+          "label": "after boot, above the bump",
+          "via": "mqtt",
+          "now": 1761121805,
+          "cmd": {
+            "id": "cmd_boot_458",
+            "action": "sound",
+            "pattern": "W1",
+            "clip": "thunag.warning.hi.v3",
+            "clip_sha256_16": "9f1c2a7be03d4c55",
+            "level": "warning",
+            "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+            "cycles": 5,
+            "repeat_every_s": 900,
+            "repeat_cycles": 2,
+            "cap_on_s": 1200,
+            "volume": 100,
+            "iat": 1761121800,
+            "exp": 1761123600,
+            "ctr": 458,
+            "src": "approval",
+            "kid": 1,
+            "sig": "EqLK1QDR5FBlZLY01gLWrA"
+          },
+          "accept": true,
+          "reason": "ok"
+        }
+      ]
+    }
+  ],
+  "frames": [
+    {
+      "name": "gauge_alarm",
+      "src_device": "gauge-janjehli-01",
+      "key_hex": "87a7d1ada3c9395dc7e48fd3a7ee6212890ce9bccc1040fe6b39c630dc0ca103",
+      "header": {
+        "ver": 1,
+        "type": 2,
+        "src": 513,
+        "dst": 257,
+        "ctr": 5001,
+        "ts": 1761121805,
+        "len": 9
+      },
+      "payload_fields": {
+        "level": 3,
+        "stage_cm": 312,
+        "rise_10min_cm": 41,
+        "quality": 95,
+        "cloud_ok": 0,
+        "rain_15min_tenths_mm": 87
+      },
+      "payload_hex": "03380129005f005700",
+      "mac_hex": "97b0f486fb8017c9",
+      "frame_hex": "010201020101891300000d96f8680903380129005f00570097b0f486fb8017c9"
+    },
+    {
+      "name": "gauge_status_unsynced_clock",
+      "src_device": "gauge-janjehli-01",
+      "key_hex": "87a7d1ada3c9395dc7e48fd3a7ee6212890ce9bccc1040fe6b39c630dc0ca103",
+      "header": {
+        "ver": 1,
+        "type": 1,
+        "src": 513,
+        "dst": 65535,
+        "ctr": 5002,
+        "ts": 0,
+        "len": 9
+      },
+      "payload_fields": {
+        "level": 1,
+        "stage_cm": 140,
+        "rise_10min_cm": -3,
+        "quality": 95,
+        "cloud_ok": 0,
+        "rain_15min_tenths_mm": 87
+      },
+      "payload_hex": "018c00fdff5f005700",
+      "mac_hex": "9308802899963271",
+      "frame_hex": "01010102ffff8a1300000000000009018c00fdff5f0057009308802899963271"
+    },
+    {
+      "name": "box_button_key_critical",
+      "src_device": "box-thunag-01",
+      "key_hex": "5172c8d200eeb2687a45e6ec28650e0c7bafc8d8f2a29fb620979b1c860a8340",
+      "header": {
+        "ver": 1,
+        "type": 32,
+        "src": 258,
+        "dst": 257,
+        "ctr": 77,
+        "ts": 1761121805,
+        "len": 4
+      },
+      "payload_fields": {
+        "button": 3,
+        "key_pos": 2,
+        "hold_ms": 3200
+      },
+      "payload_hex": "0302800c",
+      "mac_hex": "30a72894314af398",
+      "frame_hex": "0120020101014d0000000d96f868040302800c30a72894314af398"
+    },
+    {
+      "name": "box_heartbeat",
+      "src_device": "box-thunag-01",
+      "key_hex": "5172c8d200eeb2687a45e6ec28650e0c7bafc8d8f2a29fb620979b1c860a8340",
+      "header": {
+        "ver": 1,
+        "type": 48,
+        "src": 258,
+        "dst": 65535,
+        "ctr": 78,
+        "ts": 1761121805,
+        "len": 8
+      },
+      "payload_fields": {
+        "state": 0,
+        "soc": 86,
+        "batt_dv": 132,
+        "faults": 0,
+        "outbox": 2
+      },
+      "payload_hex": "0056840000000200",
+      "mac_hex": "99b09970906fa4cc",
+      "frame_hex": "01300201ffff4e0000000d96f86808005684000000020099b09970906fa4cc"
+    },
+    {
+      "name": "siren_event_verified",
+      "src_device": "siren-thunag-01",
+      "key_hex": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62",
+      "header": {
+        "ver": 1,
+        "type": 17,
+        "src": 257,
+        "dst": 258,
+        "ctr": 9001,
+        "ts": 1761121805,
+        "len": 10
+      },
+      "payload_fields": {
+        "type": 3,
+        "cmd_id48": "131c81ac591e",
+        "verified": 1,
+        "amp_a_x10": 31,
+        "spl_rise_db": 24
+      },
+      "payload_hex": "03131c81ac591e011f18",
+      "mac_hex": "544ffe087bb9613a",
+      "frame_hex": "011101010201292300000d96f8680a03131c81ac591e011f18544ffe087bb9613a"
+    },
+    {
+      "name": "relay_beacon",
+      "src_device": "relay-seraj-01",
+      "key_hex": "eb94817c155ee794d5f8bce9aa5ae928827a615ed7de6ad9f0ca64a20438f8db",
+      "header": {
+        "ver": 1,
+        "type": 49,
+        "src": 769,
+        "dst": 65535,
+        "ctr": 12,
+        "ts": 1761121805,
+        "len": 6
+      },
+      "payload_fields": {
+        "bus_dv": 131,
+        "bus_ma": 42,
+        "soc": 77,
+        "noise_dbm": -118
+      },
+      "payload_hex": "83002a004d8a",
+      "mac_hex": "409cb0595506e561",
+      "frame_hex": "01310103ffff0c0000000d96f8680683002a004d8a409cb0595506e561"
+    },
+    {
+      "name": "ack",
+      "src_device": "siren-thunag-01",
+      "key_hex": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62",
+      "header": {
+        "ver": 1,
+        "type": 127,
+        "src": 257,
+        "dst": 258,
+        "ctr": 9002,
+        "ts": 1761121805,
+        "len": 6
+      },
+      "payload_fields": {
+        "acked_src": 258,
+        "acked_ctr": 77
+      },
+      "payload_hex": "02014d000000",
+      "mac_hex": "5aa353b9b2e0f511",
+      "frame_hex": "017f010102012a2300000d96f8680602014d0000005aa353b9b2e0f511"
+    },
+    {
+      "name": "siren_cmd_wrapped_by_box",
+      "src_device": "box-thunag-01",
+      "key_hex": "5172c8d200eeb2687a45e6ec28650e0c7bafc8d8f2a29fb620979b1c860a8340",
+      "header": {
+        "ver": 1,
+        "type": 16,
+        "src": 258,
+        "dst": 257,
+        "ctr": 79,
+        "ts": 1761121805,
+        "len": 36
+      },
+      "payload_fields": {
+        "cmd_id48": "131c81ac591e",
+        "action": 1,
+        "pattern": 1,
+        "level": 2,
+        "cycles": 5,
+        "cap_on_s": 1200,
+        "exp": 1761123600,
+        "ctr": 412,
+        "sig16": "61b42baa7530fca4e248d4fdb11b7a06"
+      },
+      "payload_hex": "131c81ac591e01010205b004109df8689c01000061b42baa7530fca4e248d4fdb11b7a06",
+      "mac_hex": "067b728595a3c19d",
+      "frame_hex": "0110020101014f0000000d96f86824131c81ac591e01010205b004109df8689c01000061b42baa7530fca4e248d4fdb11b7a06067b728595a3c19d",
+      "inner": {
+        "device": "siren-thunag-01",
+        "siren_key_hex": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62",
+        "signed_bytes_hex": "504b5231437c736972656e2d7468756e61672d30317c131c81ac591e01010205b004109df8689c010000",
+        "fields": {
+          "cmd_id48": "131c81ac591e",
+          "action": "sound",
+          "pattern": "W1",
+          "level": "warning",
+          "cycles": 5,
+          "cap_on_s": 1200,
+          "exp": 1761123600,
+          "ctr": 412
+        },
+        "from_cmd": {
+          "id": "cmd_01jb6x7k8m9n0p1q2r3s4t5v6w",
+          "action": "sound",
+          "pattern": "W1",
+          "clip": "thunag.warning.hi.v3",
+          "clip_sha256_16": "9f1c2a7be03d4c55",
+          "level": "warning",
+          "alert_id": "alr_01jb5zz0a1b2c3d4e5f6g7h8j9",
+          "cycles": 5,
+          "repeat_every_s": 900,
+          "repeat_cycles": 2,
+          "cap_on_s": 1200,
+          "volume": 100,
+          "iat": 1761121800,
+          "exp": 1761123600,
+          "ctr": 412,
+          "src": "approval",
+          "kid": 1,
+          "sig": "qOZ8V54fgXGsX5WPmFWLsw"
+        }
+      }
+    }
+  ],
+  "frame_rejects": [
+    {
+      "receiver": "siren-thunag-01",
+      "senders": {
+        "0x0201": {
+          "device": "gauge-janjehli-01",
+          "key_hex": "87a7d1ada3c9395dc7e48fd3a7ee6212890ce9bccc1040fe6b39c630dc0ca103",
+          "roles": [
+            "gauge_status",
+            "gauge_alarm"
+          ]
+        },
+        "0x0102": {
+          "device": "box-thunag-01",
+          "key_hex": "5172c8d200eeb2687a45e6ec28650e0c7bafc8d8f2a29fb620979b1c860a8340",
+          "roles": [
+            "button",
+            "heartbeat",
+            "relay_cmd"
+          ]
+        },
+        "0x0301": {
+          "device": "relay-seraj-01",
+          "key_hex": "eb94817c155ee794d5f8bce9aa5ae928827a615ed7de6ad9f0ca64a20438f8db",
+          "roles": [
+            "beacon",
+            "relay_cmd"
+          ]
+        }
+      },
+      "accepted_first": {
+        "name": "gauge_alarm",
+        "frame_hex": "010201020101891300000d96f8680903380129005f00570097b0f486fb8017c9"
+      },
+      "cases": [
+        {
+          "name": "truncated",
+          "frame_hex": "010201020101891300000d96f8680903380129005f00570097b0f486fb8017",
+          "now": 1761121805,
+          "expect_reason": "malformed"
+        },
+        {
+          "name": "version",
+          "frame_hex": "020201020101891300000d96f8680903380129005f00570097b0f486fb8017c9",
+          "now": 1761121805,
+          "expect_reason": "malformed"
+        },
+        {
+          "name": "tampered_payload",
+          "frame_hex": "010201020101891300000d96f8680903390129005f00570097b0f486fb8017c9",
+          "now": 1761121805,
+          "expect_reason": "bad_mac"
+        },
+        {
+          "name": "oversize",
+          "frame_hex": "010201020101891300000d96f8680903380129005f00570097b0f486fb8017c9000000000000000000000000000000000000000000000000000000000000000000",
+          "now": 1761121805,
+          "expect_reason": "malformed"
+        },
+        {
+          "name": "unknown_src",
+          "frame_hex": "010299090101010000000d96f8680903380129005f0057006fbb34b66a5df186",
+          "now": 1761121805,
+          "expect_reason": "unknown_src"
+        },
+        {
+          "name": "role",
+          "frame_hex": "010202010101500000000d96f8680903380129005f0057001601d7e35972ecf0",
+          "now": 1761121805,
+          "expect_reason": "role"
+        },
+        {
+          "name": "replayed",
+          "frame_hex": "010201020101891300000d96f8680903380129005f00570097b0f486fb8017c9",
+          "now": 1761121805,
+          "expect_reason": "replayed"
+        },
+        {
+          "name": "clock_skew",
+          "frame_hex": "0102010201018b1300008992f8680903380129005f0057008e11359eecc22414",
+          "now": 1761121805,
+          "expect_reason": "clock_skew"
+        },
+        {
+          "name": "forwarder_forges_inner_command",
+          "frame_hex": "0110010301010d0000000d96f86824131c81ac591e01010205b104109df8689c01000061b42baa7530fca4e248d4fdb11b7a06277e32473cfff590",
+          "now": 1761121805,
+          "expect_reason": "ok_outer_bad_inner",
+          "outer_accepted": true,
+          "inner_valid": false
+        }
+      ]
+    }
+  ],
+  "sms": {
+    "good": [
+      {
+        "name": "sound_critical",
+        "device": "siren-thunag-01",
+        "key_hex": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62",
+        "action": "sound",
+        "level": "critical",
+        "ctr": 413,
+        "exp": 1761123605,
+        "signing_string": "PKR1|siren-thunag-01|S|C|413|1761123605",
+        "text": "PKR1 siren-thunag-01 SC 000413 T4IZO5 0D841TW51HEEJDPN",
+        "length": 54
+      },
+      {
+        "name": "stop",
+        "device": "siren-thunag-01",
+        "key_hex": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62",
+        "action": "stop",
+        "level": "warning",
+        "ctr": 414,
+        "exp": 1761123605,
+        "signing_string": "PKR1|siren-thunag-01|X|W|414|1761123605",
+        "text": "PKR1 siren-thunag-01 XW 000414 T4IZO5 0MYMHEZJWXTKE4HG",
+        "length": 54
+      },
+      {
+        "name": "test",
+        "device": "siren-thunag-01",
+        "key_hex": "3cb168a61a49dcd3df007c72427c577f45ac98ed6c615b9d1865a4a1521c0c62",
+        "action": "test",
+        "level": "test",
+        "ctr": 415,
+        "exp": 1761123605,
+        "signing_string": "PKR1|siren-thunag-01|T|T|415|1761123605",
+        "text": "PKR1 siren-thunag-01 TT 000415 T4IZO5 HEE2K1WVM5XK3WEB",
+        "length": 54
+      }
+    ],
+    "checks": {
+      "first_accepted": "PKR1 siren-thunag-01 SC 000413 T4IZO5 0D841TW51HEEJDPN",
+      "cases": [
+        {
+          "name": "case_insensitive_prefix",
+          "text": "pkr1 siren-thunag-01 SC 000413 T4IZO5 0D841TW51HEEJDPN",
+          "now": 1761121805,
+          "sender_allowed": true,
+          "accept": true,
+          "reason": "ok"
+        },
+        {
+          "name": "unicode",
+          "text": "PKR1 siren-thunag-01 SC 000413 T4IZO5 0D841TW51HEEJDPN ख़",
+          "now": 1761121805,
+          "sender_allowed": true,
+          "accept": false,
+          "reason": "malformed"
+        },
+        {
+          "name": "over_160",
+          "text": "PKR1 siren-thunag-01 SC 000413 T4IZO5 0D841TW51HEEJDPN XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+          "now": 1761121805,
+          "sender_allowed": true,
+          "accept": false,
+          "reason": "malformed"
+        },
+        {
+          "name": "wrong_device",
+          "text": "PKR1 siren-thunag-02 SC 000413 T4IZO5 0D841TW51HEEJDPN",
+          "now": 1761121805,
+          "sender_allowed": true,
+          "accept": false,
+          "reason": "bad_sig"
+        },
+        {
+          "name": "bad_sig",
+          "text": "PKR1 siren-thunag-01 SC 000413 T4IZO5 0D841TW51HEEJDP0",
+          "now": 1761121805,
+          "sender_allowed": true,
+          "accept": false,
+          "reason": "bad_sig"
+        },
+        {
+          "name": "replayed",
+          "text": "PKR1 siren-thunag-01 SC 000413 T4IZO5 0D841TW51HEEJDPN",
+          "now": 1761121805,
+          "sender_allowed": true,
+          "accept": false,
+          "reason": "replayed"
+        },
+        {
+          "name": "expired",
+          "text": "PKR1 siren-thunag-01 TT 000415 T4IZO5 HEE2K1WVM5XK3WEB",
+          "now": 1761123606,
+          "sender_allowed": true,
+          "accept": false,
+          "reason": "expired"
+        },
+        {
+          "name": "sender_not_allowed",
+          "text": "PKR1 siren-thunag-01 XW 000414 T4IZO5 0MYMHEZJWXTKE4HG",
+          "now": 1761121805,
+          "sender_allowed": false,
+          "accept": false,
+          "reason": "sender"
+        }
+      ]
+    },
+    "sender_hash": {
+      "salt": "TEST-ONLY-SALT",
+      "e164": "+919800000001",
+      "sha256_hex": "7d3a3c1ff96e9dfebfe6ad426fcdc966141354f24c85b422f05f6b6fe333d6b3"
+    }
+  },
+  "verification": [
+    {
+      "name": "ok",
+      "meas": {
+        "amp_a": 3.1,
+        "spl_rise_db": 24.5
+      },
+      "faults": [],
+      "amp_a_ref": 3.3,
+      "spl_rise_min_db": 15.0,
+      "verified": true
+    },
+    {
+      "name": "amp_low",
+      "meas": {
+        "amp_a": 1.9,
+        "spl_rise_db": 24.5
+      },
+      "faults": [],
+      "amp_a_ref": 3.3,
+      "spl_rise_min_db": 15.0,
+      "verified": false
+    },
+    {
+      "name": "amp_high",
+      "meas": {
+        "amp_a": 5.0,
+        "spl_rise_db": 24.5
+      },
+      "faults": [],
+      "amp_a_ref": 3.3,
+      "spl_rise_min_db": 15.0,
+      "verified": false
+    },
+    {
+      "name": "quiet",
+      "meas": {
+        "amp_a": 3.1,
+        "spl_rise_db": 9.0
+      },
+      "faults": [],
+      "amp_a_ref": 3.3,
+      "spl_rise_min_db": 15.0,
+      "verified": false
+    },
+    {
+      "name": "mic_dead_current_ok",
+      "meas": {
+        "amp_a": 3.1
+      },
+      "faults": [
+        "mic_dead"
+      ],
+      "amp_a_ref": 3.3,
+      "spl_rise_min_db": 15.0,
+      "verified": true
+    },
+    {
+      "name": "mic_dead_no_current",
+      "meas": {
+        "amp_a": 0.2
+      },
+      "faults": [
+        "mic_dead"
+      ],
+      "amp_a_ref": 3.3,
+      "spl_rise_min_db": 15.0,
+      "verified": false
+    },
+    {
+      "name": "no_measurement",
+      "meas": {},
+      "faults": [],
+      "amp_a_ref": 3.3,
+      "spl_rise_min_db": 15.0,
+      "verified": false
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 // Shapes mirror docs/CONTRACT.md. Change the contract first, then this file.
+import type { AlertSirenFields, PublicDevice, SirenTier, VillageSirens } from './lib/sirens';
 
 export type Level = 'normal' | 'watch' | 'warning' | 'critical';
 export const LEVELS: Level[] = ['normal', 'watch', 'warning', 'critical'];
@@ -267,7 +268,7 @@ export interface TraceEvidence {
   [key: string]: unknown;
 }
 
-export interface Alert extends SampleFlag {
+export interface Alert extends SampleFlag, AlertSirenFields {
   id: string;
   village_id: string;
   village_name: string;
@@ -741,6 +742,8 @@ export interface VillageDetail extends SampleFlag {
   rollcall?: PublicRollCall | null;
   /** Virtual staff gauges: reference photos with their scales, and recent readings. */
   staff_gauges?: StaffGaugesView | null;
+  /** The village's sirens: count and last test only (no ids, numbers or keys). */
+  sirens?: VillageSirens | null;
 }
 
 /** "Surakshit Hoon" safety roll-call, public shape: counts only. */
@@ -809,6 +812,8 @@ export interface AlertDetail extends SampleFlag {
   deliveries: Delivery[];
   timeline: TimelineEvent[];
   audit: Audit[];
+  /** The siren tier, kept apart from people reached. */
+  sirens?: SirenTier;
 }
 
 export interface ApprovalView extends SampleFlag {
@@ -1224,6 +1229,8 @@ export interface SensorBoard {
   fresh_gauges: number;
   installed_gauges: number;
   villages: SensorVillage[];
+  /** Sirens, pradhan boxes, relays and gauges in the device registry (health fails closed). */
+  devices?: PublicDevice[];
   watch: {
     checks: { kind: string; en: string; hi: string }[];
     findings: WatchFinding[];

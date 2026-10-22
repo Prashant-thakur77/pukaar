@@ -8,6 +8,7 @@ hardware (an id that does not end in "-sim"), the simulator refuses to publish.
 
     python -m Pukaar.scripts.gauge_sim_mqtt gohar           # via `make gauge-sim-mqtt VILLAGE=gohar`
     python -m Pukaar.scripts.gauge_sim_mqtt gohar --slow    # one reading every --interval s
+    python -m Pukaar.scripts.gauge_sim_mqtt gohar --rain 120  # a 120 mm/h burst in the tipping bucket (v3)
 
 Needs `make gauge-provision VILLAGE=gohar` first: the certificate and private key are read from
 SSM (/pukaar/gauge/<device>/cert and /key) into an owner-only temporary directory in memory
@@ -20,6 +21,11 @@ reply, so after each publish the simulator reads the village page until the read
 The default mode first publishes three hours of a slow rise to .../backfill (stored and drawn,
 never alerted on), then five live readings just past the target band: the server counts a band
 only when 2 of the last 3 good readings reach it. Every reading is payload v2.
+
+--rain MM_PER_H: payload v3 instead, a steady river and a burst in the gauge v3's tipping bucket: ten live
+readings 61 s apart within the last ten minutes (services/rain_obs.py: 15 min, 1 h and 3 h windows, a band
+in 2 of the last 3 evaluations). Still labelled simulated: the village page and /sensors show the observed
+rain and its band, and the rules say rain_obs_simulated_ignored; a simulator never raises a real village.
 """
 
 from __future__ import annotations
@@ -150,6 +156,25 @@ def confirm(base: str, village: str, at: str) -> dict[str, Any] | None:
     return None
 
 
+def _rain(pub: Publisher, base: str, village: str, device_id: str, cfg: dict, topic: str, mm_per_h: float) -> int:
+    """A rain burst in the tipping bucket, the river steady below watch."""
+    stage = round(0.55 * float(cfg["watch_cm"]), 1)
+    print(f"SIMULATED gauge v3 {device_id}: a {mm_per_h:g} mm/h burst ({gauge_sim.RAIN_MM_PER_TIP} mm a tip), "
+          f"river steady at {stage:g} cm, over MQTT ({pub.lib}) -> {topic}")
+    for at, total, window in gauge_sim.rain_plan(mm_per_h, datetime.now(UTC)):
+        body = gauge_sim.reading_body(at, stage, 4.05, rain=(total, window))
+        pub.publish(topic, body)
+        seen = confirm(base, village, body["at"])
+        _, detail = gauge_sim._request(f"{base.rstrip('/')}/villages/{village}")
+        rain = (detail.get("rain_obs") or {}).get("devices") or []
+        mine = next((d for d in rain if d.get("device_id") == device_id), {})
+        w = mine.get("windows") or {}
+        print(f"  {body['at']}  tips {total} (+{window})  15 min {w.get('15min', '-')} mm, 1 h {w.get('1h', '-')} mm"
+              f"  band {mine.get('eval_level', '-')}, confirmed {mine.get('confirmed_level', '-')}"
+              f"  village={seen['village'] if seen else '-'} (simulated: shown, never counted)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("village", nargs="?", default="gohar")
@@ -158,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--interval", type=float, default=70.0, help="seconds between readings with --slow")
     p.add_argument("--steps", type=int, default=12, help="readings with --slow (default mode sends five)")
     p.add_argument("--to", choices=("watch", "warning", "critical"), default="warning", help="band to rise past")
+    p.add_argument("--rain", type=float, metavar="MM_PER_H", help="send a rain burst at this rate (payload v3)")
     p.add_argument("--region", default=REGION)
     args = p.parse_args(argv)
 
@@ -185,6 +211,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         key, cert, ca = fetch_credentials(boto3.client("ssm", region_name=args.region), device_id, tmp)
         pub = Publisher(endpoint, device_id, key, cert, ca)
+        if args.rain:
+            try:
+                return _rain(pub, base, args.village, device_id, cfg, topic, args.rain)
+            finally:
+                pub.close()
         print(f"SIMULATED gauge {device_id} over MQTT ({pub.lib}, X.509) -> {endpoint}:8883 topic {topic}")
         print(f"  thresholds cm: watch {cfg['watch_cm']:g}, warning {cfg['warning_cm']:g}, "
               f"critical {cfg['critical_cm']:g}")

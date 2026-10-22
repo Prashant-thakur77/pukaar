@@ -185,6 +185,50 @@ def unanswered_officer(village_hi: str, village_en: str, level: str, minutes_lef
             f"Approve / decline: {url}")
 
 
+# -- the alarm layer: sirens (services/sirens.py) ---------------------------------------------------
+PATTERN_HI = {"W1": "तीन लंबी", "C1": "लहर", "A1": "स्थिर", "T1": "परीक्षण", "D1": "अभ्यास"}
+PATTERN_EN = {"W1": "three long", "C1": "wavering", "A1": "steady", "T1": "test", "D1": "drill"}
+# One CAP <instruction> line explaining the patterns (services/cap.py), for villages with sirens.
+SIREN_PATTERNS_HI = ("सायरन: तीन लंबी आवाज़ें = चेतावनी; लहराती आवाज़ = ख़तरा, तुरंत ऊँची जगह जाएँ; "
+                     "एक स्थिर आवाज़ = ख़तरा टल गया।")
+SIREN_PATTERNS_EN = ("Siren: three long blasts = warning; a wavering tone = danger, go to high ground now; "
+                     "one steady tone = all clear.")
+
+
+def siren_verified_detail(amp_a: float | None, spl_rise_db: float | None) -> str:
+    """The timeline line for a verified siren: what was measured, not just "dispatched"."""
+    parts = [f"{amp_a:g} A" if amp_a is not None else "", f"+{spl_rise_db:g} dB" if spl_rise_db is not None else ""]
+    evidence = ", ".join(x for x in parts if x) or "current only"
+    return f"सायरन बजा, पुष्टि: {evidence} · siren sounded, verified ({evidence})"
+
+
+def siren_unconfirmed_officer(village_hi: str, village_en: str, device: str, sms_hint: bool) -> str:
+    """To the duty officer: a siren did not confirm it sounded. Phone the pradhan; the SMS fallback is offered."""
+    sms = " · SMS से भेजें: कंसोल में 'Send by SMS'" if sms_hint else ""
+    return (f"पुकार: {village_hi} का सायरन पुष्टि नहीं कर पाया: प्रधान को फ़ोन करें{sms}\n"
+            f"Pukaar: the siren in {village_en} ({device}) did not confirm it sounded. Phone the pradhan"
+            + (", or send the command by SMS from the console." if sms_hint else "."))
+
+
+def siren_manual_officer(village_hi: str, village_en: str, at_ist: str, level: str) -> str:
+    """The pradhan sounded the siren by hand (the box key and a 3-second hold): the duty officer is told at once."""
+    return (f"पुकार: प्रधान ने {village_hi} में सायरन बजाया, {at_ist}, {LEVEL_HI.get(level, level)}\n"
+            f"Pukaar: the pradhan sounded the siren in {village_en} at {at_ist} IST, {LEVEL_EN.get(level, level)}.")
+
+
+def siren_second_officer(village_hi: str, village_en: str, requested_by: str, url: str) -> str:
+    """The two-person rule: a Critical siren needs a second officer within 120 seconds."""
+    return (f"पुकार: {village_hi} में गंभीर ख़तरे का सायरन ('लहर') बजाने के लिए दूसरे अधिकारी की पुष्टि चाहिए "
+            f"({requested_by} ने माँगा, 2 मिनट)। तब तक चेतावनी का सायरन बजेगा।\n"
+            f"Pukaar: sounding the Critical siren (wavering) in {village_en} needs a second officer within 2 minutes "
+            f"(asked by {requested_by}). The Warning pattern sounds meanwhile.\n\nConfirm: {url}")
+
+
+def siren_report_text(village_hi: str, level: str) -> str:
+    """The report a pradhan's box trigger becomes (verified_auto, capped at Warning by the rules)."""
+    return f"प्रधान ने {village_hi} में सायरन बजाया ({LEVEL_HI.get(level, level)}) · pradhan sounded the village siren"
+
+
 def nudge_officer(village_hi: str, level: str, minutes_left: int, url: str, replay: bool = False) -> str:
     flag = " [REPLAY]" if replay else ""
     return (f"पुकार{flag}, याद दिलाना: {village_hi} – {LEVEL_HI.get(level, level)}। आपकी मंज़ूरी बाकी है; "

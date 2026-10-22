@@ -28,7 +28,9 @@ REPORT_ZERO_WEIGHT_HOURS = 3.0
 # Report types that floor the village at warning once verified.
 IMPACT_TYPES = {"road_cut", "bridge_unsafe", "homes_affected", "people_trapped", "landslide"}
 SEVERITY_TO_LEVEL = {"low": "normal", "medium": "watch", "high": "warning", "critical": "critical"}
-RULES_VERSION = "risk-rules-v3"
+# v4: observed rain (rain_obs, services/rain_obs.py). The archived scenarios carry no observed rain, so
+# every back-test number is unchanged (tests/test_rain_intensity.py, tests/test_rain_obs.py).
+RULES_VERSION = "risk-rules-v4"
 AUTO_VERIFIED_CAP = "warning"
 # A gauge reading older than this changes nothing.
 GAUGE_FRESH_MINUTES = 30
@@ -368,6 +370,9 @@ class Assessment:
     # rain_level is the higher of these two: the IMD 24-hour bands and the heavy-burst rule.
     rain_24h_level: str = "normal"
     rain_intensity_level: str = "normal"
+    # Observed rain (rain_obs) as it counted: never above Warning on its own; "normal" when missing,
+    # suspect, stuck, simulated or backfilled.
+    rain_obs_level: str = "normal"
 
 
 def assess(
@@ -385,6 +390,7 @@ def assess(
     official_raises: bool | None = None,
     rain_intensity_on: bool | None = None,
     rain_combine: str | None = None,
+    rain_obs: dict[str, Any] | None = None,
 ) -> Assessment:
     """Raw level for one sweep, before hysteresis. reports = (report, created_at).
 
@@ -398,6 +404,9 @@ def assess(
     official_raises: whether official data may raise the level (None: the setting); never lowers it.
     rain_intensity_on/rain_combine: the heavy-burst rule and how it combines models (None: the
     settings PUKAAR_RAIN_INTENSITY and PUKAAR_RAIN_MODELS_COMBINE).
+    rain_obs: services/rain_obs.village_info(): observed rain from tipping buckets. It raises a level only
+    (2 of the last 3 evaluations, live and good, never simulated unless allow_simulated), and on its own
+    reaches Warning at most. With forecast rain it is one source, never two.
     """
     rules: list[str] = []
     evidence: list[dict[str, Any]] = []
@@ -508,7 +517,8 @@ def assess(
         elif sensor.simulated:
             rules.append("gauge_simulated")
 
-    level = _max(rain, river, gauge_lvl)
+    rain_obs_lvl = observed_rain(rain_obs, rules, evidence, allow_simulated)
+    level = _max(rain, river, gauge_lvl, rain_obs_lvl)
 
     # Official data (CWC, IMD, Flood Hub, BIPAD) is evidence for the officer. It raises the level only
     # when official_raises_level is on, and only ever upwards; it is not a source for "two agree".
@@ -603,7 +613,8 @@ def assess(
 
     other_reports = _max("normal", *(lvl for rid, lvl in report_levels.items() if rid not in staff_report_ids))
     staff_obs = _max(staff_level, *(lvl for rid, lvl in report_levels.items() if rid in staff_report_ids))
-    independent = [lvl for lvl in (rain, river, gauge_lvl, other_reports, staff_obs)
+    # Forecast rain and observed rain are one hazard seen twice: one source between them.
+    independent = [lvl for lvl in (_max(rain, rain_obs_lvl), river, gauge_lvl, other_reports, staff_obs)
                    if level_rank(lvl) >= level_rank("watch")]
     if len(independent) >= 2:
         level = _up(level)
@@ -614,7 +625,7 @@ def assess(
         rules.append("verified_impact_report:floor_warning")
 
     contradictions: list[str] = []
-    data_level = _max(rain, river, gauge_lvl)
+    data_level = _max(rain, river, gauge_lvl, rain_obs_lvl)
     unverified_high = [
         r for r, at in reports if r.state not in VERIFIED_STATES and r.severity in {"high", "critical"} and report_weight(at, now) > 0
     ]
@@ -626,7 +637,56 @@ def assess(
         rules.append("data_disagrees")
 
     return Assessment(level, rain, river, report_level, rules, contradictions, evidence, gauge_lvl, staff_level,
-                      rain_24h, burst["level"])
+                      rain_24h, burst["level"], rain_obs_lvl)
+
+
+RAIN_OBS_CAP = "warning"
+
+
+def observed_rain(info: dict[str, Any] | None, rules: list[str], evidence: list[dict[str, Any]],
+                  allow_simulated: bool = False) -> str:
+    """The level observed rain counts for, with its trace tags. Raise-only: the caller takes _max().
+
+    Per device: its band confirmed in 2 of the last 3 evaluations, from a fresh, live, good reading of a
+    bucket that is not stuck. Simulated readings are evidence only (unless allow_simulated, replays)."""
+    if not info or not info.get("devices"):
+        return "normal"
+    level, best = "normal", None
+    for d in info["devices"]:
+        evidence.append({"kind": "rain_obs", **{k: d.get(k) for k in (
+            "device_id", "source", "at", "fresh", "simulated", "quality", "quality_reasons", "stuck", "windows",
+            "eval_level", "confirmed_level", "rate_mm_h")}, "bands_mm": info.get("bands"),
+            "thresholds_source": info.get("thresholds_source")})
+        confirmed, evaluated = d.get("confirmed_level") or "normal", d.get("eval_level") or "normal"
+        if not d.get("fresh"):
+            continue
+        if d.get("simulated") and not allow_simulated:
+            if confirmed != "normal" or evaluated != "normal":
+                rules.append(f"rain_obs_simulated_ignored:{_max(confirmed, evaluated)}")
+            continue
+        if d.get("stuck"):
+            rules.append("rain_obs_suspect:stuck")
+            continue
+        if d.get("quality") != "good":
+            rules.append("rain_obs_suspect:chatter")
+            continue
+        if confirmed == "normal":
+            if evaluated != "normal":
+                rules.append(f"rain_obs_unconfirmed:{evaluated}")
+            continue
+        if level_rank(confirmed) > level_rank(level):
+            level, best = confirmed, d
+    if level == "normal" or best is None:
+        return "normal"
+    hit = best.get("hit") or {}
+    if hit:
+        rules.append(f"rain_obs:{hit['window']}={hit['mm']:g}mm>={hit['threshold_mm']:g}:{level}")
+    else:
+        rules.append(f"rain_obs:{level}")
+    if best.get("critical_like") or level_rank(level) > level_rank(RAIN_OBS_CAP):
+        rules.append(f"rain_obs_capped:{RAIN_OBS_CAP}")
+        level = RAIN_OBS_CAP
+    return level
 
 
 def apply_hysteresis(current: str, calm_sweeps: int, raw: str) -> tuple[str, int, bool]:

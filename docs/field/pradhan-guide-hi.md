@@ -80,6 +80,19 @@
 **ख़तरा टलने पर** सबको संदेश आता है: *"पुकार, [गाँव]: बाढ़ का ख़तरा टल गया है। आप घर लौट सकते हैं, पर
 नदी-नालों से अभी भी दूर रहें। आपात स्थिति में 112।"* यह भी माइक से बता दें।
 
+**गाँव का सायरन यंत्र (जहाँ लगा हो).** अभी किसी गाँव में पुकार का सायरन यंत्र नहीं लगा है; यह योजना में है।
+जहाँ लगेगा, वहाँ चेतावनी मंज़ूर होते ही सायरन अपने आप बजेगा, फ़ोन से पहले। फिर भी आपका माइक और घर-घर बताना
+ज़रूरी रहेगा, क्योंकि तेज़ बारिश और नदी के शोर में सायरन दूर तक नहीं सुनाई देता। आवाज़ें पहचानें:
+- **तीन लंबी आवाज़ें** = चेतावनी (तैयार रहें, नदी-नालों से दूर रहें);
+- **लहराती (ऊपर-नीचे होती) आवाज़** = ख़तरा, तुरंत ऊँची जगह जाएँ;
+- **एक स्थिर आवाज़** = ख़तरा टल गया;
+- हर आवाज़ के बाद हिंदी में संदेश बोला जाता है। अभ्यास में पहले "अभ्यास" बोला जाता है।
+
+आपके घर के डिब्बे (बॉक्स) में चाबी घुमाकर **सायरन** बटन 3 सेकंड दबाने से आप ख़ुद सायरन बजा सकते हैं; यह
+तुरंत अधिकारी को पता चलता है और रिकॉर्ड होता है। बंद करने के लिए **बंद** बटन। सायरन न बजे तो हाथ वाला
+सायरन और माइक इस्तेमाल करें और अधिकारी को फ़ोन करें। अधिकारी पहले आपको फ़ोन करेंगे, फिर ज़रूरत हो तो
+अपने फ़ोन से सायरन को SMS भेजेंगे।
+
 **गाँव से ख़बर भेजें।** पानी तेज़ी से बढ़े, सड़क टूटे, भूस्खलन हो, तो इंतज़ार न करें। अधिकारी को फ़ोन करें,
 या फ़ोन के ब्राउज़र में पुकार का **सूचना पेज** (`/report`) खोलकर बोलें, फ़ोटो लें या लिखें। पुष्टि हुई
 सूचना से गाँव का स्तर बढ़ सकता है। बादल फटने को मौसम के मॉडल अक्सर नहीं पकड़ पाते; ऐसे में गाँव की ख़बर ही
@@ -309,7 +322,12 @@ district officers approve alerts; the pradhan cannot and need not.
 6. **Quarterly number checks** (January, April, July, October): go through the masked list with each
    household; record the date; report wrong or withdrawn numbers for removal. After every alert or drill,
    follow up unreachable numbers within a week.
-7. **Drills (अभ्यास):** a labelled practice alert through the real system, always announced at least a week
+7. **Village siren node (where installed; none is yet):** it sounds by itself on an approved alert:
+   three long tones = Warning, a rising and falling tone = danger, go high now, one steady tone = all
+   clear, each followed by a Hindi message. The pradhan's box can sound it (key + hold the siren button
+   3 seconds; audited, the officer is told at once) and stop their own. The megaphone and house visits
+   stay essential: in heavy rain a siren does not carry far.
+8. **Drills (अभ्यास):** a labelled practice alert through the real system, always announced at least a week
    ahead, never in bad weather, always marked "अभ्यास (DRILL), असली चेतावनी नहीं।" Do exactly what you would
    for a real alert, and say "this is a practice" on the megaphone.
-8. **Numbers:** 112 for emergencies; fill in the DEOC, duty officer, engineer, gauge reader and task force.
+9. **Numbers:** 112 for emergencies; fill in the DEOC, duty officer, engineer, gauge reader and task force.

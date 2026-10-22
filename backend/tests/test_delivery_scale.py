@@ -45,9 +45,13 @@ class FakeTelegramServer:
     """api.telegram.org's limits, in-process. Counts what it accepted, per chat, and every 429."""
 
     def __init__(self, *, rate: float = 30.0, chat_interval: float = 1.0, latency: float = 0.0,
-                 force_429: int = 0, retry_after: float = 1.0) -> None:
+                 force_429: int = 0, retry_after: float = 1.0, force_429_once_per_chat: bool = False) -> None:
         self.rate, self.chat_interval, self.latency = rate, chat_interval, latency
         self.force_429, self.retry_after = force_429, retry_after
+        # The forced 429s go to the first request of as many different chats: however the threads are
+        # scheduled, no one message meets them all (with one 429 per chat, every message's next try is accepted).
+        self.force_429_once_per_chat = force_429_once_per_chat
+        self.forced_chats: set[str] = set()
         self.lock = threading.Lock()
         self.window: deque[float] = deque()
         self.last_by_chat: dict[str, float] = {}
@@ -82,8 +86,9 @@ class FakeTelegramServer:
         chat = str(fields.get("chat_id", ""))
         now = time.monotonic()
         with self.lock:
-            if self.force_429 > 0:
+            if self.force_429 > 0 and not (self.force_429_once_per_chat and chat in self.forced_chats):
                 self.force_429 -= 1
+                self.forced_chats.add(chat)
                 return self._too_many(self.retry_after)
             while self.window and now - self.window[0] >= 1.0:
                 self.window.popleft()
@@ -296,13 +301,17 @@ def test_the_call_audio_is_made_once_per_alert(repo, frozen, settings, monkeypat
 # -- Telegram's limits: 429 ------------------------------------------------------------------------
 def test_429_is_waited_out_and_never_recorded_as_sent(repo, frozen, settings):
     settings(PUKAAR_TELEGRAM_RATE_PER_SECOND=1000, PUKAAR_TELEGRAM_CHAT_INTERVAL_SECONDS=0)
-    server = serve(FakeTelegramServer(rate=10_000, chat_interval=0, force_429=3, retry_after=0.05))
+    # Three 429s on three different chats: under CPU load one thread could otherwise take all three for one
+    # message (its third try) and put it back for the next pass; that is the 429-past-the-budget case, tested below.
+    server = serve(FakeTelegramServer(rate=10_000, chat_interval=0, force_429=3, retry_after=0.05,
+                                      force_429_once_per_chat=True))
     base = seeded(repo)
     ids = people(repo, 10)
     a = approved(repo)
     started = time.monotonic()
     out = steps(repo).handle({"step": "deliver", "alert_id": a.id})
     assert out["more"] is False and out["sent"] == 10 + base and server.too_many == 3
+    assert len(server.forced_chats) == 3
     assert time.monotonic() - started >= 0.05  # the worker paused for retry_after
     assert set(server.accepted) == set(ids) and set(server.accepted.values()) == {1}
     assert all(d.status == "sent" and d.attempts == 1 and not d.deferred for d in telegram_rows(repo, a.id))

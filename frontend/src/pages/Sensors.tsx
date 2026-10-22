@@ -27,6 +27,7 @@ import { api } from '../api';
 import { CountUp } from '../components/CountUp';
 import { Gauge } from '../components/Gauge';
 import { GaugeLedger } from '../components/GaugeHealth';
+import { SirenList } from '../components/SirenList';
 import { LevelBadge } from '../components/Level';
 import { PageBand, StatStrip } from '../components/PageBand';
 import { Reveal } from '../components/Reveal';
@@ -392,6 +393,8 @@ export default function Sensors() {
           )}
         </div>
       </section>
+
+      <SirenList devices={data?.devices} names={names} />
 
       <section className="how-band sn-watch" aria-labelledby="sn-watch-h">
         <div className="wrap-wide sn-watch-grid">

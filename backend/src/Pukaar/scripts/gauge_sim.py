@@ -91,12 +91,40 @@ def fast_plan(cfg: dict, to: str, now: datetime) -> tuple[list[tuple[datetime, f
     return back, live
 
 
-def reading_body(at: datetime, cm: float, battery: float) -> dict:
-    """One simulated payload-v2 reading (no device id: the HTTPS body adds it, MQTT uses the topic)."""
-    return {"at": clock.iso(at), "water_level_cm": cm, "battery_v": battery, "rssi": -71, "simulated": True,
+def reading_body(at: datetime, cm: float, battery: float, rain: tuple[int, int] | None = None) -> dict:
+    """One simulated payload-v2 reading (no device id: the HTTPS body adds it, MQTT uses the topic).
+    rain (tips_total, tips_window): payload v3, the tipping bucket of a gauge v3."""
+    body = {"at": clock.iso(at), "water_level_cm": cm, "battery_v": battery, "rssi": -71, "simulated": True,
             "v": 2, "seq": int(at.timestamp()) // 60, "boot": 0, "samples_ok": 9, "samples_n": 9, "iqr_mm": 6,
             "quality": 95, "err": 0, "temp_c": 18.5, "battery_mv": round(battery * 1000), "solar_mv": 5200,
             "fw": FW}
+    if rain is not None:
+        total, window = rain
+        body.update(v=3, rain_tips_total=total, rain_tips_window=window, rain_mm_per_tip=RAIN_MM_PER_TIP,
+                    rain_max_tips_1min=max(1, window // 5), rain_min_tip_ms=900 if window else 0, rain_bounce=0,
+                    rain_err=0, fw=FW_V3)
+    return body
+
+
+RAIN_MM_PER_TIP = 0.2
+FW_V3 = "sim-3.0"
+RAIN_LIVE_READINGS = 10
+RAIN_OLDEST_S = 560  # inside the MQTT path's 10-minute window
+
+
+def rain_plan(mm_per_h: float, now: datetime, start_total: int = 10_000) -> list[tuple[datetime, int, int]]:
+    """A burst at mm_per_h: (at, tips_total, tips_window) for RAIN_LIVE_READINGS live readings 61 s apart, the
+    oldest RAIN_OLDEST_S ago. The first one's window holds the 5 minutes before it (the bucket was already
+    tipping), so the 15-minute window fills: 120 mm/h gives about 28 mm, past an illustrative Warning band."""
+    oldest = now - timedelta(seconds=RAIN_OLDEST_S)
+    out, total = [], start_total
+    for i in range(RAIN_LIVE_READINGS):
+        at = oldest + timedelta(seconds=FAST_STEP_S * i)
+        minutes = 5.0 if i == 0 else FAST_STEP_S / 60
+        window = round(mm_per_h * minutes / 60 / RAIN_MM_PER_TIP)
+        total += window
+        out.append((at, total, window))
+    return out
 
 
 def _request(url: str, data: bytes | None = None, headers: dict | None = None) -> tuple[int, dict]:

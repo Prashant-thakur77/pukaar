@@ -122,9 +122,10 @@ def _stream(a: Alert) -> str:
 
 
 def is_flash_flood(a: Alert) -> bool:
-    """Rain drove the level above every river, gauge and staff-gauge reading: a flash flood (OET-079)."""
+    """Rain drove the level above every river, gauge and staff-gauge reading: a flash flood (OET-079).
+    Observed rain (rain_obs, a tipping bucket) is rain too."""
     t = a.decision_trace
-    rain = level_rank(str(t.get("rain_level") or "normal"))
+    rain = max(level_rank(str(t.get("rain_level") or "normal")), level_rank(str(t.get("rain_obs_level") or "normal")))
     water = max(level_rank(str(t.get(k) or "normal")) for k in ("river_level", "gauge_level", "staff_level"))
     return rain > 0 and rain > water
 
@@ -376,8 +377,48 @@ def is_demo_sender(name: str = "") -> bool:
     return "(demo)" in sender_names(name)[0].lower()
 
 
+SIREN_PATTERNS = {"W1", "C1", "D1"}
+
+
+def siren_pattern(a: Alert, installed_sirens: int) -> str | None:
+    """The pattern the village's installed sirens play for this alert, when there are any. Never for Watch, a test
+    or an edge-autonomous event that no officer has confirmed (that is not published at all)."""
+    if installed_sirens <= 0 or a.level not in {"warning", "critical"} or a.siren_pattern not in SIREN_PATTERNS:
+        return None
+    return a.siren_pattern
+
+
+def siren_clip(village_id: str, pattern: str) -> dict | None:
+    """The clip's catalog entry ({uri, bytes, sha1}) when the clip catalog exists (data/siren_clips/catalog.json,
+    made by scripts/siren_audio.py); None until then, and then no <resource> is added."""
+    import json
+
+    from Pukaar.core.config import get_settings
+
+    path = get_settings().data_dir / "siren_clips" / "catalog.json"
+    if not path.exists():
+        return None
+    name = {"W1": "warning", "C1": "critical", "D1": "drill"}[pattern]
+    clips = json.loads(path.read_text(encoding="utf-8")).get("clips", [])
+    return next((c for c in clips if c.get("clip_id") == f"{village_id}.{name}.hi.v1"
+                 and c.get("sha1") and c.get("bytes") and c.get("uri")), None)
+
+
+def _siren(info: ET.Element, a: Alert, pattern: str | None) -> None:
+    if not pattern:
+        return
+    clip = siren_clip(a.village_id, pattern)
+    if clip:  # CAP 1.2 digests are SHA-1; the device catalog keeps SHA-256 and SHA-1 of the same file
+        res = _sub(info, "resource")
+        _sub(res, "resourceDesc", "सायरन संदेश (हिंदी) · Siren voice message (Hindi)")
+        _sub(res, "mimeType", "audio/mpeg")
+        _sub(res, "size", str(int(clip["bytes"])))
+        _sub(res, "uri", str(clip["uri"]))
+        _sub(res, "digest", str(clip["sha1"]))
+
+
 def _info(alert_el: ET.Element, a: Alert, village: Village | None, lang: str, web_url: str,
-          names: tuple[str, str] = (SENDER_NAME, SENDER_NAME_HI)) -> None:
+          names: tuple[str, str] = (SENDER_NAME, SENDER_NAME_HI), siren: str | None = None) -> None:
     urgency, severity, _, response = MAPPING[a.level]
     certainty = alert_certainty(a)
     effective = _sent(a)
@@ -398,13 +439,13 @@ def _info(alert_el: ET.Element, a: Alert, village: Village | None, lang: str, we
     if hindi:
         headline = f"{a.village_name_hi}: {level_label(a, True)}"
         description = a.text_hi or hi.fallback_alert(a.level, a.village_name_hi, a.village_name)[0]
-        instruction = f"{hi.SAFETY_HI[a.level]} {hi.CALL_112_HI}"
+        instruction = f"{hi.SAFETY_HI[a.level]} {hi.CALL_112_HI}" + (f" {hi.SIREN_PATTERNS_HI}" if siren else "")
     else:
         headline = f"{level_label(a)}: {a.village_name}" + (f" ({district})" if district else "")
         description = a.text_en or hi.fallback_alert(a.level, a.village_name_hi, a.village_name)[1]
         if a.reason_en:
             description += f" Why: {a.reason_en}"
-        instruction = f"{hi.SAFETY_EN[a.level]} {hi.CALL_112_EN}"
+        instruction = f"{hi.SAFETY_EN[a.level]} {hi.CALL_112_EN}" + (f" {hi.SIREN_PATTERNS_EN}" if siren else "")
     if is_exercise(a):
         headline = ("अभ्यास, असली चेतावनी नहीं — " if hindi else "EXERCISE, not a real warning — ") + headline
     _sub(info, "headline", headline)
@@ -412,7 +453,8 @@ def _info(alert_el: ET.Element, a: Alert, village: Village | None, lang: str, we
     _sub(info, "instruction", instruction)
     _sub(info, "web", f"{web_url}/village/{a.village_id}")
     _sub(info, "contact", "आपात स्थिति: 112" if hindi else "Emergency: 112")
-    _params(info, _parameters(a, village))
+    _params(info, _parameters(a, village) + ([("PukaarSirenPattern", siren)] if siren else []))
+    _siren(info, a, siren)
     if village is not None:
         _area(info, village, village.name, village.name_hi, hindi)
     else:
@@ -425,11 +467,14 @@ def _document(root: ET.Element) -> bytes:
 
 
 def render(a: Alert, village: Village | None, *, sender: str, web_url: str,
-           refs: Sequence[Alert] = (), sender_name: str = "", sender_name_hi: str = "") -> bytes:
+           refs: Sequence[Alert] = (), sender_name: str = "", sender_name_hi: str = "",
+           installed_sirens: int = 0) -> bytes:
     """One CAP 1.2 <alert> document (UTF-8 bytes) for a published alert.
 
     refs: what references(a, ...) returned. Non-empty makes it an Update.
     sender_name, sender_name_hi: the authority's <senderName>; empty means the demo name.
+    installed_sirens: the village's installed (not simulated) sirens: with any, a Warning or Critical carries
+    PukaarSirenPattern, one instruction line explaining the patterns, and the clip as a <resource>.
     """
     if not is_published(a):
         raise ValueError(f"alert {a.id} is not published (status {a.status})")
@@ -452,8 +497,9 @@ def render(a: Alert, village: Village | None, *, sender: str, web_url: str,
     if refs:
         _sub(root, "references", " ".join(reference(sender, r) for r in refs))
     names = sender_names(sender_name, sender_name_hi)
-    _info(root, a, village, "hi-IN", web_url, names)
-    _info(root, a, village, "en-IN", web_url, names)
+    siren = siren_pattern(a, installed_sirens)
+    _info(root, a, village, "hi-IN", web_url, names, siren)
+    _info(root, a, village, "en-IN", web_url, names, siren)
     return _document(root)
 
 

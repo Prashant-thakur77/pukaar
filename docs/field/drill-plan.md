@@ -41,6 +41,24 @@ These are not optional. Break one and the drill is cancelled.
 7. **Results are not targets for people.** Nobody is blamed for not answering; silence is a number-hygiene
    task for the pradhan.
 
+## Sirens in a drill (where a siren node is installed)
+
+A village siren node (docs/hardware/ALARM.md) is not installed anywhere yet; today the siren in a drill
+is the pradhan's hand-held one. Where a node goes up, these rules apply, and Pukaar enforces the first
+three:
+
+- **Monthly drill: T1 or D1 only.** A drill alert never plays a real warning pattern. The approved drill
+  alert sounds **D1**: the "अभ्यास" voice first, one W1 cycle ("तीन लंबी"), then "यह अभ्यास था". Cedar
+  refuses `sound_siren` for a drill; D1 goes through `test_siren`. A monthly test without an alert is
+  **T1** (three short beeps at half volume and the test clip). Audible tests run only 09:00-18:00 IST.
+- **Never C1 in a monthly drill or test** (people stop reacting to a danger tone they hear every month).
+- **Pre-monsoon drill only, with the DDMA's consent and announced:** one C1 ("लहर") cycle inside D1, so
+  people learn the danger pattern once a year.
+- The pradhan announces the siren in the drill the day before, with the patterns: तीन लंबी आवाज़ें =
+  चेतावनी; लहराती आवाज़ = ख़तरा, तुरंत ऊँची जगह जाएँ; एक स्थिर आवाज़ = ख़तरा टल गया.
+- The field volunteer stands at the farthest house the siren is meant to cover with a sound-level meter
+  (a Class 2 meter, or a calibrated phone app), and notes the reading during the tone.
+
 ## Roles
 
 | Role | Who | Does |
@@ -152,6 +170,10 @@ If a real alert starts, the weather turns, or the village is alarmed:
 | Unreachable | Rows marked unreachable; did the pradhan's note arrive, and did someone go to the house? | Every one checked within a week (RUNBOOK) |
 | Failed deliveries | Rows with an error; Telegram "bot was blocked by the user" | Removed at the next number review |
 | Roll-call (if run) | Safe / Need help / Not answered at 30 and 60 minutes | |
+| Siren started | Approved → the siren row "started" in the alert's siren tier (console) | Within 60 s of approval |
+| Siren verified | Sirens verified ÷ sirens commanded ("Sirens 1/1 verified") | 100% |
+| Siren loudness | The volunteer's SPL reading at the farthest covered house, against the ambient reading | Ambient + 10 dB or more |
+| Pattern recognised | Of the 5 or 6 households asked: did they know what the siren meant? | |
 
 ## Result sheet
 
@@ -174,6 +196,8 @@ Approved                                   ____:____       ____
 First voice on a phone                     ____:____       ____
 Relay pressed (Relay done)                 ____:____       ____
 Siren started / megaphone started          ____:____       ____
+Siren node: started (tier) / verified      ____:____       ____   verified ___ of ___
+Siren SPL at farthest house ____ dB   ambient ____ dB   (siren node only)
 Megaphone round finished                   ____:____       ____
 First "मिल गया"                             ____:____       ____
 Alert closed                               ____:____       ____
@@ -190,6 +214,8 @@ Voice: answered with no key (no_key)                       ____
 Voice: calls needed for acknowledged       1: ____   2: ____   3: ____
 
 ROLL-CALL (if run)   safe ____   need help ____   not answered ____   at ____:____
+
+Households that recognised the siren pattern ____ of ____
 
 WHAT HOUSEHOLDS SAID (5 or 6)
 1. ________________________________________________________________

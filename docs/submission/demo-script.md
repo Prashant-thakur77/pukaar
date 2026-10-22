@@ -144,7 +144,7 @@ Screen: A three.js model of the stack: each AWS service lifts and glows as it is
 >
 > Telegram delivers it, and the tap comes back through API Gateway.
 >
-> Cognito signs officers in, Cedar checks every action, and 16 CloudWatch alarms watch it all.
+> Cognito signs officers in, Cedar checks every action, and 19 CloudWatch alarms watch it all.
 
 ## 2:13 to 2:25 · Live proof
 

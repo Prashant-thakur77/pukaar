@@ -7,7 +7,7 @@ from typing import Any
 
 from Pukaar.core import clock
 from Pukaar.core.config import get_settings
-from Pukaar.services import checklist, gauge, readiness, risk_rules, rollcall, soil, staff_gauge, storage
+from Pukaar.services import checklist, gauge, rain_obs, readiness, risk_rules, rollcall, soil, staff_gauge, storage
 from Pukaar.services.nowcast import nowcast
 from Pukaar.store.models import Alert, Directive, Report, Village
 from Pukaar.store.repo import Repo
@@ -168,7 +168,20 @@ def village_detail(repo: Repo, v: Village) -> dict[str, Any]:
         "rollcall": rollcall.public_for_village(repo, v.id),
         # virtual staff gauges: reference photos, scales and recent readings (services/staff_gauge.py)
         "staff_gauges": staff_gauge.village_view(repo, v.id, reports),
+        # observed rain from tipping buckets (services/rain_obs.py): windows, bands, quality; None without any
+        "rain_obs": rain_obs.safe_view(repo, v),
+        # the village's sirens in one line: count, sounding now, the last test. No ids, numbers or keys.
+        "sirens": _sirens_line(repo, v.id),
     }
+
+
+def _sirens_line(repo: Repo, village_id: str) -> dict[str, Any] | None:
+    from Pukaar.services.devices import registry
+
+    try:
+        return registry.village_sirens(repo, village_id)
+    except Exception:
+        return None
 
 
 # Alert statuses that mean the alert reached people. "failsafe" and "closed" only count when the

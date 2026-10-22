@@ -374,6 +374,84 @@ under the sensor or a moved mount; clean or re-level it and re-survey the datum.
 **Tell the DDMA?** Yes, in the monsoon or if the village is at Watch or above: its observed river level
 is not available until the gauge is fixed.
 
+### pukaar-<stage>-siren-offline
+
+**What it means.** An installed siren node or pradhan box has not been heard on any path (cell, LoRa or
+SMS) for two sweeps in a row (30 minutes). A device counts as offline when nothing has arrived from it for
+20 minutes; simulated devices (`-sim`) never count. The village is still warned by phone and relays, but
+its outdoor siren may not sound. The alarm sends an OK message when the device is heard again. Nothing in
+the alarm layer has been tested on hardware yet (docs/hardware/ALARM.md).
+
+**First 3 checks.**
+1. `/sensors`, "Sirens and devices": which device, its health and reasons, last seen and on which path,
+   state of charge, faults, last test.
+2. Are all devices in the area offline at once? Then it is the mobile tower or a LoRa relay, not the node
+   (the FloodNet triage rule). Check the other devices of the village and its neighbours.
+3. Device-ingest logs (`/aws/lambda/pukaar-gauge-ingest-<stage>`, "device" lines) and the worker DLQ:
+   are heartbeats arriving and being refused (`DeviceRejected`), or not arriving at all? A presence
+   "disconnected" on its own is not offline; 20 minutes of silence is.
+
+**Fix.** Refused messages: check the device's certificate and thing (`make device-provision`), and its
+clock. Silent: ask the pradhan to look at the box's link LED and the siren cabinet (power, solar panel,
+battery, SIM balance, antenna); low state of charge means the panel is shaded or the battery is worn.
+Replace the SIM, battery or controller from the district spares.
+
+**Who to call.** The pradhan of the village (phone), then the local technician, then the on-call engineer.
+
+**Tell the DDMA?** Yes, in the monsoon or if the village is at Watch or above: its siren may not sound
+until the device is back. Tell the pradhan to use the hand-crank siren and megaphone.
+
+### pukaar-<stage>-siren-test-failed
+
+**What it means.** A siren node reported a failed self-test: the weekly silent test into the dummy load
+(amplifier current, SD clip digests, audio player reply, LoRa self-loop, modem, microphone noise floor,
+state of charge) or an audible test (current draw or the sound-level rise was outside the expected
+range). Device ingest emits `SirenTestFailed`; the device's health becomes "fault" until a test passes.
+
+**First 3 checks.**
+1. `/sensors`: the device's last silent and audible test, their detail and measurements (amplifier
+   current against its reference, SPL rise against the minimum).
+2. The device's events (`GET /devices/{id}/events?type=test_result`): is it one failure or a run of
+   them? Which part failed?
+3. Its faults and state of charge in the last heartbeat (`amp_open`, `mic_dead`, `battery_low`, tamper).
+
+**Fix.** One failed silent test with a good audible test since: watch the next weekly test. Amplifier
+current out of range: check the fuse, the 24 V boost and the horn wiring; replace the amplifier board.
+Clip digest mismatch: push the audio catalog again. Microphone dead with current fine: the siren still
+counts as verified on current alone; replace the microphone on the next visit.
+
+**Who to call.** The local technician, then the on-call engineer.
+
+**Tell the DDMA?** Yes, if the audible path (amplifier or horns) failed: the village's siren may be
+silent. No, for a microphone-only fault.
+
+### pukaar-<stage>-siren-unconfirmed
+
+**What it means.** A siren was commanded (an approved alert, the failsafe, a recall, an officer's manual
+sound) and did not report "verified" (current draw plus sound rise) within 180 seconds. The siren check
+runs in the workflow's Recall step and in every sweep; it marks the command `not_confirmed`, tells the
+duty officer on Telegram and Web Push ("थुनाग का सायरन पुष्टि नहीं कर पाया: प्रधान को फ़ोन करें · SMS से
+भेजें") and adds a timeline entry. Recall re-issues the command with a new id and counter.
+
+**First 3 checks.**
+1. The alert's siren tier in the console (`GET /alerts/{id}/sirens`): commanded, started or nothing?
+   A command that never started means the node did not get it; started but not verified means it got it
+   and the evidence was missing.
+2. The device on `/sensors`: last seen, path, faults. An offline node explains it
+   (`pukaar-<stage>-siren-offline`).
+3. The device's events: `rejected` with `bad_sig`, `expired` or `replayed` means a key, clock or counter
+   problem, not a dead siren.
+
+**Fix.** Phone the pradhan first: is the siren sounding? If not, the officer sends the signed SMS from
+the console's "SMS से भेजें · Send by SMS" button (their phone number must be allow-listed on the node),
+and the pradhan uses the key switch, the hand-crank siren and the megaphone. Afterwards fix the cause
+(see siren-offline and siren-test-failed).
+
+**Who to call.** The pradhan, at once; then the local technician.
+
+**Tell the DDMA?** Yes, every time it happens during a real alert: the village did not get its outdoor
+warning from the siren. No, for a drill or test, but note it in the drill log.
+
 ### pukaar-<stage>-canary-failed
 
 **What it means.** The 15-minute canary (`pukaar-canary-<stage>`) found the public face of Pukaar
@@ -430,6 +508,15 @@ threshold to recalibrate with the DDMA, not a rule to switch off quietly.
 | Before the monsoon | a full drill in every village, Watch, all channels | with the pradhans |
 
 Every drill is labelled "अभ्यास (DRILL)" on every channel and is never counted as a live alert.
+
+**Sirens in a drill.** A drill alert sounds pattern **D1** only (the "अभ्यास" voice first, one W1 cycle,
+then "यह अभ्यास था"); Cedar refuses `sound_siren` for a drill, so a drill can never play a real warning.
+A monthly test is **T1** (three short beeps at half volume and the test clip) or D1, between 09:00 and
+18:00 IST, and never C1. One C1 cycle inside D1 is played only at the announced pre-monsoon drill, with
+the DDMA's consent. A replay never sounds a real siren (only `-sim` devices). Record in the drill log:
+approval to siren started (target 60 s or less), siren verified (target 100%), the volunteer's SPL
+reading at the farthest house, and how many of 5 or 6 households recognised the pattern
+(docs/field/drill-plan.md).
 Announce the day and hour to the pradhan in advance and never drill during real bad weather.
 
 **Time it to acknowledgement.** The clock starts when the drill alert is created and stops at the
@@ -550,6 +637,7 @@ reads for 5 minutes, so a change reaches every warm Lambda within 5 minutes.
 | Exotel API key and token | Exotel dashboard, API settings: generate new credentials, put `exotel_api_key` and `exotel_token`, then revoke the old ones | None if done in that order |
 | Plivo auth token | Plivo console: rotate, then put `plivo_auth_token` | Plivo signature checks fail until updated |
 | Report salt (`report_ip_salt`) | `ROTATE_REPORT_SALT=1 make secrets` | Rate windows restart; reports before and after cannot be matched as the same source (intended) |
+| Device root secret (`device_root`) | Not by overwriting: every siren, box and gauge key is derived from it (docs/SECURITY.md, "Device signing"). Bump each device's `kid`, deliver the new keys (flash, or an IoT Job over TLS once firmware exists), then switch `config.kid`; only then put a new root | A root changed under live devices makes every signed command fail (`rejected: bad_sig`) until the devices hold keys from the new root |
 
 Write each rotation in the incident log (date, who, why). Never paste a secret in chat, a ticket or a
 commit.
@@ -562,6 +650,12 @@ commit.
 - [ ] The duty roster is filled to the end of June, with the ADM or DM as escalation; `nobody-on-duty` is OK.
 - [ ] Every village's thresholds and river cell reviewed with the DDMA; changes recorded with a date.
 - [ ] Gauges: batteries, solar, mount height and datum checked on site; `/sensors` shows each healthy.
+- [ ] Sirens and pradhan boxes (where installed): `/sensors` shows each `ok`; a silent test passed this
+      week and an audible test this month; batteries, panels, earthing (10 ohm or less) and surge
+      protectors checked; SPL at the farthest covered house re-measured (ambient + 10 dB, or the house is
+      marked "phone and relay only"); the officers' numbers are on each node's SMS allow-list.
+- [ ] `/pukaar/device_root` exists (`aws ssm get-parameter --name /pukaar/device_root`, without
+      `--with-decryption`); without it no siren command can be signed.
 - [ ] Quarterly number review done in every village (above); unreachable numbers resolved.
 - [ ] Consent notice re-read to new households; register up to date.
 - [ ] Secrets older than a year rotated.

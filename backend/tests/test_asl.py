@@ -21,6 +21,8 @@ SUBSTITUTIONS = {
 }
 TERMINAL_TYPES = {"Succeed", "Fail"}
 UNCAUGHT_TASKS = {"Failsafe", "Close"}
+# SoundSirens catches everything into Deliver, never the failsafe: a siren problem never blocks people.
+TO_DELIVER_TASKS = {"SoundSirens"}
 
 
 def load_definition() -> dict:
@@ -70,7 +72,7 @@ def test_every_task_catches_all_into_failsafe(definition):
     through DeliveryBroken, which sends the failsafe's own delivery to close instead (no loop)."""
     states = definition["States"]
     for name, state in states.items():
-        if state["Type"] not in {"Task", "Map"} or name in UNCAUGHT_TASKS:
+        if state["Type"] not in {"Task", "Map"} or name in UNCAUGHT_TASKS | TO_DELIVER_TASKS:
             continue
         catch_all = [
             c for c in state.get("Catch", []) if "States.ALL" in c["ErrorEquals"]
@@ -153,6 +155,7 @@ def test_every_task_names_a_contract_step(definition):
         "recall",
         "close",
         "failsafe",
+        "sirens",
     }
     steps |= {"deliver_done", "deliver_batch"}
     every = list(definition["States"].values())
@@ -480,7 +483,7 @@ def _run(definition, fake, level="warning"):
 def test_approve(definition):
     fake = FakeWorkflow(decisions=["approved"])
     steps, result = _run(definition, fake)
-    assert steps == ["draft", "ask_officer", "deliver", "recall", "close"]
+    assert steps == ["draft", "ask_officer", "sirens", "deliver", "recall", "close"]
     assert result["status"] == "SUCCEEDED"
     assert fake.calls[-1]["outcome"] == "delivered"
     assert result["data"]["alert_id"] == "01TESTALERT"
@@ -503,6 +506,7 @@ def test_timeout_then_next_officer_approves(definition):
         "nudge_officer",
         "next_officer",
         "ask_officer",
+        "sirens",
         "deliver",
         "recall",
         "close",
@@ -528,6 +532,7 @@ def test_all_timeout_critical_auto_sends(definition):
         "nudge_officer",
         "next_officer",
         "auto_send",
+        "sirens",
         "deliver",
         "recall",
         "close",
@@ -558,7 +563,7 @@ def test_all_timeout_warning_expires(definition):
 def test_no_officers_critical_auto_sends(definition):
     fake = FakeWorkflow(level="critical", officers=0)
     steps, _ = _run(definition, fake, level="critical")
-    assert steps == ["draft", "auto_send", "deliver", "recall", "close"]
+    assert steps == ["draft", "auto_send", "sirens", "deliver", "recall", "close"]
 
 
 @pytest.mark.parametrize("fail_step", ["draft", "ask_officer", "deliver", "recall"])
@@ -583,7 +588,7 @@ def test_voice_recall_rounds_loop_then_close(definition):
     """Unanswered voice calls are tried again after VoiceRetrySeconds while recall says again=true."""
     fake = FakeWorkflow(decisions=["approved"], voice_rounds=2)
     steps, result = _run(definition, fake)
-    assert steps == ["draft", "ask_officer", "deliver", "recall", "recall", "recall", "close"]
+    assert steps == ["draft", "ask_officer", "sirens", "deliver", "recall", "recall", "recall", "close"]
     assert result["status"] == "SUCCEEDED" and fake.calls[-1]["outcome"] == "delivered"
 
 
@@ -607,9 +612,9 @@ def test_many_recipients_fan_out_in_batches_then_wait_for_acks(definition):
     """Deliver sends the first batch and returns the rest; the Map runs each once; deliver_done finishes."""
     fake = FakeWorkflow(decisions=["approved"], batches=5)
     steps, result = _run(definition, fake)
-    assert steps[:3] == ["draft", "ask_officer", "deliver"]
+    assert steps[:4] == ["draft", "ask_officer", "sirens", "deliver"]
     first_done = steps.index("deliver_done")
-    assert steps[3:first_done] == ["deliver_batch"] * 5
+    assert steps[4:first_done] == ["deliver_batch"] * 5
     batches = [c["batch"] for c in fake.calls if c["step"] == "deliver_batch"][:5]
     assert batches == [1, 2, 3, 4, 5]
     done = next(c for c in fake.calls if c["step"] == "deliver_done")
@@ -692,7 +697,7 @@ def test_reminded_officer_approves_in_the_second_half(definition):
     """Night-friendly: the first officer is reminded half-way and approves before the next is asked."""
     fake = FakeWorkflow(decisions=["nudged:approved"])
     steps, _ = _run(definition, fake)
-    assert steps == ["draft", "ask_officer", "nudge_officer", "deliver", "recall", "close"]
+    assert steps == ["draft", "ask_officer", "nudge_officer", "sirens", "deliver", "recall", "close"]
     assert fake.calls[-1]["outcome"] == "delivered"
 
 
@@ -730,7 +735,7 @@ def test_the_last_call_waits_for_a_token_and_expires_only_after_it(definition):
 def test_someone_answering_the_last_call_approves_and_it_is_delivered(definition, level, auto_off):
     fake = FakeWorkflow(level=level, decisions=["timeout", "timeout"], auto_off=auto_off, last_call="approved")
     steps, result = _run(definition, fake, level=level)
-    assert steps[steps.index("unanswered") + 1:] == ["deliver", "recall", "close"]
+    assert steps[steps.index("unanswered") + 1:] == ["sirens", "deliver", "recall", "close"]
     assert result["status"] == "SUCCEEDED" and fake.calls[-1]["outcome"] == "delivered"
     declined = FakeWorkflow(level=level, decisions=["timeout", "timeout"], auto_off=auto_off, last_call="declined")
     steps, _ = _run(definition, declined, level=level)
@@ -747,3 +752,30 @@ def test_a_broken_last_call_goes_to_the_failsafe(definition):
     fake = FakeWorkflow(level="warning", decisions=["timeout", "timeout"], fail_step="unanswered")
     steps, _ = _run(definition, fake)
     assert steps[-2:] == ["failsafe", "close"] and fake.calls[-1]["outcome"] == "failsafe"
+
+
+# --- sirens (services/sirens.py): never block or fail the people's delivery ---------------------------
+def test_sound_sirens_comes_after_approval_and_auto_send_and_always_reaches_deliver(definition):
+    states = definition["States"]
+    s = states["SoundSirens"]
+    assert states["OutcomeDelivered"]["Next"] == states["OutcomeAutoSent"]["Next"] == "SoundSirens"
+    assert s["Next"] == "Deliver" and s["Parameters"]["Payload"]["step"] == "sirens"
+    assert s["TimeoutSeconds"] <= 20
+    assert [c["Next"] for c in s["Catch"]] == ["Deliver"] and s["Catch"][0]["ErrorEquals"] == ["States.ALL"]
+    assert s["ResultPath"] == "$.sirens"  # never overwrites the alert id or the delivery
+
+
+@pytest.mark.parametrize("level", ["warning", "critical"])
+def test_a_sound_sirens_failure_still_delivers(definition, level):
+    fake = FakeWorkflow(level=level, decisions=["approved"], fail_step="sirens")
+    steps, result = _run(definition, fake, level=level)
+    assert steps == ["draft", "ask_officer", "sirens", "deliver", "recall", "close"]
+    assert result["status"] == "SUCCEEDED" and fake.calls[-1]["outcome"] == "delivered"
+    assert "failsafe" not in steps
+
+
+def test_auto_sent_critical_passes_through_sound_sirens(definition):
+    fake = FakeWorkflow(level="critical", officers=0, fail_step="sirens")
+    steps, _ = _run(definition, fake, level="critical")
+    assert steps == ["draft", "auto_send", "sirens", "deliver", "recall", "close"]
+    assert fake.calls[-1]["outcome"] == "auto_sent_unapproved"

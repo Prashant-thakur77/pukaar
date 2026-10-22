@@ -38,7 +38,8 @@ Public routes (no token): `GET /health`, `GET /villages`, `GET /villages/{id}`, 
 `GET /track/{code}`, `GET /replay/status`, `GET /alerts/{id}/audio`, `GET /safe/{token}`,
 `POST /sensors/{id}/readings` and `POST /sensors/{id}/backfill` (river gauge, HMAC-signed body, see docs/hardware/README.md),
 `GET /cap/alerts.atom` and `GET /cap/alerts/{id}.xml` (CAP 1.2 feed of published alerts, XML),
-`GET /agents`, `GET /agents/traces?limit=5`, `GET /sensors` (read-only, no personal data),
+`GET /agents`, `GET /agents/traces?limit=5`, `GET /sensors` (read-only, no personal data; with every
+registered device's public health, no keys or numbers),
 `GET /push/vapid-public-key` (the Web Push applicationServerKey; `{key: null, configured: false}` until `make vapid-keys`),
 the voice-call webhooks (`GET`/`HEAD /voice/exotel/flow`, `GET /voice/exotel/gather`, `POST /voice/exotel/status`,
 `POST /voice/plivo/answer`, `POST /voice/plivo/digits`, `POST /voice/plivo/hangup`: each needs the SSM
@@ -89,7 +90,9 @@ Alert     {id, village_id, village_name, village_name_hi, level, previous_level,
            created_at, updated_at, text_hi, text_en, reason_en, reasoning_model,
            draft_check{passed, reason}, decision_trace{...}, recipients_count,
            officer_index, decided_by|null, decided_at|null, approved: bool,
-           delivered_count, acknowledged_count, has_audio, replay}
+           delivered_count, acknowledged_count, has_audio, replay,
+           sirens_total, sirens_started, sirens_verified, siren_first_started_at|null,
+           siren_first_verified_at|null, siren_pattern|null, siren_note|null}
           (signed-in routes. On a public page (GET /villages/{id}) an alert has no officer usernames:
            decided_by, officer_chain, officers_asked, all_clear_by and outcome_by are left out and
            decided_by_role "officer"|"system"|null says who decided. Every other public answer puts
@@ -111,6 +114,27 @@ Report    {id, village_id, created_at, text, transcript, report_type, severity,
           (officer routes only. Public pages get PublicReport.)
 PublicReport {id, village_id, created_at, report_type, severity, state, held, replay,
            has_location, has_photo, has_audio}   (never words, GPS, media links, names or codes)
+DeviceView {device_id, village_id, kind: "siren"|"gauge"|"box"|"relay"|"rain", installed, simulated, fw|null,
+           hw_rev|null, voice_slot, coverage_m|null, health: "ok"|"degraded"|"offline"|"fault"|"unknown",
+           health_reasons[], state|null, state_since|null, last_seen|null,
+           last_seen_path: "cell"|"lora"|"sms"|null, connected|null, soc|null, batt_mv|null,
+           solar_wh_today|null, rssi|null, lora_noise_dbm|null, faults[], outbox_depth|null,
+           last_test_silent{at, ok, detail}|null, last_test_audible{at, ok, amp_a, spl_rise_db}|null,
+           last_sound{alert_id, at, pattern, verified}|null, pending_cmd{cmd_id, pattern, at, state}|null}
+          (signed-in routes. Health is computed on read and fails closed: ok = heard within 15 min, a
+           silent test passed in 8 days, SoC 50% or more, no faults; degraded = SoC 15-50%, a test
+           overdue, mic dead with current fine, or heard on LoRa only; offline = nothing on any path for
+           20 min; fault = last test failed, amplifier fault or tamper; unknown = never heard, never shown
+           as OK. No key, SIM number or LoRa address in any shape.)
+PublicDeviceView  DeviceView without pending_cmd, last_sound.alert_id, owner or addresses (GET /sensors)
+SirenTier {total, started, verified, pattern|null, note|null,
+           rows[{device_id, round, cmd_id, pattern: "W1"|"C1"|"A1"|"T1"|"D1", level, src,
+                 status: "commanded"|"started"|"verified"|"not_confirmed"|"rejected"|"failed"|"skipped",
+                 commanded_at, started_at|null, verified_at|null, meas{amp_a, spl_rise_db}|null,
+                 error|null, simulated}]}
+          (one row per siren per round; round 0 the first command, 1.. Recall's re-issues. Kept apart from
+           Delivery: sirens are never counted as people reached, recalled, sent the all-clear message or
+           shown as who an alert reached. "Sirens 1/1 verified" = verified of total.)
 Directive {id, village_id, type, text_hi, text_en, issued_by, issued_at, active}
           (signed out: no issued_by)
 Audit     {at, id, actor, role, action, resource, decision: "allow"|"deny", reason}
@@ -134,7 +158,8 @@ GET  /agents/traces?limit=5  public: round-by-round traces of recent alert draft
 GET  /sensors                public: gauge board, latest readings (with quality, quality_reasons,
                              measured_level, confirmed_level, rising_fast, rise_cm), counted gauge_level,
                              measured_level, rising_fast, health (as on GET /villages/{id}), 24 h series
-                             and sensor findings
+                             and sensor findings; devices[PublicDeviceView] (sirens, boxes, relays, rain
+                             nodes and gauges: state, last heartbeat, last test, last sound verified)
 POST /sensors/{id}/readings  public, HMAC-signed body, payload v1 or v2 (docs/hardware/README.md) -> 202
                              {status, kind, gauge_level, quality, confirmed_level, effective_level, rising_fast, ...}
 POST /sensors/{id}/backfill  public, HMAC-signed {device_id, readings[<=60]} buffered readings, each stored once
@@ -181,6 +206,13 @@ GET  /villages/{id}          {village, readings[<=96], alerts[], reports[], past
                                health{status, unhealthy, reasons["silent"|"low_battery"|"bad_quality"],
                                last_seen, minutes_since, battery_v, battery_low, readings_24h, bad_24h,
                                bad_share_24h, by_quality, backfilled_24h, ...}, series[{at, cm, q?, backfill?}]}
+                             rain_obs = {level, simulated_level, devices[{device_id, source (gauge|rain_node), at,
+                               fresh, simulated, quality, quality_reasons, stuck, windows{15min, 1h, 3h},
+                               eval_level, confirmed_level, rate_mm_h}], bands, thresholds_source,
+                               series[{at, device_id, mm, mm_raw, q?, backfill?}]} | null (observed rain, below)
+                             sirens = {count, sounding, last_test_at|null, last_test_ok|null, overdue,
+                               simulated} | null   (the public "Siren last tested <date>" line; no ids,
+                               numbers or keys; null when the village has no siren)
 GET  /villages/{id}/gauge/proposal  officer (any) or pradhan (own village), Cedar view_gauge_proposal:
                              {status: "ready"|"insufficient", basis{readings, days, used, excluded, simulated},
                               current, proposed{watch_cm, warning_cm, critical_cm}, raw, percentiles,
@@ -227,7 +259,8 @@ POST /villages/{id}/recipients/{rid}/role  officer (any village) or pradhan (own
                              recipient's rid is the chat id; 400 for another role, 404 for an unknown person;
                              audited ("recipient_role_changed", "<old> -> <new>")
 GET  /alerts?status=&village_id=   [Alert]
-GET  /alerts/{id}            {alert, deliveries[], timeline[Event], audit[Audit]}
+GET  /alerts/{id}            {alert, deliveries[], timeline[Event], audit[Audit], sirens: SirenTier}
+GET  /alerts/{id}/sirens     officer, or pradhan of the alert's village: SirenTier
 GET  /alerts/{id}/after-action?fresh=&format=   officer, or pradhan of the alert's village (Cedar
                              view_after_action; 403 otherwise, and for a public demo account on a live
                              alert): text/html after-action report (the copy stored
@@ -336,10 +369,110 @@ POST /rollcalls/{id}/remind  {} -> {reminded, waiting, demo_without_phone, last_
                              429 {detail{code:"rate_limited", retry_after_seconds, message_en, message_hi}}
 GET  /safe/{token}           public family link: {first_name|null, village_name, village_name_hi, at,
                              status:"safe", exercise, simulated}; 400 invalid, 410 expired | not_current
+GET  /devices                 officer (Cedar view_devices): {devices[DeviceView]}
+GET  /villages/{id}/devices  officer, or pradhan (own village): {village_id, devices[DeviceView],
+                             can{test_siren, sound_siren, stop_siren} (what Cedar allows this caller now),
+                             requests[open two-person requests]}
+GET  /devices/{id}/events?since=&type=   officer: {events[{at, boot, seq, type, cmd_id, pattern, via, src,
+                             meas, reason, ...}]} newest first, paged
+POST /devices/{id}/test      Cedar test_siren: {kind: "silent"|"audible", reason} -> {cmd_id, pattern: "T1", kind};
+                             403 for an audible test outside 09:00-18:00 IST; 429 more than one per 10 min
+                             per device; audited
+POST /villages/{id}/sirens/sound  Cedar sound_siren: {level: "warning"|"critical", reason} -> 200 {commanded,
+                             cmd_ids[], pattern}; a Critical from one officer -> 202 {request_id,
+                             needs_second_officer: true, expires_at} (expires after 120 s); at most 6 sound
+                             commands per village per hour; audited, officers on duty told
+POST /siren-requests/{rid}/confirm  a different officer: -> 200 {commanded, cmd_ids[], pattern: "C1"};
+                             409 when expired or the same officer
+POST /villages/{id}/sirens/stop  Cedar stop_siren: {reason, cmd_id?} -> {stopped, cmd_ids[]} (the officer
+                             guide says: phone the pradhan first)
+POST /devices/{id}/sms-fallback  officer: {cmd_id} -> {text, sms_uri, sim_number}: the same command as a
+                             signed SMS (PKR1 ...) for the officer to send from their own allow-listed
+                             phone; audited; the SIM number is shown to officers only
+PATCH /devices/{id}/config   Cedar manage_device: registry fields and the config shadow; enabling autonomy
+                             needs a second officer. (PATCH, not the spec's PUT: the API's CORS allows no PUT)
+POST /devices/{id}/pour-test  officer, or pradhan (own village): {ml} -> {window_until, expected_tips}
+                             (opens a 10-minute calibration window for the rain bucket)
 GET  /villages/{id} and /public/overview villages[] also carry
                              rollcall: {open, exercise, asked, safe, need_help, not_answered, opened_at,
                              closes_at} | null   (counts only, while one is open)
 ```
+
+## Devices over AWS IoT Core (alarm layer, docs/hardware/ALARM.md)
+
+Untested on hardware; today a labelled simulator (`make siren-sim`) is the only device. Client id =
+thing name = the device id in the topic: the topic is the identity, and bodies carry no device id.
+Every simulator message carries `simulated: true`.
+
+| Topic (QoS 1) | Payload |
+|---|---|
+| `pukaar/siren/<village>/<device>/event`, `pukaar/box/<village>/<device>/event` | one Event |
+| `.../heartbeat` | Heartbeat, every 5 minutes (15 in the low-SoC tier) |
+| `.../backfill` | `{events: [Event, ...]}`, at most 30; idempotent on (device, boot, seq) |
+| `pukaar/mesh/<village>/<forwarder>/relay` | `{frames: ["<base64 LoRa frame>", ...]}`: frames heard over LoRa; each inner MAC is checked with the origin's key, never the forwarder's |
+| `pukaar/gauge/<village>/<device>/reading` and `/backfill` | as before; payload v3 adds the rain fields (below) |
+
+```
+Event     {v: 1, seq, boot, at, type: "cmd_received"|"started"|"verified"|"not_verified"|"finished"|
+           "stopped"|"rejected"|"test_result"|"manual_trigger"|"autonomous_trigger"|"gauge_alarm_heard"|
+           "tamper"|"fault"|"power"|"config_applied", cmd_id?, pattern?, via?: "mqtt"|"sms"|"lora",
+           src?: "approval"|"officer_manual"|"pradhan_box"|"key_switch"|"autonomy"|"schedule"|"drill"|
+           "all_clear", meas?{amp_a, amp_a_ref, siren_a, spl_rise_db, ambient_db_rel, soc, batt_mv},
+           reason?: "bad_sig"|"expired"|"replayed"|"lower_priority"|"low_power"|..., button?, frame_src?,
+           kind?, ok?, detail?, simulated?}
+Heartbeat {v: 1, at, seq, boot, state, soc, batt_mv, solar_wh_today, temp_c, rssi, lora_noise_dbm, fw,
+           clips, uptime_s, outbox_depth, faults[], path, simulated?}
+```
+
+The server re-checks "verified": the amplifier current within 0.6-1.5 times the device's reference and
+a sound rise of at least the minimum (15 dB), or a known dead microphone. A live event's `at` must be
+within 10 minutes of the server clock; older ones come through `backfill`. Presence events update
+`connected`; a device is offline only after 20 minutes with nothing on any path.
+
+**Named shadow `siren`** (the single source of commands; never IoT Jobs, whose offline catch-up would
+sound a stale command): `desired.cmd = {id, action: "sound"|"stop"|"test", pattern, clip,
+clip_sha256_16, level, alert_id|null, cycles, repeat_every_s, repeat_cycles, cap_on_s, volume, iat, exp,
+ctr, src, kid, sig}`, `reported = {cmd_id, state: "idle"|"sounding"|"testing"|"manual"|"autonomous"|
+"fault"|"low_power", since, last_ctr, kid, fw, clips, faults[], soc}`. Canonical string signed:
+`PKR1|id|device|action|pattern|clip|clip_sha256_16|level|alert_id|cycles|repeat_every_s|repeat_cycles|
+cap_on_s|volume|iat|exp|ctr|src|kid` (empty fields as `-`); `sig` is base64url (no padding) of the first
+16 bytes of HMAC-SHA256 with the device's key. `exp` is at most 30 minutes after `iat`. A pradhan box's
+`siren` shadow gets `{level, alert_id, clip, relay_cmd}` (the signed siren command, for LoRa forwarding).
+Named shadow `config`: LoRa settings, trusted senders (no keys), salted SHA-256 hashes of the SMS
+allow-list, autonomy flags, test schedule, voice slot, current references. The LoRa frame and the
+signed SMS formats, and golden vectors for all three, are in
+`firmware/test/vectors/protocol_vectors.json`; docs/SECURITY.md has the checks a device makes.
+
+DynamoDB: `VILLAGE#<v> / DEVICE#<d>` (registry and live health), `DEVICES / <d>` (pointer),
+`DEVICE#<d> / EVT#<iso>#<boot>#<seq>` (90 days), `DEVSEQ#<boot>#<seq>` (14 days), `TEST#<iso>` (400
+days), `CMD#<cmd_id>` (400 days), `CTR`, `ALERT#<id> / SIREN#<device>#<round>`, `SIRENREQ#<id> / META`
+(1 day).
+
+## Observed rain (`rain_obs`, rules `risk-rules-v4`)
+
+Gauge payload v3 (and a rain-only node) adds `rain_tips_total` (u32, cumulative, never cleared),
+`rain_tips_window` (tips since the previous reading), `rain_mm_per_tip`, `rain_max_tips_1min`,
+`rain_min_tip_ms`, `rain_bounce`, `rain_err` (bits 1 bounce, 2 counter reset, 4 ULP fault). v1
+`rain_mm_1h` stays accepted, as evidence only. Per reading, mm = the counter's difference times
+`mm_per_tip` (a negative difference falls back to `rain_tips_window`), spread over the elapsed time,
+corrected for intensity `mm x (1 + c x max(0, I - i0))` (raw kept too). The village gauge's `rain`
+block (RainGaugeConfig: `mm_per_tip` 0.2, `correction_c` 0.0005, `i0_mm_h` 50, `max_plausible_mm_h`
+300, `min_tip_ms` 400, `watch_15min` 10, `watch_1h` 15, `watch_3h` 40, `warning_15min` 20,
+`warning_1h` 30, `warning_3h` 70; illustrative until calibrated per khad) sets the bands on the
+15-minute, 1-hour and 3-hour totals of live readings.
+
+- A band counts when 2 of the last 3 evaluations meet it; it only ever raises the level (it enters
+  through the maximum), and on its own it is capped at Warning.
+- Forecast rain and observed rain are one hazard: together they are not `two_sources_agree`; observed
+  rain with the gauge, the river or a report is.
+- Missing, suspect, simulated or backfilled observed rain counts as nothing (and is never a calm sweep).
+- A reading at Watch or above re-runs the village's rules at once.
+- CAP: when observed rain set the level the alert is a flash flood (OET-079).
+
+Trace tags: `rain_obs:1h=34mm>=30:warning`, `rain_obs_unconfirmed:warning`, `rain_obs_capped:warning`,
+`rain_obs_suspect:stuck` / `rain_obs_suspect:chatter` (with metric `RainGaugeSuspect`),
+`rain_obs_simulated_ignored:<level>`. `GET /villages/{id}` rain_obs and `/sensors` rain_obs show the
+totals against the bands, the quality and the corrected and raw values.
 
 ## AWS resources (stack `pukaar-dev`, region `us-east-1`)
 
@@ -351,16 +484,16 @@ GET  /villages/{id} and /public/overview villages[] also carry
 | Lambda `sweep` | image target `worker`, CMD `Pukaar.handlers.sweep.handler`; 1024 MB, 120 s; DLQ; 0 async retries |
 | Lambda `workflow` | CMD `Pukaar.handlers.workflow.handler`; 1024 MB, 120 s |
 | Lambda `worker` | CMD `Pukaar.handlers.worker.handler`; 1024 MB, 900 s (transcription, replay, delivery retries); DLQ |
-| Lambda `gauge-ingest` | CMD `Pukaar.handlers.gauge_ingest.handler`; 512 MB, 60 s; invoked by the IoT topic rule; 0 async retries; the worker's DLQ |
+| Lambda `gauge-ingest` | CMD `Pukaar.handlers.gauge_ingest.handler`; 512 MB, 60 s; invoked by the IoT topic rules; 0 async retries; the worker's DLQ. Device messages (siren, box, mesh, presence, siren shadow documents) are handed to `handlers/device_ingest.py` in the same function |
 | Bedrock Guardrail | `pukaar-report-screen-<stage>` plus a published version; only the worker may call `ApplyGuardrail` on it |
-| AWS IoT Core | policy `pukaar-gauge-<stage>`, topic rule `pukaar_gauge_<stage>` on `pukaar/gauge/+/+/reading` and `.../backfill` |
+| AWS IoT Core | policies `pukaar-gauge-<stage>`, `pukaar-siren-<stage>`, `pukaar-box-<stage>`, `pukaar-relay-<stage>` (each scoped to its own thing); topic rules `pukaar_gauge_<stage>` on `pukaar/gauge/+/+/reading` and `.../backfill`, `pukaar_device_<stage>` on `pukaar/+/+/+/+` (siren, box, mesh; event, heartbeat, backfill, relay), `pukaar_device_presence_<stage>` on `$aws/events/presence/+/+` (siren-, box-, relay- clients) and `pukaar_siren_shadow_<stage>` on `$aws/things/+/shadow/name/siren/update/documents`; named shadows `siren` and `config` |
 | AppSync Events | API `pukaar-events-<stage>`, namespaces `public` (API key, subscribe only) and `officer` (Cognito); publish `AWS_IAM` only |
 | Step Functions | Standard, `infra/approval.asl.json`, execution name = alert id |
 | Scheduler | `rate(15 minutes)` -> `sweep`, retries 0, DLQ |
 | Cognito | user pool, groups `officer`, `pradhan`, attribute `custom:village_ids`, app client without secret, `USER_PASSWORD_AUTH` |
 | HTTP API | JWT authorizer on `$default`, public routes above, CORS to the web origin, throttling |
-| SSM | SecureString `/pukaar/telegram_token`, `/pukaar/telegram_webhook_secret`, `/pukaar/link_secret`, `/pukaar/vapid_private_key`, `/pukaar/after_action_to`, `/pukaar/gauge/<device>/key` and `/cert`, and for voice calls `/pukaar/voice_webhook_key`, `/pukaar/exotel_sid`, `/pukaar/exotel_api_key` (optional), `/pukaar/exotel_token`, `/pukaar/exotel_caller_id`, `/pukaar/exotel_app_id`, `/pukaar/plivo_auth_id`, `/pukaar/plivo_auth_token`, `/pukaar/plivo_caller_id`; String `/pukaar/vapid_public_key` |
-| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision`, `RollCallNeedHelp`, `GaugeReading`, `GaugeRejected`, `GaugeBadReading`, `GaugeBackfill`, `GaugeUnhealthy`, `ReportScreened`, `GuardrailFallback`, `PushSent`, `PushFailed`, `EventPublishFailed`, `AfterActionSent`, `AfterActionFailed`, `VoiceCallPlaced`, `VoiceNotConnected`, `VoiceNoKey`, `VoiceUnreachable`, `VoiceNeedHelp`, `DeliveryDeferred`, `OfficerNudged`, `OfficerWakeCall` (dimension `Status`), `OfficerWakeLinkSent`, `SweepSeconds`, `AlertUnanswered` (dimension `Level`), `CanaryFailed` (from the scheduled canary by `PutMetricData`; dimension `Check` on a failed check) |
+| SSM | SecureString `/pukaar/telegram_token`, `/pukaar/telegram_webhook_secret`, `/pukaar/link_secret`, `/pukaar/vapid_private_key`, `/pukaar/after_action_to`, `/pukaar/gauge/<device>/key` and `/cert`, `/pukaar/device_root` (the root of every device key; read only by the API, workflow and gauge-ingest functions), `/pukaar/<kind>/<device>/key`, `/cert` and, for `-sim` devices only, `/hmac`, and for voice calls `/pukaar/voice_webhook_key`, `/pukaar/exotel_sid`, `/pukaar/exotel_api_key` (optional), `/pukaar/exotel_token`, `/pukaar/exotel_caller_id`, `/pukaar/exotel_app_id`, `/pukaar/plivo_auth_id`, `/pukaar/plivo_auth_token`, `/pukaar/plivo_caller_id`; String `/pukaar/vapid_public_key` |
+| Metrics | namespace `Pukaar`, EMF: `SweepCompleted`, `ModelLatencyMs`, `ModelError`, `ModelFailover`, `DeliverySent`, `DeliveryFailed`, `UnacknowledgedAlerts`, `ApprovalDecision`, `RollCallNeedHelp`, `GaugeReading`, `GaugeRejected`, `GaugeBadReading`, `GaugeBackfill`, `GaugeUnhealthy`, `ReportScreened`, `GuardrailFallback`, `PushSent`, `PushFailed`, `EventPublishFailed`, `AfterActionSent`, `AfterActionFailed`, `VoiceCallPlaced`, `VoiceNotConnected`, `VoiceNoKey`, `VoiceUnreachable`, `VoiceNeedHelp`, `DeliveryDeferred`, `OfficerNudged`, `OfficerWakeCall` (dimension `Status`), `OfficerWakeLinkSent`, `SweepSeconds`, `AlertUnanswered` (dimension `Level`), `CanaryFailed` (from the scheduled canary by `PutMetricData`; dimension `Check` on a failed check), `SirenOffline`, `SirenTestFailed`, `SirenUnconfirmed` (each alarmed), `SirenTestOverdue`, `SirenOfflineDuringAlert`, `SirenCommanded`, `SirenVerified`, `DeviceRejected`, `DeviceTamper`, `RainGaugeSuspect`, `EdgeAutonomousSiren` |
 
 Environment variables of every function: `PUKAAR_MODE=aws`,
 `PUKAAR_TABLE_NAME`, `PUKAAR_BUCKET`, `PUKAAR_STATE_MACHINE_ARN`,
@@ -386,12 +519,13 @@ Event `{"step": <name>, ...}`; returns a dict. Execution input:
 | `auto_send` | `alert_id` | `{alert_id, mode: "auto"}` (marks `auto_sent_unapproved` after Cedar allows `System`), or `{alert_id, mode: "off"}` when `PUKAAR_CRITICAL_AUTO_SEND=false` (needs DDMA sign-off; nothing is sent and the alert goes to the last call) |
 | `unanswered` | `alert_id, task_token` | `{alert_id, officers, reached, telegram, push, call}`: the last call when nobody in the chain answered (a Watch or Warning, or a Critical with auto-send off). Emits `AlertUnanswered` (dimension `Level`, alarmed), stores the task token (the alert is `pending` again), sends every officer on duty for the district and the ADM or DM "nobody approved; it was not sent" on Telegram and Web Push, each with a fresh one-tap link, and phones the ADM or DM (`call` as in `nudge_officer`; `not_possible` with voice off, no phone, no ADM or DM on the roster, or a replay). A replay messages and phones nobody and emits nothing. Then the same callback as `ask_officer`, for `last_call_seconds` |
 | `expire` | `alert_id` | `{alert_id, outcome: "expired"}`: the last call passed too; the sweep asks again after the level's cooldown (`PUKAAR_REASK_COOLDOWN_CRITICAL_MINUTES` 5, never more than 5; `PUKAAR_REASK_COOLDOWN_WARNING_MINUTES` 30; `PUKAAR_REASK_COOLDOWN_WATCH_MINUTES` 60) |
+| `sirens` | `alert_id, mode: "sound"` | `{commanded, devices[], pattern, reason?}`: the `SoundSirens` state, after approval or the flagged critical auto-send and before `Deliver`. Watch: no outdoor sound, the pradhan box only (`reason: "watch_no_outdoor"`). Each siren passes Cedar `sound_siren` (a drill: `test_siren` with D1), gets a signed command on its named shadow (idempotent per alert, device and round) and a SirenTier row. TimeoutSeconds 20; any error goes on to `Deliver`: sirens never block or fail delivery |
 | `deliver` | `alert_id` | Everyone in one batch: `{alert_id, sent, failed, mode: "deliver", more: false}`. Otherwise batch 0 is sent and the rest returned: `{alert_id, mode, more: true, pass, counts, batches: [{batch, first, last, mode, share}], concurrency, wait_seconds}` |
 | `deliver_batch` | `alert_id, batch, first, last, mode, share` | `{spec: {batch, first, last}, sent, failed, deferred, retry_after}` (one Map iteration) |
 | `deliver_done` | `alert_id, mode, pass, counts, results` | the batches still to run (`more: true`, as `deliver`), or the finished round as `deliver`, `recall` or `failsafe` returns it |
-| `recall` | `alert_id` | `{alert_id, resent, again, round, mode: "recall", more: false}`, or batches as `deliver` |
+| `recall` | `alert_id` | `{alert_id, resent, again, round, mode: "recall", more: false}`, or batches as `deliver`. First the siren check: a command not verified 180 s after it was commanded is `not_confirmed` (`SirenUnconfirmed`, the duty officer told, SMS fallback offered) and re-issued with a new id and counter |
 | `close` | `alert_id, outcome` | `{alert_id, status}` |
-| `failsafe` | `alert_id, error` | `{alert_id, sent, mode: "failsafe", more}` (with batches when the fixed template goes to more than one batch) |
+| `failsafe` | `alert_id, error` | `{alert_id, sent, mode: "failsafe", more}` (with batches when the fixed template goes to more than one batch). A broadcast failsafe also commands the sirens (Cedar `system-sound-siren-failsafe`) |
 
 ### Approval windows
 

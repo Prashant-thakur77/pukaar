@@ -26,7 +26,7 @@ READ_ONLY_TOOLS = {
 }
 ROLE_TYPES = {"officer": "Officer", "pradhan": "Pradhan", "system": "System", "agent": "Agent"}
 RESOURCE_TYPES = {"village": "Village", "alert": "Alert", "report": "Report", "rollcall": "RollCall", "tool": "Tool",
-                  "app": "App"}
+                  "app": "App", "device": "Device"}
 DENY_HINTS = {
     "approve": "Only a district officer can approve an alert.",
     "decline": "Only a district officer can decline an alert.",
@@ -59,6 +59,12 @@ DENY_HINTS = {
     "all_clear": "The all-clear goes only to people contacted for a stood-down alert.",
     "set_alert_outcome": "Only a district officer can record whether an alert was real.",
     "set_recipient_role": "Only a district officer, or the pradhan of this village, can name its relays.",
+    "sound_siren": "Only a district officer, or this village's pradhan, can sound its sirens; a Critical needs a second officer.",
+    "stop_siren": "Only a district officer, or the pradhan who started it, can stop a siren.",
+    "test_siren": "Only a district officer can test a siren; an audible test only between 09:00 and 18:00 IST.",
+    "view_devices": "Only a district officer, or the pradhan of this village, can see its devices.",
+    "manage_device": "Only a district officer can change a device; turning on autonomy needs a second officer.",
+    "pour_test": "Only a district officer, or the pradhan of this village, can start a rain-gauge pour test.",
 }
 
 
@@ -117,9 +123,20 @@ def _entities(p: Principal, resource_type: str, resource_id: str) -> list[dict[s
     return ents
 
 
+# Every key a policy reads has a default here: a policy that reads a missing context key is an evaluation
+# error, and an error denies the whole request (fail closed, but for the wrong reason).
+CONTEXT_DEFAULTS: dict[str, Any] = {
+    "level": "normal", "approved": False, "all_officers_timed_out": False, "replay": False, "channel": "",
+    "village_id": "",
+    # the alarm layer (policy/base.cedar, services/sirens.py)
+    "pattern": "", "src": "", "drill": False, "critical_auto_send": False, "machine_evidence_critical": False,
+    "second_officer_distinct": False, "device_simulated": False, "device_village_id": "", "kind": "",
+    "hour_ist": -1, "village_alert_open": False, "started_by_self": False, "change": "",
+}
+
+
 def _context(raw: dict[str, Any]) -> dict[str, Any]:
-    ctx = {"level": "normal", "approved": False, "all_officers_timed_out": False, "replay": False,
-           "channel": "", "village_id": ""}
+    ctx = dict(CONTEXT_DEFAULTS)
     ctx.update({k: v for k, v in raw.items() if v is not None})
     return ctx
 

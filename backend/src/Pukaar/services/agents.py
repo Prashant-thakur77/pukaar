@@ -23,6 +23,7 @@ from typing import Any
 
 from Pukaar.core import clock
 from Pukaar.core.config import get_settings
+from Pukaar.core.log import get_logger, log
 from Pukaar.llm import bedrock
 from Pukaar.llm.tools import TOOL_DOCS
 from Pukaar.policy import guard
@@ -32,6 +33,8 @@ from Pukaar.services.drafting import DRAFT_TOOLS
 from Pukaar.store.models import Alert, Village
 from Pukaar.store.repo import Repo
 from Pukaar.templates import hi
+
+_LOG = get_logger("agents")
 
 GUARDRAIL_MODULES = ("Pukaar.services.guardrail", "Pukaar.services.guardrails", "Pukaar.llm.guardrail")
 SERIES_POINTS = 48
@@ -48,6 +51,11 @@ ACTION_TEXT: dict[str, tuple[str, str]] = {
     "remind_rollcall": ("Remind people in a roll-call", "हाज़िरी की याद दिलाना"),
     "set_shelter_status": ("Change the shelter ledger", "आश्रय की स्थिति बदलना"),
     "block_road": ("Mark a road blocked or open", "सड़क बंद या खुली बताना"),
+    "sound_siren": ("Sound a village siren", "गाँव का सायरन बजाना"),
+    "stop_siren": ("Stop a siren", "सायरन बंद करना"),
+    "test_siren": ("Test a siren", "सायरन का परीक्षण करना"),
+    "manage_device": ("Change a siren or device's settings", "सायरन या उपकरण की सेटिंग बदलना"),
+    "pour_test": ("Start a rain-gauge pour test", "वर्षामापी की जाँच शुरू करना"),
 }
 # By design, not by policy: the typed outputs have no field for these.
 DESIGN_NEVER: list[dict[str, str]] = [
@@ -592,4 +600,37 @@ def sensors(repo: Repo) -> dict[str, Any]:
                   "thresholds": {"stale_minutes": watch.STALE_MINUTES, "flat_min_readings": watch.FLAT_MIN_READINGS,
                                  "jump_cm_per_min": watch.JUMP_CM_PER_MIN, "low_battery_v": watch.LOW_BATTERY_V}},
         "level_names": {lvl: {"en": hi.LEVEL_EN[lvl], "hi": hi.LEVEL_HI[lvl]} for lvl in hi.LEVEL_EN},
+        # Sirens, pradhan boxes, relays and rain nodes (services/devices/registry.py): health and tests only,
+        # no SIM number, LoRa address or command id. Observed rain per village (services/rain_obs.py).
+        "devices": _devices(repo, villages, now),
+        "rain_obs": _rain(repo, villages),
     }
+
+
+def _devices(repo: Repo, villages: dict[str, Any], now) -> list[dict[str, Any]]:
+    from Pukaar.services.devices import registry
+
+    try:
+        out = []
+        for d in repo.list_devices():
+            if d.kind == "gauge":
+                continue  # the gauges have their own rows above
+            v = villages.get(d.village_id)
+            out.append({**registry.view(d, now, public=True), "village_name": v.name if v else d.village_id,
+                        "village_name_hi": v.name_hi if v else d.village_id})
+        return out
+    except Exception as exc:
+        log(_LOG, "device list failed", 30, error=str(exc)[:200])
+        return []
+
+
+def _rain(repo: Repo, villages: dict[str, Any]) -> dict[str, Any]:
+    from Pukaar.services import rain_obs
+
+    out = {}
+    for vid, v in villages.items():
+        info = rain_obs.safe_view(repo, v)
+        if info is not None:
+            info.pop("series", None)
+            out[vid] = info
+    return out

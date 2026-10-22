@@ -1,8 +1,8 @@
 """Workflow clients.
 
 AwsWorkflow:   Step Functions (infra/approval.asl.json); execution name = alert id.
-LocalWorkflow: a threaded runner with the same states, used in local mode so
-               the full loop works without AWS.
+LocalWorkflow: a threaded runner with the same states (SoundSirens before Deliver
+               included), used in local mode so the full loop works without AWS.
 decide():      the approve/decline path shared by the console and the signed
                link. Single use: a conditional update on token_version, so a
                late or repeated reply gets ConflictError (HTTP 409).
@@ -115,6 +115,12 @@ class LocalWorkflow:
         def send(step: str) -> dict:  # deliver, recall or failsafe, then its batches as the Map state would
             return drive_delivery(steps.handle, steps.handle({"step": step, "alert_id": alert_id}))
 
+        def sound_sirens() -> None:  # SoundSirens: never blocks or fails the delivery that follows
+            try:
+                steps.handle({"step": "sirens", "mode": "sound", "alert_id": alert_id})
+            except Exception as exc:
+                log(_LOG, "local sirens step error; delivering anyway", 40, alert_id=alert_id, error=str(exc)[:300])
+
         outcome = "failsafe"
         try:
             draft = steps.handle({"step": "draft", "alert_id": alert_id})
@@ -137,6 +143,7 @@ class LocalWorkflow:
                 # Nobody answered (a critical with auto-send off too): the last call to everyone on duty.
                 decision = self._last_call(steps, alert_id, timers)
             if auto_sent:
+                sound_sirens()
                 send("deliver")
                 time.sleep(self.ack_wait)
                 send("recall")
@@ -144,6 +151,7 @@ class LocalWorkflow:
             elif decision is not None and decision.get("decision") == "declined":
                 outcome = "declined"
             elif decision is not None and decision.get("decision") == "approved":
+                sound_sirens()
                 send("deliver")
                 time.sleep(self.ack_wait)
                 send("recall")

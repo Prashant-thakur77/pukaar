@@ -19,7 +19,7 @@ from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.core.ids import new_id
 from Pukaar.core.log import get_logger, log, metric
-from Pukaar.services import events, readiness, risk_rules
+from Pukaar.services import events, rain_obs, readiness, risk_rules
 from Pukaar.services.nowcast import nowcast
 from Pukaar.store.models import OPEN_ALERT_STATUSES, VERIFIED_STATES, Alert, Reading, Village, level_rank
 from Pukaar.store.repo import Repo
@@ -80,6 +80,7 @@ def build_trace(village: Village, reading: Reading | None, assessment: risk_rule
         "report_level": assessment.report_level,
         "gauge_level": assessment.gauge_level,
         "staff_level": assessment.staff_level,
+        "rain_obs_level": assessment.rain_obs_level,
         "rules_fired": assessment.rules_fired,
         "contradictions": assessment.contradictions,
         "data_disagrees": bool(assessment.contradictions),
@@ -280,8 +281,15 @@ def recompute_village(
     # Gauge readings are live data: never mixed into a replay.
     sensor = None if replay or village.gauge is None else repo.latest_sensor_reading(
         village.id, risk_rules.GAUGE_FRESH_MINUTES, now=now)
+    # Observed rain (tipping buckets) is live data too: never mixed into a replay.
+    rain_info = None
+    if not replay and get_settings().rain_obs_enabled:
+        try:
+            rain_info = rain_obs.village_info(repo, village, now, forecast=reading)
+        except Exception as exc:  # missing observed rain is nothing, never a calm reading
+            log(_LOG, "observed rain unavailable", 30, village_id=village.id, error=str(exc)[:200])
     assessment = risk_rules.assess(reading, village.thresholds, reports, now, sensor=sensor, gauge=village.gauge,
-                                   soil=village.soil, allow_simulated=replay)
+                                   soil=village.soil, allow_simulated=replay, rain_obs=rain_info)
     previous = village.level
     if only_if_rising and level_rank(assessment.level) <= level_rank(previous):
         return SweepResult(village.id, skipped=True, level=previous, raw_level=assessment.level, note="not rising")

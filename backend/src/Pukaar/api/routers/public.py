@@ -188,8 +188,9 @@ def cap_alert(alert_id: str) -> Response:
     if a is None or not cap.is_published(a):
         raise HTTPException(404, "No published alert with this id")
     refs = cap.references(a, repo.list_alerts(village_id=a.village_id, limit=100))
+    installed = sum(1 for d in repo.list_devices(a.village_id) if d.kind == "siren" and d.installed and not d.simulated)
     body = cap.render(a, repo.get_village(a.village_id), sender=s.cap_sender, web_url=s.web_url, refs=refs,
-                      sender_name=s.cap_sender_name, sender_name_hi=s.cap_sender_name_hi)
+                      sender_name=s.cap_sender_name, sender_name_hi=s.cap_sender_name_hi, installed_sirens=installed)
     return Response(content=body, media_type=cap.CAP_CONTENT_TYPE, headers=_CAP_CACHE)
 
 

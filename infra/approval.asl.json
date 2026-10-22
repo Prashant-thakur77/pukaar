@@ -418,12 +418,51 @@
       "Type": "Pass",
       "Result": "auto_sent_unapproved",
       "ResultPath": "$.outcome",
-      "Next": "Deliver"
+      "Next": "SoundSirens"
     },
     "OutcomeDelivered": {
       "Type": "Pass",
       "Result": "delivered",
       "ResultPath": "$.outcome",
+      "Next": "SoundSirens"
+    },
+    "SoundSirens": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Command the village's sirens and pradhan boxes (signed named-shadow commands; services/sirens.py). Watch: boxes only. A Critical without machine evidence sounds the Warning pattern and asks a second officer; a drill plays D1 only; a replay commands only labelled simulators. Never blocks people: any error goes on to Deliver, and the step itself catches everything.",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "step": "sirens",
+          "mode": "sound",
+          "alert_id.$": "$.alert_id"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.sirens",
+      "TimeoutSeconds": 20,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 1
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.siren_error",
+          "Next": "Deliver"
+        }
+      ],
       "Next": "Deliver"
     },
     "Deliver": {

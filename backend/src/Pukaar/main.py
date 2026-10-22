@@ -14,7 +14,7 @@ if settings.is_local:
     start_local_aws()
 
 from Pukaar.api.routers import (  # noqa: E402  (after the local mock starts)
-    agents, gauges, officer, public, push, reports, rollcall, sensors, telegram, voice,
+    agents, devices, gauges, officer, public, push, reports, rollcall, sensors, telegram, voice,
 )
 
 app = FastAPI(title="Pukaar API", version="1.0.0")
@@ -41,5 +41,5 @@ async def edge_only(request, call_next):
 
 
 for r in (public.router, reports.router, officer.router, telegram.router, sensors.router, rollcall.router, agents.router,
-          gauges.router, push.router, voice.router):
+          gauges.router, push.router, voice.router, devices.router):
     app.include_router(r)

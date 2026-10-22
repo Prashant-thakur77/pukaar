@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TimeToEar } from '../../components/TimeToEar';
+import { SirenPanel } from '../../components/SirenPanel';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { ArrowRight, Bell, BellRing, CalendarClock, ChevronDown, Cloud, Download, FileText, HeartHandshake, History, Home, LayoutList, Megaphone, MonitorCog, ScrollText, Send, Server, Sparkles } from 'lucide-react';
 import { api, API_BASE, ApiError } from '../../api';
@@ -334,6 +335,7 @@ function RecentAlert({ alert: a, showAudit }: { alert: Alert; showAudit: boolean
         <AlertStatusChip status={a.status} />
       </div>
       <DeliveryChips approved={a.approved} delivered={a.delivered_count} acked={a.acknowledged_count} status={a.status} />
+      <SirenPanel alert={a} />
       <p className="small muted">
         {fmtAgo(a.created_at, lang)}
         {showAudit && (

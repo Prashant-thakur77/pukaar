@@ -46,7 +46,7 @@ DEPLOY_EXTRA   = $(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL)) \
                  $(if $(CAP_SENDER_NAME_HI),'CapSenderNameHi="$(CAP_SENDER_NAME_HI)"')
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt ses-verify it secrets vapid-keys local validate smoke
+        seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt device-provision siren-sim protocol-vectors ses-verify it secrets vapid-keys local validate smoke
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -143,8 +143,17 @@ gauge-sim: ## Send a SIMULATED rising river gauge to the deployed stack (VILLAGE
 gauge-provision: ## Create the AWS IoT thing + certificate for a village gauge, key in SSM (VILLAGE=gohar, DELETE=1 to remove)
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.iot_provision $(or $(VILLAGE),gohar) $(if $(DELETE),--delete,)
 
-gauge-sim-mqtt: ## Publish a SIMULATED rising river over MQTT (AWS IoT Core, X.509) (VILLAGE=gohar, SLOW=1 for real time)
-	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.gauge_sim_mqtt $(or $(VILLAGE),gohar) $(if $(SLOW),--slow,)
+gauge-sim-mqtt: ## Publish a SIMULATED rising river over MQTT (AWS IoT Core, X.509) (VILLAGE=gohar, SLOW=1 for real time, RAIN=120 for a mm/h burst)
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.gauge_sim_mqtt $(or $(VILLAGE),gohar) $(if $(SLOW),--slow,) $(if $(RAIN),--rain $(RAIN),)
+
+device-provision: ## Create the AWS IoT thing + certificate for a siren, box or relay (KIND=siren VILLAGE=thunag, DEVICE=, DELETE=1)
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.iot_provision $(or $(VILLAGE),thunag) --kind $(or $(KIND),siren) $(if $(DEVICE),--device $(DEVICE),) $(if $(DELETE),--delete,)
+
+siren-sim: ## Run a SIMULATED siren node on AWS IoT Core: verifies signed commands, reports "verified" (VILLAGE=thunag, FAULT=mic_dead)
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.siren_sim_mqtt $(or $(VILLAGE),thunag) $(if $(FAULT),--fault $(FAULT),)
+
+protocol-vectors: ## Regenerate the device protocol's golden vectors (firmware/test/vectors/protocol_vectors.json; TEST ONLY keys)
+	cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.protocol_vectors
 
 ses-verify: ## Ask SES to verify an address for after-action e-mail (EMAIL=you@example.com); the owner clicks the link
 	@test -n "$(EMAIL)" || { echo "usage: make ses-verify EMAIL=you@example.com"; exit 2; }

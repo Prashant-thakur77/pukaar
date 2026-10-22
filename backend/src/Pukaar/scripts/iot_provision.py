@@ -19,6 +19,14 @@ For the village's registered gauge device (its gauge.device_id on the deployed s
 
 Idempotent: a thing that already has a certificate and both parameters is left alone. A
 failure after the certificate was created rolls it back, so a re-run starts clean.
+
+The alarm layer's devices (`make device-provision KIND=siren VILLAGE=thunag`): --kind siren, box or relay
+uses that kind's policy (stack outputs SirenPolicyName, BoxPolicyName, RelayPolicyName), the parameters
+/pukaar/<kind>/<device>/key and /cert, and the device id <kind>-<village>-sim unless --device names one.
+For a labelled simulator ("-sim") it also derives the device's signing key from the SSM root
+/pukaar/device_root (HKDF; services/devices/keys.py) and stores it as /pukaar/<kind>/<device>/hmac, which
+scripts/siren_sim_mqtt.py reads to verify its commands. A real device's key is never stored server side:
+it goes into the device's encrypted NVS at provisioning (slice M; docs/hardware/ALARM.md).
 """
 
 from __future__ import annotations
@@ -33,10 +41,20 @@ from typing import Any
 REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 STACK = os.environ.get("PUKAAR_STACK", "pukaar-dev")
 SSM_PREFIX = "/pukaar/gauge"
+KINDS = ("gauge", "siren", "box", "relay")
+POLICY_OUTPUT = {"gauge": "GaugePolicyName", "siren": "SirenPolicyName", "box": "BoxPolicyName",
+                 "relay": "RelayPolicyName"}
+TOPICS = {"gauge": ("reading", "backfill"), "siren": ("event", "heartbeat", "backfill"),
+          "box": ("event", "heartbeat", "backfill"), "relay": ()}
 
 
-def param_names(device_id: str) -> tuple[str, str]:
-    return f"{SSM_PREFIX}/{device_id}/key", f"{SSM_PREFIX}/{device_id}/cert"
+def param_names(device_id: str, kind: str = "gauge") -> tuple[str, str]:
+    prefix = SSM_PREFIX if kind == "gauge" else f"/pukaar/{kind}"
+    return f"{prefix}/{device_id}/key", f"{prefix}/{device_id}/cert"
+
+
+def hmac_param(device_id: str, kind: str) -> str:
+    return f"/pukaar/{kind}/{device_id}/hmac"
 
 
 def topic(village: str, device_id: str, kind: str = "reading") -> str:
@@ -74,9 +92,9 @@ def _thing_principals(iot: Any, thing: str) -> list[str] | None:
         return None
 
 
-def _params_exist(ssm: Any, device_id: str) -> bool:
+def _params_exist(ssm: Any, device_id: str, kind: str = "gauge") -> bool:
     # Without WithDecryption: only checks the parameters are there, never reads the key.
-    found = ssm.get_parameters(Names=list(param_names(device_id)))["Parameters"]
+    found = ssm.get_parameters(Names=list(param_names(device_id, kind)))["Parameters"]
     return len(found) == 2
 
 
@@ -104,18 +122,18 @@ def _remove_cert(iot: Any, thing: str | None, cert_arn: str) -> None:
     raise SystemExit(f"certificate {cert_id} is still attached; delete it in the IoT console")
 
 
-def provision(iot: Any, ssm: Any, village: str, device_id: str, policy: str) -> str:
-    key_name, cert_name = param_names(device_id)
+def provision(iot: Any, ssm: Any, village: str, device_id: str, policy: str, kind: str = "gauge") -> str:
+    key_name, cert_name = param_names(device_id, kind)
     principals = _thing_principals(iot, device_id)
     if principals:
-        if _params_exist(ssm, device_id):
+        if _params_exist(ssm, device_id, kind):
             print(f"{device_id}: thing, certificate and SSM parameters already exist; nothing to do")
             return "exists"
         raise SystemExit(f"{device_id} has a certificate but its key is not in SSM ({key_name}). The key cannot "
                          "be recovered: run with --delete, then provision again.")
     if principals is None:
         iot.create_thing(thingName=device_id, attributePayload={
-            "attributes": {"village": village, "simulated": str(device_id.endswith("-sim")).lower()}})
+            "attributes": {"village": village, "kind": kind, "simulated": str(device_id.endswith("-sim")).lower()}})
         print(f"created thing {device_id}")
 
     created = iot.create_keys_and_certificate(setAsActive=True)
@@ -123,8 +141,8 @@ def provision(iot: Any, ssm: Any, village: str, device_id: str, policy: str) -> 
     try:
         iot.attach_policy(policyName=policy, target=cert_arn)
         iot.attach_thing_principal(thingName=device_id, principal=cert_arn)
-        _put_secure(ssm, key_name, created["keyPair"]["PrivateKey"], f"Private key of gauge {device_id} (AWS IoT)")
-        _put_secure(ssm, cert_name, created["certificatePem"], f"Certificate of gauge {device_id} (AWS IoT)")
+        _put_secure(ssm, key_name, created["keyPair"]["PrivateKey"], f"Private key of {kind} {device_id} (AWS IoT)")
+        _put_secure(ssm, cert_name, created["certificatePem"], f"Certificate of {kind} {device_id} (AWS IoT)")
     except BaseException:
         print("provisioning failed; removing the new certificate so a re-run starts clean", file=sys.stderr)
         _remove_cert(iot, device_id, cert_arn)
@@ -134,7 +152,24 @@ def provision(iot: Any, ssm: Any, village: str, device_id: str, policy: str) -> 
     return "created"
 
 
-def teardown(iot: Any, ssm: Any, device_id: str) -> None:
+def store_sim_key(ssm: Any, device_id: str, kind: str, kid: int = 1) -> bool:
+    """A "-sim" device only: its HKDF signing key, derived from /pukaar/device_root, for the simulator.
+    Never printed. A real device's key is never stored server side."""
+    if not device_id.endswith("-sim"):
+        return False
+    from Pukaar.services.devices import protocol
+
+    raw = ssm.get_parameter(Name="/pukaar/device_root", WithDecryption=True)["Parameter"]["Value"].strip()
+    try:
+        root = bytes.fromhex(raw)
+    except ValueError:
+        root = raw.encode("utf-8")
+    key = protocol.derive_device_key(root, device_id, kid)
+    _put_secure(ssm, hmac_param(device_id, kind), key.hex(), f"Signing key of the SIMULATED {kind} {device_id}")
+    return True
+
+
+def teardown(iot: Any, ssm: Any, device_id: str, kind: str = "gauge") -> None:
     principals = _thing_principals(iot, device_id)
     for arn in principals or []:
         _remove_cert(iot, device_id, arn)
@@ -142,7 +177,7 @@ def teardown(iot: Any, ssm: Any, device_id: str) -> None:
     if principals is not None:
         iot.delete_thing(thingName=device_id)
         print(f"deleted thing {device_id}")
-    for name in param_names(device_id):
+    for name in (*param_names(device_id, kind), *([hmac_param(device_id, kind)] if kind != "gauge" else [])):
         try:
             ssm.delete_parameter(Name=name)
             print(f"deleted {name}")
@@ -153,7 +188,9 @@ def teardown(iot: Any, ssm: Any, device_id: str) -> None:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("village", nargs="?", default="gohar")
-    p.add_argument("--device", help="device id (default: the village's gauge.device_id on the deployed stack)")
+    p.add_argument("--kind", choices=KINDS, default="gauge", help="gauge (default), siren, box or relay")
+    p.add_argument("--device", help="device id (default: the village's gauge.device_id on the deployed stack, "
+                                    "or <kind>-<village>-sim)")
     p.add_argument("--policy", help="IoT policy name (default: the stack output GaugePolicyName)")
     p.add_argument("--stack", default=STACK)
     p.add_argument("--region", default=REGION)
@@ -164,23 +201,27 @@ def main(argv: list[str] | None = None) -> int:
 
     iot = boto3.client("iot", region_name=args.region)
     ssm = boto3.client("ssm", region_name=args.region)
-    device_id = args.device or village_device(args.village)
+    kind = args.kind
+    device_id = args.device or (village_device(args.village) if kind == "gauge" else f"{kind}-{args.village}-sim")
 
     if args.delete:
-        teardown(iot, ssm, device_id)
+        teardown(iot, ssm, device_id, kind)
         return 0
 
-    policy = args.policy or stack_output(boto3.client("cloudformation", region_name=args.region), args.stack,
-                                         "GaugePolicyName")
+    output = POLICY_OUTPUT[kind]
+    policy = args.policy or stack_output(boto3.client("cloudformation", region_name=args.region), args.stack, output)
     if not policy:
-        print(f"Stack {args.stack} has no GaugePolicyName output: deploy the stack first (`make deploy`).",
-              file=sys.stderr)
+        print(f"Stack {args.stack} has no {output} output: deploy the stack first (`make deploy`).", file=sys.stderr)
         return 1
-    provision(iot, ssm, args.village, device_id, policy)
+    provision(iot, ssm, args.village, device_id, policy, kind)
+    if kind != "gauge" and store_sim_key(ssm, device_id, kind):
+        print(f"stored {hmac_param(device_id, kind)} (SecureString; the simulator's signing key, never printed)")
     print(f"endpoint  {ats_endpoint(iot)}:8883 (MQTT over TLS; ALPN x-amzn-mqtt-ca on 443 also works)")
     print(f"client id {device_id}")
-    for kind in ("reading", "backfill"):
-        print(f"topic     {topic(args.village, device_id, kind)}")
+    for sub in TOPICS[kind]:
+        print(f"topic     pukaar/{kind}/{args.village}/{device_id}/{sub}")
+    if kind != "gauge":
+        print(f"shadow    $aws/things/{device_id}/shadow/name/siren (desired.cmd: the signed command)")
     return 0
 
 

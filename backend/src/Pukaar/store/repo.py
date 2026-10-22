@@ -23,6 +23,13 @@ Keys:
   ROSTER#district  date#shift        (duty roster: primary, backup, escalation officer; TTL 400 days)
   FETCHCACHE#key META                (cached external data: daily river ensemble, official feeds; TTL)
   RATE#src#hash | RATE#village#id  window   (report rate-limit counters; salted IP hash, never an IP; TTL 1 day)
+  VILLAGE#id  DEVICE#device           (device registry and live health; the alarm layer)
+              | RAIN#iso#device | RAINSEQ#device#boot#seq   (observed rain: gauge v3 and rain nodes; TTL as readings)
+  DEVICES     device                  (pointer: village_id, kind; listing every device is one query)
+  DEVICE#device  EVT#iso#boot#seq (90 d) | DEVSEQ#boot#seq (14 d) | TEST#iso (400 d) | CMD#id (400 d)
+              | CTR (atomic command counter) | SHADOW#name (local mode only)
+  ALERT#id    SIREN#device#round      (the siren tier; never a people DELIVERY# row)
+  SIRENREQ#id META                    (two-person siren request; TTL 1 day); VILLAGE#id SIRENREQ#iso#id pointer
 Sparse GSI gsi1: gsi1pk = "OPEN#ALERT" / "OPEN#REPORT" while work is open.
 """
 
@@ -46,12 +53,17 @@ from Pukaar.store.models import (
     AuditRow,
     ChecklistItem,
     Delivery,
+    Device,
     E164,
     Directive,
+    SirenCommand,
+    SirenDelivery,
+    SirenRequest,
     OfficerCall,
     delivery_key,
     PastEvent,
     PushSubscription,
+    RainReading,
     Reading,
     Recipient,
     ReplayState,
@@ -125,6 +137,12 @@ def _from_dynamo(value: Any) -> Any:
 def _model(cls: type[M], item: dict[str, Any]) -> M:
     data = {k: v for k, v in _from_dynamo(item).items() if k not in _KEY_FIELDS}
     return cls.model_validate(data)
+
+
+def _device(item: dict[str, Any]) -> Device:
+    """A registry row: its "kind" is the device's kind, not the item-type marker other rows carry."""
+    return Device.model_validate({**_from_dynamo({k: v for k, v in item.items() if k not in _KEY_FIELDS}),
+                                  "kind": item.get("kind")})
 
 
 def table_schema(name: str) -> dict[str, Any]:
@@ -373,6 +391,41 @@ class Repo:
             if (now - clock.parse(r.at)).total_seconds() > max_age_minutes * 60:
                 return None
         return r
+
+    # -- observed rain (services/rain_obs.py) -----------------------------
+    def put_rain_reading(self, r: RainReading, ttl_days: int | None = None) -> bool:
+        """Store one rain reading; False when this device already has one at that second, or the same
+        (device, boot, seq) is already stored (a re-sent or replayed reading)."""
+        expires = _expiry(ttl_days)
+        pk = f"VILLAGE#{r.village_id}"
+        if r.seq is not None:
+            try:
+                self._put({"pk": pk, "sk": f"RAINSEQ#{r.device_id}#{r.boot or 0}#{r.seq}", "ttl": expires},
+                          condition=Attr("pk").not_exists())
+            except ConflictError:
+                return False
+        try:
+            self._put({"pk": pk, "sk": f"RAIN#{r.at}#{r.device_id}", "kind": "rain", "ttl": expires, **r.model_dump()},
+                      condition=Attr("pk").not_exists())
+        except ConflictError:
+            return False
+        return True
+
+    def list_rain_readings(self, village_id: str, since: str, limit: int = 2000) -> list[RainReading]:
+        """Rain readings at or after `since`, oldest first (every device of the village)."""
+        kwargs: dict[str, Any] = {
+            "KeyConditionExpression": Key("pk").eq(f"VILLAGE#{village_id}")
+            & Key("sk").between(f"RAIN#{clock.iso(clock.parse(since))}", "RAIN#~"),
+            "ScanIndexForward": True,
+        }
+        items: list[dict] = []
+        while len(items) < limit:
+            page = self.t.query(**kwargs)
+            items.extend(page.get("Items", []))
+            if "LastEvaluatedKey" not in page:
+                break
+            kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+        return [_model(RainReading, i) for i in items[:limit]]
 
     # -- sweep dedupe ----------------------------------------------------
     def claim_sweep(self, village_id: str, window: str, ttl_seconds: int = 2 * 86400) -> bool:
@@ -942,6 +995,151 @@ class Repo:
         sets = {k: (v.model_dump() if isinstance(v, BaseModel) else v) for k, v in fields.items() if v is not None}
         return _model(Village, self._update("REPLAY", f"VILLAGE#{village_id}", sets, remove=remove,
                                             condition=Attr("pk").exists()))
+
+    # -- devices: the alarm layer (services/devices, services/sirens.py) --
+    def put_device(self, d: Device) -> None:
+        # The item's "kind" is the device kind (siren, box ...): Device has a field of that name.
+        self._put({"pk": f"VILLAGE#{d.village_id}", "sk": f"DEVICE#{d.device_id}", **d.model_dump()})
+        # A small registry partition, so listing every device is one query, not a table scan.
+        self._put({"pk": "DEVICES", "sk": d.device_id, "village_id": d.village_id, "device_kind": d.kind})
+
+    def get_device(self, device_id: str) -> Device | None:
+        ref = self._get("DEVICES", device_id)
+        if not ref:
+            return None
+        item = self._get(f"VILLAGE#{ref['village_id']}", f"DEVICE#{device_id}")
+        return _device(item) if item else None
+
+    def list_devices(self, village_id: str | None = None) -> list[Device]:
+        if village_id is not None:
+            items = self._query(f"VILLAGE#{village_id}", "DEVICE#")
+            return [_device(i) for i in items]
+        refs = self._query("DEVICES")
+        by_village: dict[str, list[str]] = {}
+        for r in refs:
+            by_village.setdefault(str(r["village_id"]), []).append(str(r["sk"]))
+        out = []
+        for vid in sorted(by_village):
+            out += [d for d in self.list_devices(vid) if d.device_id in by_village[vid]]
+        return out
+
+    def update_device(self, village_id: str, device_id: str, *, condition: Any = None, **fields: Any) -> Device:
+        remove = [k for k, v in fields.items() if v is None]
+        sets = {k: (v.model_dump() if isinstance(v, BaseModel) else v) for k, v in fields.items() if v is not None}
+        cond = Attr("pk").exists() if condition is None else (Attr("pk").exists() & condition)
+        return _device(self._update(f"VILLAGE#{village_id}", f"DEVICE#{device_id}", sets, remove=remove,
+                                           condition=cond))
+
+    def claim_device_seq(self, device_id: str, boot: int, seq: int, ttl_days: int = 14) -> bool:
+        """Idempotency for device events: True the first time (device, boot, seq) is seen."""
+        try:
+            self._put({"pk": f"DEVICE#{device_id}", "sk": f"DEVSEQ#{boot}#{seq}",
+                       "ttl": int(clock.now().timestamp()) + ttl_days * 86400}, condition=Attr("pk").not_exists())
+            return True
+        except ConflictError:
+            return False
+
+    def put_device_event(self, device_id: str, at: str, boot: int, seq: int, body: dict[str, Any],
+                         ttl_days: int = 90) -> None:
+        self._put({"pk": f"DEVICE#{device_id}", "sk": f"EVT#{at}#{boot}#{seq}", "kind": "device_event",
+                   "ttl": int(clock.now().timestamp()) + ttl_days * 86400,
+                   "body": json.dumps(body, separators=(",", ":"), ensure_ascii=False)[:8000]})
+
+    def list_device_events(self, device_id: str, since: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        kwargs: dict[str, Any] = {"ScanIndexForward": False, "Limit": max(1, min(limit, 500))}
+        cond = Key("pk").eq(f"DEVICE#{device_id}")
+        cond = cond & (Key("sk").between(f"EVT#{since}", "EVT#~") if since else Key("sk").begins_with("EVT#"))
+        page = self.t.query(KeyConditionExpression=cond, **kwargs)
+        now = int(clock.now().timestamp())
+        return [json.loads(str(i["body"])) for i in page.get("Items", []) if not _expired(i, now)]
+
+    def put_device_test(self, device_id: str, at: str, body: dict[str, Any], ttl_days: int = 400) -> None:
+        self._put({"pk": f"DEVICE#{device_id}", "sk": f"TEST#{at}", "kind": "device_test",
+                   "ttl": int(clock.now().timestamp()) + ttl_days * 86400, **body})
+
+    def next_device_ctr(self, device_id: str) -> int:
+        """The next command counter for a device, shared by the shadow, LoRa and SMS paths (atomic ADD)."""
+        return int(self._update(f"DEVICE#{device_id}", "CTR", {}, add={"n": 1}).get("n", 0))
+
+    def put_command(self, c: SirenCommand, ttl_days: int = 400) -> None:
+        self._put({"pk": f"DEVICE#{c.device_id}", "sk": f"CMD#{c.id}", "kind": "siren_command",
+                   "ttl": int(clock.now().timestamp()) + ttl_days * 86400, **c.model_dump()},
+                  condition=Attr("pk").not_exists())
+
+    def get_command(self, device_id: str, cmd_id: str) -> SirenCommand | None:
+        item = self._get(f"DEVICE#{device_id}", f"CMD#{cmd_id}")
+        return _model(SirenCommand, item) if item else None
+
+    def list_commands(self, device_id: str, limit: int = 50) -> list[SirenCommand]:
+        items = self._query(f"DEVICE#{device_id}", "CMD#", newest_first=True, limit=limit)
+        return [_model(SirenCommand, i) for i in items]
+
+    def update_command(self, device_id: str, cmd_id: str, *, condition: Any = None, **fields: Any) -> SirenCommand:
+        cond = Attr("pk").exists() if condition is None else (Attr("pk").exists() & condition)
+        sets = {k: v for k, v in fields.items() if v is not None}
+        return _model(SirenCommand, self._update(f"DEVICE#{device_id}", f"CMD#{cmd_id}", sets, condition=cond))
+
+    def put_siren_row(self, row: SirenDelivery) -> bool:
+        """The siren tier row of an alert; False when (alert, device, round) is already there (idempotent)."""
+        try:
+            self._put({"pk": f"ALERT#{row.alert_id}", "sk": f"SIREN#{row.device_id}#{row.round:02d}",
+                       "kind": "siren_row", **row.model_dump()}, condition=Attr("pk").not_exists())
+            return True
+        except ConflictError:
+            return False
+
+    def list_siren_rows(self, alert_id: str) -> list[SirenDelivery]:
+        return [_model(SirenDelivery, i) for i in self._query(f"ALERT#{alert_id}", "SIREN#")]
+
+    def update_siren_row(self, alert_id: str, device_id: str, round_no: int, *, condition: Any = None,
+                         **fields: Any) -> SirenDelivery:
+        cond = Attr("pk").exists() if condition is None else (Attr("pk").exists() & condition)
+        sets = {k: v for k, v in fields.items() if v is not None}
+        return _model(SirenDelivery, self._update(f"ALERT#{alert_id}", f"SIREN#{device_id}#{round_no:02d}", sets,
+                                                  condition=cond))
+
+    def put_siren_request(self, r: SirenRequest, ttl_days: int = 1) -> None:
+        self._put({"pk": f"SIRENREQ#{r.id}", "sk": "META", "kind": "siren_request",
+                   "ttl": int(clock.now().timestamp()) + ttl_days * 86400, **r.model_dump()},
+                  condition=Attr("pk").not_exists())
+        self._put({"pk": f"VILLAGE#{r.village_id}", "sk": f"SIRENREQ#{r.requested_at}#{r.id}", "request_id": r.id,
+                   "ttl": int(clock.now().timestamp()) + ttl_days * 86400})
+
+    def get_siren_request(self, request_id: str) -> SirenRequest | None:
+        item = self._get(f"SIRENREQ#{request_id}", "META")
+        return _model(SirenRequest, item) if item and not _expired(item) else None
+
+    def list_siren_requests(self, village_id: str, limit: int = 10) -> list[SirenRequest]:
+        refs = self._query(f"VILLAGE#{village_id}", "SIRENREQ#", newest_first=True, limit=limit)
+        return [r for r in (self.get_siren_request(str(i["request_id"])) for i in refs) if r is not None]
+
+    def update_siren_request(self, request_id: str, *, condition: Any = None, **fields: Any) -> SirenRequest:
+        cond = Attr("pk").exists() if condition is None else (Attr("pk").exists() & condition)
+        return _model(SirenRequest, self._update(f"SIRENREQ#{request_id}", "META", fields, condition=cond))
+
+    def claim_siren_rate(self, village_id: str, slot: str, key: str, ttl_seconds: int = 7200) -> bool:
+        """True the first time this key (an alert, a request) sounds the village's sirens in this hour."""
+        try:
+            self._put({"pk": f"SIRENRATE#{village_id}", "sk": f"{slot}#{key}",
+                       "ttl": int(clock.now().timestamp()) + ttl_seconds}, condition=Attr("pk").not_exists())
+            return True
+        except ConflictError:
+            return False
+
+    def add_alert_counts(self, alert_id: str, **counts: int) -> Alert:
+        """Atomic ADD of the alert's siren counters (two events at once never lose one)."""
+        return _model(Alert, self._update(f"ALERT#{alert_id}", "META", {"updated_at": clock.iso(clock.now())},
+                                          add=counts, condition=Attr("pk").exists()))
+
+    def put_local_shadow(self, device_id: str, name: str, desired: dict[str, Any]) -> int:
+        """Local mode only: the desired document a device would read from its named shadow."""
+        item = self._update(f"DEVICE#{device_id}", f"SHADOW#{name}",
+                            {"desired": json.dumps(desired, separators=(",", ":"))}, add={"version": 1})
+        return int(item.get("version", 0))
+
+    def get_local_shadow(self, device_id: str, name: str) -> dict[str, Any] | None:
+        item = self._get(f"DEVICE#{device_id}", f"SHADOW#{name}")
+        return {"desired": json.loads(str(item["desired"])), "version": int(item.get("version", 0))} if item else None
 
     # -- maintenance -----------------------------------------------------
     def delete_where(self, predicate) -> int:

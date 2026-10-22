@@ -1,6 +1,6 @@
 """Seed villages, thresholds, officers, past events and demo stub recipients.
 
-Idempotent: re-running keeps each village's current level. Stub recipients
+Idempotent: re-running keeps each village's current level and each device's live health. Stub recipients
 ("Demo phone, stub channel") let the delivery records show without Telegram;
 they never reach a real phone. Real recipients join through the bot (/start).
 
@@ -13,6 +13,7 @@ import json
 
 from Pukaar.core.config import get_settings
 from Pukaar.services import checklist
+from Pukaar.services.devices import registry
 from Pukaar.services.risk_rules import river_level
 from Pukaar.store.models import GaugeConfig, PastEvent, Recipient, SoilRange, Thresholds, Village
 from Pukaar.store.repo import Repo, get_repo
@@ -64,6 +65,8 @@ def seed(repo: Repo) -> list[str]:
                 source="Open-Meteo flood API (GloFAS reanalysis), daily river discharge",
             ))
         checklist.seed(repo, raw["id"])
+        # The device registry: the village's sirens and boxes (labelled simulators today) and its gauge.
+        registry.seed_village(repo, village, raw.get("devices") or [])
         seeded.append(raw["id"])
     return seeded
 

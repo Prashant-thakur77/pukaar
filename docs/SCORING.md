@@ -20,6 +20,15 @@ because no archived global forecast put more than 8.5 mm in any hour over the vi
 Catching them would have meant Watch on 35 to 89 days a year. The rule's cost at the thresholds we
 chose is small: 0.1 to 0.3 more Watch days a year, and 1 to 2.6 more Warning days.
 
+The rules are now `risk-rules-v4`: they add **observed rain** (`rain_obs`) from tipping-bucket rain
+gauges on gauge v3 and rain-only nodes in each khad's catchment (docs/hardware/ALARM.md; the rules in
+docs/CONTRACT.md, "Observed rain"). It can only raise a level, needs 2 of the last 3 evaluations, and on
+its own stops at Warning. **Every number on this page is unchanged**: the archived scenarios carry no
+observed rain (no hourly gauge record was found for Seraj, Thunag or Gohar in the 2025 cloudbursts), so
+the back-test cannot score it; `data/scores.json` and `data/backtest.json` differ only in the rules
+name. Whether observed rain would have caught the 2025 misses is untested: it needs a gauge in the
+catchment during a real burst.
+
 ![Hits, misses and false alarms per configuration](charts/scores.svg)
 
 ## Method

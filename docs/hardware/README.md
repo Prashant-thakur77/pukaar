@@ -35,6 +35,9 @@ v1 HTTPS example ([esp32-gauge.ino](esp32-gauge/esp32-gauge.ino)) have not been
 compiled on a board, run in a river or soak-tested. Bench-test every pin,
 register and the stage arithmetic before one goes under a bridge.
 
+Sirens, rain nodes and the pradhan's indoor box are designed in [ALARM.md](ALARM.md) ("Alarm layer"
+below); none of them has been built or tested on hardware either.
+
 ## Design (v2)
 
 ```
@@ -395,3 +398,35 @@ installation.** After the gauge goes up:
 6. Put the real `device_id`, the thresholds and `"installed": true` in the
    village's `gauge` block and run `make seed`. Re-check the datum and the
    marks after the first monsoon.
+
+## Alarm layer
+
+The gauge says what the river is doing; the alarm layer is how a village hears it when phones and
+towers fail: a battery and solar siren node per hamlet cluster (tone then Hindi voice, every sound
+verified by current draw and a microphone), a tipping-bucket rain gauge on gauge v3 and a rain-only node
+in each khad's catchment, an indoor pradhan box, and a signed LoRa link from the upstream gauge to the
+downstream siren. The design, the honest acoustics limits (an attention device for a hamlet, not a
+valley), the bill of materials with price-confidence marks, the patterns, who may sound a siren, field
+work and costs are in **[ALARM.md](ALARM.md)**.
+
+**Untested on hardware, like everything on this page.** What exists is the cloud side and a labelled
+simulator: the device registry, per-device signed commands (golden vectors for the future firmware in
+`firmware/test/vectors/protocol_vectors.json`), the `SoundSirens` step after approval, the siren tier
+on each alert, three alarms, and observed rain (`rain_obs`) in the rules.
+
+```
+make device-provision KIND=siren VILLAGE=thunag   # thing + certificate + policy pukaar-siren-<stage>; keys in SSM
+make siren-sim VILLAGE=thunag                     # SIMULATED siren node on IoT Core: verifies, "plays", reports
+make gauge-sim-mqtt VILLAGE=gohar RAIN=120        # SIMULATED gauge with a 120 mm/h tipping-bucket burst
+```
+
+**Payload v3** adds the tipping-bucket fields to a gauge (or rain node) reading: `rain_tips_total`
+(cumulative, never cleared), `rain_tips_window` (tips since the previous reading), `rain_mm_per_tip`,
+`rain_max_tips_1min`, `rain_min_tip_ms`, `rain_bounce` and `rain_err` (bits: 1 bounce, 2 counter
+reset, 4 ULP fault). v1 `rain_mm_1h` is still accepted, as evidence only. The server turns the counter
+into 15-minute, 1-hour and 3-hour totals with an intensity correction; a band counts when 2 of the last 3
+evaluations meet it, observed rain only ever raises a level, and on its own it stops at Warning. A stuck
+bucket (no tips through 3 hours of forecast rain, or while the stage rose 30 cm) or a chattering one
+(tips faster than 400 ms, over 300 mm/h, bounces over 10% of tips) is suspect and does not count. A
+simulated reading is shown, never counted (`rain_obs_simulated_ignored:<level>`). Thresholds are
+illustrative until calibrated per khad with IMD and HPSDMA.

@@ -48,7 +48,9 @@ _LOG = get_logger("handler.gauge_ingest")
 # never-earlier conditional write in repo.put_sensor_reading. Backfill has its own window.
 WINDOW_SECONDS = 600
 NUMERIC_FIELDS = ("water_level_cm", "distance_mm", "rain_mm_1h", "battery_v", "rssi", "seq", "boot", "samples_ok",
-                  "samples_n", "iqr_mm", "quality", "err", "temp_c", "battery_mv", "solar_mv")
+                  "samples_n", "iqr_mm", "quality", "err", "temp_c", "battery_mv", "solar_mv", "rain_tips_total",
+                  "rain_tips_window", "rain_mm_per_tip", "rain_max_tips_1min", "rain_min_tip_ms", "rain_bounce",
+                  "rain_err")
 TOPIC_PART = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
 
 
@@ -124,6 +126,18 @@ def handle(event: Any, repo: Repo | None = None, now: datetime | None = None) ->
     if not isinstance(event, dict):
         return _reject("bad_payload", "payload is not a JSON object", {})
     now = now or clock.now()
+    # One function for every device (infra/template.yaml): sirens, boxes, relays, presence and the siren
+    # shadow go to handlers/device_ingest.py; a registered rain-only node's readings to observed rain.
+    from Pukaar.handlers import device_ingest
+
+    if device_ingest.is_device_message(event):
+        return device_ingest.handle(event, repo, now)
+    if str(event.get("device_id", "")).startswith("rain-"):
+        repo = repo or get_repo()
+        node = device_ingest.is_rain_node(repo, event)
+        if node is None:
+            return _reject("wrong_device", "not a registered rain node of this village", event)
+        return device_ingest.rain_node(repo, node, event, now)
     kind = event.get("topic_kind", "reading")
     if kind == "backfill":
         return _backfill(event, repo, now)

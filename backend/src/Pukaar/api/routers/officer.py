@@ -105,7 +105,9 @@ def get_alert(alert_id: str, principal: Principal = Depends(Allowed("view_consol
                        {"village_id": a.village_id, "replay": a.replay, "level": a.level}, repo=repo)
     if not people.allowed:
         deliveries = [views.masked_delivery(d, i) for i, d in enumerate(deliveries, 1)]
-    return {"alert": views.alert(a), "deliveries": deliveries,
+    from Pukaar.services import sirens
+
+    return {"alert": views.alert(a), "deliveries": deliveries, "sirens": sirens.tier(repo, a),
             "timeline": [t.model_dump() for t in repo.list_timeline(a.id)],
             "audit": [r.model_dump() for r in sorted(audit, key=lambda r: r.at)]}
 

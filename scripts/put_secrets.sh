@@ -5,6 +5,7 @@
 #   /pukaar/telegram_webhook_secret  random; Telegram echoes it in X-Telegram-Bot-Api-Secret-Token
 #   /pukaar/link_secret              random HMAC key for signed approval links
 #   /pukaar/report_ip_salt           random salt for report-abuse hashes (ROTATE_REPORT_SALT=1 replaces it)
+#   /pukaar/device_root              random root of the alarm devices' signing keys (ROTATE_DEVICE_ROOT=1 replaces it)
 # Set ROTATE_LINK_SECRET=1 to replace an existing link secret (voids open links).
 set -euo pipefail
 REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
@@ -38,6 +39,14 @@ if [[ "${ROTATE_REPORT_SALT:-0}" == "1" ]] || ! exists /pukaar/report_ip_salt; t
   openssl rand -hex 32 | put_secret /pukaar/report_ip_salt
 else
   echo "kept /pukaar/report_ip_salt"
+fi
+
+# Root of every alarm device's signing key (services/devices/keys.py: HKDF per device, never stored server side).
+# Rotating it (ROTATE_DEVICE_ROOT=1) changes every device key: re-provision every siren, box and relay.
+if [[ "${ROTATE_DEVICE_ROOT:-0}" == "1" ]] || ! exists /pukaar/device_root; then
+  openssl rand -hex 32 | put_secret /pukaar/device_root
+else
+  echo "kept /pukaar/device_root"
 fi
 
 read -r -s -p "Telegram bot token from BotFather (empty to skip Telegram): " TELEGRAM_TOKEN; echo

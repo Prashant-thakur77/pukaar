@@ -20,6 +20,7 @@ import { WhatToDo } from '../components/WhatToDo';
 import { DataStatusNote, LiveLevelNote, ShownLevel } from '../components/DataStatus';
 import { levelIsKnown } from '../lib/dataStatus';
 import { DeniedNote, EmptyState, ErrorState, Skeleton, SkeletonCards } from '../components/States';
+import { SirenLastTested } from '../components/SirenLastTested';
 import { usePoll } from '../hooks/usePoll';
 import { CHANNELS, PUBLIC_CHANNELS } from '../lib/live';
 import { enumLabels, useT } from '../i18n';
@@ -460,6 +461,7 @@ export default function VillagePage() {
             </div>
           </div>
           <DataStatusNote v={v} />
+          <SirenLastTested sirens={data.sirens} />
           <WhatToDo level={v.level} whereId="where" unknown={!levelIsKnown(v)} />
           {hold && (
             <p className="v-hold" role="note">

@@ -451,6 +451,13 @@ Resources:
               Condition:
                 StringEquals: { kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com" }
                 ForAnyValue:StringEquals: { kms:ResourceAliases: alias/aws/ssm }
+            # Siren commands: the named shadows of sirens and pradhan boxes only (services/devices/shadow.py).
+            - Sid: SirenShadows
+              Effect: Allow
+              Action: iot:UpdateThingShadow
+              Resource:
+                - !Sub arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:thing/siren-*
+                - !Sub arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:thing/box-*
       Events:
         # Everything needs a Cognito token unless listed below (docs/CONTRACT.md "Public routes").
         Proxy: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/{proxy+}", Method: ANY } }
@@ -556,6 +563,20 @@ Resources:
               Effect: Allow
               Action: appsync:EventPublish
               Resource: [!GetAtt PublicEvents.ChannelNamespaceArn, !GetAtt OfficerEvents.ChannelNamespaceArn]
+            # The siren check (services/sirens.check_unconfirmed) tells the duty officer; it never signs a command.
+            - Sid: OfficerChannels
+              Effect: Allow
+              Action: [ssm:GetParameter, ssm:GetParameters]
+              Resource:
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/pukaar/telegram_token
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/pukaar/vapid_*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*
+              Condition:
+                StringEquals: { kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com" }
+                ForAnyValue:StringEquals: { kms:ResourceAliases: alias/aws/ssm }
 
   WorkflowFunction:
     Type: AWS::Serverless::Function
@@ -635,6 +656,13 @@ Resources:
               Condition:
                 StringEquals: { kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com" }
                 ForAnyValue:StringEquals: { kms:ResourceAliases: alias/aws/ssm }
+            # Siren commands: the named shadows of sirens and pradhan boxes only (services/devices/shadow.py).
+            - Sid: SirenShadows
+              Effect: Allow
+              Action: iot:UpdateThingShadow
+              Resource:
+                - !Sub arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:thing/siren-*
+                - !Sub arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:thing/box-*
 
   WorkerFunction:
     Type: AWS::Serverless::Function
@@ -707,6 +735,11 @@ Resources:
               Condition:
                 StringEquals: { kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com" }
                 ForAnyValue:StringEquals: { kms:ResourceAliases: alias/aws/ssm }
+            # The worker never signs a siren command: the device root is denied outright, whatever /pukaar/* allows.
+            - Sid: NoDeviceRoot
+              Effect: Deny
+              Action: [ssm:GetParameter, ssm:GetParameters]
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/pukaar/device_root
 
   # ---------------------------------------------------------------- river gauges (AWS IoT Core)
   # A gauge connects over MQTT with its own X.509 certificate (scripts/iot_provision.py makes one
@@ -738,11 +771,34 @@ Resources:
         MaximumRetryAttempts: 0
         DestinationConfig:
           OnFailure: { Type: SQS, Destination: !GetAtt WorkerDLQ.Arn }
-      # The same rights as the sweep: a rising gauge re-evaluates the village exactly as a sweep does.
+      # The same rights as the sweep: a rising gauge re-evaluates the village exactly as a sweep does. As the device
+      # ingest it also checks LoRa frames forwarded by boxes and relays with the origin's key, passes a pradhan's
+      # siren trigger on to the village's sirens, and tells the duty officers (Telegram, Web Push).
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref Table }
         - S3CrudPolicy: { BucketName: !Ref Bucket }
         - Statement:
+            - Sid: DeviceSecrets
+              Effect: Allow
+              Action: [ssm:GetParameter, ssm:GetParameters]
+              Resource:
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/pukaar/device_root
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/pukaar/telegram_token
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/pukaar/vapid_*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*
+              Condition:
+                StringEquals: { kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com" }
+                ForAnyValue:StringEquals: { kms:ResourceAliases: alias/aws/ssm }
+            # Siren commands: the named shadows of sirens and pradhan boxes only (services/devices/shadow.py).
+            - Sid: SirenShadows
+              Effect: Allow
+              Action: iot:UpdateThingShadow
+              Resource:
+                - !Sub arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:thing/siren-*
+                - !Sub arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:thing/box-*
             - Sid: Polly
               Effect: Allow
               Action: polly:SynthesizeSpeech
@@ -818,6 +874,191 @@ Resources:
             Resource:
               - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/gauge/*/${!iot:Connection.Thing.ThingName}/reading"
               - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/gauge/*/${!iot:Connection.Thing.ThingName}/backfill"
+
+  # ---------------------------------------------------------------- the alarm layer (AWS IoT Core)
+  # Siren nodes, pradhan boxes and LoRa relays (docs/hardware/ALARM.md). Each connects with its own X.509
+  # certificate (`make device-provision KIND=siren VILLAGE=thunag`) as its own thing name, reads its named
+  # shadows ("siren": the signed command, the single source of truth; "config") on every connect, and
+  # publishes events, heartbeats and its outbox backlog. Three more topic rules feed the SAME function as the
+  # gauges (GaugeIngestFunction; handlers/gauge_ingest.py dispatches to handlers/device_ingest.py): no new
+  # Lambda, log group or DLQ. Commands are signed per device (services/devices/protocol.py) with keys derived
+  # from the SSM root /pukaar/device_root; no KMS key on any stage ($1 a month; docs/SECURITY.md).
+
+  # A siren may connect as itself and publish only its own events, heartbeats and backlog, LoRa frames it
+  # forwards, its own shadows' get/update and its jobs. No iot:*, no other thing, no gauge topic.
+  PukaarSirenPolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyName: !Sub pukaar-siren-${Stage}
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: iot:Connect
+            Resource: !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:client/${!iot:Connection.Thing.ThingName}"
+            Condition: { Bool: { "iot:Connection.Thing.IsAttached": "true" } }
+          - Effect: Allow
+            Action: iot:Publish
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/siren/*/${!iot:Connection.Thing.ThingName}/event"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/siren/*/${!iot:Connection.Thing.ThingName}/heartbeat"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/siren/*/${!iot:Connection.Thing.ThingName}/backfill"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/mesh/*/${!iot:Connection.Thing.ThingName}/relay"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/siren/get"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/siren/update"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/config/get"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/jobs/*"
+          - Effect: Allow
+            Action: iot:Subscribe
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/siren/*"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/config/*"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/things/${!iot:Connection.Thing.ThingName}/jobs/*"
+          - Effect: Allow
+            Action: iot:Receive
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/siren/*"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/config/*"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/jobs/*"
+
+  # A pradhan box: the same, under pukaar/box/... (its "siren" shadow carries the level, the clip and the
+  # siren command it forwards over LoRa).
+  PukaarBoxPolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyName: !Sub pukaar-box-${Stage}
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: iot:Connect
+            Resource: !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:client/${!iot:Connection.Thing.ThingName}"
+            Condition: { Bool: { "iot:Connection.Thing.IsAttached": "true" } }
+          - Effect: Allow
+            Action: iot:Publish
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/box/*/${!iot:Connection.Thing.ThingName}/event"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/box/*/${!iot:Connection.Thing.ThingName}/heartbeat"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/box/*/${!iot:Connection.Thing.ThingName}/backfill"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/mesh/*/${!iot:Connection.Thing.ThingName}/relay"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/siren/get"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/siren/update"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/config/get"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/jobs/*"
+          - Effect: Allow
+            Action: iot:Subscribe
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/siren/*"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/config/*"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/things/${!iot:Connection.Thing.ThingName}/jobs/*"
+          - Effect: Allow
+            Action: iot:Receive
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/siren/*"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/config/*"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/jobs/*"
+
+  # A LoRa relay: it only forwards frames it heard (it holds no sender keys, so it cannot forge one).
+  PukaarRelayPolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyName: !Sub pukaar-relay-${Stage}
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: iot:Connect
+            Resource: !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:client/${!iot:Connection.Thing.ThingName}"
+            Condition: { Bool: { "iot:Connection.Thing.IsAttached": "true" } }
+          - Effect: Allow
+            Action: iot:Publish
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/pukaar/mesh/*/${!iot:Connection.Thing.ThingName}/relay"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/config/get"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/jobs/*"
+          - Effect: Allow
+            Action: iot:Subscribe
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/config/*"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/things/${!iot:Connection.Thing.ThingName}/jobs/*"
+          - Effect: Allow
+            Action: iot:Receive
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/shadow/name/config/*"
+              - !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/things/${!iot:Connection.Thing.ThingName}/jobs/*"
+
+  PukaarDeviceRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      RuleName: !Join ["_", !Split ["-", !Sub "pukaar_device_${Stage}"]]
+      TopicRulePayload:
+        Description: Siren, pradhan-box and LoRa-mesh messages to the device ingest (the gauge-ingest Lambda).
+        AwsIotSqlVersion: "2016-03-23"
+        # device_kind, not kind: a siren's test_result event carries its own "kind" (silent or audible).
+        Sql: "SELECT *, topic(2) AS device_kind, topic(3) AS village_id, topic(4) AS device_id, topic(5) AS topic_kind FROM 'pukaar/+/+/+/+' WHERE (topic(2) = 'siren' OR topic(2) = 'box' OR topic(2) = 'mesh') AND (topic(5) = 'event' OR topic(5) = 'heartbeat' OR topic(5) = 'backfill' OR topic(5) = 'relay')"
+        RuleDisabled: false
+        Actions:
+          - Lambda: { FunctionArn: !GetAtt GaugeIngestFunction.Arn }
+        ErrorAction:
+          Sqs: { QueueUrl: !Ref WorkerDLQ, RoleArn: !GetAtt GaugeRuleErrorRole.Arn, UseBase64: false }
+
+  # Connected and disconnected, for sirens, boxes and relays only. Out of order and duplicated: the ingest
+  # orders by time, and offline means nothing heard on any path for 20 minutes (a disconnect is not enough).
+  PukaarDevicePresenceRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      RuleName: !Join ["_", !Split ["-", !Sub "pukaar_device_presence_${Stage}"]]
+      TopicRulePayload:
+        Description: Presence of sirens, pradhan boxes and relays to the device ingest.
+        AwsIotSqlVersion: "2016-03-23"
+        Sql: "SELECT * FROM '$aws/events/presence/+/+' WHERE startswith(clientId, 'siren-') OR startswith(clientId, 'box-') OR startswith(clientId, 'relay-')"
+        RuleDisabled: false
+        Actions:
+          - Lambda: { FunctionArn: !GetAtt GaugeIngestFunction.Arn }
+        ErrorAction:
+          Sqs: { QueueUrl: !Ref WorkerDLQ, RoleArn: !GetAtt GaugeRuleErrorRole.Arn, UseBase64: false }
+
+  # The siren's own reported state (idle, sounding, fault ...) from its named shadow, into the registry.
+  PukaarSirenShadowRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      RuleName: !Join ["_", !Split ["-", !Sub "pukaar_siren_shadow_${Stage}"]]
+      TopicRulePayload:
+        Description: Reported state of the siren shadows to the device ingest.
+        AwsIotSqlVersion: "2016-03-23"
+        Sql: "SELECT *, topic(3) AS thing_name, 'siren_shadow' AS source FROM '$aws/things/+/shadow/name/siren/update/documents' WHERE startswith(topic(3), 'siren-')"
+        RuleDisabled: false
+        Actions:
+          - Lambda: { FunctionArn: !GetAtt GaugeIngestFunction.Arn }
+        ErrorAction:
+          Sqs: { QueueUrl: !Ref WorkerDLQ, RoleArn: !GetAtt GaugeRuleErrorRole.Arn, UseBase64: false }
+
+  DeviceRuleInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt GaugeIngestFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: iot.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !GetAtt PukaarDeviceRule.Arn
+
+  DevicePresenceRuleInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt GaugeIngestFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: iot.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !GetAtt PukaarDevicePresenceRule.Arn
+
+  SirenShadowRuleInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt GaugeIngestFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: iot.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !GetAtt PukaarSirenShadowRule.Arn
 
   # ---------------------------------------------------------------- schedule
   SweepScheduleRole:
@@ -1459,6 +1700,61 @@ Resources:
       AlarmActions: [!Ref AlarmTopic]
       OKActions: [!Ref AlarmTopic]
 
+  # The sweep emits SirenOffline every 15 minutes: how many installed (not simulated) sirens and pradhan boxes
+  # have not been heard on any path (cell, LoRa, SMS) for 20 minutes (services/sirens.health_scan).
+  SirenOfflineAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-siren-offline
+      AlarmDescription: An installed siren or pradhan box has not been heard on any path (cell, LoRa, SMS) for two sweeps; see /sensors.
+      Metrics:
+        - Id: q
+          Expression: "SELECT MAX(SirenOffline) FROM Pukaar"
+          Period: 900
+          ReturnData: true
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  # The device ingest emits SirenTestFailed when a siren reports a failed silent or audible test.
+  SirenTestFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-siren-test-failed
+      AlarmDescription: A siren failed its silent (weekly) or audible test; it may not sound when needed. See /sensors and the device's events.
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(SirenTestFailed) FROM Pukaar"
+          Period: 3600
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  # The siren check (sweep, and the workflow's Recall) emits SirenUnconfirmed when a real siren did not confirm,
+  # with current and microphone evidence, that it sounded within 180 s of the command.
+  SirenUnconfirmedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pukaar-${Stage}-siren-unconfirmed
+      AlarmDescription: A siren was commanded for a live alert but did not confirm it sounded; the duty officer was told to phone the pradhan or send the signed SMS from the console.
+      Metrics:
+        - Id: q
+          Expression: "SELECT SUM(SirenUnconfirmed) FROM Pukaar"
+          Period: 60
+          ReturnData: true
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
   # The canary (handlers/canary.py) sends CanaryFailed 0 or 1 every 15 minutes. Any 1 in half an hour fires,
   # and so does no result at all (the canary or its schedule broke), hence breaching on missing data.
   CanaryFailedAlarm:
@@ -1494,7 +1790,10 @@ Resources:
                           [{"expression": "SELECT SUM(NobodyOnDuty) FROM Pukaar GROUP BY District", "id": "s5", "label": "NobodyOnDuty"}],
                           [{"expression": "SELECT SUM(AlertUnanswered) FROM Pukaar GROUP BY Level", "id": "s6", "label": "AlertUnanswered"}],
                           [{"expression": "SELECT MAX(CanaryFailed) FROM Pukaar", "id": "s7", "label": "CanaryFailed"}],
-                          [{"expression": "SELECT MAX(GaugeUnhealthy) FROM Pukaar", "id": "s8", "label": "GaugeUnhealthy"}]]}},
+                          [{"expression": "SELECT MAX(GaugeUnhealthy) FROM Pukaar", "id": "s8", "label": "GaugeUnhealthy"}],
+                          [{"expression": "SELECT MAX(SirenOffline) FROM Pukaar", "id": "s9", "label": "SirenOffline"}],
+                          [{"expression": "SELECT SUM(SirenUnconfirmed) FROM Pukaar", "id": "s10", "label": "SirenUnconfirmed"}],
+                          [{"expression": "SELECT SUM(SirenVerified) FROM Pukaar", "id": "s11", "label": "SirenVerified"}]]}},
             {"type": "metric", "x": 12, "y": 0, "width": 12, "height": 6, "properties": {
               "title": "Model", "region": "${AWS::Region}", "period": 300,
               "metrics": [[{"expression": "SELECT SUM(ModelError) FROM Pukaar", "id": "m1", "label": "ModelError"}],
@@ -1551,6 +1850,17 @@ Outputs:
     Value: !Ref PukaarGaugePolicy
   GaugeTopicRuleName:
     Value: !Ref PukaarGaugeRule
+  SirenPolicyName:
+    Description: IoT policy attached to each siren certificate (make device-provision KIND=siren)
+    Value: !Ref PukaarSirenPolicy
+  BoxPolicyName:
+    Description: IoT policy attached to each pradhan-box certificate (make device-provision KIND=box)
+    Value: !Ref PukaarBoxPolicy
+  RelayPolicyName:
+    Description: IoT policy attached to each LoRa relay certificate (make device-provision KIND=relay)
+    Value: !Ref PukaarRelayPolicy
+  DeviceTopicRuleName:
+    Value: !Ref PukaarDeviceRule
   ReportGuardrailId:
     Value: !GetAtt ReportGuardrail.GuardrailId
   ReportGuardrailVersion:

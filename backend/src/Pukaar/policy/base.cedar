@@ -1,6 +1,7 @@
 // Pukaar role policies. Default is deny; forbid overrides permit.
 // Principals: Pukaar::Officer, Pukaar::Pradhan, Pukaar::System, Pukaar::Agent.
-// Resources:  Pukaar::Village, Pukaar::Alert, Pukaar::Report, Pukaar::RollCall, Pukaar::Tool, Pukaar::App.
+// Resources:  Pukaar::Village, Pukaar::Alert, Pukaar::Report, Pukaar::RollCall, Pukaar::Tool, Pukaar::App,
+//             Pukaar::Device (a siren, pradhan box, relay, rain node or gauge).
 // Context:    level, approved, all_officers_timed_out, replay, channel, village_id.
 
 @id("officer-operate")
@@ -125,14 +126,15 @@ forbid (
 when { context.replay == true && context.channel != "stub" };
 
 @id("agents-never-send")
-@desc("A model agent can never approve, send, change a level, change the shelter ledger or mark a road blocked.")
+@desc("A model agent can never approve, send, change a level, change the shelter ledger, mark a road blocked, or sound, stop, test or change a siren.")
 forbid (
   principal is Pukaar::Agent,
   action in [
     Pukaar::Action::"approve", Pukaar::Action::"decline", Pukaar::Action::"deliver",
     Pukaar::Action::"auto_send", Pukaar::Action::"failsafe", Pukaar::Action::"issue_directive",
     Pukaar::Action::"open_rollcall", Pukaar::Action::"remind_rollcall", Pukaar::Action::"set_shelter_status",
-    Pukaar::Action::"block_road"
+    Pukaar::Action::"block_road", Pukaar::Action::"sound_siren", Pukaar::Action::"stop_siren",
+    Pukaar::Action::"test_siren", Pukaar::Action::"manage_device", Pukaar::Action::"pour_test"
   ],
   resource
 );
@@ -284,3 +286,190 @@ permit (
   action == Pukaar::Action::"all_clear",
   resource is Pukaar::Alert
 );
+
+// -- the alarm layer: sirens, pradhan boxes, relays (services/sirens.py, api/routers/devices.py) ----------------
+// policy/guard.py fills every context key these read, so a missing key never turns into an evaluation error:
+// pattern (W1, C1, A1, T1, D1), src, drill, critical_auto_send, machine_evidence_critical,
+// second_officer_distinct, device_simulated, device_village_id, kind (silent | audible), hour_ist (0-23),
+// village_alert_open, started_by_self, change.
+@id("system-sound-siren-approved")
+@desc("Sirens sound for an officer-approved Warning or Critical, or the flagged critical auto-send. The Critical pattern (C1) needs machine evidence at Critical or a second officer; without either the alert sounds the Warning pattern (W1), never silence.")
+permit (
+  principal is Pukaar::System,
+  action == Pukaar::Action::"sound_siren",
+  resource is Pukaar::Alert
+)
+when {
+  (context.level == "warning" || context.level == "critical") &&
+  (context.approved == true ||
+   (context.level == "critical" && context.all_officers_timed_out == true && context.critical_auto_send == true)) &&
+  (context.pattern == "W1" ||
+   (context.pattern == "C1" && context.level == "critical" &&
+    (context.machine_evidence_critical == true || context.second_officer_distinct == true)))
+};
+
+@id("system-sound-siren-failsafe")
+@desc("A broken workflow never means silence: the failsafe sounds the sirens for a critical or already-approved alert, under the same rule for the Critical pattern.")
+permit (
+  principal is Pukaar::System,
+  action == Pukaar::Action::"sound_siren",
+  resource is Pukaar::Alert
+)
+when {
+  context.src == "failsafe" && (context.level == "critical" || context.approved == true) &&
+  (context.pattern == "W1" ||
+   (context.pattern == "C1" && context.level == "critical" &&
+    (context.machine_evidence_critical == true || context.second_officer_distinct == true)))
+};
+
+@id("system-drill-pattern")
+@desc("An officer-approved drill plays the drill pattern (D1) only, through test_siren, never sound_siren.")
+permit (
+  principal is Pukaar::System,
+  action == Pukaar::Action::"test_siren",
+  resource is Pukaar::Alert
+)
+when { context.drill == true && context.pattern == "D1" && context.approved == true };
+
+@id("system-propagate-pradhan-siren")
+@desc("A pradhan's local siren trigger (box key and hold) may be passed on to the other sirens of the same village only.")
+permit (
+  principal is Pukaar::System,
+  action == Pukaar::Action::"sound_siren",
+  resource is Pukaar::Village
+)
+when {
+  context.src == "pradhan_box" && context.village_id != "" && context.device_village_id == context.village_id &&
+  (context.pattern == "W1" || context.pattern == "C1")
+};
+
+@id("system-scheduled-test")
+@desc("The weekly self-test is silent; an audible scheduled test runs only between 09:00 and 18:00 IST and never while the village has an open alert.")
+permit (
+  principal is Pukaar::System,
+  action == Pukaar::Action::"test_siren",
+  resource is Pukaar::Device
+)
+when {
+  context.kind == "silent" ||
+  (context.kind == "audible" && context.hour_ist >= 9 && context.hour_ist < 18 && context.village_alert_open == false)
+};
+
+@id("officer-manual-siren")
+@desc("An officer sounds a village's sirens by hand (an evacuation): a Warning alone, a Critical only with a second, different officer (the two-person rule).")
+permit (
+  principal is Pukaar::Officer,
+  action == Pukaar::Action::"sound_siren",
+  resource is Pukaar::Village
+)
+when { context.level == "warning" || (context.level == "critical" && context.second_officer_distinct == true) };
+
+@id("officer-stop-view-devices")
+@desc("Officers stop a sounding siren and see every device and its health.")
+permit (
+  principal is Pukaar::Officer,
+  action in [Pukaar::Action::"stop_siren", Pukaar::Action::"view_devices"],
+  resource
+);
+
+@id("officer-test-siren")
+@desc("Officers test a siren: a silent test at any time, an audible one only between 09:00 and 18:00 IST.")
+permit (
+  principal is Pukaar::Officer,
+  action == Pukaar::Action::"test_siren",
+  resource is Pukaar::Device
+)
+when { context.kind == "silent" || (context.kind == "audible" && context.hour_ist >= 9 && context.hour_ist < 18) };
+
+@id("officer-manage-device")
+@desc("Officers change a device's settings; turning on edge autonomy needs a second, different officer.")
+permit (
+  principal is Pukaar::Officer,
+  action == Pukaar::Action::"manage_device",
+  resource is Pukaar::Device
+)
+when { context.change != "autonomy_enable" || context.second_officer_distinct == true };
+
+@id("pradhan-view-own-devices")
+@desc("A pradhan sees the devices of their own villages only.")
+permit (
+  principal is Pukaar::Pradhan,
+  action == Pukaar::Action::"view_devices",
+  resource
+)
+when { context.village_id != "" && principal.village_ids.contains(context.village_id) };
+
+@id("pradhan-siren-own-village")
+@desc("A pradhan sounds the sirens of their own village only, at Warning or Critical (as with the box key and hold in the field).")
+permit (
+  principal is Pukaar::Pradhan,
+  action == Pukaar::Action::"sound_siren",
+  resource is Pukaar::Village
+)
+when {
+  context.village_id != "" && principal.village_ids.contains(context.village_id) &&
+  (context.level == "warning" || context.level == "critical")
+};
+
+@id("pradhan-stop-own-trigger")
+@desc("A pradhan stops only a siren they started themselves, in their own village.")
+permit (
+  principal is Pukaar::Pradhan,
+  action == Pukaar::Action::"stop_siren",
+  resource is Pukaar::Village
+)
+when { context.village_id != "" && principal.village_ids.contains(context.village_id) && context.started_by_self == true };
+
+@id("staff-pour-test")
+@desc("An officer, or the pradhan of the village, opens a rain-gauge pour-test window (a measured cup into the funnel).")
+permit (
+  principal,
+  action == Pukaar::Action::"pour_test",
+  resource is Pukaar::Device
+)
+when {
+  principal is Pukaar::Officer ||
+  (principal is Pukaar::Pradhan && context.village_id != "" && principal.village_ids.contains(context.village_id))
+};
+
+@id("no-replay-sirens")
+@desc("A replay never sounds or tests a real siren; only a labelled simulator may answer a replay.")
+forbid (
+  principal,
+  action in [Pukaar::Action::"sound_siren", Pukaar::Action::"test_siren"],
+  resource
+)
+when { context.replay == true && context.device_simulated == false };
+
+@id("drill-never-real-pattern")
+@desc("A drill never sounds a warning pattern: drills go through test_siren with the drill pattern (D1).")
+forbid (
+  principal,
+  action == Pukaar::Action::"sound_siren",
+  resource
+)
+when { context.drill == true };
+
+@id("external-cap-never-sounds")
+@desc("An external CAP alert (SACHET, IMD, BBMB) is evidence only and never sounds a siren.")
+forbid (
+  principal,
+  action == Pukaar::Action::"sound_siren",
+  resource
+)
+when { context.src == "external_cap" };
+
+@id("public-demo-accounts-never-act-on-sirens")
+@desc("Public demo account (judge, judge_pradhan): it may see the devices but never sound, stop, test or change a siren, live or in a replay.")
+forbid (
+  principal,
+  action in [
+    Pukaar::Action::"sound_siren", Pukaar::Action::"stop_siren", Pukaar::Action::"test_siren",
+    Pukaar::Action::"manage_device", Pukaar::Action::"pour_test"
+  ],
+  resource
+)
+when {
+  [Pukaar::Officer::"judge", Pukaar::Pradhan::"judge",
+   Pukaar::Officer::"judge_pradhan", Pukaar::Pradhan::"judge_pradhan"].contains(principal)
+};

@@ -338,9 +338,9 @@ THING = "${!iot:Connection.Thing.ThingName}"  # IoT policy variable, escaped fro
 def test_gauge_iot_policy_allows_only_own_client_id_and_own_reading_topic():
     """A stolen gauge certificate can connect as that gauge and publish its readings (live and
     backfill); nothing else."""
-    policies = [r for r in RES.values() if r["Type"] == "AWS::IoT::Policy"]
-    assert len(policies) == 1
-    stmts = policies[0]["Properties"]["PolicyDocument"]["Statement"]
+    policies = {n for n, r in RES.items() if r["Type"] == "AWS::IoT::Policy"}
+    assert policies == {"PukaarGaugePolicy", "PukaarSirenPolicy", "PukaarBoxPolicy", "PukaarRelayPolicy"}
+    stmts = RES["PukaarGaugePolicy"]["Properties"]["PolicyDocument"]["Statement"]
     assert all(s["Effect"] == "Allow" for s in stmts)
     by_action = {}
     for s in stmts:
@@ -359,7 +359,7 @@ def test_gauge_iot_policy_allows_only_own_client_id_and_own_reading_topic():
 
 
 def test_gauge_rule_feeds_the_ingest_lambda_with_errors_to_the_dlq():
-    rule = next(r for r in RES.values() if r["Type"] == "AWS::IoT::TopicRule")["Properties"]["TopicRulePayload"]
+    rule = RES["PukaarGaugeRule"]["Properties"]["TopicRulePayload"]
     assert rule["Sql"] == ("SELECT *, topic(3) AS village_id, topic(4) AS device_id, topic(5) AS topic_kind "
                            "FROM 'pukaar/gauge/+/+/+' WHERE topic(5) = 'reading' OR topic(5) = 'backfill'")
     assert rule["AwsIotSqlVersion"] == "2016-03-23"
@@ -373,9 +373,10 @@ def test_gauge_rule_feeds_the_ingest_lambda_with_errors_to_the_dlq():
 
     perms = [r["Properties"] for r in RES.values() if r["Type"] == "AWS::Lambda::Permission"
              and r["Properties"]["Principal"] == "iot.amazonaws.com"]
-    assert len(perms) == 1
-    assert perms[0]["SourceArn"] == {"Fn::GetAtt": "PukaarGaugeRule.Arn"}
-    assert perms[0]["FunctionName"] == {"Fn::GetAtt": "GaugeIngestFunction.Arn"}
+    rules = sorted(n for n, r in RES.items() if r["Type"] == "AWS::IoT::TopicRule")
+    # One permission per topic rule, each for its own rule only, all on the one ingest function.
+    assert sorted(p["SourceArn"]["Fn::GetAtt"].removesuffix(".Arn") for p in perms) == rules
+    assert all(p["FunctionName"] == {"Fn::GetAtt": "GaugeIngestFunction.Arn"} for p in perms)
 
     # The handler module the rule names exists and parses the rule's output.
     from Pukaar.handlers import gauge_ingest
@@ -631,3 +632,113 @@ def test_reading_retention_is_a_parameter_30_on_dev_and_400_on_prod():
 
     assert overrides("default")["ReadingRetentionDays"] == "30"
     assert int(overrides("prod")["ReadingRetentionDays"]) >= 365
+
+
+# -- the alarm layer: sirens, pradhan boxes, relays (docs/hardware/ALARM.md) --------------------------
+ARN_IOT = "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:"
+
+
+def _iot_policy(name: str) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for s in RES[name]["Properties"]["PolicyDocument"]["Statement"]:
+        assert s["Effect"] == "Allow"
+        (action,) = _as_list(s["Action"])
+        assert "*" not in action, action
+        out[action] = [r["Fn::Sub"].removeprefix(ARN_IOT) for r in _as_list(s["Resource"])]
+    return out
+
+
+def test_device_iot_policies_are_scoped_to_their_own_thing():
+    """A stolen siren, box or relay certificate reaches its own topics, shadows and jobs, and nothing else:
+    no iot:*, no other thing's name, no gauge topic."""
+    for name, kind in (("PukaarSirenPolicy", "siren"), ("PukaarBoxPolicy", "box"), ("PukaarRelayPolicy", "relay")):
+        pol = _iot_policy(name)
+        assert set(pol) == {"iot:Connect", "iot:Publish", "iot:Subscribe", "iot:Receive"}, name
+        assert pol["iot:Connect"] == [f"client/{THING}"]
+        cond = [s.get("Condition") for s in RES[name]["Properties"]["PolicyDocument"]["Statement"]
+                if s["Action"] == "iot:Connect"]
+        assert cond == [{"Bool": {"iot:Connection.Thing.IsAttached": "true"}}]
+        for action, resources in pol.items():
+            for r in resources:
+                assert THING in r, (name, action, r)  # every resource names the connecting thing itself
+                assert "pukaar/gauge/" not in r, (name, r)
+                assert r.split(THING)[0] in {"client/", f"topic/pukaar/{kind}/*/", "topic/pukaar/mesh/*/",
+                                             "topic/$aws/things/", "topicfilter/$aws/things/"}, (name, r)
+        assert RES[name]["Properties"]["PolicyName"] == {"Fn::Sub": f"pukaar-{kind}-${{Stage}}"}
+    siren = _iot_policy("PukaarSirenPolicy")
+    assert f"topic/pukaar/siren/*/{THING}/event" in siren["iot:Publish"]
+    assert f"topic/$aws/things/{THING}/shadow/name/siren/update" in siren["iot:Publish"]
+    assert f"topicfilter/$aws/things/{THING}/shadow/name/siren/*" in siren["iot:Subscribe"]
+    relay = _iot_policy("PukaarRelayPolicy")
+    assert not any("/shadow/name/siren/" in r for r in relay["iot:Publish"])  # a relay never sees a command shadow
+
+
+def test_device_rules_filter_their_topics_and_feed_the_one_ingest_function():
+    device = RES["PukaarDeviceRule"]["Properties"]["TopicRulePayload"]
+    sql = device["Sql"]
+    assert "FROM 'pukaar/+/+/+/+'" in sql and "topic(2) AS device_kind" in sql
+    for part in ("topic(2) = 'siren'", "topic(2) = 'box'", "topic(2) = 'mesh'", "topic(5) = 'event'",
+                 "topic(5) = 'heartbeat'", "topic(5) = 'backfill'", "topic(5) = 'relay'"):
+        assert part in sql, part
+    assert "'gauge'" not in sql  # gauges keep their own rule
+    presence = RES["PukaarDevicePresenceRule"]["Properties"]["TopicRulePayload"]["Sql"]
+    assert "'$aws/events/presence/+/+'" in presence
+    assert all(f"startswith(clientId, '{p}-')" in presence for p in ("siren", "box", "relay"))
+    shadow = RES["PukaarSirenShadowRule"]["Properties"]["TopicRulePayload"]["Sql"]
+    assert "'$aws/things/+/shadow/name/siren/update/documents'" in shadow and "startswith(topic(3), 'siren-')" in shadow
+    for name in ("PukaarDeviceRule", "PukaarDevicePresenceRule", "PukaarSirenShadowRule"):
+        payload = RES[name]["Properties"]["TopicRulePayload"]
+        assert payload["Actions"] == [{"Lambda": {"FunctionArn": {"Fn::GetAtt": "GaugeIngestFunction.Arn"}}}], name
+        assert payload["ErrorAction"]["Sqs"]["QueueUrl"] == {"Fn::Ref": "WorkerDLQ"}, name
+    from Pukaar.handlers import device_ingest
+
+    assert device_ingest.is_device_message({"device_kind": "siren"})
+    assert device_ingest.is_device_message({"eventType": "connected", "clientId": "siren-x"})
+
+
+def test_only_three_roles_can_read_the_device_root_and_no_kms_key_on_any_stage():
+    """The per-device keys derive from /pukaar/device_root (services/devices/keys.py). The API, the workflow and
+    the device ingest may read it; the worker is denied it outright; nothing else has a grant that covers it.
+    And no KMS key: it would bill $1 a month on dev."""
+    assert not [n for n, r in RES.items() if r["Type"].startswith("AWS::KMS::")]
+    root = "parameter/pukaar/device_root"
+    allowed, denied = set(), set()
+    for name, s in _statements():
+        actions = _as_list(s.get("Action"))
+        if not any(a.startswith("ssm:GetParameter") for a in actions):
+            continue
+        resources = [r["Fn::Sub"] if isinstance(r, dict) else r for r in _as_list(s["Resource"])]
+        covers = any(r.endswith(root) or r.endswith("parameter/pukaar/*") for r in resources)
+        if covers and s["Effect"] == "Allow":
+            allowed.add(name)
+        if covers and s["Effect"] == "Deny":
+            denied.add(name)
+    assert allowed - denied == {"ApiFunction", "WorkflowFunction", "GaugeIngestFunction"}
+    assert denied == {"WorkerFunction"}
+
+
+def test_only_the_signers_may_write_siren_and_box_shadows():
+    grants = [(n, s) for n, s in _statements() if "iot:UpdateThingShadow" in _as_list(s.get("Action"))]
+    assert {n for n, _ in grants} == {"ApiFunction", "WorkflowFunction", "GaugeIngestFunction"}
+    for _, s in grants:
+        assert _as_list(s["Action"]) == ["iot:UpdateThingShadow"]
+        resources = [r["Fn::Sub"] for r in _as_list(s["Resource"])]
+        assert sorted(r.rsplit(":", 1)[1] for r in resources) == ["thing/box-*", "thing/siren-*"]
+
+
+def test_siren_alarms_watch_the_metrics_the_code_emits():
+    alarms = _alarms()
+    for name, metric_name, source in (
+        ("SirenOfflineAlarm", "SirenOffline", SRC / "services" / "sirens.py"),
+        ("SirenTestFailedAlarm", "SirenTestFailed", SRC / "services" / "sirens.py"),
+        ("SirenUnconfirmedAlarm", "SirenUnconfirmed", SRC / "services" / "sirens.py"),
+    ):
+        props = alarms[name]
+        assert metric_name in props["Metrics"][0]["Expression"], name
+        assert f'"{metric_name}"' in source.read_text(encoding="utf-8"), name
+    offline = alarms["SirenOfflineAlarm"]
+    assert offline["EvaluationPeriods"] == offline["DatapointsToAlarm"] == 2 and offline["Metrics"][0]["Period"] == 900
+    assert offline["OKActions"] == [{"Fn::Ref": "AlarmTopic"}]
+    failed = alarms["SirenTestFailedAlarm"]
+    assert failed["Metrics"][0]["Period"] == 3600 and failed["TreatMissingData"] == "notBreaching"
+    assert alarms["SirenUnconfirmedAlarm"]["Metrics"][0]["Period"] == 60

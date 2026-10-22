@@ -16,7 +16,27 @@
         "critical_cm": 280,
         "installed": false,
         "note": "Illustrative thresholds, to be set from the gauge's own record after installation. No gauge is installed yet; device_id is the labelled simulator (scripts/gauge_sim.py)."
-      }
+      },
+      "devices": [
+        {
+          "device_id": "siren-thunag-sim",
+          "kind": "siren",
+          "installed": false,
+          "simulated": true,
+          "lora_addr": 257,
+          "voice_slot": 0,
+          "note": "Labelled simulators only (scripts/siren_sim_mqtt.py): no siren, box or rain node is installed anywhere. A '-sim' device is always simulated; it never counts toward SirenOffline and never raises a level."
+        },
+        {
+          "device_id": "box-thunag-sim",
+          "kind": "box",
+          "installed": false,
+          "simulated": true,
+          "lora_addr": 258,
+          "owner_recipient_id": "stub-thunag-1",
+          "note": "Labelled simulators only (scripts/siren_sim_mqtt.py): no siren, box or rain node is installed anywhere. A '-sim' device is always simulated; it never counts toward SirenOffline and never raises a level."
+        }
+      ]
     },
     {
       "id": "janjehli",
@@ -49,7 +69,22 @@
         "warning_cm": 230,
         "critical_cm": 320,
         "installed": false,
-        "note": "Illustrative thresholds, to be set from the gauge's own record after installation. No gauge is installed yet; device_id is the labelled simulator (scripts/gauge_sim.py)."
+        "note": "Illustrative thresholds, to be set from the gauge's own record after installation. No gauge is installed yet; device_id is the labelled simulator (scripts/gauge_sim.py).",
+        "rain": {
+          "mm_per_tip": 0.2,
+          "correction_c": 0.0005,
+          "i0_mm_h": 50,
+          "max_plausible_mm_h": 300,
+          "min_tip_ms": 400,
+          "watch_15min": 10,
+          "watch_1h": 15,
+          "watch_3h": 40,
+          "warning_15min": 20,
+          "warning_1h": 30,
+          "warning_3h": 70,
+          "installed": false,
+          "thresholds_source": "illustrative; calibrate per khad with IMD/HPSDMA (Nepal's Birendranagar rain siren: 60 mm/h)"
+        }
       }
     },
     {
