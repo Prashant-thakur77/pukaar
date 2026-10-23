@@ -75,6 +75,8 @@ def seed(repo: Repo) -> list[str]:
             lgd_village_code=raw.get("lgd_code") or None,
             # The keypad code a caller keys in on the enrolment IVR (delivery/inbound.py), on the village card.
             ivr_code=str(raw["ivr_code"]) if raw.get("ivr_code") else None,
+            # The pradhan's household count, once received (pilot metric 1, coverage); None until then.
+            households=int(raw["households"]) if raw.get("households") else None,
             thresholds=Thresholds.from_file(th) if th else None,
             # Illustrative thresholds, to be set from the gauge's own record after installation.
             gauge=GaugeConfig.model_validate(raw["gauge"]) if raw.get("gauge") else None,

@@ -9,6 +9,7 @@ import { afterActionFilename } from '../../lib/afterAction';
 import { fmtTime } from '../../lib/format';
 import { CHANNELS } from '../../lib/live';
 import { relayLabel } from '../../lib/roster';
+import { alertRows } from '../../lib/pilotTen';
 import type { Alert, AlertOutcome } from '../../types';
 
 /* A sent alert's record in the console: its after-action report, "was this real?" and who it reached. */
@@ -76,6 +77,8 @@ const OUTCOMES: AlertOutcome[] = ['real_flood', 'no_flood', 'unknown'];
 export function OutcomePicker({ alert: a }: { alert: Alert }) {
   const { t, lang } = useT();
   const [value, setValue] = useState<AlertOutcome | null>(a.outcome ?? null);
+  // When harm began (optional, local time): the lead time achieved, pilot metric 5.
+  const [onset, setOnset] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -83,7 +86,8 @@ export function OutcomePicker({ alert: a }: { alert: Alert }) {
     setErr(null);
     setBusy(true);
     try {
-      const updated = await api.setAlertOutcome(a.id, o);
+      const iso = onset && o === 'real_flood' ? new Date(onset).toISOString() : undefined;
+      const updated = await api.setAlertOutcome(a.id, o, iso);
       setValue(updated.outcome ?? o);
     } catch (e) {
       setErr(e instanceof ApiError ? (lang === 'hi' && e.messageHi) || e.messageEn : t('console.aar.error'));
@@ -113,6 +117,10 @@ export function OutcomePicker({ alert: a }: { alert: Alert }) {
         {' '}
         {value ? t('console.outcome.saved', { o: t(`console.outcome.${value}`) }) : t('console.outcome.hint')}
       </span>
+      <label className="small aar-onset">
+        {lang === 'hi' ? 'असली बाढ़ हो तो, नुक़सान कब शुरू हुआ (वैकल्पिक)' : 'If a real flood: when harm began (optional)'}{' '}
+        <input type="datetime-local" value={onset} disabled={busy} onChange={(e) => setOnset(e.target.value)} />
+      </label>
       {err && (
         <span className="bad-text small" role="alert">
           {' '}
@@ -168,6 +176,35 @@ export function Deliveries({ alertId }: { alertId: string }) {
         </li>
       ))}
     </ul>
+    </>
+  );
+}
+
+/** The ten pilot metrics for this alert (GET /alerts/{id}/metrics): counts and times, "—" where not measured. */
+export function AlertMetricsPanel({ alertId }: { alertId: string }) {
+  const { lang } = useT();
+  const { data, error, loading } = usePoll(() => api.alertMetrics(alertId), [alertId], 60000);
+  if (loading && !data) return <Skeleton lines={3} />;
+  if (error && !data) return <p className="small bad-text">{error.messageEn}</p>;
+  if (!data) return null;
+  const kind = data.kind === 'live' ? null : data.kind === 'drill' ? (lang === 'hi' ? 'अभ्यास' : 'Drill') : lang === 'hi' ? 'रीप्ले' : 'Replay';
+  return (
+    <>
+      {kind && (
+        <p className="small muted">
+          {lang === 'hi' ? `${kind}: असली चेतावनियों से अलग गिना जाता है।` : `${kind}: counted apart from real alerts.`}
+        </p>
+      )}
+      <dl className="dp-metrics">
+        {alertRows(data, lang).map((r) => (
+          <div key={r.n}>
+            <dt>
+              {r.n}. {r.title}
+            </dt>
+            <dd>{r.value}</dd>
+          </div>
+        ))}
+      </dl>
     </>
   );
 }

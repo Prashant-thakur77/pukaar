@@ -3,9 +3,11 @@ import { BellRing, ChevronDown } from 'lucide-react';
 import { ApiError } from '../api';
 import { usePoll } from '../hooks/usePoll';
 import { useT } from '../i18n';
+import { reasonWord, signalsLine } from '../lib/deviceHealth';
 import { fmtTime } from '../lib/format';
 import {
   audibleAllowed,
+  healthChip,
   measText,
   readSoundReply,
   requestId,
@@ -150,6 +152,26 @@ function SirenDetail({ alert }: { alert: AlertLike }) {
               </li>
             );
           })}
+        </ul>
+      )}
+
+      {(devs.data?.devices ?? []).some((d) => d.health !== 'ok') && (
+        <ul className="siren-rows siren-health" aria-label={lang === 'hi' ? 'उपकरणों की सेहत' : 'Device health'}>
+          {(devs.data?.devices ?? [])
+            .filter((d) => d.health !== 'ok')
+            .map((d) => {
+              const chip = healthChip(d.health, lang);
+              const line = signalsLine(d.health_signals, lang);
+              return (
+                <li key={`h-${d.device_id}`}>
+                  <strong>{d.device_id}</strong>
+                  <span className={`chip ${chip.cls}`}>{chip.label}</span>
+                  <span className="small">
+                    {[...(d.health_reasons ?? []).map((r) => reasonWord(r, lang)), line].filter(Boolean).join(' · ')}
+                  </span>
+                </li>
+              );
+            })}
         </ul>
       )}
 

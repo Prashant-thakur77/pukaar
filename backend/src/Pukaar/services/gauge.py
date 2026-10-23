@@ -544,10 +544,12 @@ def _rain(repo: Repo, village: Village, device_id: str, fields: ReadingFields, a
 
 # -- health ---------------------------------------------------------------
 def health(g: GaugeConfig, readings: list[SensorReading], now: datetime,
-           latest: SensorReading | None = None) -> dict[str, Any]:
+           latest: SensorReading | None = None, raining: bool = False) -> dict[str, Any]:
     """Health of one gauge from its last 24 h (oldest first; live and backfill) and, if that is
     empty, its newest reading of any age. gauge_unhealthy when silent for over SILENT_MINUTES,
-    the battery is low, or at least half of the last day's readings were bad."""
+    the battery is low, or at least half of the last day's readings were bad; and the FloodNet checks
+    (services/devices/floodnet.py): the battery empty within a week at its slope, more than 20% of readings
+    missing from the sequence numbers, or the same level 6 times running while it rains (raining)."""
     seen = [clock.parse(r.received_at or r.at) for r in readings]
     if latest is not None:
         seen.append(clock.parse(latest.received_at or latest.at))
@@ -569,6 +571,13 @@ def health(g: GaugeConfig, readings: list[SensorReading], now: datetime,
         reasons.append("low_battery")
     if share is not None and len(readings) >= BAD_SHARE_MIN_READINGS and share >= BAD_SHARE_UNHEALTHY:
         reasons.append("bad_quality")
+    from Pukaar.services.devices import floodnet
+
+    signals = floodnet.signals(
+        now=now, battery=[(clock.parse(r.at), r.battery_v * 1000) for r in readings if r.battery_v is not None],
+        empty=float(g.low_battery_mv), seqs=[(r.boot, r.seq) for r in readings],
+        values=[r.water_level_cm for r in readings if r.origin == "live" and r.quality == "good"], raining=raining)
+    reasons += signals["reasons"]
     last = readings[-1] if readings else latest
     return {
         "status": "gauge_unhealthy" if reasons else "ok",
@@ -587,7 +596,42 @@ def health(g: GaugeConfig, readings: list[SensorReading], now: datetime,
         "bad_share_24h": share,
         "by_quality": by_quality,
         "backfilled_24h": sum(1 for r in readings if r.origin == "backfill"),
+        "signals": {k: signals[k] for k in ("battery", "packet_loss", "stuck")},
     }
+
+
+def raining_now(repo: Repo, village_id: str) -> bool:
+    """Forecast rain at or over IMD "moderate" (or a band) in the village's newest live reading: the stuck-value
+    check counts only then (a steady river in dry weather is normal). Never raises."""
+    try:
+        latest = repo.list_readings(village_id, limit=1)
+        reading = latest[0] if latest and not latest[0].replay else None
+        if reading is None:
+            return False
+        return risk_rules.raining(reading, risk_rules.rain_level(reading.rain_24h_mm), None) is not None
+    except Exception:
+        return False
+
+
+def silence(repo: Repo, village: Village, now: datetime) -> dict[str, Any] | None:
+    """Is the village gauge silent (nothing received, live or backfill, for over SILENT_MINUTES)? For the
+    rules (risk_rules.assess gauge_silence): a gauge that stops reporting while it rains is itself a signal
+    (Lachen 2023, Babai 2014). None when the village has no gauge. Never raises: a failed read is unknown,
+    reported as not silent so it never raises a level on its own."""
+    g = village.gauge
+    if g is None:
+        return None
+    try:
+        latest = repo.latest_sensor_reading(village.id, None, include_backfill=True)
+    except Exception as exc:
+        log(_LOG, "gauge silence check failed", 30, village_id=village.id, error=str(exc)[:200])
+        return None
+    last = clock.parse(latest.received_at or latest.at) if latest else None
+    minutes = round((now - last).total_seconds() / 60, 1) if last else None
+    return {"device_id": g.device_id, "installed": g.installed,
+            "simulated": bool(latest.simulated) if latest else g.device_id.endswith("-sim"),
+            "last_seen": clock.iso(last) if last else None, "minutes_silent": minutes,
+            "silent_after_minutes": SILENT_MINUTES, "silent": minutes is None or minutes > SILENT_MINUTES}
 
 
 def health_scan(repo: Repo, now: datetime | None = None) -> list[dict[str, Any]]:
@@ -602,7 +646,7 @@ def health_scan(repo: Repo, now: datetime | None = None) -> list[dict[str, Any]]
                 continue
             readings = repo.list_sensor_readings(v.id, since)
             latest = None if readings else repo.latest_sensor_reading(v.id, None, include_backfill=True)
-            h = health(v.gauge, readings, now, latest)
+            h = health(v.gauge, readings, now, latest, raining=raining_now(repo, v.id))
             out.append({"village_id": v.id, "device_id": v.gauge.device_id, "installed": v.gauge.installed, **h})
             if h["unhealthy"]:
                 log(_LOG, "gauge_unhealthy", 30 if v.gauge.installed else 20, village_id=v.id,
@@ -645,6 +689,6 @@ def view(repo: Repo, v: Village) -> dict[str, Any] | None:
         "level": risk_rules.gauge_counted_level(latest, v.gauge) if latest and fresh else None,
         "measured_level": risk_rules.gauge_level(latest.water_level_cm, v.gauge) if latest and fresh else None,
         "rising_fast": bool(latest and fresh and latest.rising_fast),
-        "health": health(v.gauge, series, now, None if series else latest),
+        "health": health(v.gauge, series, now, None if series else latest, raining=raining_now(repo, v.id)),
         "series": points,
     }

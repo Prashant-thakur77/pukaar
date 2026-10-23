@@ -142,7 +142,8 @@ def test_fixed_template_names_the_nearest_open_place(repo, fake_places):
     assert out.safe_place["id"] == "osm-node-2" and out.safe_place["status"] == "OPEN"
     assert "सबसे पास सुरक्षित जगह: माता मंदिर।" in out.text_hi
     assert "Nearest safe place: Mata Temple." in out.text_en
-    assert out.text_hi.endswith(hi.CALL_112_HI)
+    # Five-element order: the script ends with where to go, and 112 comes before the action.
+    assert out.text_hi.endswith("सबसे पास सुरक्षित जगह: माता मंदिर।") and hi.CALL_112_HI in out.text_hi
     mark(repo, "osm-node-2", "FULL")
     out = draft_alert(v, "warning", TRACE, repo, None)
     assert out.safe_place["id"] == "osm-node-1" and "राजकीय विद्यालय थुनाग" in out.text_hi

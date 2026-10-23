@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowUpRight, CircleCheck, CircleDashed, CircleDot, RotateCcw } from 'lucide-react';
 import { loadPilotReadiness } from '../api';
 import { Skeleton } from '../components/States';
+import { TenMetrics } from '../components/TenMetrics';
 import { useT } from '../i18n';
 import { fmtDate, fmtNumber } from '../lib/format';
 import {
@@ -393,6 +394,29 @@ const STATUS: Record<ReadinessStatus, { word: Txt; Icon: typeof CircleCheck }> =
   in_progress: { word: { en: 'In progress', hi: 'चल रहा है' }, Icon: CircleDot },
   not_started: { word: { en: 'Not started', hi: 'शुरू नहीं' }, Icon: CircleDashed },
 };
+
+/* ------------------------------------------------------------------ the ten metrics ------------------------------------------------------------------ */
+
+function MetricsSection() {
+  const { lang } = useT();
+  const en = lang === 'en';
+  return (
+    <section className="how-band pl-ten" aria-labelledby="pl-ten-h" id="metrics">
+      <div className="wrap">
+        <SectionHead
+          id="pl-ten-h"
+          title={en ? 'The ten numbers a pilot publishes' : 'पायलट के दस आँकड़े'}
+          lead={
+            en
+              ? 'After every alert: who confirmed and how fast, the assisted households, the time from first signal to first call, whether the siren sounded, and more. No deployed warning system we reviewed publishes these. Real values below.'
+              : 'हर चेतावनी के बाद: किसने कितनी जल्दी पुष्टि की, मदद वाले घर, पहले संकेत से पहली कॉल तक का समय, सायरन बजा या नहीं, और भी। जिन चालू चेतावनी प्रणालियों को हमने देखा, उनमें से कोई इन्हें प्रकाशित नहीं करती। नीचे असली आँकड़े।'
+          }
+        />
+        <TenMetrics />
+      </div>
+    </section>
+  );
+}
 
 function ReadinessSection() {
   const { lang } = useT();
@@ -811,6 +835,7 @@ const TOC: { id: string; t: Txt }[] = [
   { id: 'cost', t: { en: 'Messaging', hi: 'संदेश' } },
   { id: 'pays', t: { en: 'All-in and the case', hi: 'पूरा ख़र्च और तर्क' } },
   { id: 'ready', t: { en: 'Readiness', hi: 'तैयारी' } },
+  { id: 'metrics', t: { en: 'Ten metrics', hi: 'दस माप' } },
   { id: 'plan', t: { en: '90 days', hi: '90 दिन' } },
 ];
 
@@ -844,6 +869,7 @@ export default function Pilot() {
       <CostSection draft={draft} setDraft={setDraft} />
       <PaysSection />
       <ReadinessSection />
+      <MetricsSection />
       <PlanSection />
       <p className="wrap xp-next">
         <Link to="/proof" className="go-link">

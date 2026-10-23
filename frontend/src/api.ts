@@ -25,6 +25,8 @@ import type {
   Health,
   Me,
   PilotMetrics,
+  AlertMetrics,
+  VillageCare,
   PublicOverview,
   ReplayStatus,
   PushSubscriptionView,
@@ -348,8 +350,8 @@ export const api = {
   devApprovalLink: (id: string) => request<DevApprovalLink>(`/dev/approval-link/${enc(id)}`),
   approve: (id: string) => request<Alert>(`/alerts/${enc(id)}/approve`, { method: 'POST', body: {} }),
   /** "Was this real?" after a live alert closed (officer only, Cedar set_alert_outcome). */
-  setAlertOutcome: (id: string, outcome: AlertOutcome) =>
-    request<Alert>(`/alerts/${enc(id)}/outcome`, { method: 'POST', body: { outcome } }),
+  setAlertOutcome: (id: string, outcome: AlertOutcome, onsetAt?: string) =>
+    request<Alert>(`/alerts/${enc(id)}/outcome`, { method: 'POST', body: onsetAt ? { outcome, onset_at: onsetAt } : { outcome } }),
   decline: (id: string, reason?: string) =>
     request<Alert>(`/alerts/${enc(id)}/decline`, { method: 'POST', body: reason ? { reason } : {} }),
   /** The officer's own words for a pending alert (E in the console), held to the model draft's rules. */
@@ -359,6 +361,10 @@ export const api = {
   snoozeAlert: (id: string, minutes = 10) =>
     request<{ alert_id: string; snoozed_until: string; minutes: number }>(`/alerts/${enc(id)}/snooze`, { method: 'POST', body: { minutes } }),
   afterAction: (id: string) => requestBlob(afterActionPath(id)),
+  /** The ten pilot metrics for one alert (counts and times, no people). */
+  alertMetrics: (id: string) => request<AlertMetrics>(`/alerts/${enc(id)}/metrics`),
+  /** Observers, assisted households and coverage per village: the gaps the roster shows. */
+  villageCare: () => request<{ villages: VillageCare[]; min_observers: number; women_share_goal: number }>('/care/villages'),
   alertAudio: (id: string) => request<AlertAudio>(`/alerts/${enc(id)}/audio`, { auth: false }),
   ack: (id: string, token: string) =>
     request<{ ok: boolean; acknowledged_at: string }>(`/alerts/${enc(id)}/ack`, { method: 'POST', body: { token }, auth: false }),

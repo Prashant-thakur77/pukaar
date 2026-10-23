@@ -39,6 +39,13 @@ def handler(event: dict[str, Any] | None = None, context: Any = None) -> dict[st
     from Pukaar.services import duty
 
     digests = duty.maybe_send_digests(repo)
+
+    # Assisted households not confirmed in time: their neighbour is asked to check (services/assisted.py), and the
+    # "why we warned" note once an alert has ended (services/followup.py). Neither raises.
+    from Pukaar.services import assisted, followup
+
+    escalated = assisted.run_due(repo)
+    followups = followup.run_due(repo)
     summary = {r.village_id: {"level": r.level, "raw": r.raw_level, "rose": r.rose, "alert_id": r.alert_id,
                               "skipped": r.skipped, "note": r.note} for r in results}
     errors = sum(1 for r in results if r.note.startswith("error"))
@@ -48,4 +55,4 @@ def handler(event: dict[str, Any] | None = None, context: Any = None) -> dict[st
         metric("SweepCompleted", 1)
     return {"villages": summary, "errors": errors, "nobody_on_duty": empty, "gauges_unhealthy": unhealthy,
             "sirens_offline": siren_health.get("offline", []), "sirens_unconfirmed": unconfirmed,
-            "erasures": erased, "digests": digests}
+            "erasures": erased, "digests": digests, "assisted_escalated": escalated, "followups": followups}

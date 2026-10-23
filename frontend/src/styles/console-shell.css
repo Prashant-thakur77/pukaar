@@ -255,6 +255,12 @@ kbd {
 .dp-more > summary { display: inline-flex; align-items: center; min-height: var(--tap-console); cursor: pointer; font-size: var(--t-small); font-weight: 600; color: var(--accent-text); }
 .dp-more .dp-ev { margin-top: var(--sp-1); }
 .dp-meta svg { width: 16px; height: 16px; vertical-align: -3px; }
+/* The ten pilot metrics for one alert (AlertMetricsPanel): label over value, two columns from a tablet up. */
+.dp-metrics { display: grid; gap: var(--sp-2) var(--sp-4); margin: 0; }
+.dp-metrics > div { display: grid; gap: 2px; }
+.dp-metrics dt { font-size: var(--t-meta); line-height: var(--lh-meta); color: var(--ink-2); }
+.dp-metrics dd { margin: 0; font-size: var(--t-small); line-height: var(--lh-small); color: var(--ink); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+@media (min-width: 720px) { .dp-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .dp-msg {
   margin: 0; padding: var(--sp-3) var(--sp-4);

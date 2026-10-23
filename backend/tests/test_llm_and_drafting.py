@@ -108,7 +108,12 @@ def test_model_draft_is_wrapped_in_fixed_safety_text(repo):
     v = repo.get_village("thunag")
     out = draft_alert(v, "warning", TRACE, repo, GoodLLM())
     assert out.reasoning_model == "us.amazon.nova-2-lite-v1:0" and out.check.passed
-    assert out.text_hi.endswith("आपात स्थिति में 112 पर कॉल करें।")
+    # The five elements stay code's; the checked advice line goes after the hazard; the text ends with where to go.
+    from Pukaar.templates import script
+
+    assert all(script.elements(out.text_hi, "warning", v.name_hi).values())
+    assert "नाले के पास न जाएँ।" in out.text_hi and "Keep away from the stream." in out.text_en
+    assert out.text_hi.endswith(script.GO_HIGH_HI) and "आपात स्थिति में 112 पर कॉल करें।" in out.text_hi
 
 
 def test_rejected_draft_falls_back_to_template(repo):

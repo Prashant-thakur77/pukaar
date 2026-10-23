@@ -74,6 +74,10 @@ async def webhook(request: Request, x_telegram_bot_api_secret_token: str = Heade
             _toast(cq["id"], "धन्यवाद, दर्ज हो गया।" if d else "पहले ही दर्ज है।")
         elif data.startswith(("safe:", "help:")) and chat_id:
             _rollcall_answer(repo, cq["id"], chat_id, data)
+        elif data.startswith("chk:") and chat_id and data.count(":") == 2:  # a neighbour checked (services/assisted.py)
+            from Pukaar.services import assisted
+
+            _toast(cq["id"], assisted.checked(repo, *data[4:].split(":", 1), by_chat=chat_id))
         elif data.startswith("consent:") and chat_id:
             _consent(repo, cq, chat_id, data[len("consent:"):])
         elif data == "noconsent" and chat_id:

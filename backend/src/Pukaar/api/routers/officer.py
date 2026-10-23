@@ -116,6 +116,18 @@ def get_alert(alert_id: str, principal: Principal = Depends(Allowed("view_consol
             "audit": [r.model_dump() for r in sorted(audit, key=lambda r: r.at)]}
 
 
+@router.get("/alerts/{alert_id}/metrics")
+def alert_metrics(alert_id: str, principal: Principal = Depends(Allowed("view_console", "alert", "alert_id"))) -> dict:
+    """The ten pilot metrics for this alert (services/pilot_metrics.py): counts and times, no names or numbers."""
+    from Pukaar.services import pilot_metrics
+
+    repo = get_repo()
+    a = repo.get_alert(alert_id)
+    if a is None or (principal.role not in READS_EVERYTHING and a.village_id not in principal.village_ids):
+        raise HTTPException(404, "Alert not found")
+    return {"alert_id": a.id, **pilot_metrics.alert_metrics(repo, a)}
+
+
 # The report is static HTML from the alert's own records; it runs no script and loads nothing.
 _REPORT_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'none'"
 
@@ -146,6 +158,8 @@ def get_after_action(alert_id: str, fresh: bool = False, format: str = "html",
 
 class OutcomeBody(BaseModel):
     outcome: str
+    # When harm began, if known (ISO 8601): lead time achieved, pilot metric 5. Optional; "" clears it.
+    onset_at: str | None = None
 
 
 @router.post("/alerts/{alert_id}/outcome")
@@ -167,9 +181,21 @@ def set_outcome(alert_id: str, body: OutcomeBody,
         raise HTTPException(409, {"code": "open", "message_en": "Record this after the alert closes.",
                                   "message_hi": "चेतावनी बंद होने के बाद दर्ज करें।"})
     now = clock.iso(clock.now())
-    updated = repo.update_alert(a.id, outcome=body.outcome, outcome_by=principal.username, outcome_at=now)
+    fields: dict = {"outcome": body.outcome, "outcome_by": principal.username, "outcome_at": now}
+    if body.onset_at is not None:
+        try:
+            fields["outcome_onset_at"] = clock.iso(clock.parse(body.onset_at)) if body.onset_at.strip() else None
+        except (ValueError, TypeError):
+            raise HTTPException(400, "onset_at must be an ISO 8601 time, e.g. 2026-07-01T02:30:00Z") from None
+    updated = repo.update_alert(a.id, **fields)
     repo.add_timeline(a.id, "outcome", f"{body.outcome} by {principal.username}"
-                      + (f" (was {a.outcome})" if a.outcome and a.outcome != body.outcome else ""))
+                      + (f" (was {a.outcome})" if a.outcome and a.outcome != body.outcome else "")
+                      + (f"; harm began {fields['outcome_onset_at']}" if fields.get("outcome_onset_at") else ""))
+    # The "why we warned" note, once per alert: the outcome is what it reports (services/followup.py; never raises).
+    from Pukaar.services import followup
+
+    if followup.send(repo, updated, "outcome") is not None:
+        updated = repo.get_alert(a.id) or updated
     try:
         after_action.store(after_action.build(repo, updated))
     except Exception as exc:  # the answer is stored either way; a fresh report shows it too
@@ -253,6 +279,9 @@ def edit_alert(alert_id: str, body: EditBody,
     updated = repo.update_alert(a.id, text_hi=new_hi, text_en=new_en,
                                 draft_check=DraftCheck(passed=True, reason=f"edited by {principal.username}; {check.reason}"))
     repo.add_timeline(a.id, "edited", f"message edited by {principal.username}")
+    from Pukaar.templates import script
+
+    script.note_voice_length(repo, a.id, new_hi)  # a long edit: said on the timeline (voice is billed per minute)
     # The spoken copies follow the words: the alert MP3 now, the call audio again at delivery.
     try:
         audio_key = polly.synthesize_alert(a.id, new_hi)
@@ -556,6 +585,51 @@ def set_recipient_role(village_id: str, recipient_id: str, body: RecipientRoleBo
     except KeyError:
         raise HTTPException(404, "Recipient not found in this village") from None
     return recipients.view(r)
+
+
+class RecipientCareBody(BaseModel):
+    assisted: bool | None = None
+    assisted_reason: str | None = None  # elderly | disabled | alone | pregnant | other; "" clears
+    escalate_to: str | None = None  # a recipient id of the same village; "" clears
+    gender: str | None = None  # female | male | other; "" clears. Optional, only to report coverage
+
+
+@router.post("/villages/{village_id}/recipients/{recipient_id}/care")
+def set_recipient_care(village_id: str, recipient_id: str, body: RecipientCareBody,
+                       principal: Principal = Depends(Allowed("set_recipient_role", "village", "village_id",
+                                                              village_from_path=True))) -> dict:
+    """Mark a household as assisted (older, disabled, alone, pregnant) and name the neighbour or relay who checks on
+    them when they do not confirm (services/assisted.py), and the optional gender. Same rule as naming relays: an
+    officer, or the village's own pradhan. Audited ("recipient_care_changed")."""
+    from Pukaar.services import assisted, recipients
+
+    repo = get_repo()
+    if repo.get_village(village_id) is None:
+        raise HTTPException(404, "Village not found")
+    try:
+        r = assisted.set_care(repo, village_id, recipient_id, assisted=body.assisted, reason=body.assisted_reason,
+                              escalate_to=body.escalate_to, gender=body.gender, actor=principal.username,
+                              actor_role=principal.role)
+    except assisted.CareError as exc:
+        raise HTTPException(400, str(exc)) from None
+    except KeyError:
+        raise HTTPException(404, "Recipient not found in this village") from None
+    return {**recipients.view(r), **assisted.view(r)}
+
+
+@router.get("/care/villages")
+def village_care(principal: Principal = Depends(Allowed("view_recipients"))) -> dict:
+    """Each village's observers (two wanted, half women encouraged), assisted households without a named neighbour,
+    and coverage against the household list: the gaps the roster page shows. Counts and first names only."""
+    from Pukaar.services import assisted
+
+    repo = get_repo()
+    villages = repo.list_villages()
+    if principal.role not in READS_EVERYTHING:
+        villages = [v for v in villages if v.id in principal.village_ids]
+    return {"villages": [{**assisted.village_care(repo, v.id), "name": v.name, "name_hi": v.name_hi,
+                          "district": v.district} for v in villages],
+            "min_observers": assisted.MIN_OBSERVERS, "women_share_goal": assisted.WOMEN_SHARE_GOAL}
 
 
 class ReplayBody(BaseModel):

@@ -369,6 +369,24 @@ sends an OK message when the gauge recovers.
 ask the gauge reader to check power and the antenna; replace the battery or SIM. Bad readings: debris
 under the sensor or a moved mount; clean or re-level it and re-survey the datum.
 
+**FloodNet reasons** (services/devices/floodnet.py, after FloodNet NYC's maintenance playbook). Besides
+`silent`, `low_battery` and `bad_quality`, a gauge is unhealthy for `battery_empty_in_<n>d` (the battery slope
+over three days reaches empty within a week: check the solar panel and the battery), `packet_loss_<pct>pct`
+(more than 20% of readings missing from the device's sequence numbers: the antenna, the SIM's signal, or the
+LoRa relay) and `stuck_<n>_readings` (the same level six times running while it rains: a branch or the pier
+under the sensor; clean and re-level). Sirens, boxes and rain nodes show the same reasons on `/how#sensors` and
+in the console's siren panel, as "degraded".
+
+**Silent while it rains: a Watch, not just unhealthy.** An installed gauge that stops reporting for over 30
+minutes while the forecast or a rain gauge says it is raining (24-hour forecast at or over 15.6 mm, IMD
+"moderate", or any rain band) raises the village to Watch with the rule `gauge_silent_in_rain:watch`, and the
+duty officer is asked to approve a Watch alert at once (the metric `GaugeSilentInRain`, by village). In Sikkim
+in 2023 the CWC station at Lachen went dark after 10 pm and the flood reached Teesta III around midnight; in
+Nepal's Babai basin in 2014 the gauge washed away and more than 20 people died. Treat the silence as the
+river's news: phone the gauge reader and the pradhan before anything else, and ask for a look at the river.
+The silence counts once, never as a second source, and never above Watch on its own; simulated and
+not-installed gauges are evidence only.
+
 **Who to call.** The gauge reader of the village (phone), then the on-call engineer.
 
 **Tell the DDMA?** Yes, in the monsoon or if the village is at Watch or above: its observed river level

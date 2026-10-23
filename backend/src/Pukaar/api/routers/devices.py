@@ -76,7 +76,10 @@ def list_devices(principal: Principal = Depends(require_user)) -> dict:
     devices = repo.list_devices()
     if principal.role not in READS_EVERYTHING:
         devices = [d for d in devices if d.village_id in allowed]
-    return {"devices": [registry.view(d, now) for d in devices]}
+    # FloodNet checks (battery slope, packet loss, stuck values) for a district's worth; past that the list stays light.
+    deep = len(devices) <= 300
+    return {"devices": [registry.view(d, now, signals=registry.device_signals(repo, d, now) if deep else None)
+                        for d in devices]}
 
 
 def _can(principal: Principal, v: Village, devices: list[Device]) -> dict[str, bool]:
@@ -105,7 +108,8 @@ def village_devices(village_id: str, principal: Principal = Depends(require_user
     devices = repo.list_devices(v.id)
     requests = [r.model_dump() | {"request_id": r.id} for r in repo.list_siren_requests(v.id)
                 if r.status == "open" and clock.parse(r.expires_at) > now]
-    return {"village_id": v.id, "devices": [registry.view(d, now) for d in devices], "can": _can(principal, v, devices),
+    return {"village_id": v.id, "devices": [registry.view(d, now, signals=registry.device_signals(repo, d, now))
+                                            for d in devices], "can": _can(principal, v, devices),
             "requests": requests}
 
 

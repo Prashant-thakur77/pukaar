@@ -18,6 +18,8 @@ live        live flood alerts that went out (views.went_out); never replays, nev
   median_minutes_first_ack  per alert: first send to the first acknowledgement; the median over alerts
   median_minutes_to_ack     per person: their send to their acknowledgement; the median over people
 backtest    lead times from data/backtest.json (scripts/backtest.py), per scenario and village
+ten         the ten pilot metrics (docs/PILOT_PROTOCOL.md section 3), pooled for live alerts, drills and replays
+            apart, plus coverage, readiness and data health now (services/pilot_metrics.ten); no ids, no people
 false_alarms  "was this real?" (an officer's answer after a live alert closed), counted per rule that fired
   closed_alerts             live alerts the workflow has finished with (never replays, never drills)
   real_flood / no_flood / unknown / not_set   how many of them got each answer
@@ -34,6 +36,7 @@ from statistics import median
 from typing import Any
 
 from Pukaar.api import views
+from Pukaar.services import pilot_metrics
 from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.store.models import ALERT_OUTCOMES, OPEN_ALERT_STATUSES, Alert, Delivery
@@ -158,8 +161,11 @@ def metrics(repo: Repo) -> dict[str, Any]:
                 drills.append((a, ds))
         elif views.went_out(a):
             live.append((a, _real(repo.list_deliveries(a.id))))
+    counters = views.public_counters(repo)[0]
     return {
-        "counters": views.public_counters(repo)[0],
+        "counters": counters,
+        # The ten pilot metrics (docs/PILOT_PROTOCOL.md), pooled: live, drill and replay apart (services/pilot_metrics.py).
+        "ten": pilot_metrics.ten(repo, alerts, counters=counters),
         "drills": _group(drills),
         "live": _group(live),
         "backtest": backtest_lead_times(),

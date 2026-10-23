@@ -5,6 +5,7 @@
 import { levelWord } from '../i18n';
 import type { Lang } from '../store';
 import type { GaugeHealth, GaugeQuality, Level } from '../types';
+import { floodnetReason } from './deviceHealth';
 import { isLevel, levelRank } from './levels';
 
 const num = (v: number, lang: Lang, digits = 0) =>
@@ -39,7 +40,7 @@ export interface HealthWords {
 export function healthWords(h: GaugeHealth | null | undefined, lang: Lang): HealthWords | null {
   if (!h) return null;
   const hi = lang === 'hi';
-  const reasons = h.reasons.map((r) => (REASON[r] ?? { en: r, hi: r })[lang]).join(', ');
+  const reasons = h.reasons.map((r) => floodnetReason(r, lang) ?? (REASON[r] ?? { en: r, hi: r })[lang]).join(', ');
   const status = h.unhealthy ? (hi ? `ठीक नहीं: ${reasons}` : `Unhealthy: ${reasons}`) : hi ? 'ठीक' : 'Healthy';
   const badShare =
     h.readings_24h > 0 && h.bad_share_24h != null

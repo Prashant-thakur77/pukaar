@@ -541,7 +541,7 @@ def _thin(points: list[dict[str, Any]], n: int) -> list[dict[str, Any]]:
     return out
 
 
-def _gauge_village(v: Village, readings, latest, findings, now) -> dict[str, Any]:
+def _gauge_village(v: Village, readings, latest, findings, now, raining: bool = False) -> dict[str, Any]:
     g = v.gauge
     assert g is not None
     fresh = risk_rules.gauge_is_fresh(latest, now)
@@ -566,7 +566,7 @@ def _gauge_village(v: Village, readings, latest, findings, now) -> dict[str, Any
         # The stage band of the newest reading on its own, before the 2-of-3 rule.
         "measured_level": risk_rules.gauge_level(latest.water_level_cm, g) if latest and fresh else None,
         "rising_fast": bool(latest and fresh and latest.rising_fast),
-        "health": gauge.health(g, readings, now, None if readings else latest),
+        "health": gauge.health(g, readings, now, None if readings else latest, raining=raining),
         "readings_24h": len(readings),
         "simulated": bool(latest.simulated) if latest else g.device_id.endswith("-sim"),
         "series": _thin([{"at": r.at, "cm": r.water_level_cm} for r in readings], SERIES_POINTS),
@@ -578,7 +578,7 @@ def sensors(repo: Repo) -> dict[str, Any]:
     now = clock.now()
     scan = watch.scan(repo, now)
     villages = {v.id: v for v in repo.list_villages()}
-    rows = [_gauge_village(villages[vid], readings, latest, findings, now)
+    rows = [_gauge_village(villages[vid], readings, latest, findings, now, raining=gauge.raining_now(repo, vid))
             for vid, (readings, latest, findings) in scan.items()]
     transports: dict[str, int] = {}
     for readings, _, _ in scan.values():
@@ -617,7 +617,9 @@ def _devices(repo: Repo, villages: dict[str, Any], now) -> list[dict[str, Any]]:
             if d.kind == "gauge":
                 continue  # the gauges have their own rows above
             v = villages.get(d.village_id)
-            out.append({**registry.view(d, now, public=True), "village_name": v.name if v else d.village_id,
+            signals = registry.device_signals(repo, d, now)  # FloodNet: battery slope, packet loss, stuck values
+            out.append({**registry.view(d, now, public=True, signals=signals),
+                        "village_name": v.name if v else d.village_id,
                         "village_name_hi": v.name_hi if v else d.village_id})
         return out
     except Exception as exc:

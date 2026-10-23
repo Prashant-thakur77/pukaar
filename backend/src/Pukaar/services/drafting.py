@@ -4,6 +4,9 @@ Fixed safety sentences come from templates/hi.py. If the model is down, or its
 draft fails the checker, the fixed template goes out and the alert records
 reasoning_model = "rule-fallback".
 
+The text is the five-element script (templates/script.py): the DDMA as source, the hazard, the place,
+the timing and the protective action ending with where to go. A model draft adds one checked advice line.
+
 When a pradhan or officer has marked a baked safe place OPEN or STANDBY, code
 (never the model) adds one "nearest safe place" line naming it, and records the
 place in the decision trace (trace["safe_place"]). The checker rejects a draft
@@ -22,7 +25,7 @@ from Pukaar.llm.tools import DataTools
 from Pukaar.services import safe_places
 from Pukaar.store.models import DraftCheck, Village
 from Pukaar.store.repo import Repo
-from Pukaar.templates import hi
+from Pukaar.templates import hi, script
 
 _LOG = get_logger("drafting")
 DRAFT_TOOLS = ["get_village_risk", "get_recent_reports", "get_past_events", "get_safe_places"]
@@ -141,7 +144,11 @@ def _place_names(place: dict[str, Any] | None) -> set[str]:
 
 def draft_alert(village: Village, level: str, trace: dict[str, Any], repo: Repo, llm: BedrockLLM | None) -> DraftResult:
     safe = safe_places.nearest_usable(repo, village.id) if level != "normal" else None
-    fallback_hi, fallback_en = hi.fallback_alert(level, village.name_hi, village.name, safe)
+    from Pukaar.services.cap import district_hi
+
+    d_hi, d_en = district_hi(village), village.district
+    fallback_hi, fallback_en = hi.fallback_alert(level, village.name_hi, village.name, safe, district_hi=d_hi,
+                                                 district_en=d_en, trace=trace)
     tools_trace: list[dict[str, Any]] = []
     draft: AlertDraft | None = None
     if llm is not None and level != "normal":
@@ -173,10 +180,10 @@ def draft_alert(village: Village, level: str, trace: dict[str, Any], repo: Repo,
                            DraftCheck(passed=False, reason=f"draft rejected ({check.reason}); fixed template used"),
                            tools_trace, safe)
 
-    place_hi, place_en = hi.safe_place_lines(safe)
-    text_hi = (f"पुकार: {village.name_hi} के लिए {hi.LEVEL_HI[level]}। {draft.time_window_hi.strip()} "
-               f"{draft.advice_hi.strip()} {hi.SAFETY_HI[level]} {place_hi} {hi.CALL_112_HI}")
-    text_en = (f"Pukaar: {hi.LEVEL_EN[level]} for {village.name}. {draft.advice_en.strip()} "
-               f"{hi.SAFETY_EN[level]} {place_en} {hi.CALL_112_EN}")
-    return DraftResult(re.sub(r"\s+", " ", text_hi).strip(), re.sub(r"\s+", " ", text_en).strip(),
-                       draft.reason_en.strip(), llm.model_name if llm else "rule-fallback", check, tools_trace, safe)
+    # The five elements stay code's (templates/script.py); the checked advice line goes after the hazard. The
+    # model's time-window phrase is not used: code sets the timing from the trace, the same in both languages.
+    text_hi, text_en = script.compose(level, village.name_hi, village.name, district_hi=d_hi, district_en=d_en,
+                                      trace=trace, safe_place=safe, advice_hi=draft.advice_hi,
+                                      advice_en=draft.advice_en)
+    return DraftResult(text_hi, text_en, draft.reason_en.strip(), llm.model_name if llm else "rule-fallback", check,
+                       tools_trace, safe)

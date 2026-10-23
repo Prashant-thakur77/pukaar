@@ -6,6 +6,7 @@
  * Strings live here, Hindi and English side by side, so the shared i18n table stays untouched.
  * NEEDS NATIVE-SPEAKER REVIEW, as for i18n.ts.
  */
+import type { HealthSignals } from './deviceHealth';
 import { request } from '../api';
 import { format } from '../i18n';
 import type { Lang } from '../store';
@@ -37,6 +38,8 @@ export interface PublicDevice {
   fw?: string | null;
   health: DeviceHealth | string;
   health_reasons?: string[];
+  /** FloodNet checks (services/devices/floodnet.py); absent on an older API. */
+  health_signals?: HealthSignals;
   state?: string | null;
   state_since?: string | null;
   last_seen?: string | null;

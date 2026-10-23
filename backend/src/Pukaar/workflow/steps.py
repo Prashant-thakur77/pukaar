@@ -53,7 +53,7 @@ from Pukaar.services import after_action, district_settings, events, officer_pus
 from Pukaar.services.drafting import draft_alert
 from Pukaar.store.models import Alert, Delivery
 from Pukaar.store.repo import ConflictError, Repo
-from Pukaar.templates import hi
+from Pukaar.templates import hi, script
 from Pukaar.voice import polly
 from Pukaar.workflow import tokens
 
@@ -191,6 +191,7 @@ class Steps:
                                f"model={result.reasoning_model}; check={'pass' if result.check.passed else 'fail'}: "
                                f"{result.check.reason}; recipients={len(recipients)}; audio={'yes' if audio_key else 'no'}; "
                                f"officers ({duty.source}, {duty.slot.label()}): {chain}")
+        script.note_voice_length(self.repo, alert.id, alert.text_hi)  # over 55 s with the menu: said on the timeline
         return {"alert_id": alert.id, "level": alert.level, "officer_count": len(duty.chain),
                 "recipients_count": len(recipients), **approval_timers(alert.level)}
 
@@ -293,8 +294,7 @@ class Steps:
                              repo=self.repo)
         if not decision.allowed:
             raise StepError(f"auto-send denied: {decision.reason}")
-        text_hi, text_en = hi.fallback_alert(alert.level, alert.village_name_hi, alert.village_name,
-                                             alert.decision_trace.get("safe_place"))
+        text_hi, text_en = script.fallback_for_alert(self.repo, alert)  # the five-element fixed text
         events.alert_changed(self.repo.update_alert(alert.id, status="auto_sent_unapproved", text_hi=text_hi,
                                                     text_en=text_en, decided_by="system:auto-send",
                                                     decided_at=clock.iso(clock.now())))
@@ -442,6 +442,9 @@ class Steps:
         alert = self.repo.update_alert(alert.id, recall_rounds=rounds)
         if rounds == 1:  # the sirens: check, then re-issue to the ones that did not verify (never raises)
             sirens.recall(self.repo, alert)
+        from Pukaar.services import assisted
+
+        assisted.escalate_due(self.repo, alert)  # assisted households not confirmed in time: a neighbour checks
         return self._start_round(alert, "recall", action, recall=True)
 
     # -- delivery at scale: the first batch here, the rest in the Map state --------------------------
@@ -569,8 +572,7 @@ class Steps:
             return {"alert_id": e.get("alert_id"), "sent": 0}
         error = str(e.get("error"))[:200]
         try:
-            text_hi, text_en = hi.fallback_alert(alert.level, alert.village_name_hi, alert.village_name,
-                                                 alert.decision_trace.get("safe_place"))
+            text_hi, text_en = script.fallback_for_alert(self.repo, alert)
             broadcast = alert.level == "critical" or alert.approved
             alert = self.repo.update_alert(alert.id, status="failsafe", text_hi=text_hi, text_en=text_en, task_token=None)
             events.alert_changed(alert)

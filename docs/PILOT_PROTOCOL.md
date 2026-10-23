@@ -35,6 +35,16 @@ These are tests, not promises. The figures are set now so they cannot be moved l
 | 9 | Protective action | Share of a random sample of confirmed and unconfirmed households (phone survey within 72 hours, three questions) that moved people, animals or goods | Survey |
 | 10 | Readiness | Drills held, officers on the roster each shift, safe places checked by the pradhan, readiness checklist items done | Roster, drill log, shelter ledger, `data/pilot_readiness.json` |
 
+How the software counts them today (`services/pilot_metrics.py`; per alert in the console, pooled on `/pilot`
+and `GET /public/pilot-metrics`, with live alerts, drills and replays apart): coverage counts registered phones
+against `households` in `data/villages.json`, which stays empty, and coverage "not measured", until a pradhan's
+household list arrives; assisted households carry a flag and a named neighbour (`services/assisted.py`), who is
+asked to check after 10 minutes without a confirmation; the time chain starts at the earliest evidence that
+fired; lead time needs the officer to record when harm began with "was this real?"; the hit rate stays empty
+until the ground-truth file exists; protective action reads the "are you safe?" roll-call until the phone survey
+is built; readiness reads `data/pilot_readiness.json` and the two-observer check. After each alert ends, the
+people it reached get one "why we warned" note (`services/followup.py`).
+
 Also reported, not gated: measured cost per village against the estimate ([BUSINESS_MODEL.md](BUSINESS_MODEL.md)), and Transcribe accuracy on Himachali Hindi reports.
 
 ## 4. Success gate (fixed before June 2027)

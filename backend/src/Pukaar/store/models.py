@@ -203,6 +203,9 @@ class Village(BaseModel):
     # The number a caller keys in on the enrolment IVR to pick this village (delivery/inbound.py): from
     # data/villages.json ("ivr_code") at seed time, printed on the village card. None: not reachable by keypad.
     ivr_code: str | None = None
+    # Households on the village list (from the pradhan and patwari): the denominator of coverage (pilot metric 1).
+    # None until the list is received; coverage is then "not measured", never guessed.
+    households: int | None = None
 
 
 class Reading(BaseModel):
@@ -537,6 +540,15 @@ class Alert(BaseModel):
     siren_first_verified_at: str | None = None
     siren_pattern: str | None = None
     siren_note: str | None = None
+    # When harm began, if the officer recording "was this real?" knows it (metric 5, lead time achieved).
+    outcome_onset_at: str | None = None
+    # The "why we warned" note (services/followup.py): once per alert, after it ends. trigger: outcome, all_clear
+    # or expired. sent/failed/skipped count people.
+    followup_at: str | None = None
+    followup_trigger: str | None = None
+    followup_sent: int = 0
+    followup_failed: int = 0
+    followup_skipped: int = 0
 
 
 E164 =re.compile(r"^\+[1-9]\d{7,14}$")
@@ -571,6 +583,14 @@ class Recipient(BaseModel):
     # (an officer's or pradhan's username, or "self" for the caller on the IVR).
     enrolled_via: str | None = None
     enrolled_by: str | None = None
+    # An assisted household (older, disabled, living alone, pregnant): if they have not confirmed an alert within
+    # PUKAAR_ASSISTED_ESCALATE_MINUTES, the named neighbour or relay (escalate_to, a recipient of the same village;
+    # else the village's relays) is asked to check on them (services/assisted.py). Set by an officer or the pradhan.
+    assisted_reason: Literal["elderly", "disabled", "alone", "pregnant", "other"] | None = None
+    escalate_to: str | None = None
+    # Optional, and only to report coverage (half the observers and relays women, as in Bangladesh's CPP).
+    # Never used to decide who is warned or in what order.
+    gender: Literal["female", "male", "other"] | None = None
 
     @field_validator("phone")
     @classmethod
@@ -648,6 +668,13 @@ class Delivery(BaseModel):
     # Erasure (services/privacy.py): the person left and their name, chat id and call ids were removed;
     # recipient_id is then a pseudonym and the row keeps only channel, status, attempts and times.
     erased: bool = False
+    # -- an assisted household not confirmed in time (services/assisted.py): who was asked to check, and when they
+    # pressed "देख लिया" (checked). Set once each, by conditional writes.
+    escalated_at: str | None = None
+    escalated_to: str | None = None
+    escalation_error: str | None = None
+    checked_at: str | None = None
+    checked_by: str | None = None
 
     @property
     def row_key(self) -> str:
@@ -956,6 +983,9 @@ class Device(BaseModel):
     pending_cmd: dict[str, Any] | None = None  # {cmd_id, pattern, at, state, alert_id}
     pour_test_until: str | None = None
     created_at: str | None = None
+    # Battery history for the FloodNet-style slope (services/devices/floodnet.py): [{at, mv?, soc?}], one point an
+    # hour at most from heartbeats, a week kept. Gauges and rain nodes need none: their readings carry it.
+    batt_hist: list[dict[str, Any]] = Field(default_factory=list)
 
 
 CommandState = Literal["commanded", "started", "verified", "not_confirmed", "expired", "rejected", "stopped",

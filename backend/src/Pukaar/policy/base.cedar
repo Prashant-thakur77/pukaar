@@ -121,10 +121,10 @@ permit (
 );
 
 @id("no-replay-to-phones")
-@desc("Replay alerts never reach real phones, by Telegram or by voice call, and neither does their all-clear; they go to the stub channel only.")
+@desc("Replay alerts never reach real phones, by Telegram or by voice call, and neither does their all-clear or their why-we-warned note; they go to the stub channel only.")
 forbid (
   principal,
-  action in [Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe", Pukaar::Action::"all_clear"],
+  action in [Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe", Pukaar::Action::"all_clear", Pukaar::Action::"followup"],
   resource
 )
 when { context.replay == true && context.channel != "stub" };
@@ -281,6 +281,14 @@ permit (
   principal is Pukaar::Officer,
   action in [Pukaar::Action::"view_roster", Pukaar::Action::"edit_roster", Pukaar::Action::"take_over_duty"],
   resource is Pukaar::App
+);
+
+@id("system-followup")
+@desc("After an alert ends (an outcome recorded, the all-clear, or a day passed), the system sends one short why-we-warned note to the people it reached, once.")
+permit (
+  principal is Pukaar::System,
+  action == Pukaar::Action::"followup",
+  resource is Pukaar::Alert
 );
 
 @id("system-all-clear")

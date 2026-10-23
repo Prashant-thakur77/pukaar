@@ -48,7 +48,7 @@ def test_model_outage_still_alerts(repo, frozen):
     a = make_alert(repo, "critical")
     s.handle({"step": "draft", "alert_id": a.id})
     alert = repo.get_alert(a.id)
-    assert alert.reasoning_model == "rule-fallback" and alert.text_hi.startswith("पुकार:")
+    assert alert.reasoning_model == "rule-fallback" and alert.text_hi.startswith("जिला आपदा प्रबंधन प्राधिकरण")
     assert alert.draft_check.passed is False
 
 

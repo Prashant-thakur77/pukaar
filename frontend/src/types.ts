@@ -1,3 +1,4 @@
+import type { HealthSignals } from './lib/deviceHealth';
 // Shapes mirror docs/CONTRACT.md. Change the contract first, then this file.
 import type { AlertSirenFields, PublicDevice, SirenTier, VillageSirens } from './lib/sirens';
 
@@ -709,6 +710,8 @@ export interface GaugeHealth {
   bad_share_24h: number | null;
   by_quality?: Record<string, number>;
   backfilled_24h?: number;
+  /** FloodNet checks (services/devices/floodnet.py): battery slope, packet loss, stuck values. */
+  signals?: HealthSignals;
 }
 
 export interface GaugeView {
@@ -1026,6 +1029,8 @@ export interface PilotMetrics extends SampleFlag {
   backtest: { rules: string | null; scenarios: PilotBacktestScenario[] } | null;
   /** Absent on an older API. */
   false_alarms?: PilotFalseAlarms;
+  /** The ten pilot metrics, pooled (services/pilot_metrics.py). Absent on an older API. */
+  ten?: TenMetrics;
   as_of: string;
 }
 
@@ -1361,4 +1366,81 @@ export interface SafePlacesView extends SampleFlag {
   license?: string | null;
   limits_en: string;
   limits_hi: string;
+}
+
+/* ---------- the ten pilot metrics (services/pilot_metrics.py, docs/PILOT_PROTOCOL.md) ---------- */
+/** Null means not measured; nothing is estimated. */
+export interface TenReach {
+  targeted: number;
+  confirmed: number;
+  share_15?: number | null;
+  share_30?: number | null;
+  share_60?: number | null;
+}
+
+export interface TenGroup {
+  alerts: number;
+  confirmed_reach: TenReach;
+  assisted_reach: { targeted: number; confirmed: number; share_30: number | null; checked_by_neighbour: number; confirmed_or_checked_share: number | null };
+  time_chain_median_minutes: Record<string, number | null>;
+  lead_time: { measured: number; median_minutes: number | null };
+  outcomes: { real_flood: number; no_flood: number; unknown: number; not_set: number; false_alarm_rate: number | null; hit_rate: number | null };
+  siren: { commanded: number; verified: number; verified_share: number | null };
+  data_health: { alerts_with_data_ok: number; alerts_with_status: number; alerts_with_gauge_silent: number };
+  protective_action: { rollcalls: number; asked: number; safe: number; need_help: number; answered_share: number | null };
+}
+
+export interface ReadinessChecklist {
+  items: number;
+  done: number | null;
+  in_progress: number | null;
+  not_started: number | null;
+  updated: string | null;
+}
+
+export interface TenMetrics {
+  coverage: { villages: number; villages_with_household_list: number; registered_phones: number; households_listed: number | null; share: number | null };
+  readiness: { checklist: ReadinessChecklist; villages_with_two_observers: number; assisted_households: number; assisted_without_neighbour: number };
+  data_health_now: { forecast_checks_24h: number | null; expected_24h: number; share: number | null };
+  live: TenGroup;
+  drill: TenGroup;
+  replay: TenGroup;
+  as_of: string;
+}
+
+/** GET /alerts/{id}/metrics: one alert's ten metrics, counts and times only. */
+export interface AlertMetrics {
+  alert_id: string;
+  kind: 'live' | 'drill' | 'replay';
+  coverage: { registered: number; households: number | null; share: number | null; per_1000_people: number | null; observers: number; targeted: number };
+  confirmed_reach: TenReach & { reached: number; confirmed_share: number | null; within_15: number; within_30: number; within_60: number };
+  assisted_reach: TenReach & { escalated: number; checked_by_neighbour: number; confirmed_or_checked: number; confirmed_or_checked_share: number | null };
+  time_chain: { at: Record<string, string | null>; minutes: Record<string, number | null> };
+  lead_time: { onset_at: string | null; from_first_delivery: number | null; from_first_ack: number | null };
+  outcome: { outcome: AlertOutcome | null; recorded_at: string | null };
+  siren: { commanded: number; started: number; verified: number; verified_share: number | null };
+  data_health: { forecast: string | null; stale_minutes: number | null; gauge: 'fresh' | 'silent' | 'none' | 'not_fresh'; unknown: string[] };
+  protective_action: { asked: number; safe: number; need_help: number; answered_share: number | null; exercise: boolean } | null;
+  readiness: { checklist: ReadinessChecklist; observers: number; observers_needed: number; gaps: string[] };
+  followup: { at: string | null; trigger: string | null; sent: number };
+}
+
+/** GET /care/villages: observers, assisted households and coverage per village (services/assisted.py). */
+export interface VillageCare {
+  village_id: string;
+  name: string;
+  name_hi: string;
+  district: string;
+  observers: number;
+  observers_needed: number;
+  observer_roles: string[];
+  women_observers: number;
+  observers_gender_known: number;
+  women_share_goal: number;
+  assisted: number;
+  assisted_without_neighbour: string[];
+  registered_phones: number;
+  households: number | null;
+  coverage: number | null;
+  gaps: string[];
 }

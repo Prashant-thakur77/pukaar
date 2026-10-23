@@ -1,5 +1,6 @@
 import { BellRing, Info } from 'lucide-react';
 import { useT } from '../i18n';
+import { reasonWord, signalsLine } from '../lib/deviceHealth';
 import { fmtAgo, fmtTime } from '../lib/format';
 import { healthChip, kindWord, pathWord, st, type DeviceTest, type PublicDevice } from '../lib/sirens';
 import type { Lang } from '../store';
@@ -68,6 +69,16 @@ export function SirenList({ devices, names }: { devices?: PublicDevice[] | null;
                         {d.last_seen && d.last_seen_path ? ` · ${pathWord(d.last_seen_path, lang)}` : ''}
                       </dd>
                     </div>
+                    {((d.health_reasons?.length ?? 0) > 0 || signalsLine(d.health_signals, lang)) && (
+                      <div>
+                        <dt>{lang === 'hi' ? 'सेहत' : 'Health'}</dt>
+                        <dd className={d.health_reasons?.length ? 'bad-text' : undefined}>
+                          {[...(d.health_reasons ?? []).map((r) => reasonWord(r, lang)), signalsLine(d.health_signals, lang)]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </dd>
+                      </div>
+                    )}
                     <div>
                       <dt>{st(lang, 'test.label')}</dt>
                       <dd className={test.bad ? 'bad-text' : 'ok-text'}>{test.text}</dd>

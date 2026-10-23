@@ -262,6 +262,19 @@ POST /villages/{id}/recipients/{rid}/role  officer (any village) or pradhan (own
                              "task_force"|"villager"} -> {id, village_id, name, role, channel, relay}; a Telegram
                              recipient's rid is the chat id; 400 for another role, 404 for an unknown person;
                              audited ("recipient_role_changed", "<old> -> <new>")
+POST /villages/{id}/recipients/{rid}/care  same Cedar (set_recipient_role): {assisted?: bool, assisted_reason?:
+                             "elderly"|"disabled"|"alone"|"pregnant"|"other"|"", escalate_to?: rid of the same
+                             village|"", gender?: "female"|"male"|"other"|""} -> {id, ..., assisted,
+                             assisted_reason, escalate_to, gender}; "" clears; 400 for an unknown value, a neighbour
+                             not of the village, or oneself; audited ("recipient_care_changed"). An assisted
+                             household not confirmed PUKAAR_ASSISTED_ESCALATE_MINUTES (10) after the first send:
+                             escalate_to (else the relays) gets one Telegram "check on them" with a "देख लिया"
+                             button (callback chk:<alert>:<rid>); services/assisted.py
+GET  /care/villages          officer (every village) or pradhan (own): {villages: [{village_id, name, name_hi,
+                             district, observers, observers_needed (2), observer_roles, women_observers,
+                             observers_gender_known, women_share_goal (0.5), assisted, assisted_without_neighbour
+                             [first names], registered_phones, households|null, coverage|null, gaps[]}]};
+                             gaps: observers | women_observers | assisted_without_neighbour | household_list
 GET  /alerts?status=&village_id=   [Alert]
 GET  /alerts/{id}            {alert, deliveries[], timeline[Event], audit[Audit], sirens: SirenTier}
 GET  /alerts/{id}/sirens     officer, or pradhan of the alert's village: SirenTier
@@ -270,9 +283,16 @@ GET  /alerts/{id}/after-action?fresh=&format=   officer, or pradhan of the alert
                              alert): text/html after-action report (the copy stored
                              at close, else built now; fresh=true rebuilds); format=json -> the small summary.
                              No phone numbers or chat ids; first names only
-POST /alerts/{id}/outcome    officer (Cedar set_alert_outcome): {outcome: "real_flood"|"no_flood"|"unknown"}
-                             -> Alert (outcome, outcome_by, outcome_at); "was this real?" after a live alert
-                             closed; 409 while open or for a replay or drill; can be corrected later
+POST /alerts/{id}/outcome    officer (Cedar set_alert_outcome): {outcome: "real_flood"|"no_flood"|"unknown",
+                             onset_at?: ISO time harm began (lead time, pilot metric 5)} -> Alert (outcome,
+                             outcome_by, outcome_at, outcome_onset_at); "was this real?" after a live alert
+                             closed; 409 while open or for a replay or drill; can be corrected later. The first
+                             answer sends the "why we warned" note (services/followup.py) unless it went already
+GET  /alerts/{id}/metrics    officer, or pradhan of the alert's village: the ten pilot metrics for this alert
+                             (services/pilot_metrics.alert_metrics): {alert_id, kind: live|drill|replay, coverage,
+                             confirmed_reach{targeted, confirmed, within_15/30/60, share_15/30/60}, assisted_reach,
+                             time_chain{at, minutes}, lead_time, outcome, siren, data_health, protective_action|null,
+                             readiness, followup}; counts and times only, null where not measured
 POST /alerts/{id}/approve    officer: {} -> Alert; 409 {detail{code,message_en,message_hi}} when late;
                              503 {detail{code:"retry",reason}} when the workflow was briefly unreachable
 POST /alerts/{id}/decline    officer: {reason?} -> Alert; 409 as above
@@ -397,7 +417,12 @@ Counters  every one counted from stored records, nothing estimated (api/views.py
                                         per sweep), replay rows excluded
           gauge_readings_24h            river-gauge readings received in the last 24 h (as GET /sensors)
           gauge_readings_24h_simulated  how many of those came from the labelled simulator
-GET  /public/pilot-metrics   {counters: Counters, drills: Group, live: Group, backtest|null, false_alarms, as_of}
+GET  /public/pilot-metrics   {counters: Counters, ten: Ten, drills: Group, live: Group, backtest|null, false_alarms,
+                             as_of}. ten (services/pilot_metrics.ten): the ten pilot metrics of docs/PILOT_PROTOCOL.md
+                             pooled, {coverage, readiness, data_health_now, live, drill, replay, as_of}, each kind
+                             {alerts, confirmed_reach, assisted_reach, time_chain_median_minutes, lead_time,
+                             outcomes (hit_rate null until the DDMA's list of floods exists), siren, data_health,
+                             protective_action}; only alerts that reached someone; no ids, no people
                              (api/pilot.py). false_alarms = {closed_alerts, real_flood, no_flood, unknown,
                              not_set, false_alarm_rate|null, by_rule: [{rule, alerts, real_flood, no_flood,
                              unknown, not_set, false_alarm_rate|null}]}: counts of "was this real?" over

@@ -90,12 +90,15 @@ def safe_place_lines(safe_place: dict | None) -> tuple[str, str]:
     return SAFE_PLACE_HI.format(name=name_hi), SAFE_PLACE_EN.format(name=name_en)
 
 
-def fallback_alert(level: str, village_hi: str, village_en: str, safe_place: dict | None = None) -> tuple[str, str]:
-    """The fixed alert text used when no checked model draft exists."""
-    place_hi, place_en = safe_place_lines(safe_place)
-    text_hi = f"पुकार: {village_hi} के लिए {LEVEL_HI[level]}। {SAFETY_HI[level]} {place_hi} {CALL_112_HI}"
-    text_en = f"Pukaar: {LEVEL_EN[level]} for {village_en}. {SAFETY_EN[level]} {place_en} {CALL_112_EN}"
-    return " ".join(text_hi.split()), " ".join(text_en.split())
+def fallback_alert(level: str, village_hi: str, village_en: str, safe_place: dict | None = None, *,
+                   district_hi: str | None = None, district_en: str | None = None,
+                   trace: dict | None = None) -> tuple[str, str]:
+    """The fixed alert text used when no checked model draft exists: the five-element script
+    (templates/script.py: source, hazard, place, timing, action ending with where to go)."""
+    from Pukaar.templates import script
+
+    return script.compose(level, village_hi, village_en, district_hi=district_hi, district_en=district_en,
+                          trace=trace, safe_place=safe_place)
 
 
 # -- voice calls with "press 1" (delivery/voice.py, docs/VOICE.md) --------------------------------

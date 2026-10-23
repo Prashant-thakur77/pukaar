@@ -9,6 +9,11 @@ Health, computed on read so it is never stale (spec 5.7, after OpenFloodAI's UNK
   ok        heard within OK_MINUTES, a silent test passed in the last 8 days, SoC >= 50 %, no faults.
 A gauge is "ok" on recent contact alone (its own health lives in services/gauge.py).
 
+FloodNet-style checks (services/devices/floodnet.py), passed in as signals (device_signals reads them): a battery
+that empties within a week at its slope ("battery_empty_in_<n>d"), more than 20% of readings missing from the
+device's sequence numbers ("packet_loss_<pct>pct"), and the same value N times running while rain falls
+("stuck_<n>_readings"). Each is a reason, and makes an otherwise ok device degraded.
+
 Heartbeats update the registry with a condition on their time, so an older heartbeat never overwrites
 a newer one. A heartbeat forwarded over LoRa sets last_seen_path "lora".
 """
@@ -49,12 +54,13 @@ def test_overdue(d: Device, now: datetime) -> bool:
     return now - clock.parse(str(t["at"])) > timedelta(days=TEST_OVERDUE_DAYS)
 
 
-def health(d: Device, now: datetime | None = None) -> tuple[str, list[str]]:
-    """(state, reasons). state is ok, degraded, offline, fault or unknown."""
+def health(d: Device, now: datetime | None = None, signals: dict[str, Any] | None = None) -> tuple[str, list[str]]:
+    """(state, reasons). state is ok, degraded, offline, fault or unknown. signals: device_signals() (FloodNet)."""
     now = now or clock.now()
     seen = _minutes_since(d.last_seen, now)
     if seen is None:
         return "unknown", ["never_heard"]
+    extra = list((signals or {}).get("reasons") or [])
     reasons: list[str] = []
     fault = [f for f in d.faults if f in FAULT_FAULTS]
     if d.tamper_at and (now - clock.parse(d.tamper_at)) < timedelta(days=1):
@@ -65,9 +71,9 @@ def health(d: Device, now: datetime | None = None) -> tuple[str, list[str]]:
             not d.last_test_silent or str(d.last_test_audible.get("at", "")) >= str(d.last_test_silent.get("at", ""))):
         fault.append("audible_test_failed")
     if seen > OFFLINE_MINUTES:
-        return "offline", [f"silent_{int(seen)}_min", *sorted(set(fault))]
+        return "offline", [f"silent_{int(seen)}_min", *sorted(set(fault)), *extra]
     if fault:
-        return "fault", sorted(set(fault))
+        return "fault", [*sorted(set(fault)), *extra]
     if d.soc is not None and d.soc < 50:
         reasons.append(f"soc_{d.soc}")
     if test_overdue(d, now):
@@ -80,16 +86,61 @@ def health(d: Device, now: datetime | None = None) -> tuple[str, list[str]]:
         reasons.append(f"late_{int(seen)}_min")
     other = [f for f in d.faults if f not in FAULT_FAULTS and f != "mic_dead"]
     reasons += [f"fault_{f}" for f in other]
+    reasons += extra
     return ("degraded" if reasons else "ok"), reasons
 
 
-def view(d: Device, now: datetime | None = None, *, public: bool = False) -> dict[str, Any]:
-    """The registry row and its health. Public: nothing an attacker could use (no SIM number, LoRa
-    address, owner, allowed senders or command ids), and no alert id."""
+def device_signals(repo: Repo, d: Device, now: datetime | None = None) -> dict[str, Any]:
+    """The FloodNet checks for one device from what it already sent. A gauge or rain node: its own readings
+    (battery, seq, the river level); a siren, box or relay: the heartbeat battery history. Never raises."""
+    from Pukaar.services import risk_rules
+    from Pukaar.services.devices import floodnet
+
     now = now or clock.now()
-    state, reasons = health(d, now)
-    out = d.model_dump(exclude={"sim_number"})
+    try:
+        if d.kind in {"gauge", "rain"}:
+            since = clock.iso(now - timedelta(hours=floodnet.BATTERY_WINDOW_HOURS))
+            rows = (repo.list_sensor_readings(d.village_id, since) if d.kind == "gauge"
+                    else repo.list_rain_readings(d.village_id, since))
+            rows = [r for r in rows if r.device_id == d.device_id]
+            day = now - timedelta(hours=floodnet.PACKET_WINDOW_HOURS)
+            seqs = [(r.boot, r.seq) for r in rows if clock.parse(r.at) >= day]
+            battery = [(clock.parse(r.at), r.battery_v * 1000) for r in rows if r.battery_v is not None]
+            empty = floodnet.EMPTY_MV
+            values = None
+            raining = False
+            if d.kind == "gauge":
+                v = repo.get_village(d.village_id)
+                if v is not None and v.gauge is not None:
+                    empty = float(v.gauge.low_battery_mv)
+                latest = repo.list_readings(d.village_id, limit=1)
+                reading = latest[0] if latest and not latest[0].replay else None
+                raining = risk_rules.raining(reading, risk_rules.rain_level(reading.rain_24h_mm if reading else None),
+                                             None) is not None
+                values = [r.water_level_cm for r in rows if r.origin == "live" and r.quality == "good"]
+            out = floodnet.signals(now=now, battery=battery, empty=empty, seqs=seqs, values=values, raining=raining)
+        else:
+            hist = d.batt_hist or []
+            soc = [(clock.parse(str(h["at"])), float(h["soc"])) for h in hist if h.get("soc") is not None]
+            mv = [(clock.parse(str(h["at"])), float(h["mv"])) for h in hist if h.get("mv") is not None]
+            out = (floodnet.signals(now=now, battery=soc, empty=floodnet.EMPTY_SOC, unit="soc") if len(soc) >= len(mv)
+                   and soc else floodnet.signals(now=now, battery=mv))
+        return out
+    except Exception as exc:
+        log(_LOG, "device signals failed", 30, device_id=d.device_id, error=str(exc)[:200])
+        return {"battery": None, "packet_loss": None, "stuck": None, "reasons": []}
+
+
+def view(d: Device, now: datetime | None = None, *, public: bool = False,
+         signals: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The registry row and its health. Public: nothing an attacker could use (no SIM number, LoRa
+    address, owner, allowed senders or command ids), and no alert id. signals: device_signals() (FloodNet)."""
+    now = now or clock.now()
+    state, reasons = health(d, now, signals)
+    out = d.model_dump(exclude={"sim_number", "batt_hist"})
     out["health"], out["health_reasons"] = state, reasons
+    if signals is not None:
+        out["health_signals"] = {k: signals.get(k) for k in ("battery", "packet_loss", "stuck")}
     out["test_overdue"] = test_overdue(d, now)
     if public:
         for k in ("lora_addr", "owner_recipient_id", "allowed_senders", "autonomy", "pending_cmd", "kid",
@@ -130,7 +181,7 @@ def seed_village(repo: Repo, village: Village, raw_devices: list[dict[str, Any]]
             live = existing.model_dump(include={
                 "last_seen", "last_seen_path", "connected", "conn_version", "state", "state_since", "soc", "batt_mv",
                 "solar_wh_today", "rssi", "lora_noise_dbm", "temp_c", "outbox_depth", "faults", "last_test_silent",
-                "last_test_audible", "last_sound", "tamper_at", "pending_cmd", "fw"})
+                "last_test_audible", "last_sound", "tamper_at", "pending_cmd", "fw", "batt_hist"})
             fresh = fresh.model_copy(update={k: v for k, v in live.items() if v not in (None, [])})
         repo.put_device(fresh)
         out.append(fresh.device_id)
@@ -149,6 +200,12 @@ def apply_heartbeat(repo: Repo, d: Device, hb: dict[str, Any], at: str, *, path:
         fields["faults"] = [str(f)[:24] for f in hb["faults"]][:16]
     if hb.get("state") and hb.get("state") != d.state:
         fields["state_since"] = at
+    if hb.get("batt_mv") is not None or hb.get("soc") is not None:  # the FloodNet battery slope (floodnet.py)
+        from Pukaar.services.devices import floodnet
+
+        hist = floodnet.append_history(d.batt_hist, at, hb.get("batt_mv"), hb.get("soc"))
+        if hist != d.batt_hist:
+            fields["batt_hist"] = hist
     try:
         return repo.update_device(d.village_id, d.device_id,
                                   condition=Attr("last_seen").not_exists() | Attr("last_seen").lte(at), **fields)

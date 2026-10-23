@@ -391,6 +391,7 @@ def assess(
     rain_intensity_on: bool | None = None,
     rain_combine: str | None = None,
     rain_obs: dict[str, Any] | None = None,
+    gauge_silence: dict[str, Any] | None = None,
 ) -> Assessment:
     """Raw level for one sweep, before hysteresis. reports = (report, created_at).
 
@@ -407,6 +408,10 @@ def assess(
     rain_obs: services/rain_obs.village_info(): observed rain from tipping buckets. It raises a level only
     (2 of the last 3 evaluations, live and good, never simulated unless allow_simulated), and on its own
     reaches Warning at most. With forecast rain it is one source, never two.
+    gauge_silence: services/gauge.silence(): an installed gauge silent for over 30 minutes while forecast or
+    observed rain is over GAUGE_SILENT_RAIN_MM (or any rain band) floors the village at Watch
+    ("gauge_silent_in_rain:watch"). It is a gap in the evidence, not water: never a source for "two agree",
+    never above Watch on its own. A simulated or not-installed gauge is evidence only (silent by design).
     """
     rules: list[str] = []
     evidence: list[dict[str, Any]] = []
@@ -519,6 +524,7 @@ def assess(
 
     rain_obs_lvl = observed_rain(rain_obs, rules, evidence, allow_simulated)
     level = _max(rain, river, gauge_lvl, rain_obs_lvl)
+    level = silent_gauge_in_rain(gauge_silence, reading, rain, rain_obs, level, rules, evidence, allow_simulated)
 
     # Official data (CWC, IMD, Flood Hub, BIPAD) is evidence for the officer. It raises the level only
     # when official_raises_level is on, and only ever upwards; it is not a source for "two agree".
@@ -641,6 +647,47 @@ def assess(
 
 
 RAIN_OBS_CAP = "warning"
+
+# A gauge that goes silent while it rains is itself a signal (Lachen, Sikkim 2023: the CWC station went dark
+# after 10 pm and the flood came at midnight; Babai, Nepal 2014: the gauge washed away and more than 20 died).
+# "Raining": forecast rain at or over IMD "moderate" (15.6 mm in 24 hours), any rain band (24-hour or burst), or
+# observed rain at a band on a fresh bucket.
+GAUGE_SILENT_RAIN_MM = 15.6
+GAUGE_SILENT_LEVEL = "watch"
+
+
+def raining(reading: Reading | None, rain: str, rain_obs: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Why it counts as raining now (for the silent-gauge rule), or None."""
+    mm = reading.rain_24h_mm if reading is not None else None
+    if rain != "normal":
+        return {"basis": "forecast_band", "level": rain, "rain_24h_mm": mm}
+    if mm is not None and mm >= GAUGE_SILENT_RAIN_MM:
+        return {"basis": "forecast", "rain_24h_mm": mm, "band_mm": GAUGE_SILENT_RAIN_MM}
+    for d in (rain_obs or {}).get("devices") or []:
+        lvl = d.get("eval_level") or d.get("confirmed_level") or "normal"
+        if d.get("fresh") and lvl != "normal" and not d.get("stuck"):
+            return {"basis": "observed", "device_id": d.get("device_id"), "level": lvl}
+    return None
+
+
+def silent_gauge_in_rain(silence: dict[str, Any] | None, reading: Reading | None, rain: str,
+                         rain_obs: dict[str, Any] | None, level: str, rules: list[str],
+                         evidence: list[dict[str, Any]], allow_simulated: bool = False) -> str:
+    """Floor the level at Watch when an installed gauge is silent while it rains; record it either way."""
+    if not silence or not silence.get("silent"):
+        return level
+    why = raining(reading, rain, rain_obs)
+    counts = bool(silence.get("installed")) and (not silence.get("simulated") or allow_simulated)
+    evidence.append({"kind": "gauge_silent", **{k: silence.get(k) for k in (
+        "device_id", "installed", "simulated", "last_seen", "minutes_silent", "silent_after_minutes")},
+        "raining": why, "counted": bool(why) and counts})
+    if why is None:
+        return level
+    if not counts:
+        rules.append("gauge_silent_in_rain_ignored:" + ("simulated" if silence.get("installed") else "not_installed"))
+        return level
+    rules.append(f"gauge_silent_in_rain:{GAUGE_SILENT_LEVEL}")
+    return _max(level, GAUGE_SILENT_LEVEL)
 
 
 def observed_rain(info: dict[str, Any] | None, rules: list[str], evidence: list[dict[str, Any]],

@@ -20,6 +20,7 @@ from Pukaar.core.config import get_settings
 from Pukaar.core.ids import new_id
 from Pukaar.core.log import get_logger, log, metric
 from Pukaar.services import events, rain_obs, readiness, risk_rules
+from Pukaar.services import gauge as gauge_mod
 from Pukaar.services.nowcast import nowcast
 from Pukaar.store.models import OPEN_ALERT_STATUSES, VERIFIED_STATES, Alert, Reading, Village, level_rank
 from Pukaar.store.repo import Repo
@@ -111,7 +112,10 @@ def _escalate(repo: Repo, alert: Alert, village: Village, new_level: str, trace:
     safe = safe_places.nearest_usable(repo, village.id)
     if safe:
         trace = {**trace, "safe_place": safe}
-    text_hi, text_en = hi.fallback_alert(new_level, village.name_hi, village.name, safe)
+    from Pukaar.services.cap import district_hi
+
+    text_hi, text_en = hi.fallback_alert(new_level, village.name_hi, village.name, safe,
+                                         district_hi=district_hi(village), district_en=village.district, trace=trace)
     # token_version moves on: a link for the old level can no longer approve the new text.
     repo.update_alert(alert.id, level=new_level, decision_trace=trace, text_hi=text_hi, text_en=text_en,
                       token_version=alert.token_version + 1,
@@ -288,8 +292,16 @@ def recompute_village(
             rain_info = rain_obs.village_info(repo, village, now, forecast=reading)
         except Exception as exc:  # missing observed rain is nothing, never a calm reading
             log(_LOG, "observed rain unavailable", 30, village_id=village.id, error=str(exc)[:200])
+    # A gauge silent while it rains is a signal (risk_rules.silent_gauge_in_rain). Live only, like the readings.
+    silence = None if replay else gauge_mod.silence(repo, village, now)
     assessment = risk_rules.assess(reading, village.thresholds, reports, now, sensor=sensor, gauge=village.gauge,
-                                   soil=village.soil, allow_simulated=replay, rain_obs=rain_info)
+                                   soil=village.soil, allow_simulated=replay, rain_obs=rain_info,
+                                   gauge_silence=silence)
+    if any(r.startswith("gauge_silent_in_rain:") for r in assessment.rules_fired):
+        # The officer is told by the Watch alert this raises; the metric pages the on-call (GaugeSilentInRain).
+        metric("GaugeSilentInRain", 1, Village=village.id)
+        log(_LOG, "gauge silent while it rains", 30, village_id=village.id,
+            device_id=(silence or {}).get("device_id"), minutes=(silence or {}).get("minutes_silent"))
     previous = village.level
     if only_if_rising and level_rank(assessment.level) <= level_rank(previous):
         return SweepResult(village.id, skipped=True, level=previous, raw_level=assessment.level, note="not rising")

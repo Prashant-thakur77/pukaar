@@ -11,6 +11,7 @@ import { usePoll } from '../../hooks/usePoll';
 import { useT } from '../../i18n';
 import { fmtNumber } from '../../lib/format';
 import { addDays, approvalTimes, chainRole, dayLabel, emptyShifts, isCurrent, istClock, nobodyOnDuty, shiftWindow, todayIST, validUsername } from '../../lib/roster';
+import { gapWord } from '../../lib/pilotTen';
 import { useAuth } from '../../store';
 import type { EscalationTitle, OnDuty, RosterDay, RosterShift, RosterView, ShiftId } from '../../types';
 import '../../styles/console.css';
@@ -55,10 +56,64 @@ function Roster() {
             <DutyHandover district={view.district} />
             <Policy view={view} />
             <Week view={view} start={start} onGo={go} onChanged={poll.refresh} />
+            <VillageReadiness district={district} />
           </>
         ) : null}
       </div>
     </Page>
+  );
+}
+
+/**
+ * Each village's people on the ground (GET /care/villages, services/assisted.py): at least two observers or relays
+ * (Babai 2014 had one gauge, one reader, one phone), half of them women encouraged, every assisted household with a
+ * neighbour named to check on them, and the household list that coverage is counted against. Gaps first.
+ */
+function VillageReadiness({ district }: { district: string }) {
+  const { lang } = useT();
+  const en = lang === 'en';
+  const poll = usePoll(() => api.villageCare(), [], 300000);
+  const rows = (poll.data?.villages ?? []).filter((v) => !district || v.district === district);
+  const sorted = [...rows].sort((a, b) => b.gaps.length - a.gaps.length || a.name.localeCompare(b.name));
+  return (
+    <section className="rs-now" aria-labelledby="rs-ready-h">
+      <h2 id="rs-ready-h" className="rs-h">
+        {en ? 'Village readiness: observers and assisted households' : 'गाँव की तैयारी: निगरानीकर्ता और मदद वाले घर'}
+      </h2>
+      <p className="rs-meta">
+        {en
+          ? 'Two observers or relays per village (pradhan, gauge reader, task force), half of them women where possible; each assisted household with a neighbour named to check on them. Gender is optional and only counts coverage.'
+          : 'हर गाँव में दो निगरानीकर्ता या रिले (प्रधान, गेज रीडर, टास्क फ़ोर्स), जहाँ हो सके आधी महिलाएँ; हर मदद वाले घर के लिए एक पड़ोसी तय। लिंग वैकल्पिक है और केवल दायरा गिनने के लिए।'}
+      </p>
+      {poll.loading && !poll.data ? (
+        <Skeleton lines={3} />
+      ) : poll.error && !poll.data ? (
+        poll.error.isDenied ? <DeniedNote error={poll.error} /> : <ErrorState error={poll.error} onRetry={poll.refresh} />
+      ) : (
+        <ul className="rs-now-list">
+          {sorted.map((v) => (
+            <li key={v.village_id} className={`rs-now-row${v.gaps.length ? ' is-empty' : ''}`}>
+              <p className="rs-district">
+                <span className="rs-district-name">{en ? v.name : v.name_hi}</span>
+                <span className="rs-shift">
+                  {en
+                    ? `${fmtNumber(v.observers, lang)} of ${fmtNumber(v.observers_needed, lang)} observers · ${fmtNumber(v.women_observers, lang)} women · ${fmtNumber(v.assisted, lang)} assisted · ${fmtNumber(v.registered_phones, lang)} phones${v.households ? ` of ${fmtNumber(v.households, lang)} households` : ''}`
+                    : `${fmtNumber(v.observers, lang)} / ${fmtNumber(v.observers_needed, lang)} निगरानीकर्ता · ${fmtNumber(v.women_observers, lang)} महिलाएँ · ${fmtNumber(v.assisted, lang)} मदद वाले घर · ${fmtNumber(v.registered_phones, lang)} फ़ोन${v.households ? `, ${fmtNumber(v.households, lang)} घरों में से` : ''}`}
+                </span>
+              </p>
+              {v.gaps.length > 0 ? (
+                <p className="rs-gap" role="note">
+                  {v.gaps.map((g) => gapWord(g, lang)).join(' · ')}
+                  {v.assisted_without_neighbour.length > 0 && ` (${v.assisted_without_neighbour.join(', ')})`}
+                </p>
+              ) : (
+                <p className="rs-meta">{en ? 'No gaps' : 'कोई कमी नहीं'}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

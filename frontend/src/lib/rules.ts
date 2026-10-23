@@ -46,6 +46,14 @@ export function describeRule(rule: string, lang: Lang): string {
       return hi ? 'गेज का माप सिम्युलेटर से है, असली हार्डवेयर से नहीं' : 'Gauge reading is from the simulator, not real hardware';
     case 'no_reading':
       return hi ? 'कोई माप नहीं मिला' : 'No reading available';
+    case 'gauge_silent_in_rain':
+      return hi
+        ? `बारिश के बीच नदी गेज चुप हो गया (30 मिनट से ज़्यादा) → ${lv}`
+        : `The river gauge went silent while it rains (over 30 min) → ${lv}`;
+    case 'gauge_silent_in_rain_ignored':
+      return hi
+        ? 'बारिश में गेज चुप, पर यह सिम्युलेटर या बिना लगा गेज है: स्तर नहीं बदला'
+        : 'Gauge silent in rain, but it is a simulator or not installed: level unchanged';
   }
   return rule;
 }

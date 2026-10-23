@@ -48,7 +48,7 @@ import { isSnoozed, isTyping, pruneSnoozes, readSnoozes, sortQueue, step, waited
 import { sirenApi } from '../../lib/sirens';
 import type { Lang } from '../../store';
 import type { Alert, Village } from '../../types';
-import { AfterActionLinks, Deliveries, OutcomePicker } from './AlertRecord';
+import { AfterActionLinks, AlertMetricsPanel, Deliveries, OutcomePicker } from './AlertRecord';
 import { useConsole } from './consoleContext';
 import { PushNudge } from './PushNudge';
 import { GroupBanner } from './GroupReview';
@@ -272,6 +272,8 @@ export default function Inbox() {
   return (
     <div className={`ib${selected && !wide ? ' is-deciding' : ''}`}>
       {(wide || !alertId) && listPane}
+      {/* On a phone the decision is its own screen: it keeps the page's one heading, for screen readers. */}
+      {!wide && alertId && <h1 className="sr-only">{t('cs.nav.inbox')}</h1>}
       {(wide || alertId) && <div className="ib-decision">{decision}</div>}
       <ShortcutsSheet open={showKeys} onClose={() => setShowKeys(false)} />
       <Snackbar msg={snack} onClose={closeSnack} closeLabel={t('common.close')} />
@@ -902,7 +904,7 @@ function SentPanel({ alert, onBack }: { alert: Alert; onBack: (() => void) | nul
 }
 
 function Record({ alert: a }: { alert: Alert }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const c = useConsole();
   const sent = ['delivering', 'delivered', 'closed', 'auto_sent_unapproved', 'failsafe'].includes(a.status) || a.delivered_count > 0;
   const cap = capXmlUrl(a, API_BASE);
@@ -937,6 +939,11 @@ function Record({ alert: a }: { alert: Alert }) {
       {sent && (
         <Section title={t('console.deliveries', { n: a.recipients_count || a.delivered_count })}>
           <Deliveries alertId={a.id} />
+        </Section>
+      )}
+      {sent && (
+        <Section title={lang === 'hi' ? 'पायलट के दस माप' : 'The ten pilot metrics'}>
+          <AlertMetricsPanel alertId={a.id} />
         </Section>
       )}
       {(a.sirens_total ?? 0) > 0 && (
