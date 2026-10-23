@@ -46,7 +46,7 @@ DEPLOY_EXTRA   = $(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL)) \
                  $(if $(CAP_SENDER_NAME_HI),'CapSenderNameHi="$(CAP_SENDER_NAME_HI)"')
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo demo-open demo-reset drill add-village staff-assign waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt device-provision siren-sim protocol-vectors ses-verify it secrets vapid-keys local validate smoke
+        seed reset-demo demo-open demo-reset drill add-village staff-assign waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt device-provision siren-sim protocol-vectors ses-verify it secrets vapid-keys local validate smoke hardware-video
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -176,6 +176,9 @@ ses-verify: ## Ask SES to verify an address for after-action e-mail (EMAIL=you@e
 	aws sesv2 create-email-identity --region $(or $(AWS_REGION),us-east-1) --email-identity "$(EMAIL)"
 	@echo "SES sent a verification e-mail to $(EMAIL). Its owner must click the link in it (valid 24 hours)"
 	@echo "before SES will send from or, in the sandbox, to this address. Check: aws sesv2 get-email-identity --email-identity $(EMAIL)"
+
+hardware-video: ## Narrated 3D explainer of the hardware at Pandoh (Polly Kajal, AWS default profile): MP4, small MP4, SRT and stills in ~/Downloads (HW_OUT=; ARGS=--preview 30,90 or --stills)
+	node video/hardware/render.mjs $(ARGS)
 
 smoke: ## Read-only check of the live site and API: pages, axe, sideways scroll, API shapes, 401s (SMOKE_SITE=, SMOKE_API=)
 	node scripts/smoke.mjs

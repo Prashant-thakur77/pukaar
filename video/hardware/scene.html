@@ -1,0 +1,1705 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Pukaar hardware explainer</title>
+    <!-- The hardware explainer's renderer. video/hardware/render.mjs loads this page with the timeline (window.__DATA:
+         scenes, lines, caption cues), waits for __ready, then calls __render(t) for every frame and screenshots it.
+         Everything is a pure function of t: no timers, no CSS transitions, no randomness that is not seeded. The valley
+         is a schematic model of the Pandoh stretch of the Beas, not to scale. Facts and prices: docs/hardware/ALARM.md,
+         docs/hardware/README.md, docs/SCORING.md. -->
+    <style>
+      :root {
+        --night-0: #06111f; --night-1: #081828; --night-2: #0c2136; --night-3: #123049; --night-4: #1d4466;
+        --ink: #eef6fc; --ink-2: #a9c8e0; --ink-3: #7c9db8;
+        --blue: #4fb3ff; --blue-2: #8ad0ff; --lora: #6ff0c0; --mobile: #8ad0ff;
+        --crit: #e0294f; --warn: #f27a1f; --watch: #ffd43b; --ok: #2fbf7f;
+        --sans: "Noto Sans", "Noto Sans Devanagari", sans-serif;
+        --hi: "Noto Sans Devanagari", "Noto Sans", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--night-0); font-family: var(--sans); color: var(--ink); }
+      canvas { position: absolute; inset: 0; display: block; }
+      #ui { position: absolute; inset: 0; pointer-events: none; }
+      #lines { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+      .hide { display: none !important; }
+      .hi { font-family: var(--hi); }
+
+      /* chapter, badge, captions */
+      #chapter { position: absolute; left: 64px; top: 46px; }
+      #chapter .eb { font: 700 20px/1 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--blue-2); }
+      #chapter .tt { margin-top: 10px; font: 700 44px/1.05 var(--sans); color: #fff; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6); }
+      #badge { position: absolute; right: 56px; top: 50px; font: 700 21px/1 var(--sans); color: var(--ink); background: rgba(6, 17, 31, 0.72);
+        border: 1.5px solid rgba(138, 208, 255, 0.45); border-radius: 999px; padding: 11px 20px; }
+      #cap { position: absolute; left: 0; right: 0; bottom: 44px; display: flex; justify-content: center; }
+      #cap div { max-width: 1640px; text-align: center; font: 700 43px/1.28 var(--sans); color: #fff; background: rgba(3, 10, 19, 0.86);
+        border-radius: 14px; padding: 14px 34px 16px; box-shadow: 0 6px 30px rgba(0, 0, 0, 0.35); }
+      #cap div.hi { font-family: var(--hi); font-size: 46px; color: #ffe28a; }
+
+      /* 3D-anchored tags */
+      .tag { position: absolute; left: 0; top: 0; white-space: nowrap; background: rgba(5, 15, 28, 0.86); border: 2px solid rgba(138, 208, 255, 0.55);
+        border-radius: 12px; padding: 9px 16px 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); }
+      .tag b { display: block; font: 700 29px/1.15 var(--sans); color: #fff; }
+      .tag span { display: block; font: 400 22px/1.3 var(--sans); color: var(--ink-2); margin-top: 3px; }
+      .tag.sm b { font-size: 24px; }
+      .tag.lora { border-color: var(--lora); } .tag.lora b { color: var(--lora); }
+      .tag.mob { border-color: var(--mobile); }
+      .tag.ok { border-color: var(--ok); background: rgba(8, 40, 26, 0.92); } .tag.ok b { color: #8ff0bf; }
+      .tag.bad { border-color: #8a96a3; background: rgba(30, 34, 40, 0.92); } .tag.bad b { color: #ffb3b3; }
+      .tag.crit { border-color: var(--crit); background: rgba(70, 8, 22, 0.92); } .tag.crit b { color: #fff; }
+      .tag.warn { border-color: var(--warn); background: rgba(70, 30, 6, 0.92); }
+      .tag.watch { border-color: var(--watch); background: rgba(60, 50, 6, 0.92); }
+      .tag.q { border-radius: 999px; padding: 2px 16px 6px; border-color: var(--watch); background: rgba(40, 32, 4, 0.9); }
+      .tag.q b { font-size: 40px; color: var(--watch); }
+      .pin { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 4px rgba(79, 179, 255, 0.5); }
+
+      /* phone icons over the houses */
+      .ph { position: absolute; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; display: grid; place-items: center;
+        background: #1f8fd6; border: 2.5px solid #d9efff; box-shadow: 0 0 18px rgba(79, 179, 255, 0.9); }
+      .ph svg { width: 22px; height: 22px; }
+      .ph.ok { background: #1f9468; border-color: #c6f5dd; box-shadow: 0 0 16px rgba(47, 191, 127, 0.9); }
+      .ph.again { background: #d9661a; border-color: #ffe0c7; box-shadow: 0 0 20px rgba(242, 122, 31, 0.95); }
+
+      /* cards */
+      .card { position: absolute; background: rgba(5, 15, 28, 0.9); border: 1.5px solid rgba(138, 208, 255, 0.35); border-radius: 22px;
+        box-shadow: 0 10px 50px rgba(0, 0, 0, 0.45); }
+      #dev { left: 64px; top: 150px; width: 640px; padding: 30px 34px 30px; }
+      #dev .k { font: 700 19px/1 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--blue-2); }
+      #dev h2 { margin: 12px 0 0; font: 700 50px/1.05 var(--sans); color: #fff; }
+      #dev .what { margin-top: 16px; font: 400 29px/1.35 var(--sans); color: var(--ink); }
+      #dev ul { list-style: none; margin: 20px 0 0; padding: 0; }
+      #dev li { display: flex; gap: 14px; align-items: baseline; font: 400 25px/1.3 var(--sans); color: var(--ink-2); padding: 7px 0; border-top: 1px solid rgba(138, 208, 255, 0.16); }
+      #dev li b { color: #fff; font-weight: 700; }
+      #dev li i { flex: none; width: 13px; height: 13px; border-radius: 50%; background: var(--blue); transform: translateY(-2px); }
+      #dev .cost { display: inline-block; margin-top: 20px; font: 700 30px/1 var(--sans); color: #0b1f33; background: #ffd479; border-radius: 999px; padding: 12px 22px; }
+      #dev .note { margin-top: 12px; font: 400 21px/1.3 var(--sans); color: var(--ink-3); }
+
+      #title1 { position: absolute; left: 64px; top: 170px; }
+      #title1 .a { font: 700 92px/1 var(--sans); color: #fff; text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6); }
+      #title1 .a .hi { font-weight: 700; color: var(--blue-2); margin-right: 26px; }
+      #title1 .b { margin-top: 18px; font: 400 38px/1.25 var(--sans); color: var(--ink); text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8); }
+      #title1 .b b { color: #ffd479; }
+
+      #replay { left: 64px; top: 160px; width: 660px; padding: 28px 32px; }
+      #replay .k { font: 700 19px/1.2 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue-2); }
+      #replay .row { display: flex; align-items: center; gap: 18px; margin-top: 20px; }
+      #replay .big { flex: none; width: 150px; font: 700 52px/1 var(--sans); color: #ffd479; text-align: right; }
+      #replay .row div:last-child { font: 400 27px/1.3 var(--sans); color: var(--ink); }
+      #replay .src { margin-top: 18px; font: 400 19px/1.3 var(--sans); color: var(--ink-3); }
+      #replay .ask { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(138, 208, 255, 0.2); font: 700 34px/1.2 var(--sans); color: var(--watch); }
+
+      #cost { left: 50%; top: 170px; width: 1060px; margin-left: -530px; padding: 30px 40px 26px; }
+      #cost h3 { margin: 0; font: 700 24px/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue-2); }
+      #cost table { width: 100%; margin-top: 16px; border-collapse: collapse; font: 400 28px/1.3 var(--sans); }
+      #cost td { padding: 9px 0; border-top: 1px solid rgba(138, 208, 255, 0.16); color: var(--ink); }
+      #cost td:last-child { text-align: right; font-weight: 700; color: #fff; }
+      #cost tr.tot td { border-top: 2px solid rgba(255, 212, 121, 0.7); font-weight: 700; color: #ffd479; font-size: 32px; padding-top: 14px; }
+      #cost .src { margin-top: 12px; font: 400 19px/1.3 var(--sans); color: var(--ink-3); }
+
+      /* the gauge readout */
+      #gaugep { right: 64px; top: 150px; width: 560px; padding: 24px 28px; }
+      #gaugep .k { font: 700 19px/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue-2); }
+      #gaugep .wrap { display: flex; gap: 24px; margin-top: 16px; }
+      #gaugep .tube { position: relative; width: 70px; height: 300px; border-radius: 12px; background: rgba(138, 208, 255, 0.08); border: 2px solid rgba(138, 208, 255, 0.4); overflow: hidden; }
+      #gaugep .wat { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(180deg, #4fb3ff, #1f6fae); }
+      #gaugep .mk { position: absolute; left: -2px; right: -2px; height: 0; border-top: 3px dashed; }
+      #gaugep .mkc { position: relative; width: 100px; flex: none; }
+      #gaugep .mkl { position: absolute; left: 0; font: 700 22px/1 var(--sans); transform: translateY(-50%); }
+      #gaugep .reads { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+      #gaugep .rd { display: flex; align-items: center; gap: 12px; font: 400 23px/1.2 var(--sans); color: var(--ink-2); }
+      #gaugep .rd i { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 700 22px/1 var(--sans); font-style: normal; color: #fff; background: #33475c; }
+      #gaugep .rd.hit i { background: var(--crit); }
+      #gaugep .verdict { margin-top: 16px; font: 700 27px/1.25 var(--sans); color: #fff; }
+
+      /* the level chip */
+      .lvl { display: inline-block; font: 700 22px/1 var(--sans); padding: 7px 12px; border-radius: 8px; color: #111820; }
+
+      /* phones */
+      .phone { position: absolute; width: 430px; height: 820px; top: 56px; border-radius: 54px; background: #0b0f14; border: 3px solid #3a4654;
+        box-shadow: 0 20px 70px rgba(0, 0, 0, 0.6), inset 0 0 0 9px #161d26; padding: 22px; }
+      .phone .scr { position: relative; width: 100%; height: 100%; border-radius: 36px; overflow: hidden; background: #eef3f7; color: #0b1f33; }
+      .phone .bar { height: 104px; background: #0b5cad; color: #fff; padding: 46px 24px 0; font: 700 26px/1 var(--sans); }
+      .phone .bar small { display: block; margin-top: 6px; font: 400 18px/1 var(--sans); opacity: 0.85; }
+      .phone .body { padding: 20px 20px; }
+      #officer { left: 1290px; }
+      #officer .lv { display: flex; align-items: center; justify-content: space-between; font: 700 32px/1 var(--sans); }
+      #officer .lv .lvl { background: var(--crit); color: #fff; font-size: 24px; }
+      #officer .ev { margin-top: 18px; font: 700 19px/1 var(--sans); letter-spacing: 0.1em; text-transform: uppercase; color: #557089; }
+      #officer .e { display: flex; gap: 12px; align-items: flex-start; margin-top: 12px; font: 400 23px/1.3 var(--sans); }
+      #officer .e i { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--crit); margin-top: 2px; }
+      #officer .e i.w { background: var(--warn); }
+      #officer .draft { margin-top: 18px; background: #fff; border: 2px solid #c9d8e6; border-radius: 16px; padding: 14px 16px; font: 700 27px/1.4 var(--hi); color: #0b1f33; }
+      #officer .hold { position: absolute; left: 20px; right: 20px; bottom: 26px; height: 86px; border-radius: 20px; background: #0b5cad; overflow: hidden;
+        color: #fff; font: 700 29px/86px var(--sans); text-align: center; }
+      #officer .hold .fill { position: absolute; left: 0; top: 0; bottom: 0; background: #1f9468; }
+      #officer .hold span { position: relative; }
+      #officer .sent { position: absolute; left: 20px; right: 20px; bottom: 126px; text-align: center; font: 700 24px/1.3 var(--sans); color: #1f7a4c; }
+      #offlab { position: absolute; left: 1290px; width: 430px; top: 888px; text-align: center; font: 700 22px/1 var(--sans); color: var(--ink-2); }
+      #smart { left: 860px; }
+      #smart .bar { background: #2b7bb9; }
+      #smart .msg { background: #fff; border-radius: 18px 18px 18px 6px; padding: 16px 18px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); margin-top: 14px; }
+      #smart .voice { display: flex; align-items: center; gap: 14px; }
+      #smart .play { flex: none; width: 56px; height: 56px; border-radius: 50%; background: #2b7bb9; display: grid; place-items: center; }
+      #smart .wave { flex: 1; height: 44px; display: flex; align-items: center; gap: 4px; }
+      #smart .wave b { flex: 1; border-radius: 3px; background: #9cc4e4; }
+      #smart .wave b.on { background: #2b7bb9; }
+      #smart .txt { font: 700 27px/1.4 var(--hi); color: #0b1f33; }
+      #smart .who { font: 700 18px/1 var(--sans); color: #2b7bb9; margin-bottom: 10px; }
+      #smart .btn { margin-top: 16px; height: 76px; border-radius: 16px; background: #e3edf7; border: 2.5px solid #2b7bb9; color: #0b5cad;
+        font: 700 34px/72px var(--hi); text-align: center; }
+      #smart .btn.done { background: #1f9468; border-color: #1f9468; color: #fff; }
+      #keypad { position: absolute; left: 1360px; top: 120px; width: 330px; height: 700px; border-radius: 46px 46px 60px 60px; background: #1d2530; border: 3px solid #44505e;
+        box-shadow: 0 20px 70px rgba(0, 0, 0, 0.6); padding: 30px 26px; }
+      #keypad .lcd { height: 250px; border-radius: 12px; background: #c9e3c1; color: #142312; padding: 16px 16px; }
+      #keypad .lcd .t { font: 700 23px/1.2 var(--sans); }
+      #keypad .lcd .o { margin-top: 10px; font: 700 23px/1.4 var(--hi); }
+      #keypad .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 26px; }
+      #keypad .keys div { height: 72px; border-radius: 18px; background: #34404e; color: #e9eef3; font: 700 32px/72px var(--sans); text-align: center; }
+      #keypad .keys div.on { background: #1f9468; color: #fff; box-shadow: 0 0 24px rgba(47, 191, 127, 0.9); }
+      .plab { position: absolute; top: 888px; text-align: center; font: 700 22px/1 var(--sans); color: var(--ink-2); }
+
+      #hold { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+      #hold .ring { position: absolute; width: 230px; height: 230px; left: -115px; top: -115px; border-radius: 50%;
+        -webkit-mask: radial-gradient(circle, transparent 98px, #000 100px, #000 113px, transparent 115px); }
+      #hold .lab { position: absolute; left: -110px; width: 220px; top: 124px; text-align: center; font: 700 30px/1 var(--sans); color: #fff;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9); }
+      #counter { left: 64px; top: 150px; width: 400px; padding: 20px 26px; }
+      #counter .k { font: 700 18px/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue-2); }
+      #counter .n { margin-top: 10px; font: 700 64px/1 var(--sans); color: #8ff0bf; }
+      #counter .n small { font-size: 32px; color: var(--ink-2); }
+      #counter .s { margin-top: 8px; font: 700 23px/1.3 var(--sans); color: #ffb27a; }
+      #counter .m { margin-top: 6px; font: 400 19px/1.3 var(--sans); color: var(--ink-3); }
+      #counter .s b { color: #ffb27a; font-weight: 700; }
+
+      #rule { left: 64px; top: 150px; width: 580px; padding: 26px 30px; }
+      #rule .k { font: 700 19px/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--lora); }
+      #rule .r { display: flex; gap: 16px; align-items: center; margin-top: 18px; font: 400 28px/1.3 var(--sans); color: var(--ink); }
+      #rule .r i { flex: none; width: 40px; height: 40px; border-radius: 10px; border: 3px solid #5d7894; display: grid; place-items: center; font: 700 26px/1 var(--sans); font-style: normal; color: #fff; }
+      #rule .r.ok i { background: var(--ok); border-color: var(--ok); }
+      #rule .go { margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(111, 240, 192, 0.3); font: 700 31px/1.25 var(--sans); color: #fff; }
+
+      /* the flow diagram */
+      #flow { position: absolute; inset: 0; }
+      #flow .ttl { position: absolute; left: 0; right: 0; top: 150px; text-align: center; font: 700 52px/1 var(--sans); color: #fff; }
+      #flow .node { position: absolute; top: 300px; width: 262px; height: 330px; border-radius: 24px; background: rgba(8, 24, 40, 0.94); border: 2.5px solid rgba(138, 208, 255, 0.5);
+        text-align: center; padding: 26px 16px 0; }
+      #flow .node .ic { width: 110px; height: 110px; margin: 0 auto; border-radius: 50%; background: rgba(79, 179, 255, 0.14); display: grid; place-items: center; }
+      #flow .node .ic svg { width: 66px; height: 66px; }
+      #flow .node b { display: block; margin-top: 20px; font: 700 31px/1.15 var(--sans); color: #fff; }
+      #flow .node span { display: block; margin-top: 10px; font: 400 22px/1.3 var(--sans); color: var(--ink-2); }
+      #flow .arr { position: absolute; top: 449px; width: 38px; height: 32px; }
+      #flow .by { position: absolute; left: 0; right: 0; top: 690px; text-align: center; font: 700 28px/1.3 var(--sans); color: var(--lora); }
+
+      /* real today */
+      #real { position: absolute; inset: 0; background: radial-gradient(1400px 900px at 50% 0%, #123049 0%, #081828 60%, #06111f 100%); }
+      #real .ttl { position: absolute; left: 96px; top: 90px; font: 700 58px/1 var(--sans); color: #fff; }
+      #real .cols { position: absolute; left: 96px; right: 96px; top: 200px; display: flex; gap: 32px; }
+      #real .col { flex: 1; border-radius: 24px; padding: 28px 30px; background: rgba(8, 24, 40, 0.9); border: 2px solid rgba(138, 208, 255, 0.3); }
+      #real .col h4 { margin: 0; font: 700 22px/1.2 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; }
+      #real .col.live h4 { color: #8ff0bf; } #real .col.live { border-color: rgba(47, 191, 127, 0.7); }
+      #real .col.des h4 { color: #ffd479; } #real .col.des { border-color: rgba(255, 212, 121, 0.6); }
+      #real .col.nx h4 { color: var(--blue-2); }
+      #real .col p { margin: 16px 0 0; font: 400 27px/1.35 var(--sans); color: var(--ink); }
+      #real .col p b { color: #fff; }
+      #real .brand { position: absolute; left: 96px; right: 96px; top: 640px; font: 700 40px/1.2 var(--sans); color: var(--blue-2); }
+      #real .brand .hi { color: #fff; margin-right: 10px; }
+      #real .foot { position: absolute; left: 96px; right: 96px; top: 770px; font: 400 24px/1.4 var(--sans); color: var(--ink-2); }
+      #real .foot b { color: #fff; }
+    </style>
+    <script type="importmap">{ "imports": { "three": "/three/build/three.module.js" } }</script>
+  </head>
+  <body>
+    <div id="ui">
+      <svg id="lines"></svg>
+      <div id="tags"></div>
+      <div id="title1" class="hide">
+        <div class="a"><span class="hi">पंडोह</span>Pandoh, Mandi</div>
+        <div class="b" id="title1b">July 2023: <b>the Beas rose into the market.</b></div>
+      </div>
+      <div id="replay" class="card hide">
+        <div class="k">Pukaar's replay of July 2023 (archived forecasts)</div>
+        <div class="row"><div class="big">48 h+</div><div>before the flood: a "get ready" outlook for the district</div></div>
+        <div class="row"><div class="big">19 h</div><div>before the flood: the first alert, from the rain forecast</div></div>
+        <div class="src">Back-test, docs/SCORING.md. Flood day: 9 July 2023.</div>
+        <div class="ask" id="ask">But did it reach every home?</div>
+      </div>
+      <div id="dev" class="card hide"></div>
+      <div id="cost" class="card hide">
+        <h3>For one village (indicative)</h3>
+        <table>
+          <tr><td>Siren and loudspeaker pole</td><td>about ₹85,000</td></tr>
+          <tr><td>River gauge on the bridge</td><td>about ₹35,000</td></tr>
+          <tr><td>Rain gauge on the hillside</td><td>about ₹22,000</td></tr>
+          <tr><td>Pradhan's alarm box</td><td>about ₹14,000</td></tr>
+          <tr><td>Share of a hilltop radio relay</td><td>about ₹7,000</td></tr>
+          <tr class="tot"><td>To set up · to run each year</td><td>about ₹1.6 lakh · about ₹30,000</td></tr>
+        </table>
+        <div class="src">Prices are quotes to re-check before buying (docs/hardware/ALARM.md).</div>
+      </div>
+      <div id="gaugep" class="card hide">
+        <div class="k">River gauge, on the bridge</div>
+        <div class="wrap">
+          <div class="tube"><div class="wat" id="gw"></div>
+            <div class="mk" style="bottom: 46%; border-color: var(--watch)"></div>
+            <div class="mk" style="bottom: 64%; border-color: var(--warn)"></div>
+            <div class="mk" style="bottom: 82%; border-color: var(--crit)"></div>
+          </div>
+          <div class="mkc">
+            <div class="mkl" style="top: 54%; color: var(--watch)">Watch</div>
+            <div class="mkl" style="top: 36%; color: var(--warn)">Warning</div>
+            <div class="mkl" style="top: 18%; color: #ff7f99">Critical</div>
+          </div>
+          <div class="reads" id="reads"></div>
+        </div>
+        <div class="verdict" id="verdict"></div>
+      </div>
+      <div id="officer" class="phone hide"><div class="scr">
+        <div class="bar">पुकार Pukaar<small>District officer, Mandi</small></div>
+        <div class="body">
+          <div class="lv"><span>Pandoh</span><span class="lvl">CRITICAL</span></div>
+          <div class="ev">The evidence</div>
+          <div class="e"><i></i><div><b>River gauge:</b> 2 of the last 3 readings at the critical mark</div></div>
+          <div class="e"><i class="w"></i><div><b>Rain gauge:</b> heavy rain, counted on the hillside</div></div>
+          <div class="e"><i class="w"></i><div><b>Forecast:</b> more heavy rain ahead</div></div>
+          <div class="ev">The alert, in Hindi</div>
+          <div class="draft">ख़तरा! पंडोह में बाढ़ आ रही है। अभी ऊँची जगह जाएँ।</div>
+        </div>
+        <div class="sent" id="osent">✓ Approved. Sending to Pandoh.</div>
+        <div class="hold"><div class="fill" id="ofill"></div><span id="otxt">Hold to approve</span></div>
+      </div></div>
+      <div id="offlab" class="hide">The district officer's phone</div>
+      <div id="smart" class="phone hide"><div class="scr">
+        <div class="bar">Pukaar · DDMA Mandi<small>Telegram</small></div>
+        <div class="body">
+          <div class="msg"><div class="who">Spoken alert</div><div class="voice"><div class="play"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="#fff"/></svg></div><div class="wave" id="wave"></div></div></div>
+          <div class="msg"><div class="txt">ख़तरा! पंडोह में बाढ़ आ रही है। अभी ऊँची जगह जाएँ।</div></div>
+          <div class="btn" id="sbtn">मिल गया</div>
+        </div>
+      </div></div>
+      <div id="keypad" class="hide">
+        <div class="lcd"><div class="t">Pukaar call · DDMA</div><div class="o">1 दबाएँ: सुना<br />2: मदद चाहिए<br />3: फिर से सुनें</div></div>
+        <div class="keys"><div id="k1">1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div></div>
+      </div>
+      <div id="smartlab" class="plab hide" style="left: 860px; width: 430px">Smartphone: tap “मिल गया”</div>
+      <div id="keylab" class="plab hide" style="left: 1360px; width: 330px">Keypad phone: press 1</div>
+      <div id="hold" class="hide"><div class="ring" id="holdr"></div><div class="lab" id="holdl">Holding…</div></div>
+      <div id="counter" class="card hide"><div class="k">Confirmed (मिल गया)</div><div class="n" id="cn">0</div><div class="s" id="cs"></div><div class="m">Homes in this model</div></div>
+      <div id="rule" class="card hide">
+        <div class="k">No network: the siren decides</div>
+        <div class="r" id="r1"><i></i><div>Cloud silent for 10 minutes</div></div>
+        <div class="r" id="r2"><i></i><div>2 of 3 river readings critical</div></div>
+        <div class="go" id="rgo">→ The siren sounds on its own, and an officer confirms later</div>
+      </div>
+      <div id="flow" class="hide"></div>
+      <div id="real" class="hide">
+        <div class="ttl">What is real today, and what is next</div>
+        <div class="cols">
+          <div class="col live"><h4>Live today: the software</h4>
+            <p>Checks rain and river <b>every 15 minutes</b>, on AWS</p>
+            <p>An officer <b>approves</b> each alert</p>
+            <p>A <b>spoken Hindi alert</b> with “मिल गया”, sent again to anyone who has not confirmed</p></div>
+          <div class="col des"><h4>Designed and simulated: the hardware</h4>
+            <p>River gauge, rain gauge, siren pole, pradhan's box, LoRa radio</p>
+            <p>Firmware <b>builds</b> and passes its tests on a computer</p>
+            <p><b>Never run on a real board; untested in the field</b></p></div>
+          <div class="col nx"><h4>Next</h4>
+            <p>A <b>bench test</b> of every device</p>
+            <p>A <b>field pilot</b> before a monsoon</p>
+            <p>At Pandoh, first map the dam's own BBMB warning sirens</p></div>
+        </div>
+        <div class="brand"><span class="hi">पुकार</span> Pukaar · the call that reaches the village before the river does</div>
+        <div class="foot">Pilot system: follow DDMA and IMD warnings. Emergency <b>112</b> · district control room <b>1077</b>.<br />The valley in this film is an illustrative model of the Pandoh stretch of the Beas, not to scale.</div>
+      </div>
+      <div id="chapter"><div class="eb" id="cheb"></div><div class="tt" id="chtt"></div></div>
+      <div id="badge">Illustrative model, not to scale</div>
+      <div id="cap"><div id="capt" class="hide"></div></div>
+    </div>
+    <script type="module">
+      import * as THREE from "three";
+      const D = window.__DATA;
+      const W = 1920, H = 1080;
+
+      // ------------------------------------------------------------------ time helpers
+      const SC = Object.fromEntries(D.scenes.map((s) => [s.id, s]));
+      const S = (id) => SC[id].start;
+      const E = (id) => SC[id].start + SC[id].dur;
+      const Ln = (id, i, dt = 0) => SC[id].start + SC[id].lines[i].start + dt;
+      const Le = (id, i, dt = 0) => SC[id].start + SC[id].lines[i].end + dt;
+      const Ck = (id, i, k, dt = 0) => SC[id].start + SC[id].lines[i].chunks[k].start + dt;
+      const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+      const sm = (x) => { x = clamp(x); return x * x * (3 - 2 * x); };
+      const ramp = (t, a, b) => sm((t - a) / (b - a));
+      const win = (t, a, b, fi = 0.45, fo = 0.45) => Math.min(ramp(t, a, a + fi), 1 - ramp(t, b - fo, b));
+      const lerp = (a, b, u) => a + (b - a) * u;
+      const sceneAt = (t) => D.scenes.findLast((s) => t >= s.start) ?? D.scenes[0];
+
+      // ------------------------------------------------------------------ renderer, scene, sky
+      const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(1);
+      renderer.setSize(W, H);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.15;
+      document.body.prepend(renderer.domElement);
+      const scene = new THREE.Scene();
+      const FOG = new THREE.Color(0x0d2238);
+      scene.fog = new THREE.Fog(FOG, 120, 330);
+      const cam = new THREE.PerspectiveCamera(40, W / H, 0.1, 900);
+
+      const sky = new THREE.Mesh(
+        new THREE.SphereGeometry(600, 32, 16),
+        new THREE.ShaderMaterial({
+          side: THREE.BackSide, depthWrite: false, fog: false,
+          uniforms: { top: { value: new THREE.Color(0x030a14) }, mid: { value: new THREE.Color(0x0b1e33) }, hor: { value: new THREE.Color(0x1d4466) } },
+          vertexShader: "varying vec3 vp; void main(){ vp = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
+          fragmentShader: "uniform vec3 top; uniform vec3 mid; uniform vec3 hor; varying vec3 vp; void main(){ float h = vp.y; vec3 c = h > 0.12 ? mix(mid, top, smoothstep(0.12, 0.7, h)) : mix(hor, mid, smoothstep(-0.05, 0.12, h)); gl_FragColor = vec4(c, 1.0); }",
+        }),
+      );
+      scene.add(sky);
+      // seeded random
+      let seed = 7;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      {
+        const n = 900, p = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) {
+          const a = rnd() * Math.PI * 2, y = 0.18 + rnd() * 0.8, r = Math.sqrt(1 - y * y);
+          p.set([Math.cos(a) * r * 560, y * 560, Math.sin(a) * r * 560], i * 3);
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.BufferAttribute(p, 3));
+        scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xcfe6ff, size: 1.6, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.8 })));
+      }
+      const glowTex = (() => {
+        const c = document.createElement("canvas");
+        c.width = c.height = 128;
+        const g = c.getContext("2d");
+        const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+        gr.addColorStop(0, "rgba(255,255,255,1)");
+        gr.addColorStop(0.18, "rgba(255,255,255,0.75)");
+        gr.addColorStop(0.45, "rgba(255,255,255,0.18)");
+        gr.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = gr;
+        g.fillRect(0, 0, 128, 128);
+        const t = new THREE.CanvasTexture(c);
+        t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      })();
+      const glow = (color, size, pos, opacity = 1) => {
+        const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
+        s.scale.set(size, size, 1);
+        s.position.copy(pos);
+        scene.add(s);
+        return s;
+      };
+      const moon = glow(0xdfeaff, 70, new THREE.Vector3(-260, 230, -420), 0.9);
+      moon.material.fog = false;
+      {
+        const m = new THREE.Mesh(new THREE.CircleGeometry(9, 32), new THREE.MeshBasicMaterial({ color: 0xf2f6ff, fog: false }));
+        m.position.set(-260, 230, -419);
+        m.lookAt(0, 0, 0);
+        scene.add(m);
+      }
+
+      // lights
+      const hemi = new THREE.HemisphereLight(0x7fa6d6, 0x0a1622, 1.25);
+      scene.add(hemi);
+      const moonL = new THREE.DirectionalLight(0xc4d8ff, 1.5);
+      moonL.position.set(-80, 120, 60);
+      scene.add(moonL);
+      const fill = new THREE.DirectionalLight(0x4f7fb0, 0.5);
+      fill.position.set(60, 40, 120);
+      scene.add(fill);
+
+      // ------------------------------------------------------------------ the valley
+      const rz = (x) => 5 * Math.sin(x / 28 + 0.6);
+      const bump = (x, c, w) => Math.exp(-(((x - c) / w) ** 2));
+      const noise = (x, z) => Math.sin(x * 0.13 + z * 0.07) * Math.cos(z * 0.11 - x * 0.05) + 0.5 * Math.sin(x * 0.31 + 1.3) * Math.sin(z * 0.27 + 0.7) + 0.22 * Math.sin(x * 0.71 + z * 0.63);
+      const DAM_X = -56;
+      // flat pads for the buildings and devices on the slope: [x, d from the river, radius]
+      const PADS = [[19, -35, 7.5], [-5, -33.5, 3.2], [47, -40, 3.5]].map(([x, d, r]) => ({ x, z: rz(x) + d, r }));
+      function hgt(x, z) {
+        let h = rawH(x, z);
+        for (const p of PADS) {
+          const dd = Math.hypot(x - p.x, z - p.z);
+          if (dd < p.r) h = lerp(p.y, h, sm((dd - p.r * 0.5) / (p.r * 0.5)));
+        }
+        return h;
+      }
+      function rawH(x, z) {
+        const d = z - rz(x), ad = Math.abs(d), north = d < 0;
+        const f = north ? 10 + 20 * bump(x, 14, 40) : 7.5 + 4 * bump(x, 6, 40);
+        let h;
+        if (ad < 5) h = -3 + 1.6 * (ad / 5) ** 2;
+        else if (ad < 7.5) h = -1.4 + 2.2 * sm((ad - 5) / 2.5);
+        else h = 0.8 + (ad - 7.5) * 0.05;
+        if (ad > f) {
+          const k = ad - f;
+          const amp = north ? 36 : 11;
+          h += amp * (1 - Math.exp(-k / (north ? 15 : 8))) + noise(x, z) * Math.min(1, k / 6) * (north ? 3.4 : 1.5);
+        }
+        // upstream of the dam the gorge is a lake bed
+        if (x < DAM_X - 2 && ad < 13) h = Math.min(h, -1 - (13 - ad) * 0.3);
+        return h;
+      }
+      PADS.forEach((p) => (p.y = rawH(p.x, p.z)));
+      const ground = (x, z) => Math.max(hgt(x, z), 0.8 - 1e-3);
+      {
+        const geo = new THREE.PlaneGeometry(420, 330, 300, 230);
+        geo.rotateX(-Math.PI / 2);
+        geo.translate(0, 0, -15);
+        const pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
+        const cA = new THREE.Color(0x24432f), cB = new THREE.Color(0x1f3a2c), cR = new THREE.Color(0x3a4752), cS = new THREE.Color(0x4a3f33), cBed = new THREE.Color(0x2b2a26), c = new THREE.Color();
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i), z = pos.getZ(i), y = hgt(x, z);
+          pos.setY(i, y);
+          const n = 0.5 + 0.5 * Math.sin(x * 0.9 + z * 1.3) * Math.cos(z * 0.7);
+          if (y < -0.6) c.copy(cBed);
+          else if (y < 1.4) c.copy(cS).lerp(cA, 0.55 + 0.2 * n);
+          else if (y < 20) c.copy(cA).lerp(cB, n);
+          else c.copy(cB).lerp(cR, clamp((y - 20) / 14));
+          col.set([c.r, c.g, c.b], i * 3);
+        }
+        geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+        geo.computeVertexNormals();
+        const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true }));
+        scene.add(m);
+      }
+      // water: one plane that rises (the terrain hides it where it is higher), and the reservoir above the dam
+      const flowTex = (() => {
+        const c = document.createElement("canvas");
+        c.width = c.height = 256;
+        const g = c.getContext("2d");
+        g.fillStyle = "#1a5c94";
+        g.fillRect(0, 0, 256, 256);
+        let s2 = 11;
+        const r2 = () => ((s2 = (s2 * 16807) % 2147483647) / 2147483647);
+        for (let i = 0; i < 140; i++) {
+          g.strokeStyle = `rgba(${150 + r2() * 80},${200 + r2() * 55},255,${0.15 + r2() * 0.35})`;
+          g.lineWidth = 1 + r2() * 2;
+          const x = r2() * 256, y = r2() * 256, l = 20 + r2() * 60;
+          g.beginPath(); g.moveTo(x, y); g.lineTo(x + l, y + (r2() - 0.5) * 3); g.stroke();
+          g.beginPath(); g.moveTo(x - 256, y); g.lineTo(x + l - 256, y); g.stroke();
+        }
+        const t = new THREE.CanvasTexture(c);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      })();
+      const water = new THREE.Mesh(
+        new THREE.PlaneGeometry(320, 190).rotateX(-Math.PI / 2),
+        new THREE.MeshStandardMaterial({ color: 0x3f8fd0, map: flowTex, emissive: 0x2a7fd0, emissiveMap: flowTex, emissiveIntensity: 0.55, roughness: 0.3, metalness: 0.1, transparent: true, opacity: 0.94 }),
+      );
+      water.material.map.repeat.set(26, 15);
+      water.position.set(DAM_X + 160, -0.9, -30);
+      water.geometry.translate(0, 0, 0);
+      scene.add(water);
+      {
+        const res = new THREE.Mesh(new THREE.PlaneGeometry(140, 120).rotateX(-Math.PI / 2), water.material.clone());
+        res.material.map = flowTex.clone();
+        res.material.map.repeat.set(8, 8);
+        res.material.emissiveIntensity = 0.35;
+        res.position.set(DAM_X - 72, 5.6, -10);
+        scene.add(res);
+      }
+      // trim the main water plane to start at the dam
+      water.geometry = new THREE.PlaneGeometry(262, 300).rotateX(-Math.PI / 2);
+      water.position.set(DAM_X + 131 - 0.5, -0.9, -15);
+
+      // ------------------------------------------------------------------ building blocks
+      const M = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, ...o });
+      const box = (w, h, d, mat, x, y, z, parent = scene) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); parent.add(m); return m; };
+      const cyl = (r1, r2, h, mat, x, y, z, parent = scene, seg = 16) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, seg), mat); m.position.set(x, y, z); parent.add(m); return m; };
+      const WIN = new THREE.MeshStandardMaterial({ color: 0x3a2a10, emissive: 0xffb54a, emissiveIntensity: 1.6 });
+      const WIN2 = new THREE.MeshStandardMaterial({ color: 0x3a2a10, emissive: 0xffd08a, emissiveIntensity: 1.2 });
+      const wallCols = [0xb9ad98, 0xa9a08f, 0xc6b49a, 0x9fa6a8, 0xb7a58b, 0xd2c6b0];
+      const roofCols = [0x5d6a78, 0x6e5444, 0x4f5c66, 0x7a6a58, 0x55606b];
+
+      /** A house: body (sunk into the slope), pyramid roof, lit windows facing +z (the river and the camera). */
+      function house(x, z, w, d, h, rot = 0, opts = {}) {
+        const g = new THREE.Group();
+        const f = rot ? -1 : 1;
+        const gF = Math.min(ground(x - w / 2, z + (f * d) / 2), ground(x + w / 2, z + (f * d) / 2));
+        const gB = Math.max(ground(x - w / 2, z - (f * d) / 2), ground(x + w / 2, z - (f * d) / 2));
+        if (gB - gF > 3.0 && !opts.force) return null;
+        const yTop = gF + h;
+        const bodyH = h + 4;
+        const wc = opts.wall ?? wallCols[Math.floor(rnd() * wallCols.length)];
+        box(w, bodyH, d, M(wc), 0, yTop - bodyH / 2, 0, g);
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.78, h * 0.55, 4), M(opts.roof ?? roofCols[Math.floor(rnd() * roofCols.length)], { flatShading: true }));
+        roof.rotation.y = Math.PI / 4;
+        roof.scale.set(w / Math.max(w, d), 1, d / Math.max(w, d));
+        roof.position.y = yTop + h * 0.27;
+        g.add(roof);
+        const nW = Math.max(1, Math.round(w / 1.4));
+        for (let i = 0; i < nW; i++) {
+          if (rnd() < 0.25 && !opts.allLit) continue;
+          const wx = -w / 2 + (w / nW) * (i + 0.5);
+          box(0.5, 0.6, 0.06, rnd() < 0.5 ? WIN : WIN2, wx, yTop - h * 0.45, d / 2 + 0.02, g);
+        }
+        box(0.6, 1.0, 0.06, M(0x3b2a1e), opts.doorX ?? 0, yTop - h + 0.5, d / 2 + 0.03, g);
+        g.position.set(x, 0, z);
+        g.rotation.y = rot;
+        scene.add(g);
+        return { g, top: new THREE.Vector3(x, yTop + h * 0.6, z), door: new THREE.Vector3(x, yTop - h, z + d / 2 + 0.4) };
+      }
+
+      // the dam
+      {
+        const zc = rz(DAM_X);
+        const mat = M(0x8d96a0, { roughness: 0.7 });
+        box(4, 14, 34, mat, DAM_X, 1.5, zc);
+        for (let k = -2; k <= 2; k++) {
+          box(4.3, 4.5, 2.2, M(0x56616d), DAM_X + 0.1, 5.2, zc + k * 4.4);
+          glow(0xffe0a8, 2.4, new THREE.Vector3(DAM_X + 2.3, 8.9, zc + k * 4.4 + 2), 0.9);
+        }
+        box(4.6, 0.6, 34, M(0x6f7a85), DAM_X, 8.7, zc);
+        // the spill below the gates
+        const spill = new THREE.Mesh(new THREE.PlaneGeometry(4, 8), new THREE.MeshStandardMaterial({ color: 0xbfe3ff, emissive: 0x5fa8e8, emissiveIntensity: 0.6, transparent: true, opacity: 0.55 }));
+        spill.rotation.set(-Math.PI / 2 + 0.9, Math.PI / 2, 0);
+        spill.position.set(DAM_X + 3.5, 1.2, zc);
+        scene.add(spill);
+      }
+
+      // the road along the north bank and on the south bank, as ribbons
+      function ribbon(f, x0, x1, width, mat, lift = 0.06) {
+        const pts = [], idx = [];
+        const n = Math.ceil((x1 - x0) / 1.5);
+        for (let i = 0; i <= n; i++) {
+          const x = x0 + ((x1 - x0) * i) / n, z = f(x);
+          pts.push(x, ground(x, z - width / 2) + lift, z - width / 2, x, ground(x, z + width / 2) + lift, z + width / 2);
+          if (i < n) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+        g.setIndex(idx);
+        g.computeVertexNormals();
+        const m = new THREE.Mesh(g, mat);
+        scene.add(m);
+        return m;
+      }
+      const ROAD = M(0x4a4e52, { roughness: 0.95, side: THREE.DoubleSide });
+      ribbon((x) => rz(x) - 8.3, DAM_X + 3, 110, 2.4, ROAD);
+      ribbon((x) => rz(x) + 8.6, -40, 110, 2.2, ROAD);
+
+      // the bridge
+      const BR_X = -30;
+      const brZ = rz(BR_X);
+      const DECK_Y = 3.1;
+      {
+        const mat = M(0x9aa3ab, { roughness: 0.7 });
+        box(3.2, 0.6, 21, mat, BR_X, DECK_Y - 0.3, brZ);
+        for (const s of [-1, 1]) {
+          box(0.18, 1.0, 21, M(0xc9d1d8), BR_X + s * 1.5, DECK_Y + 0.5, brZ);
+          box(1.4, 6, 1.4, mat, BR_X, -1.5, brZ + s * 6.2);
+        }
+        glow(0xffe2a8, 3, new THREE.Vector3(BR_X - 1.5, DECK_Y + 2.6, brZ - 9), 0.8);
+        cyl(0.07, 0.07, 2.6, M(0x7c858d), BR_X - 1.5, DECK_Y + 1.3, brZ - 9);
+      }
+
+      // the market: a row of shops facing the river
+      const houses = [];
+      const shopCols = [0xd8705a, 0x4f8fc0, 0xe0b04a, 0x5aa37a, 0xb05a8a, 0xd08a3a];
+      for (let x = -8, k = 0; x <= 27; x += 3.3, k++) {
+        const z = rz(x) - 11.2;
+        const y = ground(x, z);
+        const h = 3 + (k % 3) * 0.7;
+        const g = new THREE.Group();
+        box(3.0, h + 2, 3.2, M(wallCols[k % wallCols.length]), 0, y + h / 2 - 1, 0, g);
+        box(3.0, 0.25, 3.4, M(0x59636c), 0, y + h + 0.1, 0, g);
+        const aw = box(3.0, 0.12, 1.5, M(shopCols[k % shopCols.length], { emissive: shopCols[k % shopCols.length], emissiveIntensity: 0.25 }), 0, y + 2.2, 2.2, g);
+        aw.rotation.x = 0.3;
+        box(2.4, 1.5, 0.06, k % 2 ? WIN : WIN2, 0, y + 1.0, 1.62, g);
+        g.position.set(x, 0, z);
+        scene.add(g);
+        houses.push({ top: new THREE.Vector3(x, y + h + 1.2, z), door: new THREE.Vector3(x, y, z + 2.2), market: true });
+        if (k % 2 === 0) glow(0xffb866, 6, new THREE.Vector3(x, y + 1.4, z + 2.6), 0.55);
+      }
+      // houses on the north slope (the village) and a few across the river
+      const SIREN = new THREE.Vector3(12, 0, rz(12) - 19);
+      const PRAD = new THREE.Vector3(29, 0, rz(29) - 21);
+      const SAFE = new THREE.Vector3(19, 0, rz(19) - 35);
+      const RAIN = new THREE.Vector3(-5, 0, rz(-5) - 33.5);
+      const TOWER = new THREE.Vector3(47, 0, rz(47) - 40);
+      SIREN.y = ground(SIREN.x, SIREN.z); PRAD.y = ground(PRAD.x, PRAD.z); SAFE.y = ground(SAFE.x, SAFE.z); RAIN.y = hgt(RAIN.x, RAIN.z); TOWER.y = hgt(TOWER.x, TOWER.z);
+      const near = (x, z, p, r) => Math.hypot(x - p.x, z - p.z) < r;
+      const placed = [];
+      const SKIP = {};
+      window.__skip = SKIP;
+      for (const [d0, xs, step] of [[-15.6, -12, 3.9], [-19.6, -10, 4.2], [-23.6, -7, 4.5], [-27.6, -2, 5.0], [-31.4, 4, 5.6], [-17.6, 30, 3.6], [-21.8, 33, 3.8], [-25.8, 31, 4.2]]) {
+        for (let x = xs; x < 46; x += step) {
+          const jx = x + (rnd() - 0.5) * 1.6, z = rz(jx) + d0 + (rnd() - 0.5) * 1.4;
+          const why = near(jx, z, SIREN, 4.2) || near(jx, z, PRAD, 5.5) || near(jx, z, SAFE, 8) || near(jx, z, RAIN, 6) ? "near"
+            : Math.abs(jx - PRAD.x) < 7 && z > PRAD.z && z < PRAD.z + 10 ? "yard"
+            : placed.some(([px, pz]) => Math.hypot(px - jx, pz - z) < 4.0) ? "spacing" : hgt(jx, z) > 12 ? "high" : "";
+          if (why) { SKIP[why] = (SKIP[why] ?? 0) + 1; continue; }
+          const w = 2.6 + rnd() * 1.4, d = 2.4 + rnd() * 1.0, h = 2.6 + rnd() * 1.2;
+          const hh = house(jx, z, w, d, h);
+          if (hh) { houses.push(hh); placed.push([jx, z]); } else SKIP.slope = (SKIP.slope ?? 0) + 1;
+        }
+      }
+      for (let x = -22; x < 60; x += 7.5) {
+        const jx = x + (rnd() - 0.5) * 2, z = rz(jx) + 12 + rnd() * 2.5;
+        house(jx, z, 2.6, 2.4, 2.6, Math.PI);
+      }
+      // the pradhan's house, with a veranda
+      const pradH = house(PRAD.x, PRAD.z, 5.2, 3.8, 3.6, 0, { wall: 0xd9c9a8, roof: 0x6e5444, allLit: true, doorX: 1.4, force: true });
+      houses.push(pradH);
+      {
+        const y = ground(PRAD.x, PRAD.z + 2);
+        box(5.6, 0.2, 2.2, M(0x6e5444), PRAD.x, y + 3.0, PRAD.z + 2.9);
+        for (const s of [-1, 1]) cyl(0.12, 0.12, 3.0, M(0xe6dcc8), PRAD.x + s * 2.6, y + 1.5, PRAD.z + 3.85);
+        glow(0xffc46b, 5, new THREE.Vector3(PRAD.x + 1.4, y + 2.2, PRAD.z + 2.6), 0.55);
+      }
+      // the safe place on higher ground
+      {
+        const y = SAFE.y;
+        box(7, 10, 5, M(0xe8e1d2), SAFE.x, y - 1.4, SAFE.z);
+        box(3, 0.5, 1.6, M(0xb8ad98), SAFE.x, y + 0.1, SAFE.z + 3.2);
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(5.0, 2.6, 4), M(0x8a5a44, { flatShading: true }));
+        roof.rotation.y = Math.PI / 4; roof.scale.set(1, 1, 0.75); roof.position.set(SAFE.x, y + 4.9, SAFE.z);
+        scene.add(roof);
+        for (let i = -1; i <= 1; i++) box(0.9, 1.0, 0.06, WIN, SAFE.x + i * 2.2, y + 2.4, SAFE.z + 2.53);
+        cyl(0.06, 0.06, 4, M(0xcccccc), SAFE.x + 3.2, y + 5.5, SAFE.z);
+        const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.9), new THREE.MeshStandardMaterial({ color: 0xf28c28, emissive: 0xf28c28, emissiveIntensity: 0.4, side: THREE.DoubleSide }));
+        flag.position.set(SAFE.x + 3.9, y + 7.0, SAFE.z);
+        scene.add(flag);
+        glow(0xffd08a, 7, new THREE.Vector3(SAFE.x, y + 2.4, SAFE.z + 3), 0.6);
+      }
+      const safeRing = new THREE.Mesh(new THREE.RingGeometry(6.5, 7.2, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x2fbf7f, transparent: true, opacity: 0, depthWrite: false }));
+      safeRing.position.set(SAFE.x, SAFE.y + 0.25, SAFE.z);
+      scene.add(safeRing);
+
+      // trees, as dark cones on the slopes
+      {
+        const geo = new THREE.ConeGeometry(0.9, 3.0, 6);
+        const mat = M(0x183324, { flatShading: true });
+        const pts = [];
+        for (let i = 0; i < 1400; i++) {
+          const x = -120 + rnd() * 240, z = -110 + rnd() * 150, d = z - rz(x), y = hgt(x, z);
+          if (Math.abs(d) < 9 || y < 1.2 || y > 34) continue;
+          if (near(x, z, SAFE, 9) || near(x, z, RAIN, 4) || near(x, z, TOWER, 5) || near(x, z, SIREN, 4) || near(x, z, PRAD, 6)) continue;
+          if (d < 0 && d > -30 && x > -14 && x < 46 && y < 10) continue;
+          if (x < DAM_X + 4 && x > DAM_X - 4) continue;
+          pts.push([x, y, z, 0.7 + rnd() * 0.8]);
+        }
+        const inst = new THREE.InstancedMesh(geo, mat, pts.length);
+        const m4 = new THREE.Matrix4();
+        pts.forEach(([x, y, z, s], i) => { m4.makeScale(s, s, s); m4.setPosition(x, y + 1.3 * s, z); inst.setMatrixAt(i, m4); });
+        scene.add(inst);
+      }
+
+      // ------------------------------------------------------------------ devices
+      const WHITE = M(0xe9eef2, { roughness: 0.5 });
+      const GREY = M(0x8c969f, { roughness: 0.6 });
+      const DARK = M(0x2a3138, { roughness: 0.6 });
+      const PANEL = new THREE.MeshStandardMaterial({ color: 0x1b3d73, roughness: 0.25, metalness: 0.5, emissive: 0x0d2a55, emissiveIntensity: 0.6 });
+      const solar = (w, h, parent, x, y, z, tilt = 0.5, rotY = 0) => {
+        const g = new THREE.Group();
+        box(w, 0.06, h, PANEL, 0, 0, 0, g);
+        box(w + 0.08, 0.04, h + 0.08, GREY, 0, -0.04, 0, g);
+        for (let i = 1; i < 4; i++) box(0.015, 0.075, h, M(0x6f8fbf), -w / 2 + (w * i) / 4, 0, 0, g);
+        g.rotation.order = "YXZ";
+        g.rotation.y = rotY;
+        g.rotation.x = tilt;
+        g.position.set(x, y, z);
+        parent.add(g);
+        return g;
+      };
+
+      // river gauge on the bridge (downstream side, over the water)
+      const GAUGE = new THREE.Group();
+      const GX = BR_X + 1.6, GZ = brZ - 0.8;
+      {
+        box(1.6, 0.14, 0.14, GREY, 0.8, DECK_Y + 0.15, 0, GAUGE); // arm out over the water
+        box(0.14, 0.9, 0.14, GREY, 1.55, DECK_Y - 0.3, 0, GAUGE);
+        box(0.9, 0.75, 0.6, WHITE, 1.6, DECK_Y - 1.0, 0, GAUGE); // the box: computer + modem + battery
+        const lens = cyl(0.26, 0.3, 0.3, DARK, 1.6, DECK_Y - 1.5, 0, GAUGE); // radar, lens down
+        box(0.5, 0.04, 0.04, M(0x6ff0c0, { emissive: 0x6ff0c0, emissiveIntensity: 0.8 }), 1.6, DECK_Y - 0.62, 0.31, GAUGE);
+        // solar panel on a short mast on the railing
+        box(0.1, 1.8, 0.1, GREY, -0.1, DECK_Y + 1.4, 0, GAUGE);
+        solar(1.3, 0.9, GAUGE, -0.1, DECK_Y + 2.35, 0, -0.55, Math.PI / 2);
+        // battery box on the mast
+        box(0.55, 0.6, 0.4, M(0x3f4a55), -0.1, DECK_Y + 1.2, 0.3, GAUGE);
+        // LoRa antenna
+        cyl(0.025, 0.025, 1.4, WHITE, 0.3, DECK_Y + 1.1, 0, GAUGE, 6);
+        GAUGE.position.set(GX, 0, GZ);
+        scene.add(GAUGE);
+      }
+      const G_LENS = new THREE.Vector3(GX + 1.6, DECK_Y - 1.66, GZ);
+      {
+        const sx = GX + 2.7, sz = GZ + 0.9;
+        box(0.12, 6, 0.12, GREY, sx, -1.0, sz - 0.25);
+        [[-3.4, -0.5, 0x2fbf7f], [-0.5, -0.15, 0xffd43b], [-0.15, 0.2, 0xf27a1f], [0.2, 1.6, 0xe0294f]].forEach(([a, b, c]) =>
+          box(0.5, b - a - 0.04, 0.06, new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.55 }), sx, (a + b) / 2, sz));
+      }
+      const G_BOX = new THREE.Vector3(GX + 1.6, DECK_Y - 1.0, GZ);
+      const G_ANT = new THREE.Vector3(GX + 0.3, DECK_Y + 1.8, GZ);
+      const G_SOL = new THREE.Vector3(GX - 0.1, DECK_Y + 2.4, GZ);
+      const G_BAT = new THREE.Vector3(GX - 0.1, DECK_Y + 1.2, GZ + 0.5);
+      // the radar beam and its pulses
+      const beam = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0x6ff0c0, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+      scene.add(beam);
+      const pulses = [0, 1, 2].map(() => {
+        const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.03, 6, 40).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x9ff8d8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+        scene.add(m);
+        return m;
+      });
+
+      // rain gauge on the hillside: pole, a cylinder with a funnel, a see-through housing with the tipping seesaw
+      const RG = new THREE.Group();
+      const shell = new THREE.MeshStandardMaterial({ color: 0xdfe8ef, roughness: 0.4, transparent: true, opacity: 1, depthWrite: true });
+      const seesaw = new THREE.Group();
+      {
+        cyl(0.08, 0.08, 1.4, GREY, 0, 0.7, 0, RG);
+        cyl(0.6, 0.6, 1.3, shell, 0, 2.05, 0, RG, 28);
+        const fun = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.2, 0.4, 28, 1, true), new THREE.MeshStandardMaterial({ color: 0xc6d2dc, side: THREE.DoubleSide, roughness: 0.4 }));
+        fun.position.y = 2.85;
+        RG.add(fun);
+        // the seesaw: a pivot and a beam with a cup at each end
+        const piv = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.26, 3), M(0x37414b));
+        piv.position.y = 1.7;
+        RG.add(piv);
+        box(0.95, 0.05, 0.3, M(0xf2a93b, { emissive: 0xf2a93b, emissiveIntensity: 0.35 }), 0, 0, 0, seesaw);
+        for (const s of [-1, 1]) {
+          box(0.06, 0.24, 0.3, M(0xf2a93b, { emissive: 0xf2a93b, emissiveIntensity: 0.35 }), s * 0.46, 0.1, 0, seesaw);
+          box(0.06, 0.2, 0.3, M(0xf2a93b, { emissive: 0xf2a93b, emissiveIntensity: 0.35 }), s * 0.06, 0.1, 0, seesaw);
+        }
+        seesaw.position.y = 1.86;
+        RG.add(seesaw);
+        // the node: a small box with a small solar panel and an antenna
+        box(0.5, 0.6, 0.3, WHITE, 0.62, 0.9, 0, RG);
+        solar(0.7, 0.5, RG, 0.62, 1.45, -0.05, -0.6, 0);
+        cyl(0.02, 0.02, 1.1, WHITE, 0.82, 1.7, 0, RG, 6);
+        RG.position.copy(RAIN);
+        RG.scale.setScalar(1.25);
+        scene.add(RG);
+      }
+      const R_TOP = RAIN.clone().add(new THREE.Vector3(0, 3.7, 0));
+      const R_MID = RAIN.clone().add(new THREE.Vector3(0, 2.3, 0));
+      const R_ANT = RAIN.clone().add(new THREE.Vector3(1.0, 2.8, 0));
+      // a drip falling into the funnel on each tip
+      const drip = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), new THREE.MeshBasicMaterial({ color: 0x8ad0ff }));
+      scene.add(drip);
+
+      // the siren and loudspeaker pole
+      const SP = new THREE.Group();
+      const hornMat = M(0xe8ecef, { roughness: 0.4 });
+      const strobe = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.32, 16), new THREE.MeshStandardMaterial({ color: 0x601010, emissive: 0xff2a2a, emissiveIntensity: 0 }));
+      const hornDirs = [];
+      {
+        cyl(0.14, 0.18, 8.6, GREY, 0, 4.3, 0, SP);
+        // two horns, facing the houses on either side, tilted down a little
+        for (const a of [-0.75, 0.75]) {
+          const h = new THREE.Group();
+          const c = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.16, 1.1, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0xe8ecef, roughness: 0.4, side: THREE.DoubleSide }));
+          c.rotation.x = Math.PI / 2;
+          c.position.z = 0.55;
+          h.add(c);
+          const dr = cyl(0.2, 0.2, 0.4, DARK, 0, 0, -0.05, h);
+          dr.rotation.x = Math.PI / 2;
+          h.rotation.y = a;
+          h.rotation.x = 0.12;
+          h.position.set(0, 7.9, 0.15);
+          SP.add(h);
+          hornDirs.push(new THREE.Vector3(Math.sin(a), -0.12, Math.cos(a)).normalize());
+        }
+        box(0.5, 0.12, 0.5, GREY, 0, 8.55, 0, SP);
+        strobe.position.set(0, 8.8, 0);
+        SP.add(strobe);
+        cyl(0.03, 0.03, 2.2, WHITE, 0.25, 9.6, 0, SP, 6); // LoRa antenna
+        solar(2.0, 1.2, SP, 0, 6.5, -0.35, -0.6, 0);
+        box(0.12, 0.6, 0.12, GREY, 0, 6.3, -0.2, SP);
+        // the cabinet: battery and small computer, with a door
+        box(1.1, 1.4, 0.55, M(0xd7dde2, { roughness: 0.5 }), 0, 2.4, 0.32, SP);
+        box(1.0, 1.3, 0.04, M(0xc5ccd2), 0, 2.4, 0.61, SP);
+        box(0.12, 0.12, 0.05, M(0x2fbf7f, { emissive: 0x2fbf7f, emissiveIntensity: 1 }), 0.32, 2.9, 0.64, SP);
+        // the microphone port, a dark circle on the cabinet side
+        cyl(0.07, 0.07, 0.05, DARK, -0.35, 2.0, 0.64, SP, 12).rotation.x = Math.PI / 2;
+        SP.position.copy(SIREN);
+        SP.scale.setScalar(1.15);
+        scene.add(SP);
+      }
+      const S_TOP = SIREN.clone().add(new THREE.Vector3(0, 7.9 * 1.15, 0));
+      const S_ANT = SIREN.clone().add(new THREE.Vector3(0.3, 10.6 * 1.15, 0));
+      const S_SOL = SIREN.clone().add(new THREE.Vector3(0, 6.5 * 1.15, -0.3));
+      const S_BOX = SIREN.clone().add(new THREE.Vector3(0, 2.4 * 1.15, 0.7));
+      const S_MIC = SIREN.clone().add(new THREE.Vector3(-0.4, 2.0 * 1.15, 0.75));
+      const strobeGlow = glow(0xff3030, 6, S_TOP.clone().add(new THREE.Vector3(0, 1.1, 0)), 0);
+      // sound: rings spreading over the village from the horns
+      const rings = [0, 1, 2, 3, 4].map(() => {
+        const m = new THREE.Mesh(new THREE.RingGeometry(0.94, 1, 72).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffc46b, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+        m.position.copy(S_TOP);
+        scene.add(m);
+        return m;
+      });
+      const arcs = [];
+      for (const dir of hornDirs) for (let k = 0; k < 3; k++) {
+        const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.05, 6, 32, Math.PI * 0.7), new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+        scene.add(m);
+        arcs.push({ m, dir, k });
+      }
+
+      // the pradhan's alarm box, on the wall under the veranda
+      const PB = new THREE.Group();
+      const btn = new THREE.Group();
+      const leds = [];
+      const keyG = new THREE.Group();
+      {
+        box(1.2, 0.9, 0.22, M(0xf0ece4, { roughness: 0.5 }), 0, 0, 0, PB);
+        // speaker grille
+        const gr = new THREE.Mesh(new THREE.CircleGeometry(0.2, 24), M(0x2a3138));
+        gr.position.set(-0.36, 0.12, 0.115);
+        PB.add(gr);
+        // level lights
+        [0x2fbf7f, 0xffd43b, 0xf27a1f, 0xe0294f].forEach((c, i) => {
+          const l = new THREE.Mesh(new THREE.CircleGeometry(0.045, 16), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.3 }));
+          l.position.set(-0.5 + i * 0.13, -0.26, 0.115);
+          PB.add(l);
+          leds.push(l);
+        });
+        // the key switch
+        const ks = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.05, 20), M(0xb8bec4, { metalness: 0.6, roughness: 0.3 }));
+        ks.rotation.x = Math.PI / 2;
+        ks.position.set(0.08, 0.2, 0.12);
+        PB.add(ks);
+        box(0.035, 0.12, 0.05, M(0xc8a24a, { metalness: 0.7, roughness: 0.3 }), 0, 0.03, 0, keyG);
+        box(0.12, 0.09, 0.03, M(0xc8a24a, { metalness: 0.7, roughness: 0.3 }), 0, 0.12, 0, keyG);
+        keyG.position.set(0.08, 0.2, 0.17);
+        PB.add(keyG);
+        // the big red button
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 28), M(0xf2c230));
+        base.rotation.x = Math.PI / 2;
+        base.position.set(0.36, -0.05, 0.13);
+        PB.add(base);
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(0.17, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xd01c2c, roughness: 0.35, emissive: 0x900010, emissiveIntensity: 0.3 }));
+        dome.rotation.x = Math.PI / 2;
+        btn.add(dome);
+        btn.position.set(0.36, -0.05, 0.15);
+        PB.add(btn);
+        const y = ground(PRAD.x, PRAD.z + 2);
+        PB.position.set(PRAD.x - 1.1, y + 1.65, PRAD.z + 1.98);
+        scene.add(PB);
+      }
+      const P_BOX = PB.position.clone();
+      const P_BTN = PB.position.clone().add(new THREE.Vector3(0.36, -0.05, 0.25));
+      const P_KEY = PB.position.clone().add(new THREE.Vector3(0.08, 0.32, 0.2));
+
+      // the mobile tower on the ridge
+      const TW = new THREE.Group();
+      const towerMat = M(0xb7c0c8, { roughness: 0.5, metalness: 0.3 });
+      const towerLight = glow(0xff3030, 4, new THREE.Vector3(TOWER.x, TOWER.y + 14.6, TOWER.z), 1);
+      {
+        const legs = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+        for (const [a, b] of legs) {
+          const leg = cyl(0.1, 0.12, 14, towerMat, a * 0.8, 7, b * 0.8, TW, 6);
+          leg.rotation.z = -a * 0.05; leg.rotation.x = b * 0.05;
+        }
+        for (let y = 1; y < 14; y += 1.6) {
+          const s = 1.5 - y * 0.06;
+          for (let k = 0; k < 4; k++) {
+            const br = box(s * 1.45, 0.06, 0.06, towerMat, 0, y, 0, TW);
+            br.rotation.y = (k * Math.PI) / 2;
+            br.translateZ(s * 0.72);
+            br.rotation.z = (k % 2 ? 1 : -1) * 0.5;
+          }
+        }
+        for (let k = 0; k < 3; k++) {
+          const p = box(0.35, 1.6, 0.15, WHITE, 0, 13.2, 0, TW);
+          p.rotation.y = (k * 2 * Math.PI) / 3;
+          p.translateZ(0.75);
+        }
+        TW.position.copy(TOWER);
+        scene.add(TW);
+      }
+      const T_TOP = TOWER.clone().add(new THREE.Vector3(0, 13.4, 0));
+
+      // the cloud: Pukaar's brain
+      const CLOUD = new THREE.Vector3(6, 46, -78);
+      const CL = new THREE.Group();
+      const cloudMat = new THREE.MeshStandardMaterial({ color: 0xdbeeff, emissive: 0x4fb3ff, emissiveIntensity: 0.35, roughness: 0.9, transparent: true, opacity: 0.96, fog: false });
+      {
+        for (const [x, y, z, r] of [[0, 0, 0, 5], [-5.5, -1.2, 0.5, 3.8], [5.6, -1, 0, 4], [-2.5, 2.8, -0.5, 3.6], [2.8, 2.6, 0.2, 3.4], [-9, -2.2, 0, 2.4], [9.2, -2, 0, 2.6]]) {
+          const s = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), cloudMat);
+          s.position.set(x, y, z);
+          CL.add(s);
+        }
+        CL.position.copy(CLOUD);
+        scene.add(CL);
+      }
+      const cloudGlow = glow(0x4fb3ff, 40, CLOUD.clone().add(new THREE.Vector3(0, 0, -6)), 0.3);
+      cloudGlow.material.fog = false;
+      const FORECAST = CLOUD.clone().add(new THREE.Vector3(-6, 15, -8));
+      {
+        const sat = new THREE.Group();
+        box(1.6, 1.6, 1.6, M(0xd7dde2, { fog: false }), 0, 0, 0, sat);
+        for (const s of [-1, 1]) solar(3.2, 1.4, sat, s * 2.7, 0, 0, Math.PI / 2, Math.PI / 2).children.forEach((c) => (c.material.fog = false));
+        sat.position.copy(FORECAST);
+        window.__sat = sat;
+        sat.rotation.y = 0.4;
+        scene.add(sat);
+      }
+
+      // ------------------------------------------------------------------ links: dotted, moving
+      const dotTex = (() => {
+        const c = document.createElement("canvas");
+        c.width = c.height = 64;
+        const g = c.getContext("2d");
+        const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.45, "rgba(255,255,255,0.95)"); gr.addColorStop(0.7, "rgba(255,255,255,0.25)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+        return new THREE.CanvasTexture(c);
+      })();
+      function link(a, b, color, lift, n, size) {
+        const mid = a.clone().add(b).multiplyScalar(0.5);
+        mid.y = Math.max(a.y, b.y) + lift;
+        const curve = new THREE.QuadraticBezierCurve3(a.clone(), mid, b.clone());
+        const pos = new Float32Array(n * 3);
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        const mat = new THREE.PointsMaterial({ color, size, map: dotTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+        const pts = new THREE.Points(g, mat);
+        pts.frustumCulled = false;
+        scene.add(pts);
+        const head = glow(color, size * 5, a, 0);
+        head.material.fog = false;
+        const L = { curve, pos, g, mat, n, head, a, b };
+        L.set = (t, vis, speed = 0.25, packet = 0) => {
+          mat.opacity = vis;
+          pts.visible = vis > 0.01;
+          for (let i = 0; i < n; i++) {
+            const u = (((i / n + t * speed) % 1) + 1) % 1;
+            const p = curve.getPoint(u);
+            pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z;
+          }
+          g.attributes.position.needsUpdate = true;
+          head.visible = packet > 0.01 && vis > 0.01;
+          if (head.visible) { head.position.copy(curve.getPoint(((t * 0.6) % 1 + 1) % 1)); head.material.opacity = packet * vis; }
+        };
+        return L;
+      }
+      const LORA = 0x6ff0c0, MOB = 0x8ad0ff;
+      const lkGaugeSiren = link(G_ANT, S_ANT, LORA, 9, 70, 0.75);
+      const lkBoxSiren = link(P_KEY.clone().add(new THREE.Vector3(0, 0.6, 0)), S_ANT, LORA, 4, 34, 0.6);
+      const lkGaugeTower = link(G_ANT, T_TOP, MOB, 14, 90, 0.85);
+      const lkRainTower = link(R_ANT, T_TOP, MOB, 8, 70, 0.85);
+      const lkSirenTower = link(S_ANT, T_TOP, MOB, 7, 60, 0.8);
+      const lkTowerCloud = link(T_TOP, CLOUD.clone().add(new THREE.Vector3(6, -4, 2)), MOB, 4, 70, 1.3);
+      const lkForecast = link(FORECAST, CLOUD.clone().add(new THREE.Vector3(-2, 4, 0)), 0xffd479, 1, 24, 1.3);
+
+      // ------------------------------------------------------------------ rain
+      const RAIN_N = 9000;
+      const rainPos = new Float32Array(RAIN_N * 6);
+      const rainSeed = new Float32Array(RAIN_N * 3);
+      for (let i = 0; i < RAIN_N; i++) rainSeed.set([-90 + rnd() * 180, rnd(), -95 + rnd() * 150], i * 3);
+      const rainGeo = new THREE.BufferGeometry();
+      rainGeo.setAttribute("position", new THREE.BufferAttribute(rainPos, 3));
+      const rainMat = new THREE.LineBasicMaterial({ color: 0xa9cbe8, transparent: true, opacity: 0.5, depthWrite: false });
+      const rainL = new THREE.LineSegments(rainGeo, rainMat);
+      rainL.frustumCulled = false;
+      scene.add(rainL);
+
+      const NEAR_N = 1600;
+      const nearPos = new Float32Array(NEAR_N * 6);
+      const nearSeed = new Float32Array(NEAR_N * 3);
+      for (let i = 0; i < NEAR_N; i++) nearSeed.set([RAIN.x - 12 + rnd() * 24, rnd(), RAIN.z - 10 + rnd() * 22], i * 3);
+      const nearGeo = new THREE.BufferGeometry();
+      nearGeo.setAttribute("position", new THREE.BufferAttribute(nearPos, 3));
+      const nearL = new THREE.LineSegments(nearGeo, new THREE.LineBasicMaterial({ color: 0xbcd8f0, transparent: true, opacity: 0.55, depthWrite: false }));
+      nearL.frustumCulled = false;
+      scene.add(nearL);
+
+      // ------------------------------------------------------------------ people
+      const people = [];
+      {
+        const village = houses.filter((h) => !h.market && h.door.y < 9);
+        const market = houses.filter((h) => h.market);
+        const cols = [0xe0294f, 0xffd43b, 0x4fb3ff, 0xf2f2f2, 0xf27a1f, 0x9b6bd6, 0x2fbf7f];
+        const bodyGeo = new THREE.CapsuleGeometry(0.22, 0.6, 4, 8), headGeo = new THREE.SphereGeometry(0.2, 10, 8);
+        const srcs = [...market, ...village];
+        const gate = new THREE.Vector3(14, 0, rz(14) - 24.5);
+        const up1 = new THREE.Vector3(16.5, 0, rz(16.5) - 28.5);
+        const up2 = new THREE.Vector3(18.5, 0, rz(18.5) - 31.5);
+        const arrive = new THREE.Vector3(SAFE.x, 0, SAFE.z + 3.6);
+        for (let i = 0; i < 46; i++) {
+          const h = srcs[i % srcs.length];
+          const start = h.door.clone().add(new THREE.Vector3((rnd() - 0.5) * 1.2, 0, 0.3));
+          const end = arrive.clone().add(new THREE.Vector3((rnd() - 0.5) * 6, 0, (rnd() - 0.5) * 1.6));
+          const path = [start, new THREE.Vector3(start.x * 0.55 + gate.x * 0.45, 0, start.z * 0.4 + gate.z * 0.6), gate.clone().add(new THREE.Vector3((rnd() - 0.5) * 1.5, 0, 0)), up1, up2, end];
+          const lens = [0];
+          for (let k = 1; k < path.length; k++) lens.push(lens[k - 1] + path[k].distanceTo(path[k - 1]));
+          const g = new THREE.Group();
+          const c = cols[i % cols.length];
+          const b = new THREE.Mesh(bodyGeo, M(c, { emissive: c, emissiveIntensity: 0.25 }));
+          b.position.y = 0.52;
+          g.add(b);
+          const hd = new THREE.Mesh(headGeo, M(0x8a5a3c));
+          hd.position.y = 1.2;
+          g.add(hd);
+          const s = i % 5 === 0 ? 0.7 : 1; // children
+          g.scale.setScalar(s);
+          g.visible = false;
+          scene.add(g);
+          people.push({ g, path, lens, delay: (i % 12) * 0.35 + Math.floor(i / 12) * 0.5 + rnd() * 0.3, speed: 3.3 + rnd() * 1.4 });
+        }
+      }
+      // the walking route, drawn as a glowing dotted trail
+      const trail = (() => {
+        const pts = [new THREE.Vector3(10, 0, rz(10) - 15), new THREE.Vector3(14, 0, rz(14) - 24.5), new THREE.Vector3(16.5, 0, rz(16.5) - 28.5), new THREE.Vector3(18.5, 0, rz(18.5) - 31.5), new THREE.Vector3(SAFE.x, 0, SAFE.z + 3.6)];
+        pts.forEach((p) => (p.y = ground(p.x, p.z) + 0.25));
+        const c = new THREE.CatmullRomCurve3(pts);
+        const n = 120, pos = new Float32Array(n * 3);
+        c.getSpacedPoints(n - 1).forEach((p, i) => { p.y = ground(p.x, p.z) + 0.3; pos.set([p.x, p.y, p.z], i * 3); });
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        const m = new THREE.PointsMaterial({ color: 0x2fbf7f, size: 0.7, map: dotTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+        const p = new THREE.Points(g, m);
+        scene.add(p);
+        return p;
+      })();
+
+      // ------------------------------------------------------------------ DOM overlays
+      const $ = (id) => document.getElementById(id);
+      const svgNS = "http://www.w3.org/2000/svg";
+      const tagsEl = $("tags"), linesEl = $("lines");
+      const tags = new Map();
+      /** A label anchored to a point in the world, drawn at (dx, dy) from it, with a leader line and a dot. */
+      function tag(id, anchor, title, sub = "", cls = "", dx = 0, dy = -60) {
+        const el = document.createElement("div");
+        el.className = `tag ${cls}`;
+        el.innerHTML = `<b>${title}</b>${sub ? `<span>${sub}</span>` : ""}`;
+        tagsEl.appendChild(el);
+        const pin = document.createElement("div");
+        pin.className = "pin";
+        tagsEl.appendChild(pin);
+        const ln = document.createElementNS(svgNS, "line");
+        ln.setAttribute("stroke", "rgba(220,238,255,0.85)");
+        ln.setAttribute("stroke-width", "2.5");
+        linesEl.appendChild(ln);
+        const T = { el, pin, ln, anchor, dx, dy, w: 0, h: 0 };
+        tags.set(id, T);
+        return T;
+      }
+      const v3 = new THREE.Vector3();
+      function project(p) {
+        v3.copy(p).project(cam);
+        return { x: (v3.x * 0.5 + 0.5) * W, y: (-v3.y * 0.5 + 0.5) * H, behind: v3.z > 1 };
+      }
+      function placeTag(T, op, dx = T.dx, dy = T.dy) {
+        if (op <= 0.01) { T.el.style.display = T.pin.style.display = "none"; T.ln.style.display = "none"; return; }
+        const p = project(T.anchor);
+        if (p.behind) { T.el.style.display = T.pin.style.display = "none"; T.ln.style.display = "none"; return; }
+        T.el.style.display = T.pin.style.display = "block";
+        if (!T.w) { T.w = T.el.offsetWidth; T.h = T.el.offsetHeight; }
+        // the tag's box: centred on x + dx, its bottom (dy < 0) or top (dy > 0) at y + dy
+        let x = p.x + dx - T.w / 2, y = dy < 0 ? p.y + dy - T.h : p.y + dy;
+        x = clamp(x, 24, W - T.w - 24);
+        y = clamp(y, 130, 880 - T.h);
+        T.el.style.transform = `translate(${x}px, ${y}px)`;
+        T.el.style.opacity = op;
+        T.pin.style.transform = `translate(${p.x}px, ${p.y}px)`;
+        T.pin.style.left = T.pin.style.top = "0px";
+        T.pin.style.opacity = op;
+        const ex = clamp(p.x, x + 12, x + T.w - 12), ey = p.y < y ? y : p.y > y + T.h ? y + T.h : y + T.h / 2;
+        const far = Math.hypot(ex - p.x, ey - p.y) > 14;
+        T.ln.style.display = far ? "inline" : "none";
+        T.ln.setAttribute("x1", p.x); T.ln.setAttribute("y1", p.y); T.ln.setAttribute("x2", ex); T.ln.setAttribute("y2", ey);
+        T.ln.style.opacity = op;
+      }
+
+      // phone icons above the village houses
+      const phoneSvg = '<svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.2" fill="none" stroke="#fff" stroke-width="2.2"/><circle cx="12" cy="18" r="1.3" fill="#fff"/></svg>';
+      const checkSvg = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const againSvg = '<svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.1-5" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"/><path d="M18 3v5h-5" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const phoneHomes = houses.filter((h) => h.top.y < 13);
+      const icons = phoneHomes.map((h, i) => {
+        const el = document.createElement("div");
+        el.className = "ph";
+        tagsEl.appendChild(el);
+        return { el, h, i, state: "", jit: rnd() };
+      });
+      const nPh = icons.length;
+      // who confirms late: every 7th home is sent the alert again; most of those confirm after it
+      {
+        const target = new THREE.Vector3(SIREN.x + 7, 0, SIREN.z - 2);
+        const cand = icons.filter((ic) => !ic.h.market).sort((a, b) => a.h.top.distanceTo(target) - b.h.top.distanceTo(target));
+        icons.forEach((ic) => { ic.late = ic.i % 7 === 3; ic.never = false; });
+        cand[0].never = true;
+        cand[0].late = true;
+      }
+
+      // device cards
+      const DEVICES = {
+        gauge: { k: "Device 1 · on the bridge", h: "River gauge", what: "Measures the water level from above, like a bat: a radar sends a signal down and times the echo.", parts: [["Radar sensor", "looks down at the water"], ["Small computer", "and a mobile-network modem"], ["Radio (LoRa)", "talks straight to the siren"], ["Solar panel and battery", "about a week without sun"]], cost: "about ₹30,000–38,000" },
+        rain: { k: "Device 2 · on the hillside", h: "Rain gauge", what: "A tiny seesaw that tips with every bit of rain. It counts rain where it falls, which is how cloudbursts are caught.", parts: [["Tipping bucket", "the seesaw: each tip is a little rain"], ["Small computer", "counts the tips, sends the total"], ["Mobile modem and radio", "two ways to report"], ["Small solar panel and battery", ""]], cost: "about ₹18,000–25,000" },
+        siren: { k: "Device 3 · in the village", h: "Siren pole", what: "Plays a siren, then a spoken Hindi message. It listens to itself to prove it actually sounded.", parts: [["Two loud horns", "and an electronic siren"], ["Microphone", "checks the sound really came out"], ["Small computer", "mobile modem and LoRa radio"], ["Solar panel and battery", "7 days without sun"]], cost: "about ₹77,000–90,000 installed" },
+        box: { k: "Device 4 · in the pradhan's house", h: "Pradhan's alarm box", what: "Turn the key and hold the big button for 3 seconds to sound the siren. The district officer is told at once.", parts: [["Key and big button", "no accidental alarms"], ["Indoor speaker", "plays the alert inside the house"], ["Buttons", "“पानी बढ़ रहा है” (water rising), “मिल गया”"], ["Level lights and a battery", ""]], cost: "about ₹11,000–15,000" },
+        radio: { k: "How they talk", h: "LoRa radio", what: "A walkie-talkie for machines. It reaches several kilometres and works when mobile networks fail.", parts: [["Gauge → siren", "the river warns the village directly"], ["Pradhan's box → siren", "the manual alarm"], ["Hilltop relay", "only where a hill blocks the signal"]], cost: "relay: about ₹15,000–19,000" },
+        cloud: { k: "Normally", h: "Tower, then the cloud", what: "Readings travel over the mobile network to Pukaar's brain, which checks rain, river and reports every 15 minutes.", parts: [["Mobile tower", "carries the readings"], ["Pukaar, on AWS", "rules decide the level, not AI"], ["Weather forecast", "rain and river, read every 15 minutes"]], cost: "" },
+      };
+      function devCard(key) {
+        const d = DEVICES[key];
+        return `<div class="k">${d.k}</div><h2>${d.h}</h2><div class="what">${d.what}</div><ul>${d.parts.map(([a, b]) => `<li><i></i><div><b>${a}</b>${b ? `: ${b}` : ""}</div></li>`).join("")}</ul>${d.cost ? `<div class="cost">${d.cost}</div>` : ""}<div class="note">Designed and simulated; not yet tested in the field.</div>`;
+      }
+      let devShown = "";
+
+      // the gauge readout's three readings
+      $("reads").innerHTML = [0, 1, 2].map((i) => `<div class="rd" id="rd${i}"><i>${i + 1}</i><span>…</span></div>`).join("");
+      // the voice waveform
+      $("wave").innerHTML = Array.from({ length: 26 }, (_, i) => `<b style="height:${10 + Math.abs(Math.sin(i * 1.7) * 30) + (i % 3) * 3}px"></b>`).join("");
+      const waveBars = [...$("wave").children];
+
+      // the flow diagram
+      {
+        const ic = {
+          rain: '<svg viewBox="0 0 64 64"><path d="M18 34a12 12 0 0 1 2-23.8A16 16 0 0 1 50 16a10 10 0 0 1-2 18z" fill="#8ad0ff"/><path d="M22 42l-3 8M34 42l-3 8M46 42l-3 8" stroke="#4fb3ff" stroke-width="4" stroke-linecap="round"/><path d="M8 58c6-4 10 4 16 0s10 4 16 0 10 4 16 0" stroke="#6ff0c0" stroke-width="3.5" fill="none" stroke-linecap="round"/></svg>',
+          check: '<svg viewBox="0 0 64 64"><path d="M16 40a12 12 0 0 1 2-24A16 16 0 0 1 48 20a10 10 0 0 1-2 20z" fill="#dbeeff"/><path d="M24 30l6 6 11-12" stroke="#0b5cad" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="32" y="58" font-size="12" font-family="Noto Sans" font-weight="700" fill="#8ad0ff" text-anchor="middle">15 min</text></svg>',
+          officer: '<svg viewBox="0 0 64 64"><rect x="18" y="6" width="28" height="52" rx="6" fill="none" stroke="#8ad0ff" stroke-width="4"/><rect x="23" y="38" width="18" height="10" rx="3" fill="#2fbf7f"/><circle cx="32" cy="22" r="6" fill="#8ad0ff"/></svg>',
+          warn: '<svg viewBox="0 0 64 64"><path d="M14 24h8l14-12v40L22 40h-8z" fill="#ffd479"/><path d="M44 22a14 14 0 0 1 0 20M50 16a22 22 0 0 1 0 32" stroke="#ffd479" stroke-width="4" fill="none" stroke-linecap="round"/></svg>',
+          ok: '<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="24" fill="#1f9468"/><path d="M20 33l8 8 16-17" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+          help: '<svg viewBox="0 0 64 64"><circle cx="22" cy="20" r="7" fill="#ffb27a"/><circle cx="42" cy="20" r="7" fill="#8ad0ff"/><path d="M10 50c0-10 6-17 12-17s12 7 12 17M30 50c0-10 6-17 12-17s12 7 12 17" fill="none" stroke="#dbeeff" stroke-width="4" stroke-linecap="round"/></svg>',
+        };
+        const nodes = [["rain", "Rain and river", "gauges and the forecast"], ["check", "Pukaar checks", "every 15 minutes, by rules"], ["officer", "Officer approves", "a person decides"], ["warn", "Phones and sirens", "Hindi voice and siren"], ["ok", "People confirm", "“मिल गया”, or press 1"], ["help", "Help reaches", "anyone who did not"]];
+        const x0 = 96, w = 262, gap = (1920 - 2 * x0 - 6 * w) / 5;
+        let html = '<div class="ttl" id="fttl">The whole flow, in one picture</div>';
+        nodes.forEach(([k, b, s], i) => {
+          html += `<div class="node" id="fn${i}" style="left:${x0 + i * (w + gap)}px"><div class="ic">${ic[k]}</div><b>${b}</b><span>${s}</span></div>`;
+          if (i < 5) html += `<svg class="arr" id="fa${i}" style="left:${x0 + i * (w + gap) + w + (gap - 38) / 2}px" viewBox="0 0 38 32"><path d="M2 16h28M20 5l12 11-12 11" stroke="#8ad0ff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        });
+        html += `<svg id="fby" style="position:absolute;left:0;top:620px" width="1920" height="70"><path d="M${x0 + w / 2} 12 C ${x0 + w / 2} 60, ${x0 + 3 * (w + gap) + w / 2} 60, ${x0 + 3 * (w + gap) + w / 2} 12" stroke="#6ff0c0" stroke-width="4" stroke-dasharray="3 12" stroke-linecap="round" fill="none"/></svg>`;
+        html += '<div class="by" id="fbyt">If the network fails: the gauge radios the siren directly (LoRa)</div>';
+        $("flow").innerHTML = html;
+      }
+
+      // tags
+      const TG = {
+        dam: tag("dam", new THREE.Vector3(DAM_X, 9, rz(DAM_X)), "Pandoh dam", "upstream", "", 0, -40),
+        river: tag("river", new THREE.Vector3(-14, -0.6, rz(-14)), "Beas river", "", "", 0, 50),
+        market: tag("market", new THREE.Vector3(9, 4.4, rz(9) - 11.2), "Pandoh market", "by the river", "", -140, -70),
+        bridge: tag("bridge", new THREE.Vector3(BR_X, DECK_Y + 1, brZ + 7), "Road bridge", "", "", -40, 60),
+        safe: tag("safe", new THREE.Vector3(SAFE.x + 2, SAFE.y + 4, SAFE.z + 2), "Safe place", "on higher ground", "ok", 260, -10),
+        tower: tag("tower", new THREE.Vector3(TOWER.x, TOWER.y + 12, TOWER.z), "Mobile tower", "", "mob", -230, 20),
+        // devices, in the overview
+        oGauge: tag("oGauge", G_BOX, "River gauge", "", "sm", -80, -110),
+        oRain: tag("oRain", R_TOP, "Rain gauge", "", "sm", -40, -50),
+        oSiren: tag("oSiren", S_TOP, "Siren pole", "", "sm", 0, -60),
+        oBox: tag("oBox", P_BOX, "Pradhan's alarm box", "", "sm", 120, -90),
+        oCloud: tag("oCloud", CLOUD.clone().add(new THREE.Vector3(0, -6, 0)), "Pukaar, in the cloud", "", "sm", 0, 60),
+        // close-up part labels
+        gRadar: tag("gRadar", G_LENS, "Radar sensor", "looks down at the water", "", 230, 40),
+        gSolar: tag("gSolar", G_SOL, "Solar panel", "", "", 220, -30),
+        gBat: tag("gBat", G_BAT, "Battery", "about a week without sun", "", -250, 20),
+        gBox: tag("gBox", G_BOX.clone().add(new THREE.Vector3(0.4, 0.2, 0.3)), "Small computer + modem", "", "", 300, -10),
+        rBucket: tag("rBucket", R_MID, "Tipping bucket", "a tiny seesaw", "", -330, 40),
+        rFunnel: tag("rFunnel", R_TOP, "Funnel catches the rain", "", "", 200, -40),
+        sHorn: tag("sHorn", S_TOP.clone().add(new THREE.Vector3(0.7, 0, 0.7)), "Loud horns", "siren, then Hindi voice", "", 300, 0),
+        sSolar: tag("sSolar", S_SOL, "Solar panel", "", "", -260, 30),
+        sAnt: tag("sAnt", S_ANT, "Radio antenna", "LoRa", "lora", -250, -10),
+        sBox: tag("sBox", S_BOX, "Battery + small computer", "7 days without sun", "", 320, -10),
+        sMic: tag("sMic", S_MIC, "Microphone", "proves it sounded", "", -250, 50),
+        pKey: tag("pKey", P_KEY, "Key", "", "", -200, -50),
+        pBtn: tag("pBtn", P_BTN, "Big button", "hold for 3 seconds", "", 230, 40),
+        // the story
+        staff: tag("staff", new THREE.Vector3(GX + 2.7, 0.9, GZ + 0.9), "Watch, Warning, Critical", "level marks, drawn for this film", "", 260, 60),
+        lvl: tag("lvl", new THREE.Vector3(14, 8, rz(14) - 12), "Pandoh: Normal", "", "", 0, -30),
+        sVer: tag("sVer", S_TOP.clone().add(new THREE.Vector3(0, 1.5, 0)), "✓ Verified", "the microphone heard it", "ok", 0, -60),
+        towerDown: tag("towerDown", new THREE.Vector3(TOWER.x, TOWER.y + 12, TOWER.z), "✕ No mobile network", "the tower is down", "bad", -290, 20),
+        loraTag: tag("loraTag", lkGaugeSiren.curve.getPoint(0.5), "LoRa radio", "the river talks to the village", "lora", 0, -40),
+        mobTag: tag("mobTag", lkGaugeTower.curve.getPoint(0.55), "Mobile network", "", "mob", 0, -30),
+        forecast: tag("forecast", FORECAST, "Weather forecast", "rain and river", "", 250, -20),
+        offTold: tag("offTold", P_BOX.clone().add(new THREE.Vector3(0, 0.6, 0)), "✓ Officer told at once", "", "ok", -40, -170),
+        neigh: tag("neigh", new THREE.Vector3(0, 0, 0), "A neighbour checks", "", "warn", 0, -60),
+        q1: tag("q1", new THREE.Vector3(0, 0, 0), "?", "", "q", 0, -20),
+        q2: tag("q2", new THREE.Vector3(0, 0, 0), "?", "", "q", 0, -20),
+        q3: tag("q3", new THREE.Vector3(0, 0, 0), "?", "", "q", 0, -20),
+        q4: tag("q4", new THREE.Vector3(0, 0, 0), "?", "", "q", 0, -20),
+        q5: tag("q5", new THREE.Vector3(0, 0, 0), "?", "", "q", 0, -20),
+      };
+      // the "?" homes and the neighbour's home
+      {
+        const pick = [3, 9, 15, 22, 28].map((k) => phoneHomes[k % phoneHomes.length]);
+        ["q1", "q2", "q3", "q4", "q5"].forEach((q, i) => TG[q].anchor.copy(pick[i].top));
+        const lone = icons.find((ic) => ic.never);
+        TG.neigh.anchor.copy((lone ?? icons[0]).h.top);
+      }
+
+      // ------------------------------------------------------------------ state over time
+      const T = {};
+      function plan() {
+        // water: normal, then rising through the rise scene and on through the outage and the move
+        T.w0 = -0.9;
+        // the village level steps
+        T.watch = Ln("rain", 1, 1.5);
+        T.warning = Ln("rise", 0, 2.5);
+        T.critical = Ck("rise", 2, 1, 1.0);
+        // rain gauge tips: precompute tip times from the rate
+        T.tips = [];
+        let acc = 0;
+        for (let t = 0; t < D.total; t += 1 / 120) {
+          acc += rate(t) / 120;
+          if (acc >= 1) { acc -= 1; T.tips.push(t); }
+        }
+      }
+      function rainAmt(t) {
+        if (t < S("dev-rain") - 0.5) return 0;
+        if (t < S("dev-siren")) return 0.18 * win(t, S("dev-rain"), E("dev-rain"), 0.8, 0.8);
+        if (t < S("rain")) return 0;
+        if (t < S("move")) return lerp(0.25, 1, ramp(t, S("rain") + 0.5, Ln("rain", 1)));
+        return lerp(1, 0.45, ramp(t, S("move"), E("move")));
+      }
+      function rate(t) {
+        if (t >= S("dev-rain") && t < E("dev-rain")) return 0.9;
+        if (t >= S("rain") && t < S("flow")) return lerp(0.6, 3.2, ramp(t, Ln("rain", 0, 1.5), Le("rain", 0)));
+        return 0;
+      }
+      function level(t) {
+        if (t >= S("flow")) return 0.7;
+        let w = T.w0;
+        w = lerp(w, -0.35, ramp(t, S("rain") + 4, E("rain")));
+        w = lerp(w, 0.25, ramp(t, S("rise"), Ln("rise", 2, 2)));
+        w = lerp(w, 0.55, ramp(t, S("hear"), E("hear")));
+        w = lerp(w, 0.78, ramp(t, S("outage"), E("move")));
+        return w;
+      }
+      const LVL = { Normal: ["#2fbf7f", ""], Watch: ["#ffd43b", "watch"], Warning: ["#f27a1f", "warn"], Critical: ["#e0294f", "crit"] };
+      const villageLevel = (t) => (t >= T.critical ? "Critical" : t >= T.warning ? "Warning" : t >= T.watch ? "Watch" : "Normal");
+      const sirenOn = (t) =>
+        (t > Ln("dev-siren", 0, 1.8) && t < Ln("dev-siren", 0, 5.2)) ||
+        (t > Ln("hear", 4, 0.1) && t < E("hear")) ||
+        (t > Ln("outage", 2, 3.5) && t < S("move") + 2.5);
+      const towerDown = (t) => t > Ln("outage", 0, 1.6) && t < S("flow");
+
+      // ------------------------------------------------------------------ camera
+      const KEYS = [];
+      const key = (t, pos, tgt, shift = 0, fov = 40) => KEYS.push({ t, pos: new THREE.Vector3(...pos), tgt: new THREE.Vector3(...tgt), shift, fov });
+      const at3 = (v, dx = 0, dy = 0, dz = 0) => [v.x + dx, v.y + dy, v.z + dz];
+      function shots() {
+        const valley = [[34, 30, 74], [4, 2, -16]];
+        // 1 the valley at night
+        key(0, [70, 52, 112], [0, 4, -20]);
+        key(E("valley") - 0.2, ...valley);
+        // 2 the problem: over the village
+        key(S("problem") + 1.6, [32, 26, 42], [12, 3, -18], -280);
+        key(E("problem") - 0.3, [32, 23, 36], [13, 3, -18], -280);
+        // 3 the overview of the devices
+        key(S("dev-intro") + 1.5, [8, 34, 88], [8, 15, -26]);
+        key(E("dev-intro") - 0.1, [6, 33, 84], [8, 15, -26]);
+        // the river gauge
+        key(S("dev-gauge") + 1.15, at3(G_BOX, 10.5, 2.6, 8.5), at3(G_BOX, 0, 0.9, 0), -330, 38);
+        key(E("dev-gauge") - 0.2, at3(G_BOX, 9.0, 2.2, 7.2), at3(G_BOX, 0, 1.0, 0), -330, 38);
+        // the rain gauge
+        key(S("dev-rain") + 1.15, at3(R_MID, 4.6, 1.6, 6.6), at3(R_MID, 0, 0.1, 0), -330, 38);
+        key(E("dev-rain") - 0.2, at3(R_MID, 3.8, 1.2, 5.6), at3(R_MID, 0, 0.1, 0), -330, 38);
+        // the siren pole
+        key(S("dev-siren") + 1.15, at3(SIREN, 9, 13, 19), at3(SIREN, 0, 6.0, 0), -330, 40);
+        key(E("dev-siren") - 0.2, at3(SIREN, 7.5, 12, 16.5), at3(SIREN, 0, 6.0, 0), -330, 40);
+        // the pradhan's box
+        key(S("dev-box") + 1.0, at3(P_BOX, 4.5, 1.8, 8.5), at3(P_BOX, 0, 0.4, 0), -330, 38);
+        key(Ln("dev-box", 0, 2.0), at3(P_BOX, 1.5, 0.35, 3.1), at3(P_BOX, 0, 0, 0), -330, 38);
+        key(E("dev-box") - 0.2, at3(P_BOX, 1.3, 0.3, 2.8), at3(P_BOX, 0, 0, 0), -330, 38);
+        // the radio links
+        key(S("dev-radio") + 1.15, [-14, 40, 56], [4, 4, -10], -470);
+        key(E("dev-radio") - 0.2, [-15, 38, 53], [4, 4, -10], -470);
+        // the tower and the cloud
+        key(S("dev-cloud") + 1.15, [-2, 18, 46], [16, 26, -40], -300);
+        key(E("dev-cloud") - 0.2, [0, 19, 42], [16, 27, -42], -300);
+        // the cost
+        key(S("dev-cost") + 1.4, [30, 40, 74], [4, 6, -18]);
+        key(E("dev-cost") - 0.1, [26, 38, 70], [4, 6, -18]);
+        // 4 rain: the rain gauge, then back to see the cloud read every source
+        key(S("rain") + 1.4, at3(R_MID, 5.5, 2.4, 8), at3(R_MID, 0, 0.6, 0));
+        key(Ln("rain", 1, -0.6), at3(R_MID, 7, 3, 10), at3(R_MID, 0, 0.8, 0));
+        key(Ln("rain", 1, 1.6), [-10, 20, 48], [6, 22, -42]);
+        key(E("rain") - 0.2, [-8, 20, 46], [6, 22, -42]);
+        // 5 the river rises: at the gauge, then up to the tower and the cloud
+        key(S("rise") + 1.4, at3(G_BOX, 11.5, 2.8, 12.5), at3(G_BOX, 1.0, -1.2, 0), 330, 38);
+        key(Ln("rise", 2, -0.3), at3(G_BOX, 10.5, 2.6, 11.5), at3(G_BOX, 1.0, -1.1, 0), 330, 38);
+        key(Ln("rise", 2, 1.8), [-6, 26, 56], [8, 14, -30]);
+        key(E("rise") - 0.2, [-4, 26, 54], [8, 14, -30]);
+        // 6 the officer: the village at night behind the phone
+        key(S("approve") + 1.2, [34, 24, 46], [8, 6, -18], -260);
+        key(E("approve") - 0.2, [30, 22, 42], [8, 6, -18], -260);
+        // 7 everyone hears it: the village with its phones, then the siren
+        key(S("hear") + 1.0, [18, 30, 40], [10, 3, -20]);
+        key(Ln("hear", 1, -0.2), [18, 29, 38], [10, 3, -20]);
+        key(Ln("hear", 3, -0.6), [18, 29, 38], [10, 3, -20]);
+        key(Ln("hear", 3, 0.2), [16, 30, 38], [10, 3, -20]);
+        key(Ln("hear", 4, -0.3), [16, 30, 38], [10, 3, -20]);
+        key(Ln("hear", 4, 1.4), at3(SIREN, 13, 15, 22), at3(SIREN, 0, 7.5, 0));
+        key(E("hear") - 0.2, at3(SIREN, 11.5, 14, 19.5), at3(SIREN, 0, 7.5, 0));
+        // 8 the network fails: gauge, siren and tower in one view
+        key(S("outage") + 1.4, [-22, 40, 72], [16, 18, -24], -260);
+        key(E("outage") - 0.2, [-23, 39, 69], [15, 17, -24], -260);
+        // 9 people move to safe ground
+        key(S("move") + 1.4, [36, 22, 22], [16, 5, -22]);
+        key(E("move") - 0.2, [34, 25, 10], [18, 9, -28]);
+        // 10, 11 behind the overlays: a slow drift over the whole valley
+        key(S("flow") + 1.0, [40, 46, 80], [2, 4, -20]);
+        key(D.total, [20, 44, 84], [2, 4, -20]);
+        KEYS.sort((a, b) => a.t - b.t);
+      }
+      const easeIO = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+      const cp = new THREE.Vector3(), ct = new THREE.Vector3();
+      function camera(t) {
+        let i = KEYS.findLastIndex((k) => k.t <= t);
+        if (i < 0) i = 0;
+        const a = KEYS[i], b = KEYS[Math.min(i + 1, KEYS.length - 1)];
+        const u = b === a ? 0 : easeIO(clamp((t - a.t) / (b.t - a.t)));
+        cp.lerpVectors(a.pos, b.pos, u);
+        ct.lerpVectors(a.tgt, b.tgt, u);
+        cam.position.copy(cp);
+        cam.fov = lerp(a.fov, b.fov, u);
+        cam.lookAt(ct);
+        const shift = lerp(a.shift, b.shift, u);
+        cam.setViewOffset(W, H, shift, 0, W, H);
+        cam.updateProjectionMatrix();
+      }
+
+      // ------------------------------------------------------------------ render(t)
+      const show = (id, on, op = 1) => { const el = $(id); el.classList.toggle("hide", !on || op <= 0.01); if (on) el.style.opacity = op; };
+      function render(t) {
+        const sc = sceneAt(t);
+        const id = sc.id;
+        camera(t);
+
+        // water and flow
+        const wl = level(t);
+        water.position.y = wl;
+        const flowSpeed = 0.06 + 0.12 * ramp(t, S("rain"), E("rise"));
+        flowTex.offset.x = -t * flowSpeed * 4;
+        // rain
+        const ra = rainAmt(t);
+        const nR = Math.floor(RAIN_N * ra);
+        rainL.visible = nR > 0;
+        if (nR > 0) {
+          for (let i = 0; i < nR; i++) {
+            const x = rainSeed[i * 3], ph = rainSeed[i * 3 + 1], z = rainSeed[i * 3 + 2];
+            const y = 62 - (((t * 30 + ph * 62) % 62) + 62) % 62;
+            rainPos.set([x, y, z, x + 0.12, y - 1.25, z + 0.06], i * 6);
+          }
+          rainGeo.setDrawRange(0, nR * 2);
+          rainGeo.attributes.position.needsUpdate = true;
+        }
+        // local rain at the rain gauge (its close-ups)
+        const na = Math.max(0.35 * win(t, S("dev-rain") + 0.3, E("dev-rain"), 0.6, 0.5), win(t, S("rain"), Ln("rain", 1, 0.6), 0.6, 0.6) * lerp(0.5, 1, ramp(t, S("rain"), Le("rain", 0))));
+        const nN = Math.floor(NEAR_N * na);
+        nearL.visible = nN > 0;
+        if (nN > 0) {
+          for (let i = 0; i < nN; i++) {
+            const x = nearSeed[i * 3], ph = nearSeed[i * 3 + 1], z = nearSeed[i * 3 + 2];
+            const y = RAIN.y + 14 - (((t * 16 + ph * 16) % 16) + 16) % 16;
+            nearPos.set([x, y, z, x + 0.05, y - 0.55, z + 0.02], i * 6);
+          }
+          nearGeo.setDrawRange(0, nN * 2);
+          nearGeo.attributes.position.needsUpdate = true;
+        }
+        // the radar beam: from the lens to the water
+        const gOn = id === "dev-gauge" || id === "rise" || id === "rain" || id === "outage" || id === "dev-intro" || id === "dev-radio" || id === "dev-cost" || id === "hear" || id === "move";
+        const bh = G_LENS.y - wl;
+        beam.visible = gOn;
+        beam.scale.set(0.42 * bh, bh, 0.42 * bh);
+        beam.position.set(G_LENS.x, wl + bh / 2, G_LENS.z);
+        beam.rotation.x = 0;
+        const beamOp = id === "dev-gauge" || id === "rise" ? 0.2 : 0.1;
+        beam.material.opacity = beamOp;
+        pulses.forEach((p, k) => {
+          const ph = ((t * 0.9 + k / 3) % 1);
+          const down = ph < 0.5, u = down ? ph * 2 : (1 - ph) * 2;
+          const y = G_LENS.y - u * bh;
+          const r = 0.12 + 0.42 * u * bh;
+          p.visible = gOn;
+          p.position.set(G_LENS.x, y, G_LENS.z);
+          p.scale.set(r, 1, r);
+          p.material.opacity = (id === "dev-gauge" || id === "rise" ? 0.9 : 0.4) * (down ? 1 : 0.55) * Math.sin(Math.PI * u) ** 0.4;
+        });
+
+        // the seesaw tips
+        let n = 0;
+        while (n < T.tips.length && T.tips[n] <= t) n++;
+        const last = n ? T.tips[n - 1] : -10;
+        const side = n % 2 ? 1 : -1;
+        const swing = ramp(t, last, last + 0.16);
+        seesaw.rotation.z = lerp(-side, side, swing) * 0.32;
+        const closeRain = id === "dev-rain" || (id === "rain" && t < Ln("rain", 1, 0.5));
+        shell.opacity = closeRain ? 0.28 : 1;
+        shell.transparent = true;
+        shell.depthWrite = !closeRain;
+        drip.visible = closeRain && t - last < 0.5;
+        if (drip.visible) drip.position.set(RAIN.x + side * 0.4 * 1.25, RAIN.y + lerp(3.3, 2.5, clamp((t - last) / 0.4)) * 1.25 * 0.85, RAIN.z);
+
+        // the siren
+        const on = sirenOn(t);
+        strobe.material.emissiveIntensity = on ? (Math.sin(t * 18) > 0 ? 3 : 0.3) : 0;
+        strobeGlow.material.opacity = on ? (Math.sin(t * 18) > 0 ? 0.9 : 0.1) : 0;
+        const close = id === "dev-siren" || id === "hear";
+        rings.forEach((r, k) => {
+          const age = ((t * 0.5 + k / rings.length) % 1);
+          r.visible = on && !close && id !== "move";
+          r.scale.setScalar(2 + age * 34);
+          r.material.opacity = 0.55 * (1 - age) * (on ? 1 : 0);
+        });
+        arcs.forEach(({ m, dir, k }) => {
+          const age = ((t * 0.9 + k / 3) % 1);
+          m.visible = on && (close || id === "hear");
+          const p = S_TOP.clone().addScaledVector(dir, 0.9 + age * 3.4);
+          m.position.copy(p);
+          m.lookAt(p.clone().add(dir));
+          m.rotateZ(Math.PI / 2 + Math.PI * 0.15);
+          m.scale.setScalar(0.5 + age * 1.6);
+          m.material.opacity = 0.9 * (1 - age);
+        });
+
+        // the pradhan's box: key turns, button held
+        const kT = Ln("dev-box", 0, 2.6), bT = Ln("dev-box", 0, 3.6), bE = bT + 3;
+        keyG.rotation.z = -Math.PI / 2 * ramp(t, kT, kT + 0.35);
+        btn.position.z = 0.15 - 0.06 * (t > bT && t < bE + 0.3 ? 1 : 0);
+        const lvlNow = villageLevel(t);
+        const li = { Normal: 0, Watch: 1, Warning: 2, Critical: 3 }[lvlNow];
+        leds.forEach((l, i) => (l.material.emissiveIntensity = i === li ? 2.4 : 0.15));
+
+        // the tower
+        const down = towerDown(t);
+        towerMat.color.setHex(down ? 0x4a5058 : 0xb7c0c8);
+        towerLight.material.opacity = down ? 0 : (Math.sin(t * 3) > 0 ? 1 : 0.25);
+        cloudMat.emissiveIntensity = down ? 0.08 : 0.35 + 0.25 * Math.max(0, Math.sin(t * 2.2)) * (id === "rain" || id === "dev-cloud" ? 1 : 0);
+        cloudGlow.material.opacity = down ? 0.05 : 0.3;
+
+        // links
+        const mobOn = (a, b) => win(t, a, b, 0.6, 0.6) * (down ? 0 : 1);
+        const devLinks = id === "dev-radio" ? 1 : 0;
+        const gs = Math.max(win(t, S("dev-radio") + 0.6, E("dev-radio"), 0.8, 0.5), win(t, Ln("outage", 1, 0.4), E("outage") + 0.6, 0.8, 0.8));
+        lkGaugeSiren.set(t, gs, 0.22, id === "outage" ? 1 : 0.6);
+        lkBoxSiren.set(t, win(t, Ck("dev-radio", 0, 1), E("dev-radio"), 0.6, 0.5), 0.3, 0.6);
+        const viaTower = Math.max(mobOn(S("dev-cloud") + 0.5, E("dev-cloud")), mobOn(Ln("rain", 1, 0.2), E("rain")), mobOn(Ln("rise", 2, 0.2), E("rise")), mobOn(S("hear"), Ln("hear", 1, 0)));
+        lkGaugeTower.set(t, viaTower, 0.25, 0.8);
+        lkRainTower.set(t, viaTower, 0.25, 0.8);
+        lkSirenTower.set(t, Math.max(mobOn(S("dev-cloud") + 0.5, E("dev-cloud")), mobOn(Ln("hear", 4, 0), E("hear"))), 0.25, 0.6);
+        lkTowerCloud.set(t, Math.max(viaTower, mobOn(Ln("hear", 4, 0), E("hear"))), 0.2, 1);
+        const fc = Math.max(mobOn(Ck("dev-cloud", 1, 0), E("dev-cloud")), mobOn(Ln("rain", 1, 0.2), E("rain")));
+        lkForecast.set(t, fc, 0.3, 1);
+        window.__sat.visible = fc > 0.01 || id === "dev-cloud" || id === "rain";
+
+        // people
+        const mv = S("move") - 0.6;
+        for (const p of people) {
+          const d = (t - mv - p.delay) * p.speed;
+          p.g.visible = t > mv + p.delay && t < S("flow");
+          if (!p.g.visible) continue;
+          const dd = clamp(d, 0, p.lens.at(-1));
+          let k = p.lens.findIndex((l) => l >= dd);
+          if (k <= 0) k = 1;
+          const u = (dd - p.lens[k - 1]) / (p.lens[k] - p.lens[k - 1] || 1);
+          const x = lerp(p.path[k - 1].x, p.path[k].x, u), z = lerp(p.path[k - 1].z, p.path[k].z, u);
+          p.g.position.set(x, ground(x, z) + (dd < p.lens.at(-1) ? Math.abs(Math.sin(d * 4)) * 0.08 : 0), z);
+          p.g.rotation.y = Math.atan2(p.path[k].x - p.path[k - 1].x, p.path[k].z - p.path[k - 1].z);
+        }
+        trail.material.opacity = win(t, S("move") - 0.4, S("flow") + 0.3, 0.8, 0.5) * 0.95;
+        safeRing.material.opacity = win(t, S("move"), S("flow") + 0.3, 0.8, 0.5) * (0.5 + 0.3 * Math.sin(t * 3));
+
+        renderer.render(scene, cam);
+        overlays(t, id, sc, wl, lvlNow);
+      }
+
+      // ------------------------------------------------------------------ overlays
+      function overlays(t, id, sc, wl, lvlNow) {
+        // chapter
+        const ch = D.scenes.findLast((s) => s.chapter && t >= s.start);
+        $("cheb").textContent = `How it will work · ${ch.n} of 11`;
+        $("chtt").textContent = ch.chapter;
+        const chOp = id === "flow" || id === "real" ? 0 : id === "valley" ? 1 - ramp(t, Ln("valley", 1, -0.6), Ln("valley", 1, -0.1)) : win(t, ch.start + 0.2, D.total + 9, 0.6, 0.1);
+        $("chapter").style.opacity = chOp;
+        const phones = win(t, S("approve") + 0.3, E("approve") + 0.2, 0.4, 0.4) + win(t, Ln("hear", 1, -0.7), Ln("hear", 3, 0.2), 0.4, 0.4);
+        $("badge").style.opacity = id === "real" || id === "flow" ? 0 : 1 - clamp(phones);
+        // captions
+        const cue = D.captions.find((c) => t >= c.from && t < c.to);
+        const cap = $("capt");
+        if (cue) {
+          cap.classList.remove("hide");
+          if (cap.textContent !== cue.text) cap.textContent = cue.text;
+          cap.classList.toggle("hi", !!cue.hi);
+        } else cap.classList.add("hide");
+
+        // tags
+        const P = (k, op, dx, dy) => placeTag(TG[k], op, dx, dy);
+        const valleyTags = win(t, Ln("valley", 0, 1.5), Ln("valley", 1, 0), 0.6, 0.5);
+        P("dam", Math.max(valleyTags, win(t, S("dev-intro") + 0.6, E("dev-intro"), 0.5, 0.4)));
+        P("river", valleyTags);
+        P("market", Math.max(valleyTags, win(t, S("problem"), Ln("problem", 1, 0), 0.5, 0.5)));
+        P("bridge", valleyTags * ramp(t, Ln("valley", 0, 3), Ln("valley", 0, 3.6)));
+        P("safe", Math.max(valleyTags * ramp(t, Ln("valley", 0, 4), Ln("valley", 0, 4.6)), win(t, S("move") + 0.5, E("move"), 0.5, 0.4)));
+        P("tower", Math.max(win(t, S("dev-intro") + 0.6, E("dev-intro"), 0.5, 0.4), win(t, S("dev-cloud") + 0.8, E("dev-cloud"), 0.5, 0.4), win(t, S("rise") + 0.1, Ln("rise", 2, 0), 0.5, 0.4) * 0, win(t, S("outage"), Ln("outage", 0, 1.6), 0.5, 0.3)));
+        P("towerDown", win(t, Ln("outage", 0, 1.7), E("outage"), 0.4, 0.4));
+        const ov = Math.max(win(t, S("dev-intro") + 0.6, E("dev-intro"), 0.5, 0.4), win(t, S("dev-cost") + 0.4, E("dev-cost"), 0.5, 0.4) * 0);
+        for (const k of ["oGauge", "oRain", "oSiren", "oBox"]) P(k, ov);
+        P("oCloud", Math.max(ov * 0, win(t, S("dev-cloud") + 1.2, E("dev-cloud"), 0.5, 0.4), win(t, Ln("rain", 1, 1.2), E("rain"), 0.5, 0.4)));
+        P("forecast", Math.max(win(t, Ck("dev-cloud", 1, 0), E("dev-cloud"), 0.5, 0.4), win(t, Ln("rain", 1, 1.4), E("rain"), 0.5, 0.4)));
+        // close-ups
+        const gC = (k, a) => win(t, Ln("dev-gauge", ...a), E("dev-gauge"), 0.4, 0.4);
+        P("gRadar", gC("gRadar", [0, 1.2]));
+        P("gBox", gC("gBox", [0, 4.5]));
+        P("gSolar", gC("gSolar", [1, 0]));
+        P("gBat", gC("gBat", [1, 0.6]));
+        P("rFunnel", win(t, Ln("dev-rain", 0, 1.4), E("dev-rain"), 0.4, 0.4));
+        P("rBucket", win(t, Ck("dev-rain", 0, 1), E("dev-rain"), 0.4, 0.4));
+        P("sHorn", win(t, Ln("dev-siren", 0, 1.2), E("dev-siren"), 0.4, 0.4));
+        P("sSolar", win(t, Ln("dev-siren", 0, 3.4), E("dev-siren"), 0.4, 0.4));
+        P("sAnt", win(t, Ln("dev-siren", 0, 4.2), E("dev-siren"), 0.4, 0.4));
+        P("sBox", win(t, Ln("dev-siren", 0, 5.0), E("dev-siren"), 0.4, 0.4));
+        P("sMic", win(t, Ln("dev-siren", 1, 0.4), E("dev-siren"), 0.4, 0.4));
+        P("pKey", win(t, Ln("dev-box", 0, 2.2), E("dev-box"), 0.4, 0.4));
+        P("pBtn", win(t, Ln("dev-box", 0, 3.2), E("dev-box"), 0.4, 0.4));
+        P("offTold", win(t, Ln("dev-box", 1, 1.6), E("dev-box"), 0.4, 0.4));
+        // links
+        P("loraTag", Math.max(win(t, S("dev-radio") + 1.2, E("dev-radio"), 0.5, 0.4), win(t, Ln("outage", 1, 1.0), E("outage"), 0.5, 0.4)));
+        P("mobTag", Math.max(win(t, S("dev-cloud") + 1.0, Ln("dev-cloud", 1, 0), 0.5, 0.4)));
+        // the level
+        const lvT = TG.lvl;
+        const lvOp = Math.max(win(t, Ln("rain", 1, 1.0), E("rain"), 0.4, 0.3) * 0, win(t, Ln("rise", 2, 1.4), E("rise"), 0.4, 0.4), win(t, S("hear"), Ln("hear", 1, 0), 0.4, 0.4));
+        const lvTxt = `Pandoh: ${lvlNow}`;
+        if (lvT.el.firstChild.textContent !== lvTxt) { lvT.el.firstChild.textContent = lvTxt; lvT.el.className = `tag ${LVL[lvlNow][1]}`; lvT.w = 0; }
+        P("lvl", lvOp);
+        P("staff", win(t, S("rise") + 1.2, Ln("rise", 1, 0), 0.4, 0.4));
+        P("sVer", win(t, Ln("hear", 4, 2.6), E("hear"), 0.3, 0.4));
+        ["q1", "q2", "q3", "q4", "q5"].forEach((q, i) => P(q, win(t, Ck("problem", 1, 1, i * 0.18), E("problem"), 0.3, 0.4)));
+        const lone = icons.find((ic) => ic.never);
+        P("neigh", win(t, Ln("move", 1, 0), E("move"), 0.4, 0.4), 0, -80);
+
+        // phone icons
+        const icOp = win(t, Ln("hear", 0, 0.5), Ln("hear", 1, 0.2), 0.3, 0.4) + win(t, Ln("hear", 3, -0.5), Ln("hear", 4, 0.8), 0.4, 0.5) + win(t, Ln("move", 1, -0.4), E("move"), 0.4, 0.4) * 0;
+        const tAgain = Ln("hear", 3, 1.2);
+        let conf = 0;
+        icons.forEach((ic) => {
+          const lit = Ln("hear", 0, 0.6 + ic.jit * 1.8);
+          const ok = ic.never ? Infinity : ic.late ? tAgain + 1.2 + ic.jit * 1.6 : Ln("hear", 2, 0.6 + ic.jit * 5.0);
+          const st = t >= ok ? "ok" : t >= tAgain && t < ok && ic.late ? "again" : t >= lit ? "lit" : "";
+          if (t >= ok) conf++;
+          const op = (ic.never ? Math.max(icOp, win(t, Ln("move", 1, -0.3), E("move"), 0.4, 0.4)) : icOp) * (st ? 1 : 0);
+          if (op <= 0.01) { ic.el.style.display = "none"; return; }
+          const p = project(ic.h.top);
+          ic.el.style.display = "grid";
+          ic.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
+          ic.el.style.left = ic.el.style.top = "0px";
+          ic.el.style.opacity = op;
+          if (ic.state !== st) { ic.state = st; ic.el.className = `ph ${st === "ok" ? "ok" : st === "again" ? "again" : ""}`; ic.el.innerHTML = st === "ok" ? checkSvg : st === "again" ? againSvg : phoneSvg; }
+        });
+        const cOp = win(t, Ln("hear", 2, 0.4), Ln("hear", 4, 1.0), 0.4, 0.5);
+        show("counter", cOp > 0.01, cOp);
+        if (cOp > 0.01) {
+          $("cn").innerHTML = `${conf}<small> of ${nPh} phones</small>`;
+          const again = icons.filter((ic) => ic.late && t >= tAgain && !(t >= (ic.never ? Infinity : tAgain + 1.2 + ic.jit * 1.6))).length;
+          $("cs").textContent = t >= tAgain && again > 0 ? `${again} sent the alert again` : "";
+        }
+
+        // scene 1 title
+        const t1 = win(t, Ln("valley", 1, -0.2), E("valley"), 0.6, 0.6);
+        show("title1", t1 > 0.01, t1);
+        // scene 2 replay card
+        const rp = win(t, S("problem") + 0.3, E("problem"), 0.5, 0.5);
+        show("replay", rp > 0.01, rp);
+        $("ask").style.opacity = ramp(t, Ln("problem", 1, 0), Ln("problem", 1, 0.5));
+        // device cards
+        const devMap = { "dev-gauge": "gauge", "dev-rain": "rain", "dev-siren": "siren", "dev-box": "box", "dev-radio": "radio", "dev-cloud": "cloud" };
+        const dk = devMap[id];
+        const dOp = dk ? win(t, sc.start + 0.45, sc.start + sc.dur + 0.05, 0.45, 0.35) : 0;
+        if (dk && devShown !== dk) { $("dev").innerHTML = devCard(dk); devShown = dk; }
+        show("dev", dOp > 0.01, dOp);
+        const co = win(t, Ln("dev-cost", 0, 0), E("dev-cost"), 0.5, 0.4);
+        show("cost", co > 0.01, co);
+        // the hold ring around the pradhan's button
+        const bT = Ln("dev-box", 0, 3.6), bE = bT + 3;
+        const hOp = win(t, bT - 0.2, bE + 1.2, 0.2, 0.4);
+        show("hold", hOp > 0.01, hOp);
+        if (hOp > 0.01) {
+          const p = project(P_BTN);
+          $("hold").style.transform = `translate(${p.x}px, ${p.y}px)`;
+          const u = clamp((t - bT) / (bE - bT));
+          $("holdr").style.background = `conic-gradient(#2fbf7f ${u * 360}deg, rgba(255,255,255,0.25) 0deg)`;
+          $("holdl").textContent = u >= 1 ? "✓ Siren on" : `Holding… ${Math.min(3, Math.floor(u * 3) + 1)} s`;
+        }
+        // the gauge readout
+        const gp = win(t, S("rise") + 0.6, Ln("rise", 2, 0.6), 0.5, 0.5);
+        show("gaugep", gp > 0.01, gp);
+        if (gp > 0.01) {
+          $("gw").style.height = `${clamp(((wl + 0.9) / 1.15) * 84, 8, 96)}%`;
+          const r0 = Ln("rise", 1, 0.3);
+          const hits = [r0 + 0.2, r0 + 1.4, r0 + 2.6];
+          const crit = [true, false, true];
+          for (let i = 0; i < 3; i++) {
+            const el = $(`rd${i}`);
+            const done = t > hits[i];
+            el.style.opacity = done ? 1 : 0.35;
+            el.classList.toggle("hit", done && crit[i]);
+            el.lastChild.textContent = done ? (crit[i] ? "at Critical" : "a little below") : "…";
+          }
+          $("verdict").textContent = t > hits[2] + 0.4 ? "2 of 3 agree: it counts" : t > S("rise") + 2 ? "Measuring again and again…" : "";
+          $("verdict").style.color = t > hits[2] + 0.4 ? "#ff8fa6" : "#fff";
+        }
+        // the officer
+        const of = win(t, S("approve") + 0.5, E("approve"), 0.5, 0.4);
+        show("officer", of > 0.01, of);
+        show("offlab", of > 0.01, of);
+        if (of > 0.01) {
+          const h0 = Ln("approve", 1, 0.2), h1 = h0 + 1.6;
+          const u = clamp((t - h0) / (h1 - h0));
+          $("ofill").style.width = `${u * 100}%`;
+          $("otxt").textContent = u >= 1 ? "✓ Approved" : u > 0 ? "Holding…" : "Hold to approve";
+          $("osent").style.opacity = ramp(t, h1, h1 + 0.4);
+        }
+        // villagers' phones
+        const vp = win(t, Ln("hear", 1, -0.5), Ln("hear", 3, 0.0), 0.5, 0.5);
+        for (const x of ["smart", "keypad", "smartlab", "keylab"]) show(x, vp > 0.01, vp);
+        if (vp > 0.01) {
+          const pa = Ln("hear", 1, 0), pb = Le("hear", 1, 0);
+          const u = clamp((t - pa) / (pb - pa));
+          waveBars.forEach((b, i) => b.classList.toggle("on", i / waveBars.length < u));
+          const pressed = t > Ln("hear", 2, 0.9);
+          $("sbtn").classList.toggle("done", pressed);
+          $("sbtn").textContent = pressed ? "✓ मिल गया" : "मिल गया";
+          $("k1").classList.toggle("on", t > Ck("hear", 2, 1, 0.9));
+        }
+        // the autonomy rule
+        const ru = win(t, Ln("outage", 2, -0.4), E("outage"), 0.5, 0.4);
+        show("rule", ru > 0.01, ru);
+        if (ru > 0.01) {
+          $("r1").classList.toggle("ok", t > Ck("outage", 2, 0, 1.0));
+          $("r1").firstChild.textContent = t > Ck("outage", 2, 0, 1.0) ? "✓" : "";
+          $("r2").classList.toggle("ok", t > Ck("outage", 2, 1, 1.0));
+          $("r2").firstChild.textContent = t > Ck("outage", 2, 1, 1.0) ? "✓" : "";
+          $("rgo").style.opacity = ramp(t, Ck("outage", 2, 2, 0), Ck("outage", 2, 2, 0.4));
+          $("rgo").style.display = t > Ck("outage", 2, 2, 0) ? "block" : "none";
+        }
+        // the flow diagram
+        const fl = win(t, S("flow"), E("flow") + 0.3, 0.6, 0.6);
+        show("flow", fl > 0.01, fl);
+        if (fl > 0.01) {
+          const c1 = Ck("flow", 0, 1);
+          const at = [c1, c1 + 1.0, Ck("flow", 0, 2), Ck("flow", 0, 3), Ck("flow", 0, 4), Ck("flow", 0, 5)];
+          at.forEach((a, i) => {
+            const o = ramp(t, a - 0.1, a + 0.35);
+            const el = $(`fn${i}`);
+            el.style.opacity = 0.12 + 0.88 * o;
+            el.style.transform = `translateY(${(1 - o) * 26}px)`;
+            el.style.borderColor = t > a && t < (at[i + 1] ?? Le("flow", 0, 0)) ? "#ffd479" : "rgba(138, 208, 255, 0.5)";
+            if (i < 5) $(`fa${i}`).style.opacity = ramp(t, at[i + 1] - 0.3, at[i + 1]);
+          });
+          const by = ramp(t, Le("flow", 0, 0.1), Le("flow", 0, 0.6));
+          $("fby").style.opacity = by;
+          $("fbyt").style.opacity = by;
+        }
+        document.body.style.setProperty("--dim", "0");
+        dimmer.style.opacity = Math.max(fl * 0.78, 0);
+        // real today
+        const re = ramp(t, S("real") - 0.2, S("real") + 0.6);
+        show("real", re > 0.01, re);
+      }
+      const dimmer = document.createElement("div");
+      Object.assign(dimmer.style, { position: "absolute", inset: "0", background: "#06111f", opacity: "0" });
+      $("ui").prepend(dimmer);
+
+      plan();
+      shots();
+      window.__dbg = { houses: houses.length, phones: nPh, people: people.length, skip: window.__skip };
+      window.__render = render;
+      document.fonts.ready.then(() => { render(0); window.__ready = true; });
+    </script>
+  </body>
+</html>
