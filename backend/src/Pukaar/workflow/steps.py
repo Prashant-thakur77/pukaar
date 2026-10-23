@@ -140,7 +140,12 @@ class Steps:
         return self._duty(alert).chain
 
     def _duty(self, alert: Alert) -> roster.Duty:
-        """Who is on duty now (IST) for the alert's district; the village's own list as the fallback."""
+        """Who is on duty now (IST) for the alert's district; the village's own list as the fallback. The live jury
+        demo's alert asks the presenter who started it, and nobody else (services/demo.py)."""
+        if alert.decision_trace.get("demo"):
+            who = str(alert.decision_trace.get("started_by") or "")
+            return roster.Duty("Demo", roster.slot_at(clock.now()), "demo", [who] if who else [],
+                               ["presenter"] if who else [])
         village = self.repo.get_village(alert.village_id)
         if village is None:
             return roster.Duty("", roster.slot_at(clock.now()), "none")
@@ -154,10 +159,13 @@ class Steps:
     # -- steps -----------------------------------------------------------------
     def step_draft(self, e: dict) -> dict:
         alert = self._alert(e["alert_id"])
-        village = self.repo.get_village(alert.village_id)
+        demo = bool(alert.decision_trace.get("demo"))
+        village = self.repo.get_village(alert.village_id, include_demo=demo)
         if village is None:
             raise StepError(f"village {alert.village_id} not found")
-        recipients = self.repo.list_recipients(alert.village_id)
+        recipients = dispatch.ordered_recipients(self.repo, alert)
+        if demo:  # the live jury demo: the fixed, labelled DEMO script, never a model draft (services/demo.py)
+            return self._draft_demo(alert, len(recipients))
         for _ in range(3):  # the sweep may escalate the level while we draft
             result = draft_alert(village, alert.level, alert.decision_trace, self.repo, self.llm)
             if alert.decision_trace.get("drill"):  # a hand-started test (scripts/drill.py): say so in the message
@@ -194,6 +202,27 @@ class Steps:
         script.note_voice_length(self.repo, alert.id, alert.text_hi)  # over 55 s with the menu: said on the timeline
         return {"alert_id": alert.id, "level": alert.level, "officer_count": len(duty.chain),
                 "recipients_count": len(recipients), **approval_timers(alert.level)}
+
+    def _draft_demo(self, alert: Alert, recipients: int) -> dict:
+        from Pukaar.services import demo
+        from Pukaar.store.models import DraftCheck
+
+        text_hi, text_en = demo.script_text()
+        alert = self.repo.update_alert(alert.id, text_hi=text_hi, text_en=text_en, reasoning_model="fixed-demo-script",
+                                       reason_en="Live jury demo: the fixed practice script, labelled DEMO.",
+                                       draft_check=DraftCheck(passed=True, reason="fixed demo script"),
+                                       recipients_count=recipients, status="pending")
+        audio_key = self.synthesize(alert.id, alert.text_hi)
+        if audio_key:
+            self.repo.update_alert(alert.id, audio_key=audio_key)
+        duty = self._duty(alert)
+        alert = self.repo.update_alert(alert.id, officer_chain=duty.chain, officer_chain_roles=duty.roles)
+        events.alert_changed(alert)
+        self.repo.add_timeline(alert.id, "drafted", f"fixed demo script; recipients={recipients} (demo phones only); "
+                                                    f"audio={'yes' if audio_key else 'no'}; officer: "
+                                                    f"{', '.join(duty.chain) or 'nobody'} (presenter)")
+        return {"alert_id": alert.id, "level": alert.level, "officer_count": len(duty.chain),
+                "recipients_count": recipients, **approval_timers(alert.level)}
 
     def _asked(self, alert: Alert, officer: str) -> list[str]:
         return alert.officers_asked if officer in alert.officers_asked else [*alert.officers_asked, officer]
@@ -251,7 +280,9 @@ class Steps:
             payload["title"] = f"याद दिलाना · Reminder: {payload['title']}"
             pushed = officer_push.send_to_user(self.repo, officer, payload, ttl=wait, kind="nudge").sent
         # The wake-up call, at the same moment: only to an officer who has not opened the link.
-        if officer_call.opened(alert, officer):
+        if alert.decision_trace.get("demo"):
+            call_status, call_note = "not_needed", "call=not needed (the live demo's presenter is at the console)"
+        elif officer_call.opened(alert, officer):
             call_status, call_note = "not_needed", "call=not needed (the link was opened)"
         else:
             call = officer_call.wake(self.repo, alert, officer, index)  # never raises
@@ -324,6 +355,11 @@ class Steps:
         window = approval_timers(alert.level)["last_call_seconds"]
         minutes = max(1, round(window / 60))
         level = hi.LEVEL_EN.get(alert.level, alert.level)
+        if alert.decision_trace.get("demo"):  # the live demo: nobody else is asked, nothing is paged
+            self.repo.add_timeline(alert.id, "unanswered", f"the presenter did not decide; nothing was sent. Live demo: "
+                                                           f"nobody else is asked; open {minutes} min more")
+            return {"alert_id": alert.id, "officers": 0, "reached": 0, "telegram": 0, "push": 0,
+                    "call": "not_possible"}
         if alert.replay:  # a replay never reaches a real phone, and never pages the on-call engineer
             self.repo.add_timeline(alert.id, "unanswered",
                                    f"nobody in the chain answered ({level}); nothing was sent. Replay: no officer "
@@ -397,7 +433,7 @@ class Steps:
         """The last call passed too with no decision: expired, nothing was sent. The sweep asks again after
         the level's cooldown (Settings.reask_cooldown) while the level holds."""
         alert = self._alert(e["alert_id"])
-        if alert.unanswered_at is None and not alert.replay:  # never silent, even if the last call was skipped
+        if alert.unanswered_at is None and not alert.replay and not alert.decision_trace.get("demo"):  # never silent
             metric("AlertUnanswered", 1, Level=alert.level)
         events.alert_changed(self.repo.update_alert(alert.id, status="expired", task_token=None))
         cooldown = get_settings().reask_cooldown(alert.level)
@@ -571,6 +607,10 @@ class Steps:
             log(_LOG, "failsafe for unknown alert", 40, alert_id=e.get("alert_id"), error=e.get("error"))
             return {"alert_id": e.get("alert_id"), "sent": 0}
         error = str(e.get("error"))[:200]
+        if alert.decision_trace.get("demo"):  # the live demo has no failsafe: it goes out only after an approval
+            events.alert_changed(self.repo.update_alert(alert.id, status="failsafe", task_token=None))
+            self.repo.add_timeline(alert.id, "failsafe", f"workflow error {error}; live demo: nothing sent")
+            return {"alert_id": alert.id, "sent": 0, "mode": "failsafe", "more": False}
         try:
             text_hi, text_en = script.fallback_for_alert(self.repo, alert)
             broadcast = alert.level == "critical" or alert.approved
@@ -606,11 +646,13 @@ class Steps:
                 if village and village.open_alert_id == alert.id:
                     self.repo.update_replay_village(village.id, open_alert_id=None)
             else:
-                village = self.repo.get_village(alert.village_id)
+                village = self.repo.get_village(alert.village_id, include_demo=True)
                 if village and village.open_alert_id == alert.id:
                     self.repo.update_village(village.id, open_alert_id=None)
             self.repo.add_timeline(alert.id, "closed", f"outcome={outcome}")
             out: dict[str, Any] = {"alert_id": alert.id, "status": status}
+            if alert.decision_trace.get("demo"):  # the live demo: no roll-call, no after-action report or e-mail
+                return out
             try:  # "Surakshit Hoon": live warning/critical alerts that reached phones open a safety roll-call
                 rc = rollcall.open_after_alert(self.repo, self.repo.get_alert(alert.id) or alert, status)
                 if rc is not None:

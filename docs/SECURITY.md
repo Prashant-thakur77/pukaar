@@ -94,6 +94,12 @@ the month. The CSP's `connect-src` gains `https://*.cloudfront.net` on that prod
   replay reports only (`api/auth.py` `Allowed(replay_reads=True)`); a live alert's delivery rows come
   back with the person left out (`masked: true`); a live after-action report is refused.
   `backend/tests/test_public_privacy.py` signs in as both and checks it.
+- **The live jury demo** (docs/DEMO_LIVE.md). Jurors join a separate, unlisted demo village by a 4-digit code
+  that rotates and expires in 30 minutes, after a Hindi and English notice; nothing is stored before "I agree".
+  Their first name and chat id are deleted within 24 hours (the sweep), or at once by "Reset demo". Cedar
+  `demo-stays-in-demo` keeps a demo alert in the demo village and every other alert out of it; the public demo
+  accounts may watch the presenter screen (counts only) but never see the code or run it
+  (`public-demo-accounts-never-run-demo`). `backend/tests/test_live_demo.py`.
 - **Pradhans.** No Cedar policy matches a request that names no village. A pradhan's list is asked
   once for each of their own villages, and an alert or report is checked against the village on its
   own record, so another village's alert is refused, not just hidden (`test_policy_tokens.py`).

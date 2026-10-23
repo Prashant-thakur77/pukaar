@@ -8,7 +8,7 @@ directives, put every village back to normal, and re-seed. Audit rows stay
 from __future__ import annotations
 
 from Pukaar.scripts.seed import seed
-from Pukaar.services import replay
+from Pukaar.services import demo, replay
 from Pukaar.store.repo import get_repo
 
 _KEEP_PREFIXES = ("AUDIT#", "OFFICER#")
@@ -28,6 +28,7 @@ def _removable(item: dict) -> bool:
 def main() -> None:
     repo = get_repo()
     replay.reset(repo)
+    demo.reset(repo, "cli")  # the live jury demo's people and alerts too (make demo-reset does this alone)
     removed = repo.delete_where(_removable)
     for v in repo.list_villages():
         repo.update_village(v.id, level="normal", calm_sweeps=0, level_since=None, open_alert_id=None,

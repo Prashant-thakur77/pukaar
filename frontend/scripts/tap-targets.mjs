@@ -78,6 +78,7 @@ const PAGES = [
   { name: 'roster', path: '/console/roster', auth: true },
   { name: 'enrol', path: '/console/enrol', auth: true },
   { name: 'group', path: '/console/group?d=Mandi&c=rain&s=replay', auth: true },
+  { name: 'live-demo', path: '/console/demo', auth: true },
   { name: 'audit', path: '/console/audit?all=1', auth: true },
   { name: 'village', path: `/village/${village}` },
   { name: 'live', path: '/live' },

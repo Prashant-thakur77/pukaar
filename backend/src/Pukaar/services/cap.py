@@ -124,8 +124,8 @@ _SENT_STATUSES = {"approved", "delivering", "delivered", "auto_sent_unapproved"}
 
 
 def is_published(a: Alert) -> bool:
-    """True only for alerts that went (or are going) out to people."""
-    if a.level not in MAPPING:
+    """True only for alerts that went (or are going) out to people. Never the live jury demo's practice alert."""
+    if a.level not in MAPPING or a.decision_trace.get("demo"):
         return False
     if a.status in _SENT_STATUSES:
         return True

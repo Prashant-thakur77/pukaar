@@ -27,7 +27,7 @@ const WIDTHS = arg('widths', '390,1440').split(',').map(Number);
 export const PUBLIC_MIN = 16;
 export const CONSOLE_MIN = 14;
 const PUBLIC = ['/', '/live', '/how', '/proof', '/pilot', '/report', '/village/gohar', '/t/PK0000', '/login'];
-const CONSOLE = ['/console/inbox', '/console/villages', '/console/reports', '/console/rollcall', '/console/roster', '/console/audit', '/console/settings', '/console/enrol', '/console/group?d=Mandi&c=rain&s=replay'];
+const CONSOLE = ['/console/inbox', '/console/villages', '/console/reports', '/console/rollcall', '/console/roster', '/console/audit', '/console/settings', '/console/enrol', '/console/group?d=Mandi&c=rain&s=replay', '/console/demo'];
 
 function executablePath() {
   for (const root of [process.env.PLAYWRIGHT_BROWSERS_PATH, '/opt/pw-browsers', join(homedir(), '.cache/ms-playwright')]) {

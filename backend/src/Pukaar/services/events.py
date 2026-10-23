@@ -156,6 +156,9 @@ def alert_changed(alert: Alert | None, *, kind: str | None = None) -> None:
     """Public status event, plus an officer event when the change needs an officer's eye."""
     if alert is None or not configured():
         return
+    if alert.decision_trace.get("demo"):  # the live jury demo: signed-in screens only, never a public channel
+        publish(OFFICER_ALERTS, officer_alert_event(alert, kind or _OFFICER_KINDS.get(alert.status) or "demo"))
+        return
     publish(PUBLIC_ALERTS, alert_event(alert))
     kind = kind or _OFFICER_KINDS.get(alert.status)
     if kind:
@@ -164,6 +167,9 @@ def alert_changed(alert: Alert | None, *, kind: str | None = None) -> None:
 
 def counts_changed(alert: Alert | None) -> None:
     if alert is not None and configured():
+        if alert.decision_trace.get("demo"):  # the live demo's presenter screen refetches on the officer channel
+            publish(OFFICER_ALERTS, {**delivery_event(alert), "kind": "demo_counts"})
+            return
         publish(PUBLIC_DELIVERIES, delivery_event(alert))
 
 

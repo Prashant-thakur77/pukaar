@@ -46,6 +46,8 @@ SIGNAL_KINDS = {"reading", "gauge", "rain_obs", "staff_gauge", "report", "offici
 
 
 def kind_of(a: Alert) -> str:
+    if a.decision_trace.get("demo"):  # the live jury demo: shown on its presenter screen only, never pooled
+        return "demo"
     if a.replay or a.decision_trace.get("replay"):
         return "replay"
     return "drill" if a.decision_trace.get("drill") else "live"
@@ -276,6 +278,8 @@ def ten(repo: Repo, alerts: list[Alert] | None = None, *, counters: dict[str, An
     groups: dict[str, list[dict[str, Any]]] = {"live": [], "drill": [], "replay": []}
     for a in alerts:
         k = kind_of(a)
+        if k not in groups:  # a live demo alert is never pooled with live alerts, drills or replays
+            continue
         # An alert counts once it went out (a delivery row exists); a declined or expired one reached nobody.
         rows = repo.list_deliveries(a.id) if (a.delivered_count > 0 or a.approved
                                                or a.status in {"auto_sent_unapproved", "failsafe"}) else []

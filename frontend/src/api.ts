@@ -16,6 +16,7 @@ import type {
   Backtest,
   Checklist,
   CreateReportResponse,
+  DemoStatus,
   DevApprovalLink,
   DevLoginResponse,
   Directive,
@@ -386,6 +387,12 @@ export const api = {
     request<ReplayStatus>('/replay/start', { method: 'POST', body: opts }),
   replayReset: () => request<ReplayStatus>('/replay/reset', { method: 'POST', body: {} }),
   replayStatus: () => request<ReplayStatus>('/replay/status', { auth: false }),
+
+  // The live jury demo (docs/DEMO_LIVE.md): view_demo to watch, run_demo for the rest (Cedar).
+  demo: () => request<DemoStatus>('/demo'),
+  demoOpen: () => request<DemoStatus>('/demo/open', { method: 'POST', body: {} }),
+  demoAlert: () => request<DemoStatus>('/demo/alert', { method: 'POST', body: {} }),
+  demoReset: () => request<DemoStatus>('/demo/reset', { method: 'POST', body: {} }),
 
   audit: (p: { date?: string; resource?: string } = {}) => request<Audit[]>(`/audit${qs(p)}`),
   stats: () => request<Stats>('/stats'),

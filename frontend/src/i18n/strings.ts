@@ -1053,6 +1053,7 @@ export const strings = {
   'cs.nav.audit': { hi: 'ऑडिट', en: 'Audit' },
   'cs.nav.demo': { hi: 'डेमो', en: 'Demo' },
   'cs.nav.replay': { hi: 'रीप्ले', en: 'Replay' },
+  'cs.nav.livedemo': { hi: 'लाइव डेमो', en: 'Live demo' },
   'cs.nav.system': { hi: 'सिस्टम', en: 'System' },
   'cs.nav.settings': { hi: 'सेटिंग्स', en: 'Settings' },
   'cs.nav.more': { hi: 'और', en: 'More' },

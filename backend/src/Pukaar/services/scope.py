@@ -81,7 +81,7 @@ def facts(repo: Any, principal: Any, resource_type: str, resource_id: str, conte
     village = None
     if vid:
         try:
-            village = repo.get_village(vid)
+            village = repo.get_village(vid, include_demo=True)
         except Exception:
             village = None
         if village is None:
@@ -98,7 +98,8 @@ def facts(repo: Any, principal: Any, resource_type: str, resource_id: str, conte
         or (village is not None and (username in village.officers or village.id in (principal.village_ids or [])))
         or (district and rostered(repo, username, district, now))
     )
-    return {"district": district, "scoped": True, "in_scope": in_scope}
+    # The live jury demo's village (services/demo.py), from its record: it belongs to no district.
+    return {"district": district, "scoped": True, "in_scope": in_scope, "demo": bool(village is not None and village.demo)}
 
 
 def districts_of(repo: Any, principal: Any) -> list[str]:

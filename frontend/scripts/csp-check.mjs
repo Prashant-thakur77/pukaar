@@ -92,7 +92,7 @@ const PAGES = [
   ['/', false], ['/live', false], ['/report', false], ['/village/thunag', false], ['/how', false], ['/proof', false],
   ['/pilot', false], [`/t/${code}`, false], ['/login', false],
   ['/console/inbox', true], ['/console/inbox?v=sent', true], ['/console/reports', true], ['/console/settings', true],
-  ['/console/audit', true], ['/console/roster', true], ['/console/enrol', true], ['/console/group?d=Mandi&c=rain&s=live', true],
+  ['/console/audit', true], ['/console/roster', true], ['/console/enrol', true], ['/console/group?d=Mandi&c=rain&s=live', true], ['/console/demo', true],
   ['/status.html', false],
 ];
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');

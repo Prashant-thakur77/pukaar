@@ -297,6 +297,8 @@ def build(a: Alert, village: Village | None, radius_km: float | None = None) -> 
 def prepare(repo: Repo, a: Alert, actor: str, actor_role: str, radius_km: float | None = None,
             via: str = "view") -> Package:
     """Build the package and record it: one audit row and a timeline entry. Never sends anything."""
+    if a.decision_trace.get("demo"):
+        raise NotRequestable("the live jury demo's practice alert is never sent to SACHET")
     village = repo.get_village(a.village_id)
     pkg = build(a, village, radius_km)
     via = via if via in VIA else "view"

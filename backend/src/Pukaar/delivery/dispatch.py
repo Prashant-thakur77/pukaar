@@ -95,6 +95,13 @@ def _send_telegram(alert: Alert, recipient: Recipient, audio: bytes | str | None
     return telegram.send_alert(recipient.id, alert.id, text, audio)
 
 
+def _same_world(alert: Alert, r: Recipient) -> bool:
+    """A person of the alert's own village, and on the same side of the live jury demo: a demo alert reaches only
+    the demo's consented people, any other alert never reaches one of them (services/demo.py)."""
+    demo_alert = bool((alert.decision_trace or {}).get("demo"))
+    return r.village_id == alert.village_id and demo_alert == (r.enrolled_via == "demo")
+
+
 def relays_first(recipients: list[Recipient]) -> list[Recipient]:
     """The Practical Action cascade: relays (pradhan, gauge reader, task force) before everyone else.
     Stable, so the order within each group is the stored order."""
@@ -103,7 +110,7 @@ def relays_first(recipients: list[Recipient]) -> list[Recipient]:
 
 def ordered_recipients(repo: Repo, alert: Alert) -> list[Recipient]:
     """Everyone the alert goes to, in sending order; batch n is the n-th slice of this list."""
-    return relays_first(repo.list_recipients(alert.village_id))
+    return relays_first([r for r in repo.list_recipients(alert.village_id) if _same_world(alert, r)])
 
 
 def batch_count(total: int, size: int | None = None) -> int:
@@ -140,7 +147,7 @@ def batch_people(repo: Repo, alert: Alert, spec: dict[str, Any]) -> list[Recipie
     slice of the whole ordered list when the batch is named by position."""
     if spec.get("first") and spec.get("last"):
         return [r for r in repo.list_recipients_between(alert.village_id, spec["first"], spec["last"])
-                if not r.is_relay]
+                if not r.is_relay and _same_world(alert, r)]
     size = get_settings().delivery_batch_size
     b = int(spec.get("batch") or 0)
     return ordered_recipients(repo, alert)[b * size:(b + 1) * size]
@@ -352,11 +359,13 @@ def deliver_round(repo: Repo, alert: Alert, *, action: str = "deliver", recall: 
     decisions: dict[str, Any] = {}
     guard = None
     ready: list[_Item] = []
+    village = repo.get_village(alert.village_id, include_demo=True)
+    demo = {"demo": bool((alert.decision_trace or {}).get("demo")), "village_demo": bool(village and village.demo)}
     for item in work:
         ch = item.channel
         if ch not in decisions:
             ctx = {"approved": alert.approved, "level": alert.level, "replay": alert.replay, "channel": ch,
-                   "all_officers_timed_out": alert.status == "auto_sent_unapproved"}
+                   "all_officers_timed_out": alert.status == "auto_sent_unapproved", **demo}
             decisions[ch] = authorize(SYSTEM, action, "alert", alert.id, ctx, repo=repo)
         decision = decisions[ch]
         if decision.allowed and guard is None:
@@ -669,7 +678,7 @@ def notify_officer(repo: Repo, alert: Alert, officer_username: str, approve_url:
         log(_LOG, "officer notified in console only", alert_id=alert.id, officer=officer_username)
         return False
     try:
-        flag = " [REPLAY]" if alert.replay else ""
+        flag = " [REPLAY]" if alert.replay else " [DEMO]" if alert.decision_trace.get("demo") else ""
         telegram.send_text(chat_id, f"पुकार{flag}: {alert.village_name_hi} – {hi.LEVEL_HI[alert.level]}\n"
                                     f"{alert.text_hi}\n\nApprove / decline: {approve_url}")
         return True

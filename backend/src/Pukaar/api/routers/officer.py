@@ -174,7 +174,7 @@ def set_outcome(alert_id: str, body: OutcomeBody,
     a = repo.get_alert(alert_id)
     if a is None:
         raise HTTPException(404, "Alert not found")
-    if views.is_replay(a) or views.is_drill(a):
+    if views.is_replay(a) or views.is_drill(a) or views.is_demo(a):
         raise HTTPException(409, {"code": "not_live", "message_en": "Replays and drills are not real events.",
                                   "message_hi": "रीप्ले और अभ्यास असली घटनाएँ नहीं हैं।"})
     if a.status in OPEN_ALERT_STATUSES:

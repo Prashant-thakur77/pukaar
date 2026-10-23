@@ -205,9 +205,14 @@ def is_replay(a: Alert) -> bool:
     return bool(a.replay or a.decision_trace.get("replay"))
 
 
+def is_demo(a: Alert) -> bool:
+    """The live jury demo's practice alert (services/demo.py): counted nowhere but its own presenter screen."""
+    return bool(a.decision_trace.get("demo"))
+
+
 def is_drill(a: Alert) -> bool:
-    """A hand-started test alert (scripts/drill.py): real phones, but never a flood warning."""
-    return bool(a.decision_trace.get("drill")) and not is_replay(a)
+    """A hand-started test alert (scripts/drill.py): real phones, but never a flood warning. Never a demo alert."""
+    return bool(a.decision_trace.get("drill")) and not is_replay(a) and not is_demo(a)
 
 
 def _reached_a_phone(repo: Repo, a: Alert) -> bool:
@@ -241,7 +246,7 @@ def counters(repo: Repo, now: datetime | None = None) -> dict[str, int]:
     now = now or clock.now()
     since, until = clock.iso(now - timedelta(hours=COUNTER_WINDOW_HOURS)), clock.iso(now)
     villages = repo.list_villages()
-    alerts = repo.list_alerts(limit=500)
+    alerts = [a for a in repo.list_alerts(limit=500) if not is_demo(a)]
     sent = [a for a in alerts if went_out(a) and not is_replay(a) and not is_drill(a)]
     drills = [a for a in alerts if is_drill(a) and went_out(a)]
     s = get_settings()

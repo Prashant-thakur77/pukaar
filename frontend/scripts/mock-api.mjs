@@ -276,6 +276,22 @@ const server = http.createServer(async (req, res) => {
   if (p === '/me/telegram-link') return needUser() && send(res, 200, { code: 'K7Q2', command: '/link K7Q2', expires_in_seconds: 600 });
   if (p === '/push/vapid-public-key') return send(res, 200, { key: null, configured: false });
   if (p === '/me') return needUser() && send(res, 200, user);
+  // The live jury demo's presenter screen (backend api/routers/demo.py). SAMPLE: three joined, the alert waiting.
+  if (p === '/demo' || p.startsWith('/demo/')) {
+    if (!needUser()) return;
+    const textHi = 'अभ्यास / DEMO — यह असली चेतावनी नहीं है (this is not a real warning)। जिला आपदा प्रबंधन प्राधिकरण डेमो की ओर से, पुकार: चेतावनी। SAMPLE.';
+    return send(res, 200, {
+      enabled: true, open: true, can_run: true, village: { id: 'demo', name: 'Demo village', name_hi: 'डेमो गाँव', district: 'Demo' },
+      code: '4821', join_url: 'https://t.me/PukaarRescuebot?start=demo-4821', bot: 'PukaarRescuebot', code_expires_at: iso(-25 * 60 * 1000),
+      code_live: true, joined: 3, max_people: 50, alert_every_seconds: 120, code_ttl_seconds: 1800, keep_hours: 24, next_alert_at: null,
+      presenter_url: 'http://localhost:5173/console/demo',
+      alert: { id: 'alr_demo_sample', status: 'pending', level: 'warning', created_at: iso(30 * 1000), decided_at: null, approved: false,
+        text_hi: textHi, text_en: 'अभ्यास / DEMO — this is not a real warning. SAMPLE.', has_audio: false, targeted: 0, delivered: 0, confirmed: 0, failed: 0,
+        times: { created: iso(30 * 1000), asked: iso(25 * 1000), approved: null, first_sent: null, first_ack: null },
+        seconds: { approved_to_first_sent: null, first_sent_to_first_ack: null, first_sent_to_median_ack: null, approved_to_first_ack: null, approved_to_median_ack: null } },
+      as_of: iso(0),
+    });
+  }
   if (p === '/public/overview') return send(res, 200, overview());
   if (p === '/public/pilot-metrics') {
     // SAMPLE: a drill measured, no live alert yet (nulls are "not measured yet" on /pilot).

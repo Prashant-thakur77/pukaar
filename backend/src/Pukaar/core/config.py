@@ -180,6 +180,11 @@ class Settings:
     # voice_provider is exotel or plivo. A missed call is called back (one callback per number a day) only
     # when this is on: each callback is a billed call, so the DDMA decides.
     ivr_missed_call_callback: bool = False
+    # -- the live jury demo (services/demo.py, docs/DEMO_LIVE.md) --
+    # On by default except on the prod stage (PUKAAR_LIVE_DEMO turns it on or off). The bot's username makes the
+    # join link (t.me/<bot>?start=demo-<code>) on the presenter screen.
+    live_demo_enabled: bool = True
+    telegram_bot_username: str = "PukaarRescuebot"
 
     def reask_cooldown(self, level: str) -> int:
         """Minutes before an unsent alert at this level is asked again while the level holds."""
@@ -301,6 +306,8 @@ def get_settings() -> Settings:
         duty_digest_enabled=_bool("PUKAAR_DUTY_DIGEST", True),
         duty_digest_hour_ist=max(0, min(23, int(os.environ.get("PUKAAR_DUTY_DIGEST_HOUR_IST", "8") or "8"))),
         ivr_missed_call_callback=_bool("PUKAAR_IVR_MISSED_CALL_CALLBACK", False),
+        live_demo_enabled=_bool("PUKAAR_LIVE_DEMO", os.environ.get("PUKAAR_STAGE", "dev") != "prod"),
+        telegram_bot_username=os.environ.get("PUKAAR_TELEGRAM_BOT", "").strip().lstrip("@") or "PukaarRescuebot",
     )
 
 

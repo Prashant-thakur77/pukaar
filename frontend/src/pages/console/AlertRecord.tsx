@@ -187,7 +187,14 @@ export function AlertMetricsPanel({ alertId }: { alertId: string }) {
   if (loading && !data) return <Skeleton lines={3} />;
   if (error && !data) return <p className="small bad-text">{error.messageEn}</p>;
   if (!data) return null;
-  const kind = data.kind === 'live' ? null : data.kind === 'drill' ? (lang === 'hi' ? 'अभ्यास' : 'Drill') : lang === 'hi' ? 'रीप्ले' : 'Replay';
+  const kind =
+    data.kind === 'live'
+      ? null
+      : data.kind === 'drill'
+        ? lang === 'hi' ? 'अभ्यास' : 'Drill'
+        : data.kind === 'demo'
+          ? lang === 'hi' ? 'लाइव डेमो' : 'Live demo'
+          : lang === 'hi' ? 'रीप्ले' : 'Replay';
   return (
     <>
       {kind && (

@@ -79,7 +79,7 @@ def stop(repo: Repo, chat_id: str, now: datetime | None = None, reason: str = "t
         if person is not None and person.phone:
             needles.append(person.phone)  # a "both" person: their number goes from the reports too
         if repo.delete_recipient(vid, chat_id):
-            v = repo.get_village(vid)
+            v = repo.get_village(vid, include_demo=True)
             if v is not None:
                 left.append(v)
     repo.delete_chat_rows(chat_id)

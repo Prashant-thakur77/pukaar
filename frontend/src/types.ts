@@ -1411,7 +1411,7 @@ export interface TenMetrics {
 /** GET /alerts/{id}/metrics: one alert's ten metrics, counts and times only. */
 export interface AlertMetrics {
   alert_id: string;
-  kind: 'live' | 'drill' | 'replay';
+  kind: 'live' | 'drill' | 'replay' | 'demo';
   coverage: { registered: number; households: number | null; share: number | null; per_1000_people: number | null; observers: number; targeted: number };
   confirmed_reach: TenReach & { reached: number; confirmed_share: number | null; within_15: number; within_30: number; within_60: number };
   assisted_reach: TenReach & { escalated: number; checked_by_neighbour: number; confirmed_or_checked: number; confirmed_or_checked_share: number | null };
@@ -1443,4 +1443,52 @@ export interface VillageCare {
   households: number | null;
   coverage: number | null;
   gaps: string[];
+}
+
+/** GET /demo: the live jury demo's presenter screen (counts and times only; never a name or chat id). */
+export interface DemoAlert {
+  id: string;
+  status: AlertStatus;
+  level: Level;
+  created_at: string;
+  decided_at: string | null;
+  approved: boolean;
+  text_hi: string;
+  text_en: string;
+  has_audio: boolean;
+  targeted: number;
+  delivered: number;
+  confirmed: number;
+  failed: number;
+  times: { created: string; asked: string | null; approved: string | null; first_sent: string | null; first_ack: string | null };
+  seconds: {
+    approved_to_first_sent: number | null;
+    first_sent_to_first_ack: number | null;
+    first_sent_to_median_ack: number | null;
+    approved_to_first_ack: number | null;
+    approved_to_median_ack: number | null;
+  };
+}
+
+export interface DemoStatus {
+  enabled: boolean;
+  open: boolean;
+  can_run: boolean;
+  village: { id: string; name: string; name_hi: string; district: string };
+  /** The join code and its t.me link: only for someone who may run the demo, and only while the code is live. */
+  code: string | null;
+  join_url: string | null;
+  bot: string;
+  code_expires_at: string | null;
+  code_live: boolean;
+  joined: number;
+  max_people: number;
+  alert_every_seconds: number;
+  code_ttl_seconds: number;
+  keep_hours: number;
+  next_alert_at: string | null;
+  presenter_url: string;
+  alert: DemoAlert | null;
+  as_of: string;
+  erased?: { people: number; alerts: number };
 }

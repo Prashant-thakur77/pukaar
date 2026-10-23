@@ -18,6 +18,8 @@ a judge account at https://main.d15r7ktz99l46x.amplifyapp.com/login:
 These two accounts exist for judging and will be removed afterwards. Locally (`make local`) the sign-in page has a button for each
 demo user and needs no password.
 
+For a pitch, the jury can take part from their own phones: `make demo-open` and `/console/demo` ([docs/DEMO_LIVE.md](docs/DEMO_LIVE.md)).
+
 To start from a clean state run `make reset-demo`. To see timeouts within a
 minute, deploy with short timers:
 `sam deploy --parameter-overrides ApprovalTimeoutSeconds=60 AckWaitSeconds=60`.

@@ -46,7 +46,7 @@ DEPLOY_EXTRA   = $(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL)) \
                  $(if $(CAP_SENDER_NAME_HI),'CapSenderNameHi="$(CAP_SENDER_NAME_HI)"')
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo drill add-village staff-assign waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt device-provision siren-sim protocol-vectors ses-verify it secrets vapid-keys local validate smoke
+        seed reset-demo demo-open demo-reset drill add-village staff-assign waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt device-provision siren-sim protocol-vectors ses-verify it secrets vapid-keys local validate smoke
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -112,6 +112,12 @@ seed: ## Seed villages into the deployed table and create Cognito demo users (vi
 reset-demo: ## Clear demo state (alerts, reports, replay) on the deployed stack (refused for STAGE=prod)
 	@test "$(STAGE)" != prod || { echo "reset-demo deletes alerts and reports: never on STAGE=prod." >&2; exit 2; }
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.reset_demo
+
+demo-open: ## Live jury demo: open it (or rotate the join code); prints the presenter URL, the code and the QR link (docs/DEMO_LIVE.md)
+	$(STACK_ENV); cd backend && PUKAAR_STAGE=$(STAGE) PUKAAR_WEB_URL="$$STACK_WebUrl" PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.demo open
+
+demo-reset: ## Live jury demo: erase every demo person and demo alert now (the code stops working)
+	$(STACK_ENV); cd backend && PUKAAR_STAGE=$(STAGE) PUKAAR_WEB_URL="$$STACK_WebUrl" PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.demo reset
 
 drill: ## Send a labelled drill alert to registered phones (VILLAGE=gohar LEVEL=watch CHANNEL=all|telegram|voice)
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.drill $(or $(VILLAGE),gohar) $(or $(LEVEL),watch) $(or $(CHANNEL),all)

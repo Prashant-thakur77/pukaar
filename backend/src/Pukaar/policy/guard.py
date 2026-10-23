@@ -76,6 +76,8 @@ DENY_HINTS = {
     "request_sachet": "Only a district officer can prepare a SACHET request, for an approved Warning or Critical.",
     "write_handover": "Only a district officer can write the shift handover note.",
     "ack_handover": "Only a district officer can acknowledge a handover note.",
+    "run_demo": "Only a district officer or a state operator can run the live demo.",
+    "view_demo": "Only a district officer or a state operator can watch the live demo's presenter screen.",
 }
 
 
@@ -154,6 +156,8 @@ CONTEXT_DEFAULTS: dict[str, Any] = {
     "pattern": "", "src": "", "drill": False, "critical_auto_send": False, "machine_evidence_critical": False,
     "second_officer_distinct": False, "device_simulated": False, "device_village_id": "", "kind": "",
     "hour_ist": -1, "village_alert_open": False, "started_by_self": False, "change": "",
+    # the live jury demo (services/demo.py): the record is the demo's, and the alert's village is the demo village
+    "demo": False, "village_demo": False,
 }
 
 
@@ -169,12 +173,14 @@ _SCOPE_KEYS = ("district", "scoped", "in_scope")
 def _with_scope(principal: Principal, resource_type: str, resource_id: str, context: dict[str, Any] | None,
                 repo: Any) -> dict[str, Any]:
     """The context with the district-scope facts of a staff principal, read from the records (never from the
-    caller: any district/scoped/in_scope a caller passed is dropped first)."""
+    caller: any district/scoped/in_scope/demo a caller passed is dropped first). The system's own context (a delivery's
+    demo facts, read from the alert and its village by dispatch.py) is kept as given."""
     from Pukaar.services import scope
 
     ctx = {k: v for k, v in (context or {}).items() if k not in ("scoped", "in_scope")}
     if principal.role not in scope.SCOPED_ROLES:
         return ctx
+    ctx.pop("demo", None)
     if repo is None:
         from Pukaar.store.repo import get_repo
 

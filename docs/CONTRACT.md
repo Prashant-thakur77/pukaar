@@ -377,6 +377,17 @@ POST /duty/handover/{district}/{date}/{day|night}/ack  Cedar ack_handover, not t
 POST /replay/start           officer: {scenario?: "himachal_2023_07"|"mandi_2025", speed_seconds_per_hour?: number}
                              -> ReplayStatus (speed capped so the run fits one worker invocation)
 POST /replay/reset           officer: {} -> ReplayStatus
+GET  /demo                   Cedar view_demo (officer, state operator; the public demo accounts watch): the live jury
+                             demo (docs/DEMO_LIVE.md) {enabled, open, can_run, code|null, join_url|null (t.me/<bot>?
+                             start=demo-<code>; only with Cedar run_demo, while the code is live), code_expires_at,
+                             joined, max_people (50), next_alert_at, alert{id, status, text_hi, text_en, targeted,
+                             delivered, confirmed, times{approved, first_sent, first_ack}, seconds{...}}|null}.
+                             Counts and times only, never a name or chat id
+POST /demo/open              Cedar run_demo: open the session or rotate its 4-digit code (30 min) -> the /demo body
+POST /demo/alert             Cedar run_demo: the one labelled practice alert for the demo village (one per 2 minutes:
+                             429 with Retry-After; 409 while one is open) -> the /demo body. Approve it with
+                             POST /alerts/{id}/approve, as any alert
+POST /demo/reset             Cedar run_demo: erase every demo person and demo alert now -> the /demo body + erased
 GET  /replay/status          {active, stale, available[], scenario, title, title_hi, clock|null,
                               hours_total, hours_done, source, started_at, updated_at}
 GET  /audit?date=&resource=  officer: [Audit]

@@ -206,6 +206,9 @@ class Village(BaseModel):
     # Households on the village list (from the pradhan and patwari): the denominator of coverage (pilot metric 1).
     # None until the list is received; coverage is then "not measured", never guessed.
     households: int | None = None
+    # The live jury demo's own village (services/demo.py): never in the village registry, so never in a list,
+    # the sweep, the CAP feed, SACHET, the counters or the pilot metrics; Repo.get_village hides it unless asked.
+    demo: bool = False
 
 
 class Reading(BaseModel):
@@ -591,6 +594,8 @@ class Recipient(BaseModel):
     # Optional, and only to report coverage (half the observers and relays women, as in Bangladesh's CPP).
     # Never used to decide who is warned or in what order.
     gender: Literal["female", "male", "other"] | None = None
+    # When the person joined (the live jury demo: services/demo.py erases its people 24 hours after this).
+    joined_at: str | None = None
 
     @field_validator("phone")
     @classmethod

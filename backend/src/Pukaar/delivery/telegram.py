@@ -165,6 +165,19 @@ def consent_keyboard(village_id: str) -> dict:
     ]]}
 
 
+def demo_consent_keyboard(code: str) -> dict:
+    """The live jury demo's "I agree" / "No" (services/demo.py): the button names the join code, not a village."""
+    return {"inline_keyboard": [[
+        {"text": hi.CONSENT_BUTTON, "callback_data": f"dconsent:{code}"[:64]},
+        {"text": hi.DECLINE_BUTTON, "callback_data": "noconsent"},
+    ]]}
+
+
+def send_demo_consent(chat_id: str, code: str, text: str) -> None:
+    _call("sendMessage", {"chat_id": chat_id, "text": text[:4096], "disable_web_page_preview": True,
+                          "reply_markup": demo_consent_keyboard(code)})
+
+
 def send_consent(chat_id: str, village_id: str, text: str) -> None:
     _call("sendMessage", {"chat_id": chat_id, "text": text[:4096], "disable_web_page_preview": True,
                           "reply_markup": consent_keyboard(village_id)})

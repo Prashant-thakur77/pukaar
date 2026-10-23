@@ -13,6 +13,7 @@ import {
   Megaphone,
   Menu,
   Moon,
+  QrCode,
   ScrollText,
   Server,
   Sparkles,
@@ -37,7 +38,7 @@ import '../../styles/console-shell.css';
 
 /*
  * The officer's console (spec 4.9): its own header and a rail of sections instead of one long page.
- *   Inbox · Villages · Reports · Roll-call · Directives · Ask | Roster · Audit | Demo: Replay · System | Settings
+ *   Inbox · Villages · Reports · Roll-call · Directives · Ask | Roster · Audit | Demo: Replay · Live demo · System | Settings
  * On a phone the rail becomes four bottom tabs (Inbox, Villages, Reports, More). The demo group is for the public
  * demo accounts (and a local stack, or anyone who turns it on in Settings): it never sits in the inbox.
  */
@@ -178,6 +179,7 @@ function useItems(pendingN: number, openReports: number): { main: Item[]; work: 
   const demo: Item[] = c.showDemo
     ? [
         { to: '/console/replay', key: 'cs.nav.replay', icon: History },
+        ...(c.role === 'officer' || c.role === 'state_operator' ? [{ to: '/console/demo', key: 'cs.nav.livedemo' as Key, icon: QrCode }] : []),
         { to: '/console/system', key: 'cs.nav.system', icon: Server },
       ]
     : [];

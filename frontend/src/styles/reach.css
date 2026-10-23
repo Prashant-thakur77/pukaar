@@ -176,6 +176,8 @@
 .enr-table-wrap {
   overflow-x: auto;
   margin: var(--sp-3) 0;
+  /* Focusable for keyboard scrolling (axe), so it is a tap target too: never under 44 px, even when empty. */
+  min-height: var(--tap);
 }
 .enr-table {
   width: 100%;

@@ -66,6 +66,7 @@ const AuditPage = lazyPage(() => import('./pages/console/AuditPage'));
 const Enrol = lazyPage(() => import('./pages/console/Enrol'));
 const GroupReview = lazyPage(() => import('./pages/console/GroupReview'));
 const AskSection = lazyPage(() => import('./pages/console/AskSection'));
+const LiveDemo = lazyPage(() => import('./pages/console/LiveDemo'));
 const section = (name: keyof typeof import('./pages/console/Sections')) =>
   lazyPage(() => import('./pages/console/Sections').then((m) => ({ default: m[name] as ComponentType })));
 const VillagesSection = section('VillagesSection');
@@ -137,6 +138,7 @@ export default function App() {
             <Route path="enrol" element={<Enrol />} />
             <Route path="group" element={<GroupReview />} />
             <Route path="replay" element={<ReplaySection />} />
+            <Route path="demo" element={<LiveDemo />} />
             <Route path="system" element={<SystemSection />} />
             <Route path="settings" element={<SettingsSection />} />
             <Route path="*" element={<Navigate to="/console/inbox" replace />} />

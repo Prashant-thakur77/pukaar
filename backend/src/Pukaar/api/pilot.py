@@ -152,6 +152,7 @@ def metrics(repo: Repo) -> dict[str, Any]:
     alerts = repo.list_alerts(limit=500)
     drills: list[tuple[Alert, list[Delivery]]] = []
     live: list[tuple[Alert, list[Delivery]]] = []
+    alerts = [a for a in alerts if not views.is_demo(a)]  # the live jury demo: its own screen only
     for a in alerts:
         if views.is_replay(a):
             continue

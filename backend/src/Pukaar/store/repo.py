@@ -44,6 +44,8 @@ Keys:
   HANDOVER#district  date#shift       (the shift handover note and its acknowledgement; services/duty.py; TTL 400 days)
   ONCE#name   key                     (a job done once per key, e.g. the 08:00 digest per district and day; TTL)
   INBOUND#call_id META                (an inbound IVR call in progress: menu stage, caller; TTL 2 hours; delivery/inbound.py)
+  DEMO        SESSION                 (the live jury demo: join code, its expiry, people joined, last alert; services/demo.py)
+  DEMOLOG     iso#alert_id            (the demo's alerts: never in ALERTLOG, so never in a list of alerts)
 Sparse GSI gsi1: gsi1pk = "OPEN#ALERT" / "OPEN#REPORT" while work is open; "OPEN#ROLLCALL" (gsi1sk closes_at).
 GSI gsi2 (alert META items only): gsi2pk = "ALERTS#<status>", gsi2sk = "<created_at>#<id>". The inbox reads
 the pending alerts of the whole state, or of one district (a filter on the alert's district), newest first,
@@ -307,12 +309,22 @@ class Repo:
     # -- villages --------------------------------------------------------
     def put_village(self, v: Village) -> None:
         self._put({"pk": f"VILLAGE#{v.id}", "sk": "META", "kind": "village", **v.model_dump()})
+        if v.demo:
+            # The live jury demo's village (services/demo.py) is never registered: nothing that lists villages
+            # (the sweep, the public pages, the CAP feed, the counters, the pilot metrics) can ever see it.
+            self.t.delete_item(Key={"pk": "VILLAGES", "sk": v.id})
+            return
         # A small registry partition, so listing villages is one query, not a table scan.
         self._put({"pk": "VILLAGES", "sk": v.id})
 
-    def get_village(self, village_id: str) -> Village | None:
+    def get_village(self, village_id: str, *, include_demo: bool = False) -> Village | None:
+        """A village by id. The demo village (Village.demo) is None here unless include_demo: a public page, a
+        report, an enrolment form, the CAP feed or a SACHET request that names it finds nothing."""
         item = self._get(f"VILLAGE#{village_id}", "META")
-        return _model(Village, item) if item else None
+        if not item:
+            return None
+        v = _model(Village, item)
+        return None if v.demo and not include_demo else v
 
     def village_ids(self) -> list[str]:
         return [str(i["sk"]) for i in self._query("VILLAGES")]
@@ -323,7 +335,7 @@ class Repo:
         keys = [(f"VILLAGE#{i}", "META") for i in self.village_ids()]
         items = self._batch_get(keys)
         villages = [_model(Village, items[k]) for k in keys if k in items]
-        return sorted(villages, key=lambda v: v.name)
+        return sorted((v for v in villages if not v.demo), key=lambda v: v.name)
 
     def update_village(self, village_id: str, **fields: Any) -> Village:
         remove = [k for k, v in fields.items() if v is None]
@@ -930,7 +942,10 @@ class Repo:
         if a.status in OPEN_ALERT_STATUSES:
             item.update(gsi1pk="OPEN#ALERT", gsi1sk=a.created_at)
         self._put(item, condition=Attr("pk").not_exists())
-        self._put({"pk": "ALERTLOG", "sk": f"{a.created_at}#{a.id}", "alert_id": a.id, "village_id": a.village_id,
+        # A live jury demo alert (services/demo.py) goes into its own log, never ALERTLOG: every list of alerts
+        # (the public overview, the counters, the CAP feed, the pilot metrics, the after-alert jobs) reads ALERTLOG.
+        log = "DEMOLOG" if a.decision_trace.get("demo") else "ALERTLOG"
+        self._put({"pk": log, "sk": f"{a.created_at}#{a.id}", "alert_id": a.id, "village_id": a.village_id,
                    "replay": a.replay})
         self._put({"pk": f"VILLAGE#{a.village_id}", "sk": f"ALERTREF#{a.created_at}#{a.id}", "alert_id": a.id,
                    "replay": a.replay})
@@ -1546,6 +1561,40 @@ class Repo:
 
     def delete_inbound(self, call_id: str) -> None:
         self.t.delete_item(Key={"pk": f"INBOUND#{call_id}", "sk": "META"})
+
+    # -- the live jury demo (services/demo.py) ------------------------------
+    def get_demo_session(self) -> dict[str, Any] | None:
+        item = self._get("DEMO", "SESSION")
+        return {k: v for k, v in _from_dynamo(item).items() if k not in _KEY_FIELDS} if item else None
+
+    def put_demo_session(self, fields: dict[str, Any]) -> None:
+        self._put({"pk": "DEMO", "sk": "SESSION", **fields})
+
+    def update_demo_session(self, fields: dict[str, Any], *, condition: Any = None,
+                            add: dict[str, int] | None = None) -> dict[str, Any]:
+        """One conditional update of the session (ConflictError when the condition fails, or no session)."""
+        cond = Attr("pk").exists() if condition is None else (Attr("pk").exists() & condition)
+        item = self._update("DEMO", "SESSION", fields, condition=cond, add=add)
+        return {k: v for k, v in _from_dynamo(item).items() if k not in _KEY_FIELDS}
+
+    def delete_demo_session(self) -> None:
+        self.t.delete_item(Key={"pk": "DEMO", "sk": "SESSION"})
+
+    def demo_alert_ids(self) -> list[tuple[str, str]]:
+        """(created_at, alert id) of every demo alert still stored, oldest first."""
+        return [(str(i["sk"]).split("#", 1)[0], str(i["alert_id"])) for i in self._query("DEMOLOG")]
+
+    def delete_demo_alert(self, alert_id: str, created_at: str, village_id: str) -> int:
+        """Delete one demo alert outright: its META, delivery rows (names, chat ids), markers, timeline and
+        Telegram file id, and its log and village pointers. Demo only: a live alert's record is never deleted."""
+        n = 0
+        with self.t.batch_writer() as batch:
+            for item in self._query(f"ALERT#{alert_id}"):
+                batch.delete_item(Key={"pk": item["pk"], "sk": item["sk"]})
+                n += 1
+            batch.delete_item(Key={"pk": "DEMOLOG", "sk": f"{created_at}#{alert_id}"})
+            batch.delete_item(Key={"pk": f"VILLAGE#{village_id}", "sk": f"ALERTREF#{created_at}#{alert_id}"})
+        return n
 
     # -- maintenance -----------------------------------------------------
     def delete_where(self, predicate) -> int:

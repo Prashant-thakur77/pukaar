@@ -80,6 +80,8 @@ async def webhook(request: Request, x_telegram_bot_api_secret_token: str = Heade
             _toast(cq["id"], assisted.checked(repo, *data[4:].split(":", 1), by_chat=chat_id))
         elif data.startswith("consent:") and chat_id:
             _consent(repo, cq, chat_id, data[len("consent:"):])
+        elif data.startswith("dconsent:") and chat_id:
+            _demo_consent(repo, cq, chat_id, data[len("dconsent:"):])
         elif data == "noconsent" and chat_id:
             repo.drop_consent_wait(chat_id)
             _toast(cq["id"], hi.DECLINED[:190])
@@ -104,6 +106,9 @@ async def webhook(request: Request, x_telegram_bot_api_secret_token: str = Heade
         return {"ok": True}
     raw_arg = text.split(maxsplit=1)[1].strip() if " " in text else ""
     arg = raw_arg.lower()
+    if arg.startswith("demo-"):
+        _demo_start(repo, chat_id, arg[len("demo-"):][:8])
+        return {"ok": True}
     if arg.startswith("link_"):
         username = repo.consume_link_code(arg[len("link_"):].upper())
         if username is None:
@@ -152,6 +157,38 @@ def _consent(repo: Repo, cq: dict, chat_id: str, village_id: str) -> None:
     log(_LOG, "recipient registered with consent", village_id=village.id)
     _toast(cq["id"], hi.CONSENT_THANKS)
     _send(chat_id, hi.enrolled(village.name_hi, village.name))
+
+
+def _demo_start(repo: Repo, chat_id: str, code: str) -> None:
+    """/start demo-<code> (the QR on the presenter screen): the demo notice, after the code is checked. Nothing about
+    the person is stored before "I agree" (services/demo.py)."""
+    from Pukaar.services import demo
+
+    try:
+        notice = demo.ask_consent(repo, chat_id, code)
+    except demo.DemoError as exc:
+        _send(chat_id, exc.message_en)
+        return
+    try:
+        telegram.send_demo_consent(chat_id, code, notice)
+    except Exception as exc:
+        log(_LOG, "demo notice failed", 30, error=str(exc)[:200])
+
+
+def _demo_consent(repo: Repo, cq: dict, chat_id: str, code: str) -> None:
+    """"I agree" under the demo notice: the person is stored in the demo village only, with the consent record."""
+    from Pukaar.services import demo
+
+    who = cq.get("from") or {}
+    try:
+        demo.join(repo, chat_id, code, str(who.get("first_name") or ""))
+    except demo.DemoError as exc:
+        _toast(cq["id"], exc.message_en[:190])
+        _send(chat_id, exc.message_en)
+        return
+    log(_LOG, "demo person joined with consent")
+    _toast(cq["id"], hi.CONSENT_THANKS)
+    _send(chat_id, demo.JOINED)
 
 
 def _find_village_reply(repo: Repo, raw_arg: str) -> str:

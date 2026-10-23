@@ -69,7 +69,7 @@ def send(repo: Repo, alert: Alert, trigger: str, now: datetime | None = None) ->
     """Send the note for this alert once. None when it was sent already, or the alert is a replay or still open.
     Never raises."""
     now = now or clock.now()
-    if _is_replay(alert) or alert.status in OPEN_ALERT_STATUSES:
+    if _is_replay(alert) or alert.decision_trace.get("demo") or alert.status in OPEN_ALERT_STATUSES:
         return None
     try:
         rows = [d for d in repo.list_deliveries(alert.id) if d.status in CONTACTED]

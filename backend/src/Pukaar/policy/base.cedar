@@ -5,7 +5,8 @@
 // Resources:  Pukaar::Village, Pukaar::Alert, Pukaar::Report, Pukaar::RollCall, Pukaar::Tool, Pukaar::App,
 //             Pukaar::Device (a siren, pradhan box, relay, rain node or gauge).
 // Context:    level, approved, all_officers_timed_out, replay, channel, village_id,
-//             district / scoped / in_scope (services/scope.py: from the records, never from the request).
+//             district / scoped / in_scope / demo (services/scope.py: from the records, never from the request),
+//             village_demo (delivery: whether the alert's village is the live jury demo's, from its record).
 
 @id("officer-operate")
 @desc("Officers run the console: approve, decline, edit or snooze pending alerts, triage reports, see who an alert reached, issue directives, update the shelter ledger, run replays, read the audit trail, ask the analyst and tick any village's early-action checklist.")
@@ -302,7 +303,7 @@ permit (
 // -- district scope (services/scope.py) and the state and district roles ------------------------------
 // After the public demo accounts' and the replay forbids, so a refusal names theirs first (guard.py sorts by file order).
 @id("staff-own-district")
-@desc("An officer or a state operator acts only on villages of the districts they are assigned to (their scope, the village's officer list, their sign-in's villages) or rostered on from yesterday to tomorrow; a replay is a rehearsal and is not held to a district.")
+@desc("An officer or a state operator acts only on villages of the districts they are assigned to (their scope, the village's officer list, their sign-in's villages) or rostered on from yesterday to tomorrow; a replay is a rehearsal and is not held to a district, nor is the live jury demo's own village.")
 forbid (
   principal,
   action in [
@@ -319,7 +320,7 @@ forbid (
 )
 when {
   (principal is Pukaar::Officer || principal is Pukaar::StateOperator) &&
-  context.scoped == true && context.in_scope != true && context.replay != true
+  context.scoped == true && context.in_scope != true && context.replay != true && context.demo != true
 };
 
 @id("state-operator-read")
@@ -452,6 +453,60 @@ forbid (
   ],
   resource
 );
+
+// -- the live jury demo (services/demo.py, docs/DEMO_LIVE.md) ---------------------------------------------------
+// context.demo is the record's own (scope.facts reads the village, dispatch reads the alert), never the request's;
+// context.village_demo is the alert's village record. The demo village is not in the village registry at all.
+@id("staff-live-demo")
+@desc("An officer or a state operator runs the live jury demo (opens it, rotates its join code, starts its one labelled practice alert, resets it) and watches its presenter screen.")
+permit (
+  principal,
+  action in [Pukaar::Action::"run_demo", Pukaar::Action::"view_demo"],
+  resource is Pukaar::App
+)
+when { principal is Pukaar::Officer || principal is Pukaar::StateOperator };
+
+@id("state-operator-demo-approval")
+@desc("A state operator who presents the live demo approves or declines its practice alert; the demo village belongs to no district.")
+permit (
+  principal is Pukaar::StateOperator,
+  action in [Pukaar::Action::"approve", Pukaar::Action::"decline"],
+  resource is Pukaar::Alert
+)
+when { context.demo == true };
+
+@id("public-demo-accounts-never-run-demo")
+@desc("Public demo account (judge, judge_pradhan): it may watch the live demo's presenter screen, but never open it, see its join code, start its alert or reset it.")
+forbid (
+  principal,
+  action == Pukaar::Action::"run_demo",
+  resource
+)
+when {
+  [Pukaar::Officer::"judge", Pukaar::Pradhan::"judge",
+   Pukaar::Officer::"judge_pradhan", Pukaar::Pradhan::"judge_pradhan"].contains(principal)
+};
+
+@id("demo-stays-in-demo")
+@desc("A live demo alert reaches only the demo village's consented people, and no other alert ever reaches the demo village.")
+forbid (
+  principal,
+  action in [Pukaar::Action::"deliver", Pukaar::Action::"auto_send", Pukaar::Action::"failsafe", Pukaar::Action::"all_clear", Pukaar::Action::"followup"],
+  resource
+)
+when { context.demo != context.village_demo };
+
+@id("demo-never-without-an-officer")
+@desc("A live demo alert goes out only after an officer's hold-to-approve: never by auto-send or the failsafe, and it is never sent to SACHET, opens no roll-call and sounds no siren.")
+forbid (
+  principal,
+  action in [
+    Pukaar::Action::"auto_send", Pukaar::Action::"failsafe", Pukaar::Action::"request_sachet",
+    Pukaar::Action::"open_rollcall", Pukaar::Action::"sound_siren"
+  ],
+  resource
+)
+when { context.demo == true };
 
 // -- the alarm layer: sirens, pradhan boxes, relays (services/sirens.py, api/routers/devices.py) ----------------
 // policy/guard.py fills every context key these read, so a missing key never turns into an evaluation error:
