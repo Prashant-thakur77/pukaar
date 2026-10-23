@@ -27,7 +27,15 @@ import '../styles/explain.css';
 type Txt = { hi: string; en: string };
 type Source = { label: string; href: string };
 const GITHUB = 'https://github.com/Prashant-thakur77/pukaar';
-const GCA: Source = { label: 'Global Commission on Adaptation, Adapt Now (2019)', href: 'https://gca.org/wp-content/uploads/2019/09/GlobalCommission_Report_FINAL.pdf' };
+const KARNALI: Source = {
+  label: 'Rai et al. 2020, Karnali flood EWS, Nepal',
+  href: 'https://www.dpnet.org.np/public/uploads/files/CBA%20of%20EWS%20in%20Karnali%20Feb%202020%202021-09-12%2010-18-25.pdf',
+};
+const BIHAR: Source = { label: 'Jagnani & Pande 2024', href: 'https://bpb-us-w2.wpmucdn.com/campuspress.yale.edu/dist/7/2986/files/2024/04/Google_Floods-bcdf49042e23059a.pdf' };
+const PDNA_2023: Source = {
+  label: 'NDMA PDNA 2023, via The Tribune',
+  href: 'https://www.tribuneindia.com/news/himachal/himachal-pradesh-floods-climate-change-illegal-construction-greenery-loss-increasing-disaster-risk-in-himalayas-says-ndma-report-586698',
+};
 const CUMISKEY: Source = { label: 'Cumiskey et al. 2015', href: 'https://doi.org/10.1108/IJDRBE-08-2014-0062' };
 const BAUDOIN: Source = { label: 'Baudoin et al. 2016', href: 'https://doi.org/10.1007/s13753-016-0085-6' };
 
@@ -38,8 +46,11 @@ const LOOP: Step[] = [
     title: { hi: 'हर 15 मिनट, पूर्वानुमान की जाँच', en: 'Every 15 minutes, the forecasts are read' },
     what: { hi: 'दिन हो या रात, हर गाँव की नदी और बारिश का ताज़ा पूर्वानुमान आता है।', en: 'Day and night, each village’s river and rain forecasts are fetched.' },
     aws: 'EventBridge Scheduler · Lambda',
-    why: { hi: '“सिर्फ़ 24 घंटे पहले की चेतावनी नुकसान 30 प्रतिशत तक घटा सकती है।”', en: '“Just 24 hours’ warning … can cut the ensuing damage by 30 percent.”' },
-    src: GCA,
+    why: {
+      hi: 'नेपाल की कर्णाली नदी पर एक घंटा ज़्यादा चेतावनी से घरों की बचत 1.83 गुना हुई। अचानक बाढ़ में मिनट मिलते हैं, इसलिए हर जाँच मायने रखती है।',
+      en: 'On Nepal’s Karnali river, one more hour of warning raised what households saved 1.83 times. A flash flood gives minutes, so every check counts.',
+    },
+    src: KARNALI,
   },
   {
     title: { hi: 'स्तर नियम तय करते हैं, AI नहीं', en: 'Rules set the level, not AI' },
@@ -67,8 +78,11 @@ const LOOP: Step[] = [
     aws: 'Step Functions waitForTaskToken · Cognito · Cedar',
   },
   {
-    title: { hi: 'हर फ़ोन पर बोलकर चेतावनी', en: 'A spoken alert on every phone' },
-    what: { hi: 'मंज़ूर संदेश हिंदी में बोला जाता है और Telegram पर हर जुड़े फ़ोन तक आवाज़ और लिखे रूप में जाता है।', en: 'The approved message is spoken in Hindi and goes to every subscribed phone on Telegram, as voice and text.' },
+    title: { hi: 'जुड़े फ़ोन पर बोलकर चेतावनी', en: 'A spoken alert on registered phones' },
+    what: {
+      hi: 'मंज़ूर संदेश हिंदी में बोला जाता है और Telegram पर हर जुड़े फ़ोन तक आवाज़ और लिखे रूप में जाता है। कीपैड फ़ोन के लिए वॉइस कॉल बनी है, पर टेलीकॉम पंजीकरण तक बंद है।',
+      en: 'The approved message is spoken in Hindi and goes to every subscribed phone on Telegram, as voice and text. Voice calls for keypad phones are built, and off until telecom registration.',
+    },
     aws: 'Polly (Kajal, hi-IN) · Telegram',
     why: { hi: 'लोगों ने आवाज़ वाले संदेश को “आसानी से समझ आने” के कारण ज़्यादा पसंद किया।', en: 'Communities “strongly preferred voice … because of easier accessibility and understanding of the message.”' },
     src: CUMISKEY,
@@ -82,15 +96,19 @@ const LOOP: Step[] = [
   },
   {
     title: { hi: '“मैं सुरक्षित हूँ”: बाद की हाज़िरी', en: '“I am safe”: the roll-call after' },
-    what: { hi: 'असली चेतावनी के बाद हर फ़ोन से पूछा जाता है “क्या आप सुरक्षित हैं?” अधिकारी पहले उन्हें देखता है जिन्हें मदद चाहिए।', en: 'After a real alert every phone is asked “Are you safe?”. The officer sees who needs help first.' },
+    what: { hi: 'असली चेतावनी के बाद हर जुड़े फ़ोन से पूछा जाता है “क्या आप सुरक्षित हैं?” अधिकारी पहले उन्हें देखता है जिन्हें मदद चाहिए।', en: 'After a real alert every registered phone is asked “Are you safe?”. The officer sees who needs help first.' },
     aws: 'Telegram · Lambda · DynamoDB (TTL) · Cedar',
   },
 ];
 
 const WHY_NUMBERS: { num: string; cap: Txt; src: Source }[] = [
   { num: '~6×', cap: { hi: 'जहाँ चेतावनी कमज़ोर है, वहाँ आपदा में मौतें लगभग छह गुना', en: 'higher disaster deaths where early warning is weak' }, src: { label: 'WMO 2024', href: 'https://wmo.int/publication-series/global-status-of-multi-hazard-early-warning-systems-2024' } },
-  { num: '30%', cap: { hi: 'कम नुकसान, सिर्फ़ 24 घंटे पहले की चेतावनी से', en: 'less damage from just 24 hours of warning' }, src: { label: 'GCA 2019', href: GCA.href } },
-  { num: '500+', cap: { hi: 'जानें गईं, हिमाचल के 2023 के मानसून में', en: 'lives lost in Himachal’s 2023 monsoon' }, src: { label: 'HP Govt, PDNA 2023', href: 'https://recovery.preventionweb.net/publication/report-post-disaster-needs-assessment-himachal-pradesh-monsoon-2023-floods-cloudbursts' } },
+  {
+    num: '46.5%',
+    cap: { hi: 'ज़्यादा संभावना कि चेतावनी पानी से पहले पहुँचे, जब हर पंचायत में प्रशिक्षित स्वयंसेवक हों (बिहार)', en: 'more likely to get a warning before the water, with trained volunteers in each panchayat (Bihar)' },
+    src: { label: BIHAR.label, href: BIHAR.href },
+  },
+  { num: '~500', cap: { hi: 'जानें गईं, हिमाचल के 2023 के मानसून में', en: 'lives lost in Himachal’s 2023 monsoon' }, src: { label: PDNA_2023.label, href: PDNA_2023.href } },
 ];
 
 const PATH: { hi: string; en: string; id: string }[] = [
@@ -560,8 +578,8 @@ export default function How() {
           <h1 className="xp-h1">{hi ? 'पुकार कैसे काम करता है' : 'How Pukaar works'}</h1>
           <p className="xp-lead">
             {hi
-              ? 'हर 15 मिनट पाँच गाँवों की नदी और बारिश की जाँच, नियमों से तय स्तर, एक अधिकारी की मंज़ूरी, और हर फ़ोन पर हिंदी में बोली गई चेतावनी।'
-              : 'Every 15 minutes the river and rain of five villages are checked; rules set the level; one officer approves; every phone hears the alert spoken in Hindi.'}
+              ? 'हर 15 मिनट पाँच गाँवों की नदी और बारिश की जाँच, नियमों से तय स्तर, एक अधिकारी की मंज़ूरी, और हर जुड़े फ़ोन पर हिंदी में बोली गई चेतावनी।'
+              : 'Every 15 minutes the river and rain of five villages are checked; rules set the level; one officer approves; every registered phone gets the alert spoken in Hindi.'}
           </p>
           <TourButton />
         </div>

@@ -1,0 +1,16 @@
+/* The pilot notice (components/PilotNotice.tsx): one quiet line, the page's own ink, no level colour. */
+.pilot-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: var(--sp-4) 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  line-height: var(--lh-small);
+}
+.pilot-note svg { flex: none; width: 18px; height: 18px; margin-top: 3px; color: var(--ink-3); }
+.pilot-note-en { display: block; }

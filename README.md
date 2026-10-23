@@ -7,11 +7,13 @@
 ### The call that reaches the village before the river does.
 **नदी से पहले, गाँव तक पहुँचने वाली पुकार।**
 
-A flood early-warning loop for Himalayan villages, live on AWS. Forecasts and river gauges come in; a spoken Hindi alert goes out; and every person confirms they heard it.
+A flood early-warning loop for Himalayan villages, live on AWS as a pilot. Forecasts and river gauges come in; a spoken Hindi alert goes out after an officer approves it; and it is built so that every household confirms it heard.
+
+**पायलट प्रणाली; DDMA/IMD की चेतावनी मानें; आपात स्थिति में 112 / 1077** · Pilot system; follow DDMA and IMD warnings; emergency 112 / 1077
 
 **[Live site](https://main.d15r7ktz99l46x.amplifyapp.com)** · **[Pitch video](docs/media/pukaar-pitch.mp4)** · **[Demo video](docs/media/pukaar-demo.mp4)** · **[Judge login](#try-it-in-60-seconds)** · **[Judges' guide](#for-judges-check-every-part)** · **[Architecture](#architecture)** · **[Writeup](docs/submission/writeup.md)**
 
-![Live on AWS](docs/badges/live-on-aws.svg) ![Environmental Hacks](docs/badges/environmental-hacks.svg) ![Heat and Water track](docs/badges/heat-and-water-track.svg) ![tests 1045 + 254 passing](docs/badges/tests-1045-254-passing.svg) ![live smoke 77 of 77](docs/badges/live-smoke-77-of-77.svg) ![accessibility 0 axe violations](docs/badges/accessibility-0-axe-violations.svg)
+![Live on AWS](docs/badges/live-on-aws.svg) ![Environmental Hacks](docs/badges/environmental-hacks.svg) ![Heat and Water track](docs/badges/heat-and-water-track.svg) ![tests 1045 + 264 passing](docs/badges/tests-1045-264-passing.svg) ![live smoke 77 of 77](docs/badges/live-smoke-77-of-77.svg) ![accessibility 0 axe violations](docs/badges/accessibility-0-axe-violations.svg)
 
 **AWS** · ![AWS Lambda](docs/badges/aws-lambda.svg) ![Step Functions](docs/badges/step-functions.svg) ![DynamoDB](docs/badges/dynamodb.svg) ![EventBridge Scheduler](docs/badges/eventbridge-scheduler.svg) ![AWS IoT Core](docs/badges/aws-iot-core.svg) ![AppSync Events](docs/badges/appsync-events.svg) ![API Gateway](docs/badges/api-gateway.svg) ![Cognito](docs/badges/cognito.svg) ![Amazon Polly](docs/badges/amazon-polly.svg) ![Amazon Transcribe](docs/badges/amazon-transcribe.svg) ![Amazon Bedrock](docs/badges/amazon-bedrock.svg) ![Bedrock Guardrails](docs/badges/bedrock-guardrails.svg) ![Amazon S3](docs/badges/amazon-s3.svg) ![Amazon SES](docs/badges/amazon-ses.svg) ![SQS](docs/badges/sqs.svg) ![SNS](docs/badges/sns.svg) ![CloudWatch](docs/badges/cloudwatch.svg) ![X-Ray](docs/badges/x-ray.svg) ![Parameter Store](docs/badges/parameter-store.svg) ![Amplify Hosting](docs/badges/amplify-hosting.svg) ![AWS SAM](docs/badges/aws-sam.svg) ![AWS Open Data](docs/badges/aws-open-data.svg)
 
@@ -32,7 +34,7 @@ A flood early-warning loop for Himalayan villages, live on AWS. Forecasts and ri
 - चेतावनी के बाद पूछा जाता है "क्या आप सुरक्षित हैं?", सबसे नज़दीकी खुली सुरक्षित जगह और वहाँ तक का पैदल रास्ता दिखाया जाता है, और प्रधान बंद सड़क दर्ज कर सकते हैं।
 - गाँव के लोग बोलकर, फ़ोटो से या लिखकर ख़बर भेज सकते हैं, नेटवर्क न होने पर भी।
 
-आपात स्थिति में **112** पर कॉल करें।
+यह एक पायलट प्रणाली है, सरकारी चेतावनी नहीं: DDMA और IMD की चेतावनी मानें। आपात स्थिति में **112** या ज़िला आपदा नियंत्रण कक्ष **1077** पर कॉल करें।
 
 ## Try it in 60 seconds
 
@@ -43,7 +45,7 @@ A flood early-warning loop for Himalayan villages, live on AWS. Forecasts and ri
 | **See access control refuse** | Sign in as **`judge_pradhan`** (village head of Thunag only, same password) and try to approve: the Cedar policy says no, and the audit trail records why. |
 | **Telegram** | Message [@PukaarRescuebot](https://t.me/PukaarRescuebot) `/start gohar` to receive live alerts for Gohar with the "मिल गया" button. Replay alerts never reach real phones. |
 
-More detail: [DEMO.md](DEMO.md). Emergency number in India: **112**.
+More detail: [DEMO.md](DEMO.md). Pukaar is a pilot, not an official warning: follow DDMA and IMD warnings. Emergency: **112**; district disaster control room: **1077**.
 
 ## For judges: check every part
 
@@ -51,7 +53,7 @@ About 15 minutes, on the live site, with nothing to install. Sign in as `judge` 
 
 | # | Do this | What you should see | What it proves |
 |---|---|---|---|
-| 1 | Open the [landing page](https://main.d15r7ktz99l46x.amplifyapp.com) | Live counters from AWS: villages watched, forecast checks in the last 24 h, real flood alerts sent, drill alerts delivered, replay alerts approved, villager reports | Real alerts, drills and replays are counted separately; a 0 for real alerts means no village has needed one |
+| 1 | Open the [landing page](https://main.d15r7ktz99l46x.amplifyapp.com) | Live counters from AWS: villages watched, forecast checks in the last 24 h, real flood alerts sent, drill alerts delivered, replay alerts approved, villager reports | Real alerts, drills and replays are counted separately. Real alerts stand at 0 so far; that is not proof that none was needed |
 | 2 | Open [Live](https://main.d15r7ktz99l46x.amplifyapp.com/live) | Five villages on the map with their level; safe places and walking routes; switch to 3D | The 15-minute sweep sets every level from forecasts |
 | 3 | Open [Gohar](https://main.d15r7ktz99l46x.amplifyapp.com/village/gohar) | Level, the evidence behind it (rain against IMD bands, river against Gohar's own record), past alerts, safe places | Code sets the level, never a model |
 | 4 | Sign in as **`judge`**, open the console's [Replay](https://main.d15r7ktz99l46x.amplifyapp.com/console/replay) (under **Demo**), press **Start replay** | A REPLAY banner on every page. The July 2023 Beas floods replay at about 4 s per hour of data (97 hours, 6 to 7 minutes). Sujanpur reaches Watch at once and Critical about 37 replay hours in; Pandoh and Gohar reach Warning | Archived real forecasts drive the same live loop on AWS; one replay runs at a time, so if one is already running, watch it |
@@ -76,7 +78,11 @@ About 15 minutes, on the live site, with nothing to install. Sign in as `judge` 
 | **Replay** | Archived real forecasts from July 2023 and June 2025, run through the same live loop and labelled REPLAY everywhere. Replay alerts go only to test recipients |
 | **Drill** | A labelled test alert ("अभ्यास (DRILL)") sent through the real workflow to phones registered with the bot. Counted apart from real alerts |
 | **Simulated** | River-gauge readings over AWS IoT Core, and a terminal siren node (`make siren-sim`) that takes signed commands from the real IoT Core, all labelled as simulated until hardware is installed |
+| **Firmware only** | Siren nodes, rain nodes, pradhan boxes and the LoRa relay: firmware builds and host tests, nothing built or installed on hardware |
+| **Off** | Outbound voice calls (built, off until a DDMA registers as the DLT principal entity with a 1600-series number; see [docs/COMPLIANCE_INDIA.md](docs/COMPLIANCE_INDIA.md)); SMS (not built) |
 | **Pending** | Bedrock model drafting (account model access); the fixed Hindi template is used and labelled meanwhile |
+
+**Measured so far (23 Oct 2026):** 0 real alerts; 1 drill (Gohar, 11 Oct 2026) delivered to 3 phones, with 0 acknowledgements; 479 of 480 expected forecast checks in 24 hours. Everything Pukaar says about reach, confirmation and lead time in the field is design until a pilot measures it ([docs/PILOT_PROTOCOL.md](docs/PILOT_PROTOCOL.md)).
 
 ## Videos
 
@@ -99,7 +105,7 @@ Footage and images are openly licensed and credited. The Telegram screens in the
 
 ## Contents
 
-[Judges' guide](#for-judges-check-every-part) · [At a glance](#at-a-glance) · [The problem](#the-problem) · [Research and evidence](#research-and-evidence) · [Moment by moment](#what-happens-moment-by-moment) · [Architecture](#architecture) · [AWS in depth](#aws-in-depth) · [Cheap phones](#built-for-cheap-phones-measured) · [Built versus planned](#built-versus-planned) · [Back-test](#what-the-back-test-shows-and-what-it-does-not) · [Safe places](#where-to-go-safe-places-routes-and-the-shelter-ledger) · [Run it locally](#run-it-locally-no-aws-account-needed) · [Team](#team)
+[Judges' guide](#for-judges-check-every-part) · [At a glance](#at-a-glance) · [The problem](#the-problem) · [Research and evidence](#research-and-evidence) · [Moment by moment](#what-happens-moment-by-moment) · [Architecture](#architecture) · [AWS in depth](#aws-in-depth) · [Cheap phones](#built-for-cheap-phones-measured) · [Built versus planned](#built-versus-planned) · [Back-test](#what-the-back-test-shows-and-what-it-does-not) · [Safe places](#where-to-go-safe-places-routes-and-the-shelter-ledger) · [Run it locally](#run-it-locally-no-aws-account-needed) · [For a district](#for-a-district-adopting-pukaar)
 
 ## At a glance
 
@@ -144,7 +150,7 @@ is built around the gaps between a forecast and a family moving to high ground:
 | A text message can be missed, unread or in the wrong language | The alert is spoken Hindi (Polly), delivered to the phone with the text |
 | A broadcast never says who heard it | Each phone taps "मिल गया"; anyone who has not is sent the alert again, and the live page shows the funnel from draft to acknowledgement |
 | An AI could invent a number or a place in a warning | Code sets the level and the recipients; the model only fills a fixed Hindi template, and a checker rejects any number or place not in the decision trace |
-| The one officer on duty may be asleep | Unanswered approvals move to the next officer, then a last call reaches the whole roster and the ADM/DM, raises an alarm and phones them; nothing goes out unapproved unless the DDMA signs off on critical auto-send |
+| The one officer on duty may be asleep | Unanswered approvals move to the next officer, then a last call reaches the whole roster and the ADM/DM and raises an alarm (the wake-up phone call is built and off until a voice provider is live); nothing goes out unapproved unless the DDMA signs off on critical auto-send |
 | Global models can miss a cloudburst (they did in the 2025 back-test below) | A verified villager report can raise a level on its own |
 
 Try it in two minutes: open the [live page](https://main.d15r7ktz99l46x.amplifyapp.com), scroll the landing page through "the night the river rose" (Gohar, July 2023, replayed through the real rules), then open **Live** for the 3D village map.
@@ -155,7 +161,8 @@ Try it in two minutes: open the [live page](https://main.d15r7ktz99l46x.amplifya
 
 **Early warning works, when it reaches people.**
 - Countries with less comprehensive multi-hazard early warning systems have a disaster-related mortality ratio "nearly six times higher" than countries with substantial to comprehensive coverage, and "nearly four times more disaster-affected people" ([WMO, *Global Status of MHEWS 2024*](https://wmo.int/publication-series/global-status-of-multi-hazard-early-warning-systems-2024)).
-- "Just 24 hours warning of a coming storm or heat wave can cut the ensuing damage by 30 percent", and early warning systems "save lives and assets worth at least ten times their cost" ([Global Commission on Adaptation, *Adapt Now*, 2019, p.14](https://gca.org/wp-content/uploads/2019/09/GlobalCommission_Report_FINAL.pdf)).
+- In a randomised study in Bihar, two or three trained volunteers per panchayat, relaying alerts by loudspeaker and WhatsApp, made households 27% more likely to get any flood alert and 46.5% more likely to get one before the water arrived; telling a single local leader had no effect ([Jagnani & Pande, 2024](https://bpb-us-w2.wpmucdn.com/campuspress.yale.edu/dist/7/2986/files/2024/04/Google_Floods-bcdf49042e23059a.pdf)). This is why Pukaar calls the village relays first.
+- Published benefit-cost ratios for early warning come from hours or days of lead time (cyclones, large rivers). A flash flood gives minutes, so Pukaar does not borrow them; its own estimate, with the low case below 1, is in [docs/BUSINESS_MODEL.md](docs/BUSINESS_MODEL.md).
 - The UN's [Early Warnings for All](https://www.un.org/en/climatechange/early-warnings-for-all) initiative aims to protect everyone on Earth with early warning systems by the end of 2027.
 
 **The last mile is where warnings fail.** The research Pukaar is built on:
@@ -171,7 +178,7 @@ Try it in two minutes: open the [live page](https://main.d15r7ktz99l46x.amplifya
 - In India, 25,000 villages have no mobile network, and only 54% of women aged 15 to 49 have a mobile phone of their own ([GSMA, India's SACHET public warning system, 2025](https://www.gsma.com/solutions-and-impact/connectivity-for-good/mobile-for-development/wp-content/uploads/2025/05/Indias-SACHET-Public-Warning-System.pdf)). This is why Pukaar speaks the alert, asks each person to confirm it, and lets the pradhan pass it on.
 
 **Himachal is where it matters.**
-- In the 2023 monsoon, "more than 500 people lost their lives" in Himachal Pradesh, with "45 Cloudburst and 83 flash floods" and recovery needs for sectoral damage of ₹8,667.66 crore ([Govt of Himachal Pradesh / HPSDMA, *Post Disaster Needs Assessment*, 2024](https://recovery.preventionweb.net/publication/report-post-disaster-needs-assessment-himachal-pradesh-monsoon-2023-floods-cloudbursts)).
+- In the 2023 monsoon about 500 people died in Himachal Pradesh ([NDMA Post Disaster Needs Assessment, via The Tribune, 3 Feb 2024](https://www.tribuneindia.com/news/himachal/himachal-pradesh-floods-climate-change-illegal-construction-greenery-loss-increasing-disaster-risk-in-himalayas-says-ndma-report-586698)), with "45 Cloudburst and 83 flash floods" and recovery needs for sectoral damage of ₹8,667.66 crore ([Govt of Himachal Pradesh / HPSDMA, *Post Disaster Needs Assessment*, 2024](https://recovery.preventionweb.net/publication/report-post-disaster-needs-assessment-himachal-pradesh-monsoon-2023-floods-cloudbursts)). Most of that rupee loss is roads, bridges and houses, which no warning can move.
 - On 30 June to 1 July 2025, Mandi received 140.7 mm of rain, against an average of 6.9 mm ([Down To Earth](https://www.downtoearth.org.in/natural-disasters/cloudbursts-devastate-himachals-mandi-at-least-10-dead-34-missing-after-1900-excess-rain-on-july-1)).
 - Cloudbursts in the Himalaya "have been increasing in both their frequency and intensity" (Kumar et al., 2018, *Polar Science*, [doi:10.1016/j.polar.2018.08.004](https://doi.org/10.1016/j.polar.2018.08.004)), and predicting them accurately "is a difficult task", with model resolution "one of the most important factors" (Chaudhuri et al., 2015, *Annales Geophysicae* 33, [doi:10.5194/angeo-33-671-2015](https://doi.org/10.5194/angeo-33-671-2015)).
 - 85.9% of Himachal Pradesh's people are Hindi speakers in the Census 2011 language group (5,895,529 of 6,864,602; [Census of India 2011, C-16](https://censusindia.gov.in/nada/index.php/catalog/42458)), and Himachal has 9.45 million mobile subscribers ([TRAI, Aug 2026 data](https://trai.gov.in/sites/default/files/2026-09/PR_No125of2026_0.pdf)).
@@ -407,7 +414,7 @@ sign-in; the demo user names are in [DEMO.md](DEMO.md#sign-in).
 | Deployed stack on AWS | **Live** since 11 Oct 2026: stack `pukaar-dev`, web app on Amplify. Checked live: Cognito sign-in, a replay on AWS starting real Step Functions approval executions, an officer approval moving an alert to delivered, and Polly writing the Hindi MP3 to S3. Steps: [docs/DEPLOY.md](docs/DEPLOY.md) |
 | Bedrock on the live stack | **Pending.** Account model access has not been granted yet (AWS support case filed). Until it is, every live draft is the fixed Hindi template, labelled `rule-fallback` in the console and the audit trail, and Ask Pukaar uses its keyword router. Bedrock Guardrails do not wait on this: `ApplyGuardrail` works without model access. The sweep checks model access at most every 6 hours with one 1-token Converse call and caches the answer, so /how#agents says "Pending model access" with the reason, and turns "Live" by itself when access lands (the page never calls a model) |
 | Telegram on the live stack | **Live.** Bot [@PukaarRescuebot](https://t.me/PukaarRescuebot), webhook set; `/health` reports `telegram: configured`. Anyone who sends `/start <village id>` gets approved live alerts with the "मिल गया" button. Replay alerts never go to Telegram: they use the stub channel |
-| Drill alert to a real phone (`make drill`) | Live (a Gohar drill on 11 Oct 2026 went from approval to delivery and is in the CAP feed as an Exercise): a labelled test alert ("अभ्यास (DRILL), असली चेतावनी नहीं") through the real approval workflow to registered phones; the village's level is untouched |
+| Drill alert to a real phone (`make drill`) | Live (a Gohar drill on 11 Oct 2026 went from approval to delivery to 3 phones, none of which pressed "मिल गया", and is in the CAP feed as an Exercise): a labelled test alert ("अभ्यास (DRILL), असली चेतावनी नहीं") through the real approval workflow to registered phones; the village's level is untouched |
 | "Surakshit Hoon" safety roll-call | Live; tested offline (opens on live close only, idempotent buttons, counts, 30-minute reminder limit, Cedar per village, family-link expiry and tamper, public counts without names); console board, village and live counts, `/safe/<token>` family page. Demo recipients (stub channel) are never asked for real and show as "demo, no phone" |
 | After-action report for every closed alert (HTML and text, Hindi and English, stored in S3, console link and download, e-mail by SES) | Live; tested offline (times and durations, no phone numbers or chat ids anywhere, close never fails because of it, SES call shape, Cedar per village, IAM scoped in the template). E-mail is off until `AfterActionFrom` is set; SES on this account is in the **sandbox**, so the sender and every recipient must be verified first ([docs/DEPLOY.md](docs/DEPLOY.md#5a-after-action-report-by-e-mail-amazon-ses)) |
 | Outbound voice call with "press 1" to acknowledge (Exotel, Plivo as fallback, playing the Polly clip at 8 kHz; 1 heard, 2 need help, 3 repeat) | Built; **off by default** and not live: no AWS service calls Indian numbers, and the Exotel account (KYC) is not open yet. Tested offline with faked provider answers: forged key presses refused (URL key, signed per-call token, the call id, Plivo's signature), press 1 counts like "मिल गया", press 2 files a need-help report, two retry counters with three calls at most, unreachable numbers flagged to the pradhan, provider off recorded as failed, replays never dial. Owner steps and the consented field drill: [docs/VOICE.md](docs/VOICE.md) |
@@ -545,13 +552,16 @@ Deploy to AWS: [docs/DEPLOY.md](docs/DEPLOY.md).
 - [docs/hardware/README.md](docs/hardware/README.md): the river gauge design, and [docs/hardware/ALARM.md](docs/hardware/ALARM.md): the alarm layer (sirens, rain nodes, pradhan boxes), untested on hardware.
 - [docs/submission/writeup.md](docs/submission/writeup.md): the submission writeup.
 
-## Team
+## For a district adopting Pukaar
 
-| | |
-|---|---|
-| **Prashant Bahuguna** (team leader) | [@devprashant19](https://github.com/devprashant19) |
-| **Prashant Thakur** | [@Prashant-thakur77](https://github.com/Prashant-thakur77) |
-| **Puneet Yadav** | [@puneetnith28](https://github.com/puneetnith28) |
+Pukaar can only warn as the DDMA's own tool, under its order, with its officers approving every public alert. These are the documents a DDMA, NIC or a CSR legal team asks for first:
+
+- [docs/BUSINESS_MODEL.md](docs/BUSINESS_MODEL.md): cost at pilot, district and state scale, the benefit method, the break-even in lives, the honest caveats, who pays and the proposed pricing.
+- [docs/COMPLIANCE_INDIA.md](docs/COMPLIANCE_INDIA.md): the DM Act, SACHET and cell broadcast, TRAI's DLT rules, DPDP, CERT-In, MeitY hosting and GIGW, each with what Pukaar does now and what is pending.
+- [docs/PILOT_PROTOCOL.md](docs/PILOT_PROTOCOL.md): a pre-registered 2027 pilot, its ten metrics and a success gate fixed before the monsoon.
+- [docs/MOU_TEMPLATE.md](docs/MOU_TEMPLATE.md): a draft DC/DDMA order adopting Pukaar under DM Act s.30(2)(xiv).
+- [docs/adr/](docs/adr/README.md): the architecture decisions behind the safety-critical choices.
+- [SECURITY.md](SECURITY.md): how to report a vulnerability privately; [CHANGELOG.md](CHANGELOG.md): which build ran when; [.github/CODEOWNERS](.github/CODEOWNERS): the files that need a second reviewer.
 
 ## AI tools used
 
@@ -559,6 +569,6 @@ Used Claude to help write code.
 
 <div align="center">
 
-Emergency number in India: **112** · पुकार · built on AWS for the villages of the Beas valley
+Pilot system; follow DDMA and IMD warnings · Emergency **112** · District control room **1077** · पुकार · built on AWS for the villages of the Beas valley
 
 </div>

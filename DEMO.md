@@ -1,5 +1,7 @@
 # Demo walkthrough
 
+Pilot system; follow DDMA and IMD warnings; emergency 112 / 1077. What this walk shows is the software loop. In the field, so far (23 Oct 2026): 0 real alerts; 1 drill delivered to 3 phones with 0 acknowledgements; gauges simulated; sirens and rain nodes firmware only; voice calls off until a DDMA registers as the DLT principal entity.
+
 A walk through the whole loop (about ten minutes with the full replay; the replay itself runs about six to seven), on the live URL or locally
 (`make local`). Each step has a fallback if something is not available.
 
@@ -24,7 +26,7 @@ minute, deploy with short timers:
 
 | # | Do | You should see | If it fails |
 |---|---|---|---|
-| 1 | Open the home page | The five villages' levels first (a status line, then one row per village), the report button and 112; below, the valley with each village in its live level colour, the three steps, and the July 2023 teaser | With no network it paints the last copy this phone saw, with its time |
+| 1 | Open the home page | The five villages' levels first (a status line, then one row per village), the report button, 112 and the pilot notice ("follow DDMA and IMD warnings; 112 / 1077"); below, the valley with each village in its live level colour, the three steps, and the July 2023 teaser | With no network it paints the last copy this phone saw, with its time |
 | 2 | Open **Live** | The five villages as a list first, each with its level icon and word and how far it is from the Watch line; on a phone **Map** shows the map, on a desk it fills the right side once the page is idle | If map tiles do not load, the list carries the same data |
 | 3 | **Sign in** as `officer1` | Officer console: ranked village queue, pending approvals, reports, Ask Pukaar | Local mode: the demo-user buttons. AWS: the Cognito users from `make seed` |
 | 4 | In the console open **Demo · Replay** and press **Start replay** (July 2023) | REPLAY banner everywhere with a progress bar. The console asks for about 4 s per hour of data ("Replay speed: ~4 s per hour of data"), so the 97 hours take about 6-7 minutes. Sujanpur reaches watch at once and critical 37 replay hours (about 2.5 minutes) in; Pandoh and Gohar reach warning from rain 50 replay hours (about 3.5 minutes) in. Every village shows "Get ready" (the 7-day river outlook, never an alert) from the start. Open alerts stay pending at the level they rose to even after the village level eases: the alert card keeps the level it rose to. At the end the banner reads "Replay finished — Reset to clear" | If nothing rises, check `/replay/status`; `available` must list `himachal_2023_07` (`python -m Pukaar.scripts.fetch_replay`) |

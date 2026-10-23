@@ -558,7 +558,7 @@ ${chapters.join("\n")}
 ## Video description
 
 \`\`\`
-Pukaar (पुकार): a flood-warning loop for Himalayan villages, built on AWS. A forecast becomes a spoken Hindi alert on every phone in the village, approved by a district officer in one tap.
+Pukaar (पुकार): a flood-warning pilot for Himalayan villages, built on AWS. A forecast becomes a spoken Hindi alert, approved by a district officer in one tap, for every phone registered for the village. Pilot system; follow DDMA and IMD warnings; emergency 112 / 1077.
 
 Live: https://main.d15r7ktz99l46x.amplifyapp.com
 Code: https://github.com/Prashant-thakur77/pukaar

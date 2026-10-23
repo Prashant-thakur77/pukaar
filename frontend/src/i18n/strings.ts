@@ -103,7 +103,7 @@ export const strings = {
   'landing.counters.error': { hi: 'गिनती अभी उपलब्ध नहीं: सर्वर से संपर्क नहीं', en: 'Counts unavailable: the API did not answer' },
   'landing.how.eyebrow': { hi: 'यह कैसे काम करता है', en: 'How it works' },
   'landing.how.title': { hi: 'देखो। मंज़ूरी। पुकार।', en: 'Watch. Approve. Call.' },
-  'landing.how.lead': { hi: 'मशीन नज़र रखती है, इंसान फ़ैसला करता है, और गाँव तक आवाज़ पहुँचती है।', en: 'Code watches the sky and the river. A person decides. A voice reaches every phone in the village.' },
+  'landing.how.lead': { hi: 'मशीन नज़र रखती है, इंसान फ़ैसला करता है, और गाँव के जुड़े फ़ोन तक आवाज़ जाती है।', en: 'Code watches the sky and the river. A person decides. A voice goes to every phone registered in the village.' },
   'landing.step1.title': { hi: 'नज़र', en: 'Watch' },
   'landing.step1.body': { hi: 'हर 15 मिनट बारिश और नदी के पूर्वानुमान जाँचे जाते हैं। स्तर तय करने वाले नियम साफ़ कोड में हैं, मॉडल में नहीं।', en: 'Every 15 minutes Pukaar reads rain and river forecasts. Plain rules set the level; the model never does.' },
   'landing.step2.title': { hi: 'मंज़ूरी', en: 'Approve' },

@@ -5,7 +5,28 @@ import { loadPilotReadiness } from '../api';
 import { Skeleton } from '../components/States';
 import { useT } from '../i18n';
 import { fmtDate, fmtNumber } from '../lib/format';
-import { DEFAULT_COST_INPUTS, estimatePilotCost, fmtRupees, fmtRupeesShort, type CostInputs, type CostLineKey } from '../lib/pilotCost';
+import {
+  DEFAULT_COST_INPUTS,
+  DISTRICT_CASES,
+  FIXED_TELECOM,
+  SCALES,
+  UNIT_COSTS,
+  averted,
+  avertedWithoutLives,
+  benefitCostRatio,
+  breakEven,
+  estimatePilotCost,
+  fmtRupees,
+  fmtRupeesAbout,
+  fmtRupeesShort,
+  longCallRisk,
+  scaleCost,
+  type CaseKey,
+  type CostInputs,
+  type CostLineKey,
+  type ScaleKey,
+  type ScaleLineKey,
+} from '../lib/pilotCost';
 import { countByStatus, parseReadiness, type Readiness, type ReadinessStatus } from '../lib/pilotReadiness';
 import type { Lang } from '../store';
 import '../styles/story.css';
@@ -26,10 +47,14 @@ const SRC = {
   polly: { label: 'Amazon Polly pricing', href: 'https://aws.amazon.com/polly/pricing/' },
   dlt1: { label: 'Message Central, India SMS rules', href: 'https://www.messagecentral.com/sms-guideline/india' },
   dlt2: { label: 'Infobip, DLT registration', href: 'https://www.infobip.com/docs/essentials/asia-registration/dlt-registration' },
-  gca: {
-    label: 'Global Commission on Adaptation, Adapt Now (2019), p.14',
-    href: 'https://gca.org/wp-content/uploads/2019/09/GlobalCommission_Report_FINAL.pdf',
+  census: { label: 'Mandi district, Census 2011 (villageinfo.org)', href: 'https://villageinfo.org/district/mandi' },
+  vsl: { label: 'Indian value of a statistical life (ISEC WP 407)', href: 'https://econpapers.repec.org/RePEc:sch:wpaper:407' },
+  hallegatte: { label: 'Hallegatte 2012, World Bank WPS 6058', href: 'http://documents1.worldbank.org/curated/en/190261468181486694/txt/WPS6058.txt' },
+  karnali: {
+    label: 'Rai et al. 2020, Karnali flood EWS',
+    href: 'https://www.dpnet.org.np/public/uploads/files/CBA%20of%20EWS%20in%20Karnali%20Feb%202020%202021-09-12%2010-18-25.pdf',
   },
+  sdmf: { label: 'MHA SDMF guidelines, 2022', href: 'https://srcodisha.nic.in/dmrule/SDMF%20Guidelines.pdf' },
 } satisfies Record<string, Source>;
 
 function Ext({ href, children, className = 'xp-src' }: { href: string; children: ReactNode; className?: string }) {
@@ -68,6 +93,13 @@ const PRICE_FIELDS: Field[] = [
   { key: 'voicePerMin', label: { en: 'Voice call, per minute', hi: 'वॉइस कॉल, प्रति मिनट' }, unit: { en: '₹/min', hi: '₹/मिनट' }, step: '0.01', src: [SRC.plivo, SRC.awsVoice] },
   { key: 'smsPerSegment', label: { en: 'SMS, per segment', hi: 'SMS, प्रति हिस्सा' }, unit: { en: '₹', hi: '₹' }, step: '0.01', src: [SRC.msg91] },
   { key: 'smsSegments', label: { en: 'Segments per Hindi SMS', hi: 'एक हिंदी SMS के हिस्से' }, unit: { en: '× 70 chars', hi: '× 70 अक्षर' }, step: '1' },
+  {
+    key: 'minutesPerCall',
+    label: { en: 'Minutes billed per answered call', hi: 'हर उठाई गई कॉल के बिल वाले मिनट' },
+    unit: { en: 'min', hi: 'मिनट' },
+    step: '1',
+    src: [SRC.plivo],
+  },
   { key: 'gstRate', label: { en: 'GST on telecom', hi: 'दूरसंचार पर GST' }, unit: { en: '%', hi: '%' }, step: '1', percent: true, src: [SRC.msg91] },
 ];
 
@@ -82,7 +114,6 @@ type Draft = Record<FieldKey, string>;
 function toDraft(i: CostInputs): Draft {
   const out = {} as Draft;
   for (const f of ALL_FIELDS) out[f.key] = String(f.percent ? Math.round(i[f.key] * 1000) / 10 : i[f.key]);
-  out.minutesPerCall = String(i.minutesPerCall);
   return out;
 }
 
@@ -142,7 +173,8 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
   const { lang } = useT();
   const en = lang === 'en';
   const est = useMemo(() => estimatePilotCost(fromDraft(draft)), [draft]);
-  const checked = `${en ? 'checked' : 'जाँचा'} ${fmtDate(CHECKED, lang)}`;
+  const long = useMemo(() => longCallRisk(fromDraft(draft)), [draft]);
+  const checked =`${en ? 'checked' : 'जाँचा'} ${fmtDate(CHECKED, lang)}`;
   const set = (k: FieldKey) => (v: string) => setDraft({ ...draft, [k]: v });
   const group = (legend: string, fields: Field[]) => (
     <fieldset className="pl-fieldset">
@@ -169,11 +201,11 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
           id="pl-cost-h"
           n="01"
           eyebrow={en ? 'What it costs' : 'ख़र्च'}
-          title={en ? 'Cost per village per season' : 'एक गाँव, एक मानसून का ख़र्च'}
+          title={en ? 'Messaging cost per village per season' : 'एक गाँव, एक मानसून: संदेशों का ख़र्च'}
           lead={
             en
-              ? 'Each alert event is a voice call to every registered number, a second call to those who did not confirm, one Hindi SMS and Telegram. Change any number; the totals follow.'
-              : 'हर चेतावनी में हर नंबर पर एक वॉइस कॉल, पुष्टि न करने वालों को दूसरी कॉल, एक हिंदी SMS और Telegram। कोई भी संख्या बदलें, जोड़ साथ बदलेगा।'
+              ? 'As designed, each alert event is a voice call to every registered number, a second call to those who did not confirm, one Hindi SMS and Telegram (today only Telegram is live). The default village is an average Mandi village: 71 households (Census 2011). Change any number; the totals follow.'
+              : 'योजना के अनुसार हर चेतावनी में हर नंबर पर एक वॉइस कॉल, पुष्टि न करने वालों को दूसरी कॉल, एक हिंदी SMS और Telegram (आज सिर्फ़ Telegram चालू है)। शुरुआती गाँव मंडी का औसत गाँव है: 71 घर (जनगणना 2011)। कोई भी संख्या बदलें, जोड़ साथ बदलेगा।'
           }
         />
         <p className="pl-estimate" role="note">
@@ -188,7 +220,7 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
 
         <div className="pl-calc">
           <div className="pl-result">
-            <p className="pl-result-k">{en ? 'One village, one season' : 'एक गाँव, एक मानसून'}</p>
+            <p className="pl-result-k">{en ? 'Messaging only: one village, one season' : 'सिर्फ़ संदेश: एक गाँव, एक मानसून'}</p>
             <output className="pl-big" aria-live="polite">
               {fmtRupees(est.perSeason)}
             </output>
@@ -217,7 +249,21 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
                 <dd>{fmtRupeesShort(est.forVillages, lang)}</dd>
               </div>
             </dl>
-            <p className="pl-result-note">{en ? 'Estimate, messaging only. Cloud and hardware below.' : 'अनुमान, सिर्फ़ संदेश। क्लाउड और हार्डवेयर नीचे।'}</p>
+            <p className="pl-result-note">{en ? 'Estimate, messaging only. Not the cost of running the system:' : 'अनुमान, सिर्फ़ संदेश। पूरी व्यवस्था चलाने का ख़र्च नहीं:'}</p>
+            <p className="pl-allin">
+              <span className="pl-allin-k">{en ? 'All-in, district scale' : 'सब मिलाकर, ज़िले के पैमाने पर'}</span>
+              <span className="pl-allin-v">
+                {en ? `about ${ALL_IN_PER_VILLAGE} per village per year` : `लगभग ${ALL_IN_PER_VILLAGE} प्रति गाँव प्रति वर्ष`}
+              </span>
+              <span className="pl-allin-sub">
+                {en
+                  ? 'People, drills, sirens in one village in five, the platform fee, cloud and messaging, for 300 villages. '
+                  : '300 गाँवों के लिए लोग, अभ्यास, हर पाँच में से एक गाँव में सायरन, प्लेटफ़ॉर्म फ़ीस, क्लाउड और संदेश। '}
+                <a href="#pays" className="pl-inline">
+                  {en ? 'The breakdown' : 'ब्योरा'}
+                </a>
+              </span>
+            </p>
           </div>
           <details className="xp-dis pl-inputs">
             <summary>{en ? 'Enter your own numbers' : 'अपनी संख्याएँ डालें'}</summary>
@@ -281,11 +327,29 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
         <h3 className="pl-h3">{en ? 'Not in the sum' : 'जोड़ में शामिल नहीं'}</h3>
         <ul className="pl-rows">
           <li>
+            <span className="pl-row-k">{en ? 'Calls past 60 seconds' : '60 सेकंड से लंबी कॉल'}</span>
+            <span>
+              {en
+                ? `If the Hindi alert and the “press 1” prompt run past a minute, each answered call bills 2 minutes on a 1-minute pulse: +${fmtRupees(long.extra)} a season here (+${fmtNumber(long.share * 100, lang, 0)}%). The alert’s length has to be measured before the price is quoted. `
+                : `अगर हिंदी चेतावनी और “1 दबाएँ” एक मिनट से लंबे हों, तो 1 मिनट की पल्स पर हर उठाई गई कॉल के 2 मिनट लगते हैं: यहाँ एक मानसून में +${fmtRupees(long.extra)} (+${fmtNumber(long.share * 100, lang, 0)}%)। क़ीमत बताने से पहले चेतावनी की लंबाई मापनी होगी। `}
+              <Ext href={SRC.plivo.href}>{SRC.plivo.label}</Ext>
+            </span>
+          </li>
+          <li>
+            <span className="pl-row-k">{en ? 'Number rental' : 'नंबर का किराया'}</span>
+            <span>
+              {en
+                ? `${fmtRupees(FIXED_TELECOM.numberRentalPerMonth)} a month for the calling number (${fmtRupees(FIXED_TELECOM.numberRentalPerMonth * 12)} a year), once per deployment, not per village. `
+                : `कॉल करने वाले नंबर का ${fmtRupees(FIXED_TELECOM.numberRentalPerMonth)} महीना (${fmtRupees(FIXED_TELECOM.numberRentalPerMonth * 12)} साल), हर तैनाती पर एक बार, हर गाँव पर नहीं। `}
+              <Ext href={SRC.plivo.href}>{SRC.plivo.label}</Ext>
+            </span>
+          </li>
+          <li>
             <span className="pl-row-k">{en ? 'DLT registration' : 'DLT पंजीकरण'}</span>
             <span>
               {en
-                ? '₹5,900 once per sending entity, plus ₹590 a year per header. Negligible at district scale. '
-                : 'भेजने वाली संस्था के लिए एक बार ₹5,900, हर हेडर ₹590 सालाना। ज़िले के पैमाने पर नगण्य। '}
+                ? `${fmtRupees(FIXED_TELECOM.dltOneOff)} once per sending entity, plus ${fmtRupees(FIXED_TELECOM.dltPerHeaderYear)} a year per header. The sending entity must be the DDMA, not Pukaar. `
+                : `भेजने वाली संस्था के लिए एक बार ${fmtRupees(FIXED_TELECOM.dltOneOff)}, हर हेडर ${fmtRupees(FIXED_TELECOM.dltPerHeaderYear)} सालाना। भेजने वाली संस्था DDMA होनी चाहिए, पुकार नहीं। `}
               <Ext href={SRC.dlt1.href}>{SRC.dlt1.label}</Ext>
               <Ext href={SRC.dlt2.href}>{SRC.dlt2.label}</Ext>
               <span className="pl-checked">{checked}</span>
@@ -295,14 +359,25 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
             <span className="pl-row-k">{en ? 'Cloud (AWS, serverless)' : 'क्लाउड (AWS, सर्वरलेस)'}</span>
             <span>
               <span className="pl-nm">{en ? 'Not measured yet.' : 'अभी मापा नहीं।'}</span>{' '}
-              {en ? 'To be read from AWS Cost Explorer for one month of the live stack.' : 'लाइव स्टैक के एक महीने के लिए AWS Cost Explorer से पढ़ा जाएगा।'}
+              {en
+                ? 'Estimated from AWS ap-south-1 list prices at under ₹1,000 a village a year; to be replaced by one month of the live stack’s bill.'
+                : 'AWS ap-south-1 की सूची-क़ीमतों से अनुमान: हर गाँव ₹1,000 सालाना से कम; लाइव स्टैक के एक महीने के बिल से बदला जाएगा।'}
             </span>
           </li>
           <li>
-            <span className="pl-row-k">{en ? 'River gauge' : 'नदी का गेज'}</span>
+            <span className="pl-row-k">{en ? 'Sirens, gauges, rain nodes' : 'सायरन, गेज, बारिश मापक'}</span>
             <span>
-              <span className="pl-nm">{en ? 'No sourced price yet.' : 'अभी कोई स्रोत वाली क़ीमत नहीं।'}</span>{' '}
-              {en ? 'One-time hardware plus a SIM; two vendor quotes needed.' : 'एक बार का हार्डवेयर और एक SIM; दो कंपनियों के कोटेशन चाहिए।'}
+              {en
+                ? `About ${fmtRupeesShort(UNIT_COSTS.alarmCapex, lang)} per village once and ${fmtRupees(UNIT_COSTS.alarmOpex)} a year, from a bill of materials that is untested on hardware (docs/hardware/ALARM.md).`
+                : `हर गाँव लगभग ${fmtRupeesShort(UNIT_COSTS.alarmCapex, lang)} एक बार और ${fmtRupees(UNIT_COSTS.alarmOpex)} सालाना, ऐसी सामग्री-सूची से जो हार्डवेयर पर परखी नहीं गई (docs/hardware/ALARM.md)।`}
+            </span>
+          </li>
+          <li>
+            <span className="pl-row-k">{en ? 'People' : 'लोग'}</span>
+            <span>
+              {en
+                ? 'Field coordinators, technicians, enrolment and drills: the largest costs. In the all-in figure below.'
+                : 'फ़ील्ड समन्वयक, तकनीशियन, नाम जोड़ना और अभ्यास: सबसे बड़े ख़र्च। नीचे के कुल में शामिल।'}
             </span>
           </li>
         </ul>
@@ -406,7 +481,8 @@ const LIVE: Txt[] = [
 ];
 
 const NEXT: Txt[] = [
-  { en: 'Voice calls and SMS to keypad phones', hi: 'कीपैड फ़ोन पर वॉइस कॉल और SMS' },
+  { en: 'Voice calls and SMS to keypad phones (voice is built and off; SMS is not built)', hi: 'कीपैड फ़ोन पर वॉइस कॉल और SMS (वॉइस बनी है पर बंद है; SMS नहीं बना)' },
+  { en: 'Sirens and rain nodes on hardware (firmware only today)', hi: 'हार्डवेयर पर सायरन और बारिश मापक (आज सिर्फ़ फ़र्मवेयर)' },
   { en: 'An installed river gauge (simulated today)', hi: 'लगा हुआ नदी गेज (आज सिम्युलेटेड)' },
   { en: 'A voice in the local language (Mandeali, Kangri)', hi: 'स्थानीय बोली में आवाज़ (मंडियाली, कांगड़ी)' },
   { en: 'A pilot with a district authority (DDMA)', hi: 'ज़िला प्राधिकरण (DDMA) के साथ पायलट' },
@@ -444,6 +520,11 @@ function RealSection() {
             )
           }
         />
+        <p className="pl-facts">
+          {en
+            ? 'Measured so far (23 Oct 2026): 0 real alerts; 1 drill (Gohar, 11 Oct 2026) delivered to 3 phones, with 0 confirmations; the river gauges are simulators; sirens and rain nodes exist as firmware only; voice calls are off until a DDMA registers as the DLT principal entity.'
+            : 'अब तक मापा गया (23 अक्टूबर 2026): 0 असली चेतावनियाँ; 1 अभ्यास (गोहर, 11 अक्टूबर 2026) 3 फ़ोन तक पहुँचा, 0 पुष्टि; नदी गेज सिम्युलेटर हैं; सायरन और बारिश मापक सिर्फ़ फ़र्मवेयर के रूप में हैं; वॉइस कॉल तब तक बंद हैं जब तक कोई DDMA DLT प्रिंसिपल एंटिटी के रूप में पंजीकृत न हो।'}
+        </p>
         <div className="pl-two">
           <div className="pl-col is-live">
             <h3 className="pl-col-h">
@@ -551,44 +632,174 @@ function PlanSection() {
   );
 }
 
-/* ------------------------------------------------------------------ 6. why it pays ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ 6. all-in, and what it may save ------------------------------------------------------------------ */
 
-function PaysSection({ perSeason, villages }: { perSeason: number; villages: number }) {
+const SCALE_COSTS = { pilot: scaleCost(SCALES.pilot), district: scaleCost(SCALES.district), state: scaleCost(SCALES.state) };
+const ALL_IN_PER_VILLAGE = fmtRupeesAbout(SCALE_COSTS.district.perVillage);
+const DISTRICT_COST = SCALE_COSTS.district.total;
+const BREAK_EVEN = breakEven(DISTRICT_COST);
+const BCR: Record<CaseKey, number> = {
+  low: benefitCostRatio(DISTRICT_CASES.low, DISTRICT_COST),
+  central: benefitCostRatio(DISTRICT_CASES.central, DISTRICT_COST),
+  high: benefitCostRatio(DISTRICT_CASES.high, DISTRICT_COST),
+};
+const BUSINESS_MODEL = `${GITHUB}/blob/main/docs/BUSINESS_MODEL.md`;
+
+const SCALE_HEAD: Record<ScaleKey, Txt> = {
+  pilot: { en: 'Pilot: 5 villages', hi: 'पायलट: 5 गाँव' },
+  district: { en: 'District: 300 villages', hi: 'ज़िला: 300 गाँव' },
+  state: { en: 'State: 1,000 villages', hi: 'राज्य: 1,000 गाँव' },
+};
+
+const SCALE_LINE: Record<ScaleLineKey, Txt> = {
+  messaging: { en: 'Messaging (₹22.69 a number a season)', hi: 'संदेश (हर नंबर ₹22.69 एक मानसून)' },
+  telecom: { en: 'Number rental and DLT header', hi: 'नंबर का किराया और DLT हेडर' },
+  cloud: { en: 'Cloud (AWS ap-south-1)', hi: 'क्लाउड (AWS ap-south-1)' },
+  platform: { en: 'Platform and support (₹12,000 a village)', hi: 'प्लेटफ़ॉर्म और सहायता (हर गाँव ₹12,000)' },
+  drills: { en: 'Drills and training (₹3,000 a village)', hi: 'अभ्यास और प्रशिक्षण (हर गाँव ₹3,000)' },
+  coordinators: { en: 'Field coordinators', hi: 'फ़ील्ड समन्वयक' },
+  technicians: { en: 'Technicians', hi: 'तकनीशियन' },
+  alarm: { en: 'Alarm layer, annualised and upkeep', hi: 'अलार्म परत, सालाना हिस्सा और रखरखाव' },
+};
+
+const CASE_WORD: Record<CaseKey, Txt> = {
+  low: { en: 'Low', hi: 'कम' },
+  central: { en: 'Central', hi: 'बीच का' },
+  high: { en: 'High', hi: 'ज़्यादा' },
+};
+
+function PaysSection() {
   const { lang } = useT();
   const en = lang === 'en';
+  const keys: ScaleKey[] = ['pilot', 'district', 'state'];
+  const ratio = (x: number) => fmtNumber(x, lang, x < 10 ? 1 : 0);
+  const months = fmtNumber(Math.round(BREAK_EVEN.monthsPerLife), lang);
+  const withoutLives = avertedWithoutLives(DISTRICT_CASES.central) / DISTRICT_COST;
   return (
     <section className="how-band how-gold pl-pays" aria-labelledby="pl-pays-h" id="pays">
       <div className="wrap">
-        <SectionHead id="pl-pays-h" n="06" eyebrow={en ? 'The case' : 'तर्क'} title={en ? 'Why it pays' : 'यह क्यों फ़ायदेमंद है'} />
+        <SectionHead
+          id="pl-pays-h"
+          n="06"
+          eyebrow={en ? 'The case' : 'तर्क'}
+          title={en ? 'All-in cost, and what it may save' : 'पूरा ख़र्च, और क्या बच सकता है'}
+          lead={
+            en
+              ? 'Messaging is the small part. People, drills, the alarm hardware and the team that keeps it running are most of the bill. Every figure is an estimate with its formula in the business model.'
+              : 'संदेश छोटा हिस्सा हैं। लोग, अभ्यास, अलार्म का हार्डवेयर और उसे चलाने वाली टीम बिल का बड़ा हिस्सा हैं। हर आँकड़ा अनुमान है, उसका सूत्र बिज़नेस मॉडल में है।'
+          }
+        />
         <div className="pl-pays-grid">
           <figure className="pl-quote">
-            <span className="how-stat-num" aria-hidden="true">10×</span>
+            <span className="how-stat-num" aria-hidden="true">
+              {en ? `1 / ${months} mo` : `1 / ${months} माह`}
+            </span>
             <blockquote>
               <p>
                 {en
-                  ? '“Early warning systems save lives and assets worth at least ten times their cost.”'
-                  : '“चेतावनी व्यवस्थाएँ अपनी लागत से कम से कम दस गुना मूल्य की जानें और संपत्ति बचाती हैं।”'}
+                  ? `A 300-village district breaks even if Pukaar helps save one life about every ${months} months.`
+                  : `300 गाँवों का ज़िला तब बराबर होता है जब पुकार लगभग हर ${months} महीने में एक जान बचाने में मदद करे।`}
               </p>
             </blockquote>
             <figcaption>
-              <Ext href={SRC.gca.href}>{SRC.gca.label}</Ext>
+              {en
+                ? `${fmtRupeesShort(DISTRICT_COST, lang)} a year ÷ ₹1.5 crore, the lowest Indian value of a statistical life found. `
+                : `${fmtRupeesShort(DISTRICT_COST, lang)} सालाना ÷ ₹1.5 करोड़, एक सांख्यिकीय जीवन का सबसे कम भारतीय मूल्य। `}
+              <Ext href={SRC.vsl.href}>{SRC.vsl.label}</Ext>
             </figcaption>
           </figure>
           <div className="pl-pays-side">
             <p className="pl-pays-line">
-              <span className="pl-pays-k">{en ? 'At the inputs above' : 'ऊपर की संख्याओं पर'}</span>
-              {en
-                ? `${fmtNumber(villages, lang)} villages ≈ ${fmtRupeesShort(perSeason * villages, lang)} a season in messaging (estimate).`
-                : `${fmtNumber(villages, lang)} गाँव ≈ एक मानसून में ${fmtRupeesShort(perSeason * villages, lang)} संदेशों पर (अनुमान)।`}
+              <span className="pl-pays-k">{en ? 'Benefit-cost, one district a year' : 'लाभ-लागत, एक ज़िला, एक साल'}</span>
+              {(['low', 'central', 'high'] as const).map((k, i) => (
+                <span key={k}>
+                  {i > 0 && ' · '}
+                  {CASE_WORD[k][lang]} <b>{ratio(BCR[k])}</b> ({fmtRupeesShort(averted(DISTRICT_CASES[k]), lang)})
+                </span>
+              ))}
+              <span className="pl-pays-note">
+                {en
+                  ? `The low case is below 1. Without lives the central case is about ${ratio(withoutLives)}: the case rests on lives, and the lives averted (0.5, 2 and 5 a year) are assumptions, not findings. No cost-benefit study of flash-flood warning in the Indian Himalaya exists.`
+                  : `कम वाला अनुमान 1 से नीचे है। जानों के बिना बीच का अनुमान लगभग ${ratio(withoutLives)} है: पूरा तर्क जानों पर टिका है, और बचाई गई जानें (साल में 0.5, 2 और 5) मान्यताएँ हैं, नतीजे नहीं। भारतीय हिमालय में अचानक बाढ़ की चेतावनी का कोई लागत-लाभ अध्ययन नहीं है।`}
+              </span>
             </p>
             <p className="pl-pays-line">
               <span className="pl-pays-k">{en ? 'Who pays' : 'कौन देगा'}</span>
               {en
-                ? 'A district or state disaster authority (DDMA, SDMA) from its mitigation funds, a company’s CSR budget, or a dam operator for the villages below its spillway.'
-                : 'ज़िला या राज्य आपदा प्राधिकरण (DDMA, SDMA) अपने न्यूनीकरण कोष से, किसी कंपनी का CSR बजट, या बाँध चलाने वाली कंपनी अपने स्पिलवे के नीचे के गाँवों के लिए।'}
+                ? 'A company’s CSR for the pilot (disaster management, Schedule VII item xii), then the DDMA or the State Disaster Mitigation Fund through GeM, dam operators for the villages below their spillways, and HP-READY at state scale. '
+                : 'पायलट के लिए किसी कंपनी का CSR (आपदा प्रबंधन, अनुसूची VII मद xii), फिर GeM के ज़रिए DDMA या राज्य आपदा न्यूनीकरण कोष, बाँध चलाने वाली कंपनियाँ अपने स्पिलवे के नीचे के गाँवों के लिए, और राज्य के पैमाने पर HP-READY। '}
+              <Ext href={SRC.sdmf.href}>{SRC.sdmf.label}</Ext>
+            </p>
+            <p className="pl-pays-line">
+              <span className="pl-pays-k">{en ? 'For context only' : 'सिर्फ़ संदर्भ के लिए'}</span>
+              {en
+                ? 'Published ratios come from hours or days of warning: 4–36 for weather services and warning in developing countries, and 24–73 for a river-flood warning in Nepal with 2.75 hours of lead. A flash flood gives minutes, so Pukaar does not borrow them. '
+                : 'छपे हुए अनुपात घंटों या दिनों की चेतावनी से आते हैं: विकासशील देशों में मौसम सेवा और चेतावनी के लिए 4–36, और नेपाल में 2.75 घंटे पहले वाली नदी-बाढ़ चेतावनी के लिए 24–73। अचानक बाढ़ में मिनट मिलते हैं, इसलिए पुकार इन्हें उधार नहीं लेता। '}
+              <Ext href={SRC.hallegatte.href}>{SRC.hallegatte.label}</Ext>
+              <Ext href={SRC.karnali.href}>{SRC.karnali.label}</Ext>
             </p>
           </div>
         </div>
+
+        <div className="table-wrap pl-table" tabIndex={0} role="region" aria-label={en ? 'All-in cost at three scales' : 'तीन पैमानों पर पूरा ख़र्च'}>
+          <table className="data-table stack-sm">
+            <caption className="sr-only">{en ? 'All-in cost a year at three scales, estimate' : 'तीन पैमानों पर सालाना पूरा ख़र्च, अनुमान'}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{en ? '₹ a year (estimate)' : '₹ सालाना (अनुमान)'}</th>
+                {keys.map((k) => (
+                  <th key={k} scope="col">
+                    {SCALE_HEAD[k][lang]}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {SCALE_COSTS.district.lines.map((l, i) => (
+                <tr key={l.key}>
+                  <th scope="row">{SCALE_LINE[l.key][lang]}</th>
+                  {keys.map((k) => (
+                    <td key={k} data-label={SCALE_HEAD[k][lang]} className="num">
+                      {fmtRupeesShort(SCALE_COSTS[k].lines[i].amount, lang)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              <tr className="pl-total">
+                <th scope="row">{en ? 'Total a year' : 'सालाना कुल'}</th>
+                {keys.map((k) => (
+                  <td key={k} data-label={SCALE_HEAD[k][lang]} className="num">
+                    {fmtRupeesShort(SCALE_COSTS[k].total, lang)}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <th scope="row">{en ? 'Per village a year' : 'हर गाँव, सालाना'}</th>
+                {keys.map((k) => (
+                  <td key={k} data-label={SCALE_HEAD[k][lang]} className="num">
+                    {fmtRupeesShort(Math.round(SCALE_COSTS[k].perVillage / 100) * 100, lang)}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <th scope="row">{en ? 'One-time alarm hardware (inside the total, annualised)' : 'एक बार का अलार्म हार्डवेयर (कुल में, सालाना हिस्से के रूप में)'}</th>
+                {keys.map((k) => (
+                  <td key={k} data-label={SCALE_HEAD[k][lang]} className="num">
+                    {fmtRupeesShort(SCALE_COSTS[k].capex, lang)}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="pl-caveat">
+          {en
+            ? 'Alarm hardware in every pilot village and in one village in five beyond, annualised over 7 years at 8%. People costs have no salary survey behind them. The pilot exists to learn, not to pay for itself. '
+            : 'हर पायलट गाँव में और उसके बाद हर पाँच में से एक गाँव में अलार्म हार्डवेयर, 7 साल और 8% पर सालाना हिस्सा। लोगों के ख़र्च के पीछे कोई वेतन सर्वे नहीं है। पायलट सीखने के लिए है, अपना ख़र्च निकालने के लिए नहीं। '}
+          <Ext href={BUSINESS_MODEL} className="pl-inline">
+            {en ? 'The business model, with every source and formula' : 'बिज़नेस मॉडल, हर स्रोत और सूत्र के साथ'}
+          </Ext>
+        </p>
       </div>
     </section>
   );
@@ -597,7 +808,8 @@ function PaysSection({ perSeason, villages }: { perSeason: number; villages: num
 /* ------------------------------------------------------------------ page ------------------------------------------------------------------ */
 
 const TOC: { id: string; t: Txt }[] = [
-  { id: 'cost', t: { en: 'Cost', hi: 'ख़र्च' } },
+  { id: 'cost', t: { en: 'Messaging', hi: 'संदेश' } },
+  { id: 'pays', t: { en: 'All-in and the case', hi: 'पूरा ख़र्च और तर्क' } },
   { id: 'ready', t: { en: 'Readiness', hi: 'तैयारी' } },
   { id: 'plan', t: { en: '90 days', hi: '90 दिन' } },
 ];
@@ -606,7 +818,6 @@ export default function Pilot() {
   const { lang } = useT();
   const en = lang === 'en';
   const [draft, setDraft] = useState<Draft>(() => toDraft(DEFAULT_COST_INPUTS));
-  const est = useMemo(() => estimatePilotCost(fromDraft(draft)), [draft]);
   return (
     <div className="xp how pilot">
       <header className="xp-hero wrap">
@@ -614,8 +825,8 @@ export default function Pilot() {
           <h1 className="xp-h1">{en ? 'A pilot: what it costs, how ready, 90 days' : 'पायलट: ख़र्च, तैयारी और 90 दिन'}</h1>
           <p className="xp-lead">
             {en
-              ? 'For a district: what alerts cost a village each monsoon, what has to be true before a real village is warned, and a 90-day plan. Estimates are labelled.'
-              : 'ज़िले के लिए: एक गाँव पर हर मानसून चेतावनियों का ख़र्च, किसी असली गाँव को चेतावनी देने से पहले क्या तैयार होना चाहिए, और 90 दिन की योजना। अनुमान पर अनुमान लिखा है।'}
+              ? 'For a district: what messages cost a village each monsoon, what the whole system costs and may save, what has to be true before a real village is warned, and a 90-day plan. Estimates are labelled.'
+              : 'ज़िले के लिए: एक गाँव पर हर मानसून संदेशों का ख़र्च, पूरी व्यवस्था का ख़र्च और उससे क्या बच सकता है, किसी असली गाँव को चेतावनी देने से पहले क्या तैयार होना चाहिए, और 90 दिन की योजना। अनुमान पर अनुमान लिखा है।'}
           </p>
           <nav className="pl-toc" aria-label={en ? 'On this page' : 'इस पेज पर'}>
             <ol>
@@ -631,7 +842,7 @@ export default function Pilot() {
         </div>
       </header>
       <CostSection draft={draft} setDraft={setDraft} />
-      <PaysSection perSeason={est.perSeason} villages={est.inputs.villages} />
+      <PaysSection />
       <ReadinessSection />
       <PlanSection />
       <p className="wrap xp-next">

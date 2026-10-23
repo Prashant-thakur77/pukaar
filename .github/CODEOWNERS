@@ -1,0 +1,22 @@
+# Files whose change can alter who is warned, when, or without whose approval.
+# A pull request touching any of them needs a review from a code owner (turn on "Require review from Code
+# Owners" in the branch protection for main). Before a district pilot, add the district's reviewer here
+# so that every change to these files has two people on it: the author and someone who did not write it.
+# Why each matters: docs/adr/.
+
+# The level: the rules and the thresholds they read (ADR 0001)
+/backend/src/Pukaar/services/risk_rules.py   @Prashant-thakur77
+/data/thresholds.json                         @Prashant-thakur77
+/data/river_cells.json                        @Prashant-thakur77
+/data/villages.json                           @Prashant-thakur77
+
+# Human approval: the state machine, its steps and the action guard (ADR 0002)
+/infra/approval.asl.json                      @Prashant-thakur77
+/backend/src/Pukaar/workflow/                 @Prashant-thakur77
+
+# Who may do what: Cedar policies and their enforcement
+/backend/src/Pukaar/policy/                   @Prashant-thakur77
+
+# The governance files themselves
+/.github/CODEOWNERS                           @Prashant-thakur77
+/docs/adr/                                    @Prashant-thakur77

@@ -1,5 +1,5 @@
 {
- "checked": "2026-10-11",
+ "checked": "2026-10-23",
  "stats": [
   {
    "big": "~6×",
@@ -9,25 +9,25 @@
    "short": "WMO · Global Status of MHEWS 2024"
   },
   {
-   "big": "30%",
-   "label": "less damage from just 24 hours of warning of a storm or heatwave",
-   "source": "Global Commission on Adaptation, Adapt Now (2019), p.14",
-   "url": "https://gca.org/wp-content/uploads/2019/09/GlobalCommission_Report_FINAL.pdf",
-   "short": "Global Commission on Adaptation · 2019"
+   "big": "46.5%",
+   "label": "more likely to get a warning before the water, with 2-3 trained volunteers in each panchayat (Bihar)",
+   "source": "Jagnani & Pande (2024), randomised study of flood alerts in Bihar",
+   "url": "https://bpb-us-w2.wpmucdn.com/campuspress.yale.edu/dist/7/2986/files/2024/04/Google_Floods-bcdf49042e23059a.pdf",
+   "short": "Jagnani & Pande · 2024"
   },
   {
-   "big": "10×",
-   "label": "early warning systems save lives and assets worth at least ten times their cost",
-   "source": "Global Commission on Adaptation, Adapt Now (2019), p.14",
-   "url": "https://gca.org/wp-content/uploads/2019/09/GlobalCommission_Report_FINAL.pdf",
-   "short": "Global Commission on Adaptation · 2019"
+   "big": "417",
+   "label": "lives lost in Himachal Pradesh in the 2025 monsoon, with losses of over ₹4,582 crore",
+   "source": "The Tribune, 18 Sept 2025, citing the state's figures",
+   "url": "https://www.tribuneindia.com/news/himachal/state-lost-417-lives-suffered-rs-4582-crore-losses-in-rain-disaster",
+   "short": "The Tribune · 18 Sept 2025"
   },
   {
-   "big": "500+",
-   "label": "people lost their lives in Himachal Pradesh's 2023 monsoon (45 cloudbursts, 83 flash floods)",
-   "source": "Govt of Himachal Pradesh / HPSDMA, Post Disaster Needs Assessment, Monsoon 2023",
-   "url": "https://recovery.preventionweb.net/publication/report-post-disaster-needs-assessment-himachal-pradesh-monsoon-2023-floods-cloudbursts",
-   "short": "HP Govt / HPSDMA · PDNA Monsoon 2023"
+   "big": "~500",
+   "label": "people died in Himachal Pradesh's 2023 monsoon",
+   "source": "NDMA Post Disaster Needs Assessment, Monsoon 2023, via The Tribune (3 Feb 2024)",
+   "url": "https://www.tribuneindia.com/news/himachal/himachal-pradesh-floods-climate-change-illegal-construction-greenery-loss-increasing-disaster-risk-in-himalayas-says-ndma-report-586698",
+   "short": "NDMA PDNA 2023 · The Tribune"
   },
   {
    "big": "₹8,668 cr",

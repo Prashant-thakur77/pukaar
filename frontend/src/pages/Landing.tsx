@@ -9,7 +9,8 @@ import { useT } from '../i18n';
 import { LEAD, MEANS } from '../lib/actions';
 import { levelIsKnown } from '../lib/dataStatus';
 import { levelRank } from '../lib/levels';
-import { DEFAULT_COST_INPUTS, estimatePilotCost, fmtRupees } from '../lib/pilotCost';
+import { DEFAULT_COST_INPUTS, SCALES, breakEven, estimatePilotCost, fmtRupees, fmtRupeesAbout, scaleCost } from '../lib/pilotCost';
+import { PilotNotice } from '../components/PilotNotice';
 import { readLS, writeLS } from '../store';
 import type { PublicOverview } from '../types';
 import { ValleyMap } from '../components/ValleyMap';
@@ -48,7 +49,12 @@ function StoryFrame() {
   );
 }
 
-const PER_VILLAGE_SEASON = fmtRupees(estimatePilotCost(DEFAULT_COST_INPUTS).perSeason);
+// Estimates from lib/pilotCost.ts (docs/BUSINESS_MODEL.md): messaging alone for an average Mandi village, and the
+// all-in cost per village at district scale, never one passed off as the other.
+const MESSAGING_PER_VILLAGE = fmtRupees(estimatePilotCost(DEFAULT_COST_INPUTS).perSeason);
+const DISTRICT = scaleCost(SCALES.district);
+const ALL_IN_PER_VILLAGE = fmtRupeesAbout(DISTRICT.perVillage);
+const BREAK_EVEN_MONTHS = Math.round(breakEven(DISTRICT.total).monthsPerLife);
 
 /**
  * गाँवों का हाल: the status of the five villages first (is anyone in danger right now, and where do I tap),
@@ -178,6 +184,7 @@ export default function Landing() {
               <MapIcon aria-hidden="true" /> {t('nav.map')} <ChevronRight aria-hidden="true" />
             </Link>
           </div>
+          <PilotNotice />
         </div>
 
         {/* The story begins here: the valley (the seam for the live S2 map) and the line. Beside the status on a
@@ -189,8 +196,8 @@ export default function Landing() {
           </h2>
           <p className="home-para">
             {hi
-              ? 'पुकार हर 15 मिनट बारिश और नदी का पूर्वानुमान पढ़ता है। ख़तरा दिखे तो एक अधिकारी चेतावनी मंज़ूर करता है, और गाँव के हर फ़ोन पर हिंदी में बोली गई चेतावनी पहुँचती है।'
-              : 'Every 15 minutes Pukaar reads the rain and river forecasts. When danger shows, an officer approves the alert, and every phone in the village hears it spoken in Hindi.'}
+              ? 'पुकार हर 15 मिनट बारिश और नदी का पूर्वानुमान पढ़ता है। ख़तरा दिखे तो एक अधिकारी चेतावनी मंज़ूर करता है, और वह हिंदी में बोलकर गाँव के लिए जुड़े हर फ़ोन पर जाती है।'
+              : 'Every 15 minutes Pukaar reads the rain and river forecasts. When danger shows, an officer approves the alert, and it goes out spoken in Hindi to every phone registered for the village.'}
           </p>
         </div>
       </section>
@@ -209,12 +216,12 @@ export default function Landing() {
             <li>
               <UserCheck aria-hidden="true" />
               <h3 lang="hi">मंज़ूरी</h3>
-              <p>{hi ? 'ड्यूटी पर एक अधिकारी चेतावनी पढ़कर एक टैप में मंज़ूर करता है। जवाब न मिले तो फ़ोन बजता है।' : 'The officer on duty reads the alert and approves it with one tap. No answer, and their phone rings.'}</p>
+              <p>{hi ? 'ड्यूटी पर एक अधिकारी चेतावनी पढ़कर एक टैप में मंज़ूर करता है। जवाब न मिले तो अगले अधिकारी से पूछा जाता है।' : 'The officer on duty reads the alert and approves it with one tap. No answer, and the next officer is asked.'}</p>
             </li>
             <li>
               <PhoneCall aria-hidden="true" />
               <h3 lang="hi">पुकार</h3>
-              <p>{hi ? 'हर फ़ोन पर हिंदी में बोली गई कॉल और संदेश: क्या हुआ, और अभी क्या करें।' : 'A spoken Hindi call and message to every phone: what is happening, and what to do now.'}</p>
+              <p>{hi ? 'Telegram पर हिंदी में बोली गई चेतावनी और “मिल गया” बटन: क्या हुआ, और अभी क्या करें। कीपैड फ़ोन के लिए वॉइस कॉल बनी है, टेलीकॉम पंजीकरण तक बंद।' : 'A spoken Hindi alert on Telegram with a “मिल गया” button: what is happening, and what to do now. Voice calls for keypad phones are built, and off until telecom registration.'}</p>
             </li>
           </ol>
           <Link to="/how" className="go-link">
@@ -238,8 +245,8 @@ export default function Landing() {
             </h2>
             <p className="home-para">
               {hi
-                ? 'जुलाई 2023 की बाढ़ के असली पूर्वानुमान पर पुकार के नियम चलाए गए: गोहर में नदी के सबसे ऊँचे दिन से इतने घंटे पहले ‘सतर्क’ आ जाता। यह बैक-टेस्ट है, असली चेतावनी नहीं।'
-                : 'Pukaar’s rules were run on the real forecasts of the July 2023 flood: in Gohar, Watch would have come this many hours before the river’s highest day. This is a back-test, not a real alert.'}
+                ? 'जुलाई 2023 की बाढ़ के असली पूर्वानुमान पर पुकार के नियम चलाए गए: गोहर में नदी के सबसे ऊँचे दिन से इतने घंटे पहले ‘सतर्क’ आ जाता। यह बैक-टेस्ट है, असली चेतावनी नहीं, और सिर्फ़ 4 गाँव-घटनाएँ जाँची जा सकीं।'
+                : 'Pukaar’s rules were run on the real forecasts of the July 2023 flood: in Gohar, Watch would have come this many hours before the river’s highest day. This is a back-test, not a real alert, and only 4 village-events could be verified.'}
             </p>
             <Link to="/proof" className="go-link">
               {hi ? 'सबूत देखें' : 'See the proof'} <ArrowRight aria-hidden="true" />
@@ -251,16 +258,16 @@ export default function Landing() {
       <section className="home-band" aria-labelledby="district-h">
         <div className="wrap home-split">
           <p className="home-num" aria-hidden="true">
-            {PER_VILLAGE_SEASON}
+            {ALL_IN_PER_VILLAGE}
           </p>
           <div>
             <h2 id="district-h" className="home-h2">
-              {hi ? `${PER_VILLAGE_SEASON} प्रति गाँव, प्रति मानसून` : `${PER_VILLAGE_SEASON} per village, per monsoon`}
+              {hi ? `लगभग ${ALL_IN_PER_VILLAGE} प्रति गाँव, प्रति वर्ष, सब मिलाकर` : `About ${ALL_IN_PER_VILLAGE} per village a year, all in`}
             </h2>
             <p className="home-para">
               {hi
-                ? 'ज़िलों के लिए: कॉल, SMS और Telegram का अनुमानित ख़र्च, तैयारी की सूची और 90 दिन का पायलट।'
-                : 'For districts: the estimated cost of calls, SMS and Telegram, the readiness list and a 90-day pilot.'}
+                ? `300 गाँवों के ज़िले का अनुमान: लोग, अभ्यास, सायरन, प्लेटफ़ॉर्म, क्लाउड और संदेश। सिर्फ़ संदेश: एक गाँव, एक मानसून में ${MESSAGING_PER_VILLAGE}। अगर हर ${BREAK_EVEN_MONTHS} महीने में एक जान बचे, तो ख़र्च बराबर।`
+                : `A 300-village district, estimated: people, drills, sirens, the platform, cloud and messages. Messaging alone is ${MESSAGING_PER_VILLAGE} a village a monsoon. It breaks even if it helps save one life every ${BREAK_EVEN_MONTHS} months.`}
             </p>
             <Link to="/pilot" className="go-link">
               {hi ? 'पायलट की योजना' : 'The pilot plan'} <ArrowRight aria-hidden="true" />

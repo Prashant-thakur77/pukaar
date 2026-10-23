@@ -30,8 +30,8 @@ export const TOUR_STEPS: TourStep[] = [
         sel: '[data-tour="hero"]',
         title: { en: 'What Pukaar is', hi: 'पुकार क्या है' },
         body: {
-          en: 'Flood warnings for hill villages: code watches the rain and the river, an officer approves, and every phone hears the alert in Hindi.',
-          hi: 'पहाड़ी गाँवों के लिए बाढ़ चेतावनी: कोड बारिश और नदी पर नज़र रखता है, अधिकारी मंज़ूरी देता है, और हर फ़ोन पर हिंदी में चेतावनी सुनाई देती है।',
+          en: 'Flood warnings for hill villages: code watches the rain and the river, an officer approves, and every registered phone gets the alert in Hindi. A pilot: follow DDMA and IMD warnings.',
+          hi: 'पहाड़ी गाँवों के लिए बाढ़ चेतावनी: कोड बारिश और नदी पर नज़र रखता है, अधिकारी मंज़ूरी देता है, और हर जुड़े फ़ोन पर हिंदी में चेतावनी जाती है। यह पायलट है: DDMA और IMD की चेतावनी मानें।',
         },
       },
     ],

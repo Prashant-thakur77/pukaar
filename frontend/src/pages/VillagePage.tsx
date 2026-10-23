@@ -20,6 +20,7 @@ import { TimeToEar } from '../components/TimeToEar';
 import { WhereToGo } from '../components/WhereToGo';
 import { ActionList, Freshness, LevelBanner, StickyActionBar } from '../components/Answer';
 import { Call112 } from '../components/Shell';
+import { PilotNotice } from '../components/PilotNotice';
 import { useVillageNow } from '../hooks/useVillageNow';
 import { useHandOff } from '../boot/handoff';
 import '../styles/VillagePage.css';
@@ -506,6 +507,7 @@ export default function VillagePage() {
             )}
           </ActionList>
           {data && <SirenLastTested sirens={data.sirens} />}
+          <PilotNotice />
         </div>
         {place && (
           <aside className="vtop-aside" aria-labelledby="vwhere-h">

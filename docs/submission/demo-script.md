@@ -1,5 +1,7 @@
 # Demo video script (2:44)
 
+> Read with today's facts (23 Oct 2026). The narration below is the video's own and is kept word for word. Where it says a spoken alert reaches "every phone in the village" and that "the village hears first", that is the design: today the alert goes to phones registered with the Telegram bot; 0 real alerts have gone out; 1 drill reached 3 phones with 0 acknowledgements; the gauges are simulated; sirens and rain nodes are firmware only; voice calls are off until a DDMA registers as the DLT principal entity. Pilot system; follow DDMA and IMD warnings; emergency 112 / 1077.
+>
 > Note: this video predates the river-trigger change of 22 October 2026. Gohar now reaches Warning, not Critical, from rain, after a get-ready outlook; see [docs/SCORING.md](../SCORING.md).
 
 The narration of [docs/media/pukaar-demo.mp4](../media/pukaar-demo.mp4) (164.4 s, 1920×1080), rendered by `node video/record.mjs demo` from [video/demo.mjs](../../video/demo.mjs); this file is written by the same run, so the times and words below are the video's own. Timed captions: [pukaar-demo.srt](../media/pukaar-demo.srt).
@@ -22,7 +24,7 @@ Every number is read at render time: the Mandi 2025 figures and the 3G load time
 ## Video description
 
 ```
-Pukaar (पुकार): a flood-warning loop for Himalayan villages, built on AWS. A forecast becomes a spoken Hindi alert on every phone in the village, approved by a district officer in one tap.
+Pukaar (पुकार): a flood-warning pilot for Himalayan villages, built on AWS. A forecast becomes a spoken Hindi alert, approved by a district officer in one tap, for every phone registered for the village. Pilot system; follow DDMA and IMD warnings; emergency 112 / 1077.
 
 Live: https://main.d15r7ktz99l46x.amplifyapp.com
 Code: https://github.com/Prashant-thakur77/pukaar

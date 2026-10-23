@@ -574,6 +574,11 @@
 .pl-figs dt { font-size: var(--t-small); color: var(--accent-text); }
 .pl-figs dd { margin: 4px 0 0; font-family: var(--font-display); font-size: var(--t-h2); line-height: 1.1; font-variant-numeric: lining-nums tabular-nums; }
 .pl-result-note { margin: var(--sp-4) 0 0; font-size: var(--t-small); color: var(--accent-text); }
+.pl-allin { display: flex; flex-direction: column; gap: 4px; margin: var(--sp-3) 0 0; padding-top: 12px; border-top: 1px solid var(--pg-night-line); }
+.pl-allin-k { font-size: var(--t-small); font-weight: 700; text-transform: uppercase; color: var(--accent-text); }
+.pl-allin-k:lang(hi), :lang(hi) .pl-allin-k { font-size: var(--t-small); }
+.pl-allin-v { font-family: var(--font-display); font-size: var(--t-h2); line-height: 1.2; font-variant-numeric: lining-nums tabular-nums; }
+.pl-allin-sub { font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
 .pl-table { margin-top: clamp(32px, 4vw, 56px); }
 .pl-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pl-table td .how-cite { margin-right: 10px; }
@@ -635,6 +640,9 @@
 .pl-pays-line:last-child { border-bottom: 1px solid var(--line); }
 .pl-pays-k { display: block; margin-bottom: 4px; font-size: var(--t-small); font-weight: 700; text-transform: uppercase; color: var(--accent-text); }
 .pl-pays-k:lang(hi), :lang(hi) .pl-pays-k { font-size: var(--t-small); }
+.pl-pays-line b { font-variant-numeric: tabular-nums; }
+.pl-pays-note { display: block; margin-top: 8px; font-size: var(--t-small); color: var(--ink-2); }
+.pl-facts { margin: 0 0 var(--sp-5); padding: 12px 0 12px 16px; max-width: 78ch; border-left: 3px solid var(--line-strong); color: var(--ink); line-height: 1.55; }
 @media (max-width: 1000px) {
 .pl-calc, .pl-pays-grid { grid-template-columns: 1fr; }
 .pl-result { position: static; order: -1; }

@@ -481,8 +481,8 @@ function home(villages: OvVillage[] | null, offline: boolean): HTMLElement {
       'p',
       { class: 'home-para' },
       hi
-        ? 'पुकार हर 15 मिनट बारिश और नदी का पूर्वानुमान पढ़ता है। ख़तरा दिखे तो एक अधिकारी चेतावनी मंज़ूर करता है, और गाँव के हर फ़ोन पर हिंदी में बोली गई चेतावनी पहुँचती है।'
-        : 'Every 15 minutes Pukaar reads the rain and river forecasts. When danger shows, an officer approves the alert, and every phone in the village hears it spoken in Hindi.',
+        ? 'पुकार हर 15 मिनट बारिश और नदी का पूर्वानुमान पढ़ता है। ख़तरा दिखे तो एक अधिकारी चेतावनी मंज़ूर करता है, और वह हिंदी में बोलकर गाँव के लिए जुड़े हर फ़ोन पर जाती है।'
+        : 'Every 15 minutes Pukaar reads the rain and river forecasts. When danger shows, an officer approves the alert, and it goes out spoken in Hindi to every phone registered for the village.',
     ),
   );
   // The valley and the serif line sit beside the status on a desk; on a phone they are below the fold, and the

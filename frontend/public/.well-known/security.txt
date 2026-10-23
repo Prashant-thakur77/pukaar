@@ -1,0 +1,7 @@
+# Pukaar: a flood early-warning pilot for villages in Mandi, Himachal Pradesh.
+# Report security problems privately. Please do not open a public issue.
+Contact: mailto:prashant101007@gmail.com
+Expires: 2027-10-22T23:59:00.000Z
+Preferred-Languages: en, hi
+Policy: https://github.com/Prashant-thakur77/pukaar/blob/main/SECURITY.md
+Canonical: https://main.d15r7ktz99l46x.amplifyapp.com/.well-known/security.txt
