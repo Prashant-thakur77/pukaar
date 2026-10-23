@@ -401,7 +401,7 @@ function Footer() {
         </nav>
       </div>
       <p className="ft-credits">
-        <span>{t('shell.footer.data')}</span> <span>© 2026 Pukaar · {en ? 'Built in Mandi, Himachal' : 'मंडी, हिमाचल में बना'}</span>
+        <span>{t('shell.footer.data')}</span> <span>© 2026 Pukaar · {en ? 'Built in Himachal' : 'हिमाचल में बना'}</span>
       </p>
     </footer>
   );

@@ -52,7 +52,11 @@ function FalseAlarms({ fa }: { fa: PilotFalseAlarms }) {
     <>
       <h3 className="pl-h3">{en ? 'Was it real? False alarms by rule' : 'क्या यह असली था? हर नियम की झूठी चेतावनियाँ'}</h3>
       <ul className="pl-stats">
-        <Measure value={fmtNumber(fa.closed_alerts, lang)} label={en ? 'Closed live alerts' : 'बंद असली चेतावनियाँ'} />
+        <Measure
+          value={fmtNumber(fa.closed_alerts, lang)}
+          label={en ? 'Live alerts raised and closed' : 'उठी और बंद हुई असली चेतावनियाँ'}
+          note={en ? 'Sent or not: one that expired without approval counts here' : 'भेजी गई हों या नहीं: बिना मंज़ूरी समाप्त हुई भी गिनी जाती है'}
+        />
         <Measure value={fmtNumber(fa.real_flood, lang)} label={en ? 'Real flood' : 'असली बाढ़'} />
         <Measure value={fmtNumber(fa.no_flood, lang)} label={en ? 'No flood' : 'बाढ़ नहीं आई'} note={en ? `${fa.unknown} unknown, ${fa.not_set} not answered yet` : `${fa.unknown} पता नहीं, ${fa.not_set} का जवाब बाकी`} />
         <Measure value={rate(fa.false_alarm_rate, lang)} label={en ? 'False-alarm rate' : 'झूठी चेतावनी दर'} note={en ? 'No flood ÷ (real + no flood)' : 'बाढ़ नहीं ÷ (असली + बाढ़ नहीं)'} />

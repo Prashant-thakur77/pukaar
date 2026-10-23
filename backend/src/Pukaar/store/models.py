@@ -70,7 +70,7 @@ class Thresholds(BaseModel):
     watch: float
     warning: float
     critical: float
-    source: str = "open-meteo flood API daily history 1984-2024"
+    source: str = "open-meteo flood API daily history 1997-2024 (requested from 1984; the archive starts in 1997 here)"
     method: str = "percentile"
     return_period_years: dict[str, int] | None = None
     cell_lat: float | None = None

@@ -24,6 +24,19 @@ from Pukaar.workflow.client import RetryLater, decide, get_workflow
 router = APIRouter()
 
 
+def _bedrock_status(repo) -> str:
+    """What the last model-access probe found, so a page never calls the model "configured" while access is pending."""
+    try:
+        access = (repo.get_model_probe() or {}).get("access")
+    except Exception:
+        access = None
+    if access == "live":
+        return "live: the model answered the last access probe"
+    if access == "pending":
+        return "model access pending: rules and the fixed Hindi templates in use (template fallback)"
+    return "configured, not yet probed (checked by /health/deep)"
+
+
 @router.get("/health")
 def health() -> dict:
     s = get_settings()
@@ -38,8 +51,8 @@ def health() -> dict:
         "mode": s.mode,
         "services": {
             "dynamodb": db if not s.is_local else "local mock",
-            # No model call on a public route; officers can run /health/deep.
-            "bedrock": "configured (checked by /health/deep)" if s.llm_enabled else "disabled: rule fallback in use",
+            # No model call on a public route: the sweep's access probe (services/model_probe.py) is read instead.
+            "bedrock": _bedrock_status(repo) if s.llm_enabled else "disabled: rule fallback in use",
             "polly": "aws" if not s.is_local else "unavailable locally: text only",
             "transcribe": "aws" if not s.is_local else "unavailable locally: audio kept, text needed",
             "telegram": "configured" if telegram.configured() else "not configured: stub channel",
