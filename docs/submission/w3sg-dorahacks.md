@@ -27,7 +27,7 @@ Links
 ```
 GitHub:        https://github.com/Prashant-thakur77/pukaar/tree/web3-social-good
 Live demo:     https://main.d227ld968f3fok.amplifyapp.com/raahat
-Demo video:    <YouTube link after upload>
+Demo video:    https://youtu.be/fc7pBvKPwFI
 ```
 
 Team: Prashant Bahuguna, Prashant Thakur, Puneet Yadav.
