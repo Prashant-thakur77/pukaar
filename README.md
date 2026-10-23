@@ -425,7 +425,7 @@ sign-in; the demo user names are in [DEMO.md](DEMO.md#sign-in).
 
 ## Raahat: where the money goes
 
-Pukaar Raahat (पुकार राहत) is the relief layer on this branch, built for the Web3 for Social Good Hackathon 2026. Pukaar already predicts the flood and proves the warning reached each phone; Raahat pays the household before the water rises, by a rule sealed before the monsoon, and every rupee can be traced from forecast to phone on a public chain. Live: [the relief ledger](https://main.d227ld968f3fok.amplifyapp.com/raahat) on its own stack (`pukaar-raahat`, kept apart from `pukaar-dev`). Plan and reasoning: [PLAN.md](PLAN.md); submission: [docs/submission/w3sg-writeup.md](docs/submission/w3sg-writeup.md); film: [docs/media/pukaar-raahat.mp4](docs/media/pukaar-raahat.mp4) (2:48, one replayed flood end to end on the live stack and Base Sepolia; [script](docs/submission/w3sg-film-script.md), [captions](docs/media/pukaar-raahat.srt)).
+Pukaar Raahat (पुकार राहत) is the relief layer on this branch, built for the Web3 for Social Good Hackathon 2026. Pukaar already predicts the flood and proves the warning reached each phone; Raahat pays the household before the water rises, by a rule sealed before the monsoon, and every rupee can be traced from forecast to phone on a public chain. Live: [the relief ledger](https://main.d227ld968f3fok.amplifyapp.com/raahat) on its own stack (`pukaar-raahat`, kept apart from `pukaar-dev`). Plan and reasoning: [PLAN.md](PLAN.md); submission: [docs/submission/w3sg-writeup.md](docs/submission/w3sg-writeup.md); film: [on YouTube](https://youtu.be/fc7pBvKPwFI) and [docs/media/pukaar-raahat.mp4](docs/media/pukaar-raahat.mp4) (2:48, one replayed flood end to end on the live stack and Base Sepolia; [script](docs/submission/w3sg-film-script.md), [captions](docs/media/pukaar-raahat.srt)).
 
 It does three things:
 
@@ -469,7 +469,7 @@ Run it locally (no AWS, no testnet):
 
 ```bash
 make raahat-anvil              # a local chain on :8545 (leave it running)
-make raahat-deploy             # TestINR, AlertRegistry, ImpactAttestation, ReliefPool; the rule sealed
+make raahat-deploy             # TestINR, AlertRegistry, ImpactAttestation, ReliefPool; the rule written, not yet sealed
 make raahat-fund               # 5,00,000 tINR into the pool through fund()
 make raahat-seed-households    # household roots and cash-out agents
 make raahat-attesters          # the officer's and each village's pradhan's attester role
@@ -477,7 +477,7 @@ make raahat-seal               # seal the rule: amounts and thresholds fixed fro
 make local                     # sign in as officer1, start the July 2023 replay
 ```
 
-For the pradhan's attestation in a demo, `make raahat-demo-photo STAGE=raahat` files a labelled DEMO photo as a verified replay report (never a live report). On the testnet the same targets take `RAAHAT_NETWORK=base-sepolia` (a funded key in `.env.deploy.local` as `RAAHAT_DEPLOYER_KEY`), and the stack is `make deploy STAGE=raahat`, which passes the addresses from the deployment file. Cost on Base Sepolia so far: under 0.0001 test ETH in fees for every deployment, seeding run, role grant and transaction above (plus 0.001 handed to each of the six attester keys for their own gas).
+For the pradhan's attestation in a demo, `make raahat-demo-photo STAGE=raahat` files a labelled DEMO photo as a verified replay report (never a live report). On the testnet the same targets take `RAAHAT_NETWORK=base-sepolia` (a funded key in `.env.deploy.local` as `RAAHAT_DEPLOYER_KEY`), and the stack is `make deploy STAGE=raahat`, which passes the addresses from the deployment file. Cost on Base Sepolia so far (23 Oct 2026): 0.00015 test ETH in fees for the deployer's 159 transactions (every deployment, seeding run, role grant, anchor, release and funding), plus 0.001 handed to each of the six attester keys for their own gas.
 
 ## What the back-test shows (and what it does not)
 
