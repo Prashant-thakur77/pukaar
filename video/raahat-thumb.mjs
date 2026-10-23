@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // The YouTube thumbnail for the Raahat film (1280×720 JPEG): the Sentinel-2 image after the July 2023 flood, as the
-// live site serves it, under the film's headline and wordmark.
-//   node video/raahat-thumb.mjs   -> docs/media/pukaar-raahat-thumbnail.jpg
+// live site serves it, under the film's headline and wordmark; and a square logo for the DoraHacks BUIDL page (the
+// app's own mark, frontend/public/favicon.svg, over the wordmark).
+//   node video/raahat-thumb.mjs   -> docs/media/pukaar-raahat-thumbnail.jpg, docs/media/pukaar-raahat-logo.png
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CHROME, ROOT, chromium, log } from "./lib/engine.mjs";
 import { facts } from "./raahat.mjs";
@@ -31,5 +33,20 @@ await page.setContent(html, { waitUntil: "networkidle" });
 await page.evaluate(() => document.fonts.ready);
 const out = join(ROOT, "docs/media/pukaar-raahat-thumbnail.jpg");
 await page.screenshot({ path: out, type: "jpeg", quality: 90 });
-await browser.close();
 log(`thumbnail: ${out}`);
+
+const mark = readFileSync(join(ROOT, "frontend/public/favicon.svg"), "utf8");
+await page.setViewportSize({ width: 480, height: 480 });
+await page.setContent(`<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Noto+Sans+Devanagari:wght@900&display=block">
+<style>
+  html, body { margin: 0; width: 480px; height: 480px; background: #0B1026; overflow: hidden; }
+  .m { position: absolute; left: 140px; top: 46px; width: 200px; height: 200px; }
+  .hi { position: absolute; left: 0; right: 0; top: 262px; text-align: center; color: #F5A524; font: 900 84px/1 "Noto Sans Devanagari", sans-serif; }
+  .en { position: absolute; left: 0; right: 0; top: 388px; text-align: center; color: #fff; font: 400 38px/1 Anton, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; }
+</style></head><body><div class="m">${mark}</div><div class="hi">पुकार राहत</div><div class="en">Pukaar Raahat</div></body></html>`, { waitUntil: "networkidle" });
+await page.evaluate(() => document.fonts.ready);
+const logo = join(ROOT, "docs/media/pukaar-raahat-logo.png");
+await page.screenshot({ path: logo });
+await browser.close();
+log(`logo: ${logo}`);
