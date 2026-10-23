@@ -16,7 +16,8 @@
     "check:loops": "node scripts/check-loops.mjs",
     "check:csp": "node scripts/csp-check.mjs",
     "check:taps": "node scripts/tap-targets.mjs",
-    "check:tokens": "node scripts/check-tokens.mjs --contrast"
+    "check:tokens": "node scripts/check-tokens.mjs --contrast",
+    "check:fonts": "node scripts/font-floor.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",

@@ -26,3 +26,25 @@
     font-size: var(--t-meta); font-weight: 700; text-transform: uppercase; color: var(--ink-3);
   }
 }
+
+/* -- a phone: the week as one fold per day (spec 4.10); today and tomorrow open, empty shifts in red -- */
+.rs-days { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.rs-day-fold { border-bottom: 1px solid var(--line); }
+.rs-day-fold.has-gap { background: var(--lv-critical-tint); }
+.rs-day-fold summary {
+  display: grid; gap: var(--sp-1); min-height: var(--tap); padding: var(--sp-3) var(--sp-2) var(--sp-3) 0; cursor: pointer;
+  list-style: none;
+}
+.rs-day-fold summary::-webkit-details-marker { display: none; }
+.rs-day-fold.has-gap summary { padding-left: var(--sp-3); box-shadow: inset 4px 0 0 var(--lv-critical-line); }
+.rs-fold-day { font-size: var(--t-body); font-weight: 700; color: var(--ink); }
+.rs-fold-who { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); font-size: var(--t-small); color: var(--ink-2); overflow-wrap: anywhere; }
+.rs-fold-who .is-gap { color: var(--lv-critical-ink); font-weight: 700; }
+.rs-day-fold details[open] summary .rs-fold-who { display: none; }
+.rs-fold-body { display: grid; gap: var(--sp-3); padding: 0 0 var(--sp-4); }
+.rs-day-fold.has-gap .rs-fold-body { padding-left: var(--sp-3); }
+.rs-fold-shift { display: grid; gap: var(--sp-2); padding: var(--sp-3); border-radius: var(--r-2); background: var(--surface); border: 1px solid var(--line); }
+.rs-fold-shift.is-now { border-color: var(--accent-text); box-shadow: inset 4px 0 0 var(--accent-text); }
+.rs-fold-shift.is-empty .rs-none { color: var(--lv-critical-ink); }
+.rs-fold-h { margin: 0; font-size: var(--t-small); font-weight: 700; color: var(--ink-2); }
+.rs-fold-edit { justify-self: start; min-height: var(--tap-console); }

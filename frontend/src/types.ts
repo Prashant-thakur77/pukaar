@@ -1219,6 +1219,32 @@ export interface SensorVillage {
   findings: WatchFinding[];
 }
 
+export interface RainObsDevice {
+  device_id: string;
+  source: string;
+  at: string;
+  fresh: boolean;
+  simulated: boolean;
+  quality: string;
+  quality_reasons: string[];
+  stuck: boolean;
+  /** mm in each window: "15min", "1h", "3h". */
+  windows: Record<string, number | null>;
+  eval_level: Level;
+  confirmed_level: Level;
+  critical_like: boolean;
+  rate_mm_h: number | null;
+}
+
+export interface RainObsView {
+  devices: RainObsDevice[];
+  /** "watch_15min", "warning_1h", …: the mm that raise a level in each window. */
+  bands: Record<string, number>;
+  thresholds_source?: string;
+  level?: Level;
+  simulated_level?: Level;
+}
+
 export interface SensorBoard {
   generated_at: string;
   window_start: string;
@@ -1231,6 +1257,8 @@ export interface SensorBoard {
   villages: SensorVillage[];
   /** Sirens, pradhan boxes, relays and gauges in the device registry (health fails closed). */
   devices?: PublicDevice[];
+  /** Observed rain per village from tipping buckets (services/rain_obs.py); a village with none is absent. */
+  rain_obs?: Record<string, RainObsView>;
   watch: {
     checks: { kind: string; en: string; hi: string }[];
     findings: WatchFinding[];

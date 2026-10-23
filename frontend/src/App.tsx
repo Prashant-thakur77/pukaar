@@ -51,13 +51,11 @@ const Report = lazyPage(() => import('./pages/Report'));
 const Landing = lazyPage(() => import('./pages/Landing'));
 const Live = lazyPage(() => import('./pages/Live'));
 const How = lazyPage(() => import('./pages/How'));
-const Agents = lazyPage(() => import('./pages/Agents'));
-const Sensors = lazyPage(() => import('./pages/Sensors'));
 const VillagePage = lazyPage(() => import('./pages/VillagePage'));
 const Track = lazyPage(() => import('./pages/Track'));
 const Safe = lazyPage(() => import('./pages/Safe'));
 const Approve = lazyPage(() => import('./pages/Approve'));
-const Impact = lazyPage(() => import('./pages/Impact'));
+const Proof = lazyPage(() => import('./pages/Proof'));
 const Pilot = lazyPage(() => import('./pages/Pilot'));
 const Login = lazyPage(() => import('./pages/Login'));
 const Roster = lazyPage(() => import('./pages/console/Roster'));
@@ -78,10 +76,13 @@ const SystemSection = section('SystemSection');
 const SettingsSection = section('SettingsSection');
 const NotFound = lazyPage(() => import('./pages/NotFound'));
 
-/** The old officer paths open their console section, with the same query (an audit filter, a roster week). */
-function MovedTo({ to }: { to: string }) {
+/**
+ * Old paths open their new place, so no link breaks: the officer pages their console section, with the same query
+ * (an audit filter, a roster week); /agents and /sensors their chapter of /how; /impact is /proof.
+ */
+function MovedTo({ to, hash: chapter }: { to: string; hash?: string }) {
   const { search, hash } = useLocation();
-  return <Navigate to={`${to}${search}${hash}`} replace />;
+  return <Navigate to={`${to}${search}${chapter ?? hash}`} replace />;
 }
 
 function PageFallback() {
@@ -102,15 +103,16 @@ export default function App() {
             <Route index element={<Landing />} />
             <Route path="live" element={<Live />} />
             <Route path="how" element={<How />} />
-            <Route path="agents" element={<Agents />} />
-            <Route path="sensors" element={<Sensors />} />
+            <Route path="agents" element={<MovedTo to="/how" hash="#agents" />} />
+            <Route path="sensors" element={<MovedTo to="/how" hash="#sensors" />} />
             <Route path="report" element={<Report />} />
             <Route path="t/:code" element={<Track />} />
             <Route path="safe/:token" element={<Safe />} />
             <Route path="village/:id" element={<VillagePage />} />
             <Route path="audit" element={<MovedTo to="/console/audit" />} />
             <Route path="roster" element={<MovedTo to="/console/roster" />} />
-            <Route path="impact" element={<Impact />} />
+            <Route path="proof" element={<Proof />} />
+            <Route path="impact" element={<MovedTo to="/proof" />} />
             <Route path="pilot" element={<Pilot />} />
             <Route path="login" element={<Login />} />
             <Route path="*" element={<NotFound />} />

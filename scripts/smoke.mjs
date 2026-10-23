@@ -205,6 +205,25 @@ async function settle(page) {
   await page.waitForTimeout(800);
 }
 
+/** The pages that merged (redesign pass 3) still answer at their old addresses. */
+async function movedChecks(page) {
+  const moved = [
+    ['/agents', '/how#agents'],
+    ['/sensors', '/how#sensors'],
+    ['/impact', '/proof'],
+    ['/audit', '/console/audit'],
+  ];
+  for (const [from, to] of moved) {
+    await check('moved', `${from} opens ${to}`, async () => {
+      await page.goto(`${SITE}${from}`, { waitUntil: 'load', timeout: 45000 });
+      await page.waitForFunction((want) => location.pathname + location.hash === want || location.pathname === '/login', to, { timeout: 20000 });
+      const at = await page.evaluate(() => location.pathname + location.hash);
+      expect(at === to || (to.startsWith('/console') && at === '/login'), `landed on ${at}`);
+      return at;
+    });
+  }
+}
+
 async function landingChecks(page) {
   await check('landing', 'status headline loads', async () => {
     await page.waitForFunction(
@@ -244,7 +263,7 @@ async function landingChecks(page) {
 
 async function browserChecks() {
   const code = await trackCode();
-  const pages = ['/', '/live', '/how', '/agents', '/sensors', '/impact', '/report', '/village/gohar', `/t/${code}`, '/login'].filter(
+  const pages = ['/', '/live', '/how', '/proof', '/pilot', '/report', '/village/gohar', `/t/${code}`, '/login'].filter(
     (p) => !ONLY.length || ONLY.includes(p),
   );
   const browser = await chromium.launch({ headless: true, ...(CHROME ? { executablePath: CHROME } : {}) });
@@ -300,6 +319,7 @@ async function browserChecks() {
             return `${axe.passes.length} rules passed`;
           });
           if (path === '/' && vp.name === '1440') await landingChecks(page);
+          if (path === '/' && vp.name === '1440') await movedChecks(page);
         } catch (e) {
           record('page', `${label} loads`, false, e instanceof Error ? e.message.split('\n')[0] : String(e));
         }

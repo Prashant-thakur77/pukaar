@@ -4,7 +4,7 @@ import { useT } from '../i18n';
 import { applyTheme, usePrefs } from '../store';
 
 /** The story pages are the only ones set in the display serif. */
-const isStoryRoute = (p: string) => /^\/(how|agents|sensors|impact|pilot)?\/?$/.test(p);
+const isStoryRoute = (p: string) => /^\/(how|proof|pilot)?\/?$/.test(p);
 
 /** <html lang>, the theme (villager pages light unless dark was chosen) and the story serif, for every layout. */
 export function useDocumentPrefs() {

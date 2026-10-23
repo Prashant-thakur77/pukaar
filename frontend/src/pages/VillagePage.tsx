@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, Mountain, Ruler, Tent, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, ListChecks, Megaphone, RadioTower, Scale, TrendingUp, Waves } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Mountain, Ruler, Tent, BatteryMedium, ChevronDown, ClipboardCheck, CloudRain, FileText, Gauge as GaugeIcon, HeartHandshake, History, ListChecks, Megaphone, RadioTower, Scale, Waves } from 'lucide-react';
 import { api } from '../api';
 import { AlertStatusChip, DeliveryChips, ReplayChip, ReportStateChip } from '../components/Chips';
 import { Gauge } from '../components/Gauge';
@@ -13,7 +13,9 @@ import { ReadinessCard, SoilCard } from '../components/Readiness';
 import { RiverOdds } from '../components/RiverEvidence';
 import { GaugeLedger } from '../components/GaugeHealth';
 import { Reveal } from '../components/Reveal';
-import { Sparkline } from '../components/Sparkline';
+import { RiverLine } from '../components/RiverLine';
+import { RiverNow } from '../components/RiverNow';
+import { dailyPoints, toPoints } from '../lib/riverLine';
 import { TimeToEar } from '../components/TimeToEar';
 import { WhereToGo } from '../components/WhereToGo';
 import { ActionList, Freshness, LevelBanner, StickyActionBar } from '../components/Answer';
@@ -28,7 +30,7 @@ import { DeniedNote, EmptyState, ErrorState, Skeleton, SkeletonCards } from '../
 import { SirenLastTested } from '../components/SirenLastTested';
 import { usePoll } from '../hooks/usePoll';
 import { CHANNELS, PUBLIC_CHANNELS } from '../lib/live';
-import { enumLabels, useT } from '../i18n';
+import { enumLabels, levelWord, useT } from '../i18n';
 import { fmtAgo, fmtDate, fmtNumber, fmtTime } from '../lib/format';
 import { isLevel } from '../lib/levels';
 import { describeContradiction, describeRule } from '../lib/rules';
@@ -214,12 +216,12 @@ function GaugeCard({ gauge, villageId, onChanged }: { gauge: GaugeView | null | 
           </div>
           <div className="trend-card c-gauge">
             <p className="small">{t('gauge.trend')}</p>
-            <Sparkline
-              values={gauge.series.map((p) => p.cm)}
+            <RiverLine
+              observed={gauge.series.map((p) => ({ t: Date.parse(p.at), v: p.cm }))}
               label={t('gauge.title')}
-              unit=" cm"
-              height={80}
-              marks={bands ? (['watch', 'warning', 'critical'] as const).map((l) => ({ value: bands[l], className: `lv-${l}`, label: l })) : []}
+              height={140}
+              offline={gauge.fresh ? null : t('gauge.stale')}
+              lines={bands ? (['watch', 'warning', 'critical'] as const).map((l) => ({ level: l, value: bands[l], word: `${levelWord(l, lang)} ${fmtNumber(bands[l], lang)}` })) : []}
             />
           </div>
         </div>
@@ -441,6 +443,13 @@ export default function VillagePage() {
   const trace = latestAlert?.decision_trace ?? null;
   // One time axis: live readings, or only the replay's while a replay runs (never 2023 and 2026 together).
   const readings = data && v ? data.readings.filter((r) => Boolean(r.replay) === Boolean(v.replay)).sort((a, b) => a.at.localeCompare(b.at)) : [];
+  // The river line (S1): the /now series (on the phone already), else the detail's readings; the forecast days after it.
+  const riverObs = now.river?.points?.length ? toPoints(now.river.points) : readings.map((r) => ({ t: Date.parse(r.at), v: r.discharge }));
+  const newest = readings[readings.length - 1] ?? null;
+  const riverFc = dailyPoints(newest?.discharge_forecast, riverObs[riverObs.length - 1]?.t ?? -Infinity);
+  const rainObs = readings.filter((r) => r.rain_24h_mm != null).map((r) => ({ t: Date.parse(r.at), v: r.rain_24h_mm as number }));
+  const traceBands = (trace?.evidence ?? []).find((e) => e.kind === 'reading')?.rain_bands_mm;
+  const rainBands = { ...IMD_BANDS, ...(traceBands ?? {}) } as typeof IMD_BANDS;
   // Hysteresis: a level rises at once but drops one step only after 3 calm sweeps.
   const traceHolds = Boolean(v && trace && latestAlert?.level === v.level && holdLine(trace, lang));
   const hold =
@@ -562,29 +571,38 @@ export default function VillagePage() {
           <WhereToGo village={v} />
         </section>
 
-        {readings.length > 1 && (
-          <section aria-labelledby="trend-h">
-            <h2 id="trend-h" className="h-sec">
-              <TrendingUp aria-hidden="true" /> {t('village.trend')}
-            </h2>
-            <div className="trend-grid">
-              <div className="card trend-card c-rain">
-                <p className="small">{t('village.trend.rain')}</p>
-                <Sparkline values={readings.map((r) => r.rain_24h_mm)} label={t('village.trend.rain')} unit=" mm" />
-                <p className="small muted">
-                  {fmtTime(readings[0].at, lang)} → {fmtTime(readings[readings.length - 1].at, lang)}
-                </p>
-              </div>
-              <div className="card trend-card c-river">
-                <p className="small">{t('village.trend.discharge')}</p>
-                <Sparkline
-                  values={readings.map((r) => r.discharge)}
-                  label={t('village.trend.discharge')}
-                  marks={v.thresholds ? (['watch', 'warning', 'critical'] as const).map((l) => ({ value: v.thresholds![l], className: `lv-${l}`, label: l })) : []}
+        {(riverObs.length > 1 || readings.length > 1) && (
+          <section aria-labelledby="river-h" className="v-river">
+            <RiverNow
+              observed={riverObs}
+              forecast={riverFc}
+              thresholds={v.thresholds ?? now.river?.thresholds ?? null}
+              unit="m³/s"
+              title={lang === 'hi' ? 'नदी अभी' : 'The river now'}
+              headingId="river-h"
+              replay={Boolean(v.replay)}
+              source={
+                lang === 'hi'
+                  ? 'बहाव: GloFAS (Open-Meteo) · रेखाएँ: 2, 5 और 20 साल वाले बाढ़-स्तर'
+                  : 'Flow: GloFAS (Open-Meteo) · lines: the 2-, 5- and 20-year flood levels'
+              }
+            />
+            {rainObs.length > 1 && (
+              <div className="v-rain">
+                <h3 className="rn-h3">{lang === 'hi' ? 'बारिश: अगले 24 घंटे का अनुमान' : 'Rain: the next 24 hours, forecast'}</h3>
+                <RiverLine
+                  observed={rainObs}
+                  lines={(['watch', 'warning', 'critical'] as const).map((l) => ({ level: l, value: rainBands[l], word: `${levelWord(l, lang)} ${fmtNumber(rainBands[l], lang, 1)}` }))}
+                  height={150}
+                  label={
+                    lang === 'hi'
+                      ? `अगले 24 घंटे में बारिश का अनुमान ${fmtNumber(rainObs[rainObs.length - 1].v, lang, 1)} मिमी; IMD सीमाएँ ${fmtNumber(rainBands.watch, lang, 1)}, ${fmtNumber(rainBands.warning, lang, 1)} और ${fmtNumber(rainBands.critical, lang, 1)} मिमी`
+                      : `Rain forecast for the next 24 h ${fmtNumber(rainObs[rainObs.length - 1].v, lang, 1)} mm; IMD bands ${rainBands.watch}, ${rainBands.warning} and ${rainBands.critical} mm`
+                  }
                 />
-                <p className="small muted">{v.thresholds ? t('village.trend.lines') : t('village.no.thresholds')}</p>
+                <p className="rn-src">{lang === 'hi' ? 'मिमी · IMD की भारी, बहुत भारी और अति भारी बारिश की सीमाएँ' : 'mm · IMD heavy, very heavy and extremely heavy rain bands'}</p>
               </div>
-            </div>
+            )}
           </section>
         )}
 

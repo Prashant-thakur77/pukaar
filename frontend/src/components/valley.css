@@ -1,0 +1,79 @@
+/* S2, the valley (components/ValleyMap.tsx). Paper by day; at night the ridges catch the river's blue. */
+.vm { position: relative; margin: 0; overflow: hidden; }
+.vm-off { display: none; }
+/* A phone: the drawing from Mandi eastward, larger, so the four Mandi villages and their names have room. */
+@media (max-width: 639px) {
+  .vm-art { width: calc(100% * 720 / 460); margin-left: calc(-100% * 260 / 460); }
+  .vm-off {
+    position: absolute; left: 0; top: 4%; display: inline-flex; align-items: center; gap: var(--sp-1);
+    font-size: var(--t-small); font-weight: 700; color: var(--ink);
+  }
+  .vm-off-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--lv); }
+}
+.vm-art { position: relative; aspect-ratio: 720 / 400; }
+.vm-art svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.vm-art svg path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.vm-ridges path { stroke: var(--ink-3); stroke-width: 1; opacity: 0.3; }
+.vm-ridges path.is-near { opacity: 0.45; }
+.vm-streams path { stroke: var(--accent); stroke-width: 1.6; opacity: 0.6; }
+.vm-river { stroke: var(--accent); stroke-width: 3.5; }
+.vm-town { fill: var(--surface); stroke: var(--ink-3); stroke-width: 1.5; }
+:root[data-theme='dark'] .vm-ridges path { stroke: var(--accent); opacity: 0.25; }
+:root[data-theme='dark'] .vm-ridges path.is-near { opacity: 0.35; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .vm-ridges path { stroke: var(--accent); opacity: 0.25; }
+  :root:not([data-theme='light']) .vm-ridges path.is-near { opacity: 0.35; }
+}
+
+/* Words on the drawing: HTML, so they stay 16 px on a phone. */
+.vm-word { position: absolute; transform: translate(-50%, -50%); font-size: var(--t-small); line-height: 1.3; pointer-events: none; white-space: nowrap; }
+.vm-beas { color: var(--accent-text); font-weight: 600; }
+.vm-town-word { color: var(--ink-3); transform: translate(-50%, 30%); }
+
+/* A village: the disc (live level colour and its icon), then its name. */
+.vm-v {
+  position: absolute; display: inline-flex; align-items: center; gap: var(--sp-2);
+  transform: translate(-14px, -50%); cursor: default;
+}
+.vm-v.is-t { flex-direction: column-reverse; gap: var(--sp-1); transform: translate(-50%, calc(-100% + 14px)); }
+.vm-v.is-b { flex-direction: column; gap: var(--sp-1); transform: translate(-50%, -14px); }
+.vm-mark {
+  position: relative; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--lv); color: var(--lv-on); box-shadow: 0 0 0 3px var(--bg);
+}
+.vm-mark svg { width: 16px; height: 16px; }
+.vm-v.lv-critical .vm-mark { box-shadow: 0 0 0 3px var(--bg), 0 0 0 4px var(--lv-critical-edge); }
+.vm-name {
+  font-size: var(--t-small); line-height: 1.3; font-weight: 700; color: var(--ink); white-space: nowrap;
+  padding: 0 var(--sp-1); border-radius: var(--r-1); background: color-mix(in srgb, var(--bg) 82%, transparent);
+}
+.vm-v.is-hot .vm-mark { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--ink); }
+.vm-v.is-hot .vm-name { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Pause, bottom right: only when something repeats (a ring at Watch or above). */
+.vm-tools { display: flex; justify-content: flex-end; margin-top: var(--sp-2); }
+.vm-pause {
+  display: inline-flex; align-items: center; gap: var(--sp-1); min-height: var(--tap); padding: 0 var(--sp-3);
+  border: 1px solid var(--line-strong); border-radius: var(--r-pill); background: var(--surface); color: var(--ink);
+  font: inherit; font-size: var(--t-small); font-weight: 600; cursor: pointer;
+}
+.vm-pause svg { width: 16px; height: 16px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .vm:not(.is-still) .vm-river { stroke-dasharray: 1; animation: vm-draw var(--dur-story) var(--ease-out) both; }
+  .vm-v.is-raised .vm-mark::after {
+    content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 2px var(--lv);
+    animation: vm-ring var(--dur-ring) var(--ease-out) var(--dur-story) infinite;
+  }
+  .vm.is-paused .vm-river, .vm.is-paused .vm-mark::after { animation-play-state: paused; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vm-tools { display: none; }
+}
+@keyframes vm-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+/* One ring in the first 15 % of the 8 s cycle (1.2 s), then still. */
+@keyframes vm-ring {
+  0% { transform: scale(1); opacity: 0.9; }
+  15% { transform: scale(2.6); opacity: 0; }
+  100% { transform: scale(2.6); opacity: 0; }
+}

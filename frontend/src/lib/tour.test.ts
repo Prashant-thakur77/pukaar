@@ -20,7 +20,7 @@ describe('tour steps', () => {
   });
 
   it('walks the landing, live map, funnel, village, how and impact in order', () => {
-    expect(TOUR_STEPS.map((s) => s.route ?? 'end')).toEqual(['/', '/live', '/live', '/village/gohar', '/village/gohar', '/how', '/impact', 'end']);
+    expect(TOUR_STEPS.map((s) => s.route ?? 'end')).toEqual(['/', '/live', '/live', '/village/gohar', '/village/gohar', '/how', '/proof', 'end']);
   });
 });
 

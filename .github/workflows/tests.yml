@@ -42,3 +42,6 @@ jobs:
       - run: npm run check:tokens
       - run: npm test
       - run: npm run build
+      # The font-size floor (16 px public, 14 px console) on the built app, its API answered by scripts/mock-api.mjs.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check:fonts

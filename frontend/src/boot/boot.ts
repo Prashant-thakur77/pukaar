@@ -234,7 +234,7 @@ function header(): HTMLElement {
       'div',
       { class: 'hd-inner' },
       h('a', { href: '/', class: 'hd-brand', 'aria-label': 'पुकार Pukaar: गाँवों का हाल · village status' }, brand()),
-      h('nav', { class: 'hd-nav', 'aria-label': 'Main' }, navLink('/', tr('status')), navLink('/report', tr('report')), navLink('/how', tr('how'), true), navLink('/impact', tr('proof'), true)),
+      h('nav', { class: 'hd-nav', 'aria-label': 'Main' }, navLink('/', tr('status')), navLink('/report', tr('report')), navLink('/how', tr('how')), navLink('/proof', tr('proof'), true)),
       h(
         'div',
         { class: 'hd-tools' },

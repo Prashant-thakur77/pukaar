@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ComponentType } from 'react';
 import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   CalendarClock,
@@ -25,9 +25,10 @@ import { useHandOff } from '../../boot/handoff';
 import { LivePill } from '../../components/LivePill';
 import { Call112, PukaarMark } from '../../components/Shell';
 import { useDocumentPrefs } from '../../hooks/useDocumentPrefs';
-import { usePoll } from '../../hooks/usePoll';
+import { usePoll, type PollState } from '../../hooks/usePoll';
 import { useT, type Key } from '../../i18n';
 import { CHANNELS } from '../../lib/live';
+import { DISTRICT_HI } from '../../lib/answerText';
 import { readLS, useAuth, usePrefs, writeLS, type ThemePref } from '../../store';
 import { ConsoleCtx, useConsole, type ConsoleData } from './consoleContext';
 import '../../styles/console.css';
@@ -41,6 +42,7 @@ import '../../styles/console-shell.css';
  */
 
 const DEMO_KEY = 'pukaar.console.demo';
+const DISTRICT_KEY = 'pukaar.console.district';
 const OPEN_REPORT = new Set(['received', 'transcribing', 'unverified', 'verified_auto', 'verified']);
 
 export default function ConsoleLayout() {
@@ -76,6 +78,20 @@ function Console() {
     writeLS(DEMO_KEY, on ? '1' : '0');
     setDemoPref(on);
   }, []);
+  // The district selector (spec 4.9): one district at a time, or all; remembered on this device.
+  const [districtPref, setDistrictPref] = useState(() => readLS(DISTRICT_KEY) ?? '');
+  const districts = useMemo(() => [...new Set((villages.data ?? []).map((v) => v.district))].sort(), [villages.data]);
+  const district = districts.includes(districtPref) ? districtPref : '';
+  const setDistrict = useCallback((d: string) => {
+    writeLS(DISTRICT_KEY, d);
+    setDistrictPref(d);
+  }, []);
+  const inDistrict = useMemo(() => {
+    if (!district) return null;
+    return new Set((villages.data ?? []).filter((v) => v.district === district).map((v) => v.id));
+  }, [district, villages.data]);
+  const only = <T extends { village_id: string }>(p: PollState<T[]>): PollState<T[]> =>
+    inDistrict && p.data ? { ...p, data: p.data.filter((x) => inDistrict.has(x.village_id)) } : p;
   const refreshAlerts = useCallback(() => {
     void pending.refresh();
     void alerts.refresh();
@@ -87,18 +103,22 @@ function Console() {
     officer,
     judge,
     villageIds: me.data?.village_ids ?? user?.village_ids ?? [],
-    villages,
-    pending,
-    alerts,
+    villages: inDistrict && villages.data ? { ...villages, data: villages.data.filter((v) => inDistrict.has(v.id)) } : villages,
+    pending: only(pending),
+    alerts: only(alerts),
     health,
     roster,
-    reports,
+    reports: only(reports),
     showDemo,
     setShowDemo,
     refreshAlerts,
+    district,
+    districts,
+    setDistrict,
   };
-  const pendingN = (pending.data ?? []).filter((a) => a.status === 'pending').length;
-  const openReports = (reports.data ?? []).filter((r) => OPEN_REPORT.has(r.state)).length;
+  const pendingAll = data.pending;
+  const pendingN = (pendingAll.data ?? []).filter((a) => a.status === 'pending').length;
+  const openReports = (data.reports.data ?? []).filter((r) => OPEN_REPORT.has(r.state)).length;
   return (
     <ConsoleCtx.Provider value={data}>
       <div className={`cs${officer ? '' : ' is-pradhan'}`}>
@@ -325,6 +345,30 @@ function OnDuty() {
   return <p className="cs-duty">{text}</p>;
 }
 
+/** "ज़िला: मंडी ▾": the console shows one district, or all of them. Only when there is more than one. */
+function DistrictPick() {
+  const { lang } = useT();
+  const c = useConsole();
+  const id = useId();
+  if (c.districts.length < 2) return null;
+  const name = (d: string) => (lang === 'hi' ? DISTRICT_HI[d] ?? d : d);
+  return (
+    <label className="cs-district" htmlFor={id}>
+      <span className="cs-district-k">{lang === 'hi' ? 'ज़िला' : 'District'}</span>
+      <span className="select-wrap">
+        <select id={id} value={c.district} onChange={(e) => c.setDistrict(e.target.value)}>
+          <option value="">{lang === 'hi' ? 'सभी ज़िले' : 'All districts'}</option>
+          {c.districts.map((d) => (
+            <option key={d} value={d}>
+              {name(d)}
+            </option>
+          ))}
+        </select>
+      </span>
+    </label>
+  );
+}
+
 function ConsoleHeader({ pendingN }: { pendingN: number }) {
   const { t, lang, setLang, other } = useT();
   const c = useConsole();
@@ -349,6 +393,7 @@ function ConsoleHeader({ pendingN }: { pendingN: number }) {
           </span>
           <span className="cs-brand-word">{c.officer ? t('cs.brand') : t('console.title.pradhan')}</span>
         </Link>
+        <DistrictPick />
         <OnDuty />
         <div className="cs-tools">
           <LivePill header />

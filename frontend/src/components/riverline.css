@@ -1,0 +1,109 @@
+/* S1, the river line (components/RiverLine.tsx). The drawing stretches to its box; every word is HTML at 16 px. */
+.rl { --rl-bg: var(--bg); margin: 0; display: grid; gap: var(--sp-2); min-width: 0; }
+.rl-plot { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+/* clip: the marker and the veil move with transform across a full-width box; nothing may widen the page. */
+.rl-box { position: relative; min-width: 0; height: 100%; overflow: clip; overflow-clip-margin: var(--sp-2); }
+.rl-box svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.rl-box svg * { vector-effect: non-scaling-stroke; fill: none; }
+.rl-grid { stroke: var(--line); stroke-width: 1; }
+.rl-th { stroke-width: 2; }
+.rl-th.lv-watch { stroke: var(--lv-watch-line); }
+.rl-th.lv-warning { stroke: var(--lv-warning-line); }
+.rl-th.lv-critical { stroke: var(--lv-critical-line); }
+.rl-obs { stroke: var(--accent); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.rl-fc { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 2 6; stroke-linecap: round; }
+.rl-gap { stroke: var(--ink-3); stroke-width: 2; stroke-dasharray: 4 5; }
+.rl.is-stale .rl-obs { stroke: var(--ink-3); }
+.rl.is-offline .rl-obs { stroke-dasharray: 8 6; stroke: var(--ink-3); }
+
+/* The level lines' words, on the line at the right, on a paper chip so the river never runs through them. */
+.rl-word {
+  position: absolute; right: var(--sp-1); z-index: 1;
+  padding: 0 var(--sp-1); border-radius: var(--r-1); background: var(--rl-bg);
+  font-size: var(--t-small); line-height: 24px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.rl-word.lv-watch { color: var(--lv-watch-ink); }
+.rl-word.lv-warning { color: var(--lv-warning-ink); }
+.rl-word.lv-critical { color: var(--lv-critical-ink); }
+
+/* The story's veil: what had not happened yet, dimmed. Moved with transform, like the marker. */
+.rl-veil { position: absolute; inset: 0 auto 0 0; width: 100%; background: var(--rl-bg); opacity: 0.74; transform: translateX(var(--x)); pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .rl-veil { transition: transform var(--dur-slow) var(--ease-in-out); }
+}
+
+/* "Now": a hairline, the dot on the line and its time. One element moved with transform (the story moves it). */
+.rl-now {
+  position: absolute; inset: 0 auto 0 0; width: 100%; pointer-events: none;
+  transform: translateX(var(--x));
+}
+.rl-hair { position: absolute; left: 0; top: var(--sp-5); bottom: 0; width: 0; border-left: 1px solid var(--ink-2); }
+.rl-dot {
+  position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 3px var(--rl-bg);
+  transform: translateY(var(--y));
+}
+.rl-now-word {
+  position: absolute; top: 0; left: 0; transform: translateX(-50%);
+  font-size: var(--t-small); line-height: 24px; font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.rl-now.is-start .rl-now-word { transform: translateX(-8px); }
+.rl-now.is-end .rl-now-word { transform: translateX(calc(-100% + 8px)); }
+.rl.is-stale .rl-now-word, .rl.is-offline .rl-now-word { color: var(--lv-warning-ink); }
+.rl.is-stale .rl-dot, .rl.is-offline .rl-dot { background: var(--ink-3); }
+
+/* The numbers, on the right, in step with the grid. */
+.rl-y { position: relative; width: 3.2em; }
+.rl-y span {
+  position: absolute; right: 0; transform: translateY(-50%);
+  font-size: var(--t-small); line-height: 1; color: var(--ink-3); font-variant-numeric: tabular-nums;
+}
+/* Time, then the date where the day changes; never rotated. */
+.rl-x { position: relative; height: 48px; margin-right: 3.2em; }
+.rl-x span {
+  position: absolute; top: 0; transform: translateX(-50%);
+  display: grid; justify-items: center; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.rl-x span.is-first { transform: none; justify-items: start; }
+.rl-x span.is-last { transform: translateX(-100%); justify-items: end; }
+.rl-x b { font-weight: 600; color: var(--ink-2); }
+.rl-x small { font-size: var(--t-small); }
+
+/* Motion, only when it is welcome: the line draws in once; the dot follows it; a crossed line pulses once. */
+@media (prefers-reduced-motion: no-preference) {
+  .rl-now { transition: transform var(--dur-slow) var(--ease-in-out); }
+  .rl-dot { transition: transform var(--dur-base) var(--ease-out); }
+  .rl.is-drawn .rl-obs-g { animation: rl-wipe var(--dur-draw) var(--ease-out) both; }
+  .rl.is-drawn .rl-dot, .rl.is-drawn .rl-now-word { animation: rl-in var(--dur-quick) var(--ease-out) var(--dur-draw) both; }
+  .rl-word.is-pulse { animation: rl-pulse var(--dur-story) var(--ease-out) 1; }
+}
+@keyframes rl-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes rl-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rl-pulse { 0%, 100% { box-shadow: 0 0 0 0 currentColor; } 30% { box-shadow: 0 0 0 4px currentColor; } }
+
+/* C9, the ladder under the chart: the same lines in words, highest first, "now" in its place. */
+.rl-ladder { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--line); }
+.rl-ladder li {
+  display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 0 var(--sp-3); align-items: baseline;
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--line); border-left: 4px solid transparent;
+  font-size: var(--t-small); line-height: var(--lh-small);
+}
+.rl-ladder li.lv-watch { border-left-color: var(--lv-watch-line); }
+.rl-ladder li.lv-warning { border-left-color: var(--lv-warning-line); }
+.rl-ladder li.lv-critical { border-left-color: var(--lv-critical-line); }
+.rl-ladder li.is-now { border-left-color: var(--accent); background: var(--accent-tint); }
+.rl-l-v { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.rl-l-w { font-weight: 700; color: var(--ink); }
+.rl-l-n { grid-column: 2; color: var(--ink-2); }
+.rl-ladder li.lv-watch .rl-l-w { color: var(--lv-watch-ink); }
+.rl-ladder li.lv-warning .rl-l-w { color: var(--lv-warning-ink); }
+.rl-ladder li.lv-critical .rl-l-w { color: var(--lv-critical-ink); }
+
+/* "नदी अभी": the headline over the line (components/RiverNow.tsx). */
+.rn { display: grid; gap: var(--sp-3); min-width: 0; }
+.rn-h { margin: 0; font-size: var(--t-h2); line-height: var(--lh-h2); font-weight: 700; color: var(--ink); }
+.rn-head { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-2); }
+.rn-v { font-size: var(--t-h2); line-height: 1.1; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.rn-way { font-weight: 700; color: var(--ink); }
+.rn-ahead { flex-basis: 100%; }
+.rn-src { margin: 0; font-size: var(--t-small); line-height: var(--lh-small); color: var(--ink-3); }

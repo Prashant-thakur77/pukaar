@@ -89,8 +89,8 @@ const reports = token ? await (await fetch(`${API}/reports`, { headers: { Author
 const code = reports[0]?.track_code ?? 'UNKNOWN';
 
 const PAGES = [
-  ['/', false], ['/live', false], ['/report', false], ['/village/thunag', false], ['/how', false], ['/sensors', false],
-  ['/agents', false], ['/impact', false], ['/pilot', false], [`/t/${code}`, false], ['/login', false],
+  ['/', false], ['/live', false], ['/report', false], ['/village/thunag', false], ['/how', false], ['/proof', false],
+  ['/pilot', false], [`/t/${code}`, false], ['/login', false],
   ['/console/inbox', true], ['/console/inbox?v=sent', true], ['/console/reports', true], ['/console/settings', true],
   ['/console/audit', true], ['/console/roster', true], ['/status.html', false],
 ];

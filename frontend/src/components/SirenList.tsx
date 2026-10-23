@@ -20,17 +20,16 @@ function testText(silent: DeviceTest | null | undefined, audible: DeviceTest | n
   };
 }
 
-/** /sensors: every registered siren, pradhan box, relay and gauge, with health that fails closed. */
+/** /how#sensors: every registered siren, pradhan box and relay, with health that fails closed. */
 export function SirenList({ devices, names }: { devices?: PublicDevice[] | null; names: Map<string, string> }) {
   const { lang } = useT();
   const list = devices ?? [];
   return (
-    <section className="how-band siren-band" aria-labelledby="sn-sirens-h">
-      <div className="wrap-wide">
-        <p className="how-eyebrow">{st(lang, 'list.eyebrow')}</p>
-        <h2 id="sn-sirens-h" className="how-h">
+    <section className="siren-band" aria-labelledby="sn-sirens-h">
+      <div>
+        <h3 id="sn-sirens-h" className="xp-h3">
           {st(lang, 'list.title')}
-        </h2>
+        </h3>
         <p className="sn-honest">
           <Info aria-hidden="true" />
           {st(lang, 'list.honest')}

@@ -40,8 +40,10 @@ import { istClock, isStale } from '../../lib/answerText';
 import { auditLinkForAlert } from '../../lib/audit';
 import { capXmlUrl } from '../../lib/cap';
 import { hasAfterAction } from '../../lib/afterAction';
-import { evidenceLines, type EvidenceLine } from '../../lib/evidence';
+import { evidenceLines, shortReason, type EvidenceLine } from '../../lib/evidence';
 import { fmtNumber } from '../../lib/format';
+import { dailyPoints, toPoints } from '../../lib/riverLine';
+import { RiverNow } from '../../components/RiverNow';
 import { isSnoozed, isTyping, pruneSnoozes, readSnoozes, sortQueue, step, waitedMinutes, writeSnoozes, type Snoozes } from '../../lib/inbox';
 import { sirenApi } from '../../lib/sirens';
 import type { Lang } from '../../store';
@@ -280,7 +282,7 @@ function QueueRow({ alert: a, selected, now, village }: { alert: Alert; selected
   const { t, lang } = useT();
   const waited = waitedMinutes(a.created_at, now);
   const pending = a.status === 'pending';
-  const rule = a.decision_trace?.rules_fired?.[0]?.split(':')[0];
+  const why = shortReason(a.decision_trace?.rules_fired, lang);
   return (
     <Link to={`/console/inbox/${a.id}${pending ? '' : '?v=sent'}`} className={`ib-row lv-${a.level}${selected ? ' is-selected' : ''}`} aria-current={selected ? 'true' : undefined}>
       <span className="ib-row-top">
@@ -292,11 +294,11 @@ function QueueRow({ alert: a, selected, now, village }: { alert: Alert; selected
         {pending && a.level === 'critical' && <span className="ib-urgent">{t('inbox.urgent')}</span>}
         {a.replay && <ReplayChip />}
       </span>
+      {why && <span className="ib-why">{why}</span>}
       <span className="ib-row-meta">
         {pending ? <span>{t('inbox.waiting', { n: waited })}</span> : <AlertStatusChip status={a.status} />}
         <span>{t('inbox.people', { n: fmtNumber(a.recipients_count, lang) })}</span>
         {village?.population ? <span className="ib-pop">~{fmtNumber(village.population, lang)}</span> : null}
-        {rule && <code className="ib-rule">{rule}</code>}
       </span>
       <ChevronRight aria-hidden="true" className="ib-go" />
     </Link>
@@ -587,54 +589,31 @@ function EvidenceList({ lines }: { lines: EvidenceLine[] }) {
 }
 
 /**
- * The river forecast in one small drawing: today's flow and the days ahead, against the watch, warning and danger
- * lines, each labelled on the line (never in a legend). No chart library; nothing animates.
+ * The river in the decision (S1, compact): the last day's flow from the village's /now answer, the forecast days
+ * after it, and the watch, warning and danger lines labelled on the lines. The ladder is left out: the evidence
+ * lines under it say the same in words.
  */
 function MiniRiver({ village }: { village: Village }) {
-  const { t, lang } = useT();
+  const { lang } = useT();
+  const { data } = usePoll(() => api.villageNow(village.id), [village.id], 120_000);
   const r = village.latest_reading;
   const th = village.thresholds;
-  const pts = [...(r?.discharge != null ? [r.discharge] : []), ...(r?.discharge_forecast ?? []).map((p) => p.value)].filter((v): v is number => v != null).slice(0, 8);
-  if (!th || pts.length < 2) return null;
-  // The drawing stretches to its box; the words are HTML beside it, so they stay 14 px at every width.
-  const lo = Math.min(...pts, th.watch) * 0.85;
-  const hi = Math.max(th.critical, ...pts) * 1.04;
-  const pct = (v: number) => 4 + (1 - (v - lo) / (hi - lo)) * 92;
-  const path = pts.map((v, i) => `${i ? 'L' : 'M'}${((i / (pts.length - 1)) * 100).toFixed(2)} ${pct(v).toFixed(2)}`).join(' ');
-  const peak = Math.max(...pts);
-  const lines: ['watch' | 'warning' | 'critical', string][] = [
-    ['critical', 'lv-critical'],
-    ['warning', 'lv-warning'],
-    ['watch', 'lv-watch'],
-  ];
-  // Close lines push their labels apart (18 px in a 112 px box), never on top of each other.
-  const GAP = (18 / 112) * 100;
-  const labelTop: number[] = [];
-  for (const [k] of lines) labelTop.push(Math.max(pct(th[k]), (labelTop[labelTop.length - 1] ?? -Infinity) + GAP));
-  const days = pts.length - 1;
-  const word = (k: 'watch' | 'warning' | 'critical') => `${lang === 'hi' ? levelHi(k) : levelEn(k)} ${fmtNumber(th[k], lang, 0)}`;
+  const observed = data?.river?.points?.length ? toPoints(data.river.points) : r?.discharge != null ? [{ t: Date.parse(r.at), v: r.discharge }] : [];
+  const forecast = dailyPoints(r?.discharge_forecast, observed[observed.length - 1]?.t ?? -Infinity);
+  if (!th || observed.length + forecast.length < 2) return null;
   return (
-    <figure className="dp-river" aria-label={`${t('decide.river', { v: fmtNumber(peak, lang, 0) })}. ${lines.map(([k]) => word(k)).join(', ')}`}>
-      <figcaption>{t('decide.river', { v: fmtNumber(peak, lang, 0) })}</figcaption>
-      <div className="dp-river-plot" aria-hidden="true">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-          {lines.map(([k, cls]) => (
-            <line key={k} className={`dp-line ${cls}`} x1="0" x2="100" y1={pct(th[k])} y2={pct(th[k])} />
-          ))}
-          <path className="dp-flow" d={path} />
-        </svg>
-        <span className="dp-now" style={{ top: `${pct(pts[0])}%` }} />
-        {lines.map(([k, cls], i) => (
-          <span key={k} className={`dp-river-label ${cls}`} style={{ top: `${labelTop[i]}%` }}>
-            {word(k)}
-          </span>
-        ))}
-      </div>
-      <p className="dp-river-axis" aria-hidden="true">
-        <span>{lang === 'hi' ? 'आज' : 'today'}</span>
-        <span>{lang === 'hi' ? `+${days} दिन` : `+${days} days`}</span>
-      </p>
-    </figure>
+    <RiverNow
+      observed={observed}
+      forecast={forecast}
+      thresholds={th}
+      unit="m³/s"
+      title={lang === 'hi' ? 'नदी अभी' : 'The river now'}
+      headingId={`dp-river-${village.id}`}
+      heading="h4"
+      height={150}
+      ladder={false}
+      replay={Boolean(village.replay)}
+    />
   );
 }
 

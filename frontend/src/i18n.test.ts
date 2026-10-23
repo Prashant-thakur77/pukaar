@@ -72,7 +72,7 @@ describe('i18n', () => {
   it('splits pages into villager, public and staff language scopes', () => {
     for (const p of ['/report', '/t/PK42', '/t']) expect(scopeFor(p), p).toBe('villager');
     for (const p of ['/console', '/audit', '/roster', '/login', '/a/tok123']) expect(scopeFor(p), p).toBe('staff');
-    for (const p of ['/', '/live', '/village/thunag', '/pilot', '/how', '/safe/x', '/agents', '/consoles', '/auditor', '/nope'])
+    for (const p of ['/', '/live', '/village/thunag', '/pilot', '/how', '/proof', '/safe/x', '/agents', '/consoles', '/auditor', '/nope'])
       expect(scopeFor(p), p).toBe('public');
   });
 });

@@ -13,8 +13,8 @@
  * voice. Android ships it, so local() comes first and most target phones download nothing. Elsewhere a
  * subset loads (wght 400-700): Devanagari 69 kB, Latin 13 kB, each only when the page has that script.
  * font-display: optional on the UI face, so a font that arrives late never reflows the answer.
- * Tiro Devanagari Hindi is the display face, used only on the story pages (/, /how, /impact, /pilot,
- * /agents, /sensors: html[data-story]); the browser fetches it only when a story heading needs it.
+ * Tiro Devanagari Hindi is the display face, used only on the story pages (/, /how, /proof, /pilot:
+ * html[data-story]); the browser fetches it only when a story heading needs it.
  * ------------------------------------------------------------------------------------------------ */
 @font-face {
   font-family: 'Noto Sans Devanagari';
@@ -126,6 +126,9 @@
   --dur-story: 1200ms;
   /* Hold to approve (S4): the fill runs this long, linear; components/HoldToConfirm.tsx times the same second. */
   --dur-hold: 1000ms;
+  /* The river line draws in once (S1); the valley's ring at Watch and above repeats on this cycle (S2). */
+  --dur-draw: 600ms;
+  --dur-ring: 8000ms;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);

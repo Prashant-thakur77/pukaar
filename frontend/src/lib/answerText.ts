@@ -88,7 +88,7 @@ export function freshnessText(
   return { chip, line: parts.join(' · '), stale, offline };
 }
 
-const DISTRICT_HI: Record<string, string> = { Mandi: 'मंडी', Hamirpur: 'हमीरपुर', Kullu: 'कुल्लू', Kangra: 'काँगड़ा' };
+export const DISTRICT_HI: Record<string, string> = { Mandi: 'मंडी', Hamirpur: 'हमीरपुर', Kullu: 'कुल्लू', Kangra: 'काँगड़ा' };
 
 /** "ज़िला मंडी" / "Mandi district". */
 export function districtLine(district: string, lang: AnswerLang): string {

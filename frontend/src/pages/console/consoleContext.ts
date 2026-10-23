@@ -19,6 +19,10 @@ export interface ConsoleData {
   showDemo: boolean;
   setShowDemo: (on: boolean) => void;
   refreshAlerts: () => void;
+  /** The district the officer is looking at ('' for all); the villages, alerts and reports above are filtered to it. */
+  district: string;
+  districts: string[];
+  setDistrict: (d: string) => void;
 }
 
 export const ConsoleCtx = createContext<ConsoleData | null>(null);

@@ -258,3 +258,61 @@ export function holdLine(
         : `Holding at ${levelWord(level, lang)}: levels drop one step only after ${needed} calm sweeps (${calm} of ${needed} so far)`,
   };
 }
+
+/* ---------- one short reason for a queue row ---------- */
+
+/** Rules that explain, never raise: they never stand for the alert in a row. */
+const QUIET = /^(gauge_unconfirmed|gauge_simulated|rain_obs_simulated_ignored|rain_obs_unconfirmed|rain_obs_capped|auto_verified_capped|data_disagrees|soil_saturated|no_reading)/;
+
+/**
+ * The rule that raised the alert the most, in a few plain words with its number: "अगले 24 घंटे में बारिश 64.5 मिमी
+ * से ज़्यादा" rather than "rain_24h>=64.5mm". The same words as evidenceLines(); an unknown rule id gives null, so
+ * a row never shows an id.
+ */
+export function shortReason(rules: string[] | null | undefined, lang: Lang): string | null {
+  const hi = lang === 'hi';
+  const outcome = (r: string) => {
+    const lv = r.slice(r.lastIndexOf(':') + 1);
+    return isLevel(lv) ? levelRank(lv) : 0;
+  };
+  const ranked = (rules ?? []).filter((r) => !QUIET.test(r)).map((r, i) => ({ r, i, k: outcome(r) }));
+  ranked.sort((a, b) => b.k - a.k || a.i - b.i);
+  for (const { r } of ranked) {
+    const text = reasonText(r, hi, lang);
+    if (text) return text;
+  }
+  return null;
+}
+
+function reasonText(r: string, hi: boolean, lang: Lang): string | null {
+  let m = r.match(/^rain_24h>=([\d.]+)mm/);
+  if (m) return hi ? `अगले 24 घंटे में बारिश ${n(+m[1], lang, 1)} मिमी से ज़्यादा` : `Rain next 24 h over ${n(+m[1], lang, 1)} mm`;
+  const burst = parseBurstTag(r);
+  if (burst) return hi ? `भारी बौछार: ${n(burst.hours, lang)} घंटे में ${n(burst.mm, lang, 1)} मिमी` : `Heavy burst: ${n(burst.mm, lang, 1)} mm in ${burst.hours} h`;
+  m = r.match(/^river_ensemble:P\((\w+)\)=([\d.]+)>=/);
+  if (m && isLevel(m[1]))
+    return hi
+      ? `नदी: ${n(Math.round(+m[2] * 100), lang)}% पूर्वानुमान ${levelWord(m[1], lang)} रेखा पार`
+      : `River: ${Math.round(+m[2] * 100)}% of forecast runs over the ${levelWord(m[1], lang).toLowerCase()} line`;
+  m = r.match(/^discharge(_today)?>=([\d.]+)/);
+  if (m) return hi ? `नदी का बहाव ${n(+m[2], lang)} m³/s से ज़्यादा${m[1] ? ' (आज)' : ''}` : `River flow over ${n(+m[2], lang)} m³/s${m[1] ? ' today' : ''}`;
+  m = r.match(/^gauge>=([\d.]+)cm/);
+  if (m) return hi ? `नदी गेज ${n(+m[1], lang)} सेमी से ऊपर` : `River gauge over ${n(+m[1], lang)} cm`;
+  m = r.match(/^gauge_rising_fast:\+([\d.]+)cm\/([\d.]+)min/);
+  if (m) return hi ? `नदी गेज तेज़ी से चढ़ा: ${n(+m[2], lang)} मिनट में ${n(+m[1], lang)} सेमी` : `River gauge rising fast: ${m[1]} cm in ${m[2]} min`;
+  m = r.match(/^rain_obs:(\w+)=([\d.]+)mm/);
+  if (m) {
+    const w = m[1].replace('min', hi ? ' मिनट' : ' min').replace(/^(\d+)h$/, hi ? '$1 घंटे' : '$1 h');
+    return hi ? `बारिश गेज: ${w} में ${n(+m[2], lang, 1)} मिमी` : `Rain gauge: ${n(+m[2], lang, 1)} mm in ${w}`;
+  }
+  if (r.startsWith('rain_obs:')) return hi ? 'बारिश गेज ने भारी बारिश मापी' : 'Rain gauge measured heavy rain';
+  m = r.match(/^official(?:_corroborates)?:([^:]+):/);
+  if (m) return hi ? `सरकारी स्रोत: ${m[1].split('+').join(', ')}` : `Official: ${m[1].split('+').join(', ')}`;
+  m = r.match(/^staff_gauge:([^:]+):/);
+  if (m) return hi ? `पैमाना-पत्थर: निशान ${m[1]}` : `Staff gauge: mark ${m[1]}`;
+  if (r.startsWith('staff_gauge_confirmed')) return hi ? 'पुष्ट पैमाना-रीडिंग' : 'Confirmed staff-gauge readings';
+  if (r.startsWith('verified_reports')) return hi ? 'पुष्ट गाँव-सूचनाएँ' : 'Verified village reports';
+  if (r.startsWith('verified_impact_report')) return hi ? 'पुष्ट नुकसान की सूचना' : 'Verified damage report';
+  if (r.startsWith('two_sources_agree')) return hi ? 'दो अलग स्रोत सहमत' : 'Two sources agree';
+  return null;
+}

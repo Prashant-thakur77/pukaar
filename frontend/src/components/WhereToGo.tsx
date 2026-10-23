@@ -390,7 +390,9 @@ export function WhereToGo({ village }: { village: MapVillage }) {
           </ul>
         </section>
       )}
-      <div className="wtg-foot small muted">
+      {/* How the places and routes were made: one tap away, not a screen and a half in front of the list (spec 4.2). */}
+      <details className="wtg-foot small muted wtg-how">
+        <summary>{lang === 'hi' ? 'रास्ते कैसे बने' : 'How the routes were made'}</summary>
         <p lang={lang}>{lang === 'hi' ? view.limits_hi : view.limits_en}</p>
         <p lang={lang}>{(lang === 'hi' ? view.route_limit_hi : view.route_limit_en) || t('safe.block.limit')}</p>
         <p>{t('safe.method')}</p>
@@ -399,7 +401,7 @@ export function WhereToGo({ village }: { village: MapVillage }) {
             {t('safe.attrib')}
           </a>
         </p>
-      </div>
+      </details>
     </div>
   );
 }

@@ -82,7 +82,7 @@ if (wantsApprove) console.log(links ? 'approval pages: real signed links' : 'app
 
 const PAGES = [
   { name: 'landing', path: '/' },
-  { name: 'live', path: '/live', wait: '.mk, .map-fail' },
+  { name: 'live', path: '/live' },
   { name: 'report', path: '/report' },
   { name: 'track', path: `/t/${code}` },
   links ? { name: 'approve', path: `/a/${links.live}` } : { name: 'approve', path: '/a/demo', mock: true },
@@ -92,7 +92,7 @@ const PAGES = [
   { name: 'console', path: '/console', auth: true },
   ...(pradhanToken ? [{ name: 'console-pradhan', path: '/console', auth: 'pradhan' }] : []),
   { name: 'audit', path: '/audit', auth: true },
-  { name: 'impact', path: '/impact' },
+  { name: 'proof', path: '/proof' },
   { name: 'login', path: '/login' },
 ].filter((p) => !ONLY?.length || ONLY.includes(p.name));
 

@@ -42,3 +42,15 @@
   }
   .vtop-112 { display: inline-flex; }
 }
+
+/* The river now (S1) and the rain beside it: one column on a phone, two on a desk. */
+.v-river { display: grid; gap: var(--sp-6); }
+.v-rain { display: grid; gap: var(--sp-3); min-width: 0; }
+.rn-h3 { font-size: var(--t-h3); line-height: var(--lh-h3); font-weight: 700; }
+@media (min-width: 1024px) {
+  .v-river { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+  .v-rain { padding-top: calc(var(--t-h2) * 1.3 + var(--sp-3)); }
+}
+
+/* "How the routes were made", folded under the safe places. */
+.wtg-how > summary { display: inline-flex; align-items: center; min-height: var(--tap); cursor: pointer; font-size: var(--t-small); font-weight: 700; color: var(--accent-text); }

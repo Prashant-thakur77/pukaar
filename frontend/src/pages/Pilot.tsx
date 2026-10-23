@@ -1,18 +1,15 @@
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, CircleCheck, CircleDashed, CircleDot, RotateCcw } from 'lucide-react';
-import { api, loadPilotReadiness } from '../api';
-import { PageBand } from '../components/PageBand';
-import { Reveal } from '../components/Reveal';
-import { ErrorState, Skeleton } from '../components/States';
-import { usePoll } from '../hooks/usePoll';
+import { loadPilotReadiness } from '../api';
+import { Skeleton } from '../components/States';
 import { useT } from '../i18n';
-import { fmtDate, fmtNumber, fmtTime } from '../lib/format';
+import { fmtDate, fmtNumber } from '../lib/format';
 import { DEFAULT_COST_INPUTS, estimatePilotCost, fmtRupees, fmtRupeesShort, type CostInputs, type CostLineKey } from '../lib/pilotCost';
 import { countByStatus, parseReadiness, type Readiness, type ReadinessStatus } from '../lib/pilotReadiness';
 import type { Lang } from '../store';
-import type { PilotFalseAlarms, PilotGroup, PilotMetrics } from '../types';
 import '../styles/story.css';
+import '../styles/explain.css';
 
 type Txt = { hi: string; en: string };
 type Source = { label: string; href: string };
@@ -35,7 +32,7 @@ const SRC = {
   },
 } satisfies Record<string, Source>;
 
-function Ext({ href, children, className = 'how-cite' }: { href: string; children: ReactNode; className?: string }) {
+function Ext({ href, children, className = 'xp-src' }: { href: string; children: ReactNode; className?: string }) {
   return (
     <a href={href} target="_blank" rel="noreferrer" className={className}>
       {children}
@@ -44,13 +41,10 @@ function Ext({ href, children, className = 'how-cite' }: { href: string; childre
   );
 }
 
-function SectionHead({ id, n, eyebrow, title, lead }: { id: string; n: string; eyebrow: string; title: string; lead?: ReactNode }) {
+function SectionHead({ id, title, lead }: { id: string; n?: string; eyebrow?: string; title: string; lead?: ReactNode }) {
   return (
     <header className="pl-head">
-      <p className="how-eyebrow">
-        <span className="pl-n" aria-hidden="true">{n}</span> {eyebrow}
-      </p>
-      <h2 id={id} className="how-h">
+      <h2 id={id} className="xp-h2">
         {title}
       </h2>
       {lead && <p className="pl-lead">{lead}</p>}
@@ -170,7 +164,7 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
 
   return (
     <section className="how-band how-cream pl-cost" aria-labelledby="pl-cost-h" id="cost">
-      <div className="wrap-wide">
+      <div className="wrap">
         <SectionHead
           id="pl-cost-h"
           n="01"
@@ -193,22 +187,6 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
         </p>
 
         <div className="pl-calc">
-          <form className="pl-form" onSubmit={(e) => e.preventDefault()} aria-label={en ? 'Cost inputs' : 'ख़र्च की संख्याएँ'}>
-            {group(en ? 'The village' : 'गाँव', VILLAGE_FIELDS)}
-            {group(en ? 'Prices' : 'क़ीमतें', PRICE_FIELDS)}
-            <p className="pl-free">
-              {en
-                ? 'Telegram: free (Bot API). Polly, the Hindi voice: synthesised once per alert, under ₹1 an event, so not added. '
-                : 'Telegram: मुफ़्त (Bot API)। Polly, हिंदी आवाज़: हर चेतावनी पर एक बार बनती है, ₹1 से कम, इसलिए जोड़ी नहीं। '}
-              <Ext href={SRC.telegram.href}>{SRC.telegram.label}</Ext>
-              <Ext href={SRC.polly.href}>{SRC.polly.label}</Ext>
-            </p>
-            {group(en ? 'Scale' : 'पैमाना', SCALE_FIELDS)}
-            <button type="button" className="btn btn-ghost pl-reset" onClick={() => setDraft(toDraft(DEFAULT_COST_INPUTS))}>
-              <RotateCcw aria-hidden="true" /> {en ? 'Back to the defaults' : 'शुरुआती संख्याएँ'}
-            </button>
-          </form>
-
           <div className="pl-result">
             <p className="pl-result-k">{en ? 'One village, one season' : 'एक गाँव, एक मानसून'}</p>
             <output className="pl-big" aria-live="polite">
@@ -241,6 +219,24 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
             </dl>
             <p className="pl-result-note">{en ? 'Estimate, messaging only. Cloud and hardware below.' : 'अनुमान, सिर्फ़ संदेश। क्लाउड और हार्डवेयर नीचे।'}</p>
           </div>
+          <details className="xp-dis pl-inputs">
+            <summary>{en ? 'Enter your own numbers' : 'अपनी संख्याएँ डालें'}</summary>
+          <form className="pl-form" onSubmit={(e) => e.preventDefault()} aria-label={en ? 'Cost inputs' : 'ख़र्च की संख्याएँ'}>
+              {group(en ? 'The village' : 'गाँव', VILLAGE_FIELDS)}
+              {group(en ? 'Prices' : 'क़ीमतें', PRICE_FIELDS)}
+              <p className="pl-free">
+                {en
+                  ? 'Telegram: free (Bot API). Polly, the Hindi voice: synthesised once per alert, under ₹1 an event, so not added. '
+                  : 'Telegram: मुफ़्त (Bot API)। Polly, हिंदी आवाज़: हर चेतावनी पर एक बार बनती है, ₹1 से कम, इसलिए जोड़ी नहीं। '}
+                <Ext href={SRC.telegram.href}>{SRC.telegram.label}</Ext>
+                <Ext href={SRC.polly.href}>{SRC.polly.label}</Ext>
+              </p>
+              {group(en ? 'Scale' : 'पैमाना', SCALE_FIELDS)}
+              <button type="button" className="btn btn-ghost pl-reset" onClick={() => setDraft(toDraft(DEFAULT_COST_INPUTS))}>
+                <RotateCcw aria-hidden="true" /> {en ? 'Back to the defaults' : 'शुरुआती संख्याएँ'}
+              </button>
+            </form>
+          </details>
         </div>
 
         <div className="table-wrap pl-table" tabIndex={0} role="region" aria-label={en ? 'Cost lines' : 'ख़र्च का ब्योरा'}>
@@ -315,189 +311,6 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
   );
 }
 
-/* ------------------------------------------------------------------ 2. measured ------------------------------------------------------------------ */
-
-function NotYet() {
-  const { lang } = useT();
-  return <span className="pl-nm">{lang === 'en' ? 'not measured yet' : 'अभी मापा नहीं'}</span>;
-}
-
-function Measure({ value, label, note }: { value: ReactNode; label: string; note?: string }) {
-  return (
-    <li className="pl-stat">
-      <span className="pl-stat-num">{value}</span>
-      <span className="pl-stat-label">{label}</span>
-      {note && <span className="pl-stat-note">{note}</span>}
-    </li>
-  );
-}
-
-function minutes(m: number | null, lang: Lang): ReactNode {
-  if (m == null) return <NotYet />;
-  return (
-    <>
-      {fmtNumber(m, lang, 1)}
-      <small> {lang === 'en' ? 'min' : 'मिनट'}</small>
-    </>
-  );
-}
-
-function share(g: PilotGroup, lang: Lang): ReactNode {
-  if (g.ack_share == null) return <NotYet />;
-  return `${fmtNumber(g.ack_share * 100, lang, 0)}%`;
-}
-
-const hours = (h: number, lang: Lang) => `${fmtNumber(h, lang)} ${lang === 'en' ? 'h' : 'घंटे'}`;
-
-const rate = (r: number | null, lang: Lang) => (r == null ? <NotYet /> : `${fmtNumber(r * 100, lang, 0)}%`);
-
-/** "Was this real?" after each closed live alert, counted per rule (api/pilot.py false_alarms). */
-function FalseAlarms({ fa }: { fa: PilotFalseAlarms }) {
-  const { lang } = useT();
-  const en = lang === 'en';
-  return (
-    <>
-      <h3 className="pl-h3">{en ? 'Was it real? False alarms by rule' : 'क्या यह असली था? हर नियम की झूठी चेतावनियाँ'}</h3>
-      <ul className="pl-stats">
-        <Measure value={fmtNumber(fa.closed_alerts, lang)} label={en ? 'Closed live alerts' : 'बंद असली चेतावनियाँ'} />
-        <Measure value={fmtNumber(fa.real_flood, lang)} label={en ? 'Real flood' : 'असली बाढ़'} />
-        <Measure value={fmtNumber(fa.no_flood, lang)} label={en ? 'No flood' : 'बाढ़ नहीं आई'} note={en ? `${fa.unknown} unknown, ${fa.not_set} not answered yet` : `${fa.unknown} पता नहीं, ${fa.not_set} का जवाब बाकी`} />
-        <Measure value={rate(fa.false_alarm_rate, lang)} label={en ? 'False-alarm rate' : 'झूठी चेतावनी दर'} note={en ? 'No flood ÷ (real + no flood)' : 'बाढ़ नहीं ÷ (असली + बाढ़ नहीं)'} />
-      </ul>
-      {fa.by_rule.length > 0 && (
-        <ul className="pl-rows">
-          {fa.by_rule.map((r) => (
-            <li key={r.rule}>
-              <span className="pl-row-k" translate="no">
-                {r.rule}
-              </span>
-              <span>
-                {rate(r.false_alarm_rate, lang)}{' '}
-                <span className="meta-line">
-                  {en
-                    ? `${r.alerts} alerts · ${r.real_flood} real · ${r.no_flood} no flood · ${r.unknown} unknown · ${r.not_set} not answered`
-                    : `${r.alerts} चेतावनियाँ · ${r.real_flood} असली · ${r.no_flood} बाढ़ नहीं · ${r.unknown} पता नहीं · ${r.not_set} बाकी`}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
-  );
-}
-
-function MeasuredBody({ m }: { m: PilotMetrics }) {
-  const { lang } = useT();
-  const en = lang === 'en';
-  const d = m.drills;
-  const l = m.live;
-  return (
-    <>
-      <h3 className="pl-h3">{en ? 'Drills: labelled tests to real phones' : 'अभ्यास: असली फ़ोन पर, साफ़ लिखा परीक्षण'}</h3>
-      <ul className="pl-stats">
-        <Measure value={fmtNumber(d.alerts, lang)} label={en ? 'Drill alerts sent' : 'भेजे गए अभ्यास संदेश'} />
-        <Measure
-          value={fmtNumber(d.reached, lang)}
-          label={en ? 'Phones reached' : 'फ़ोन तक पहुँचे'}
-          note={en ? 'Summed over drills; demo recipients without a phone not counted' : 'सब अभ्यासों का जोड़; बिना फ़ोन वाले डेमो नाम नहीं गिने'}
-        />
-        <Measure value={share(d, lang)} label={en ? 'Pressed “मिल गया”' : '“मिल गया” दबाया'} />
-        <Measure
-          value={minutes(d.median_minutes_first_ack, lang)}
-          label={en ? 'Median, send to first “मिल गया”' : 'मध्य समय, भेजने से पहले “मिल गया” तक'}
-        />
-      </ul>
-      <h3 className="pl-h3">{en ? 'Live flood alerts' : 'असली बाढ़ चेतावनियाँ'}</h3>
-      <ul className="pl-stats">
-        <Measure value={fmtNumber(l.alerts, lang)} label={en ? 'Live alerts sent' : 'भेजी गई असली चेतावनियाँ'} note={en ? 'Never replays, never drills' : 'रीप्ले और अभ्यास नहीं'} />
-        <Measure value={fmtNumber(l.reached, lang)} label={en ? 'Phones reached' : 'फ़ोन तक पहुँचे'} />
-        <Measure value={share(l, lang)} label={en ? 'Pressed “मिल गया”' : '“मिल गया” दबाया'} />
-        <Measure
-          value={minutes(l.median_minutes_first_ack, lang)}
-          label={en ? 'Median, send to first “मिल गया”' : 'मध्य समय, भेजने से पहले “मिल गया” तक'}
-        />
-      </ul>
-
-      {m.false_alarms && <FalseAlarms fa={m.false_alarms} />}
-
-      <h3 className="pl-h3">{en ? 'Back-test: hours of warning before the river’s peak day' : 'बैक-टेस्ट: नदी के सबसे ऊँचे दिन से पहले कितने घंटे की चेतावनी'}</h3>
-      {m.backtest && m.backtest.scenarios.length > 0 ? (
-        <ul className="pl-rows pl-bt">
-          {m.backtest.scenarios.map((s) => (
-            <li key={s.name}>
-              <span className="pl-row-k">{(en ? s.title : s.title_hi) || s.title}</span>
-              <span className="pl-bt-main">
-                <span className="pl-bt-num">{s.median_lead_hours == null ? <NotYet /> : hours(s.median_lead_hours, lang)}</span>
-                <span className="pl-bt-cap">
-                  {en
-                    ? `median lead · ${s.villages_alerted} of ${s.villages_scored} villages reached Watch${s.max_lead_hours != null ? ` · up to ${fmtNumber(s.max_lead_hours, lang)} h` : ''}`
-                    : `मध्य समय · ${s.villages_scored} में से ${s.villages_alerted} गाँव “सतर्क” तक${s.max_lead_hours != null ? ` · अधिकतम ${fmtNumber(s.max_lead_hours, lang)} घंटे` : ''}`}
-                </span>
-                <span className="meta-line">
-                  {s.villages.map((v) => (
-                    <span key={v.village_id}>
-                      {v.village} {v.lead_hours == null ? (en ? 'no alert' : 'चेतावनी नहीं') : `${v.lead_is_lower_bound ? '≥ ' : ''}${hours(v.lead_hours, lang)}`}
-                      {v.get_ready_lead_hours != null &&
-                        (en
-                          ? ` (get ready ${v.get_ready_is_lower_bound ? '≥ ' : ''}${hours(v.get_ready_lead_hours, lang)})`
-                          : ` (तैयार रहें ${v.get_ready_is_lower_bound ? '≥ ' : ''}${hours(v.get_ready_lead_hours, lang)})`)}
-                    </span>
-                  ))}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>
-          <NotYet />
-        </p>
-      )}
-      <p className="pl-caveat">
-        {en
-          ? 'Back-test lead times are on archived forecasts, from the first Watch (the alert) to the river’s peak day; they are not a live season. In brackets, the get-ready outlook, which the officer and pradhan see but which never alerts; ≥ means it was on from the first archived hour. In 2025 the global forecasts missed the Mandi cloudburst. '
-          : 'बैक-टेस्ट पुराने पूर्वानुमानों पर है, पहले “सतर्क” (चेतावनी) से नदी के सबसे ऊँचे दिन तक; यह असली मानसून नहीं। कोष्ठक में “तैयार रहें” आउटलुक है, जो अधिकारी और प्रधान को दिखता है पर कभी चेतावनी नहीं बनता; ≥ का मतलब पहले रिकॉर्ड घंटे से चालू। 2025 में वैश्विक पूर्वानुमान मंडी का बादल-फटना नहीं पकड़ पाए। '}
-        <Link to="/impact">{en ? 'The full back-test' : 'पूरा बैक-टेस्ट'} →</Link>
-      </p>
-      <p className="pl-asof">
-        {en ? 'From the API, GET /public/pilot-metrics, at ' : 'API से, GET /public/pilot-metrics, समय '}
-        <span translate="no">{fmtTime(m.as_of, lang)}</span>
-      </p>
-    </>
-  );
-}
-
-function MeasuredSection() {
-  const { lang } = useT();
-  const en = lang === 'en';
-  const { data, error, loading, refresh } = usePoll(() => api.pilotMetrics(), [], 0);
-  return (
-    <section className="how-band how-loop pl-measured" aria-labelledby="pl-m-h" id="measured">
-      <div className="wrap-wide">
-        <SectionHead
-          id="pl-m-h"
-          n="02"
-          eyebrow={en ? 'Measured' : 'मापा गया'}
-          title={en ? 'Measured so far' : 'अब तक क्या मापा'}
-          lead={
-            en
-              ? 'Real records only, counted by the API from stored alerts and deliveries. Where nothing has been measured, the page says so.'
-              : 'सिर्फ़ असली रिकॉर्ड, API दर्ज चेतावनियों और डिलीवरी से गिनता है। जो मापा नहीं गया, पेज वही कहता है।'
-          }
-        />
-        {data ? (
-          <MeasuredBody m={data} />
-        ) : error ? (
-          <ErrorState error={error} onRetry={() => void refresh()} />
-        ) : loading ? (
-          <Skeleton lines={6} />
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
 /* ------------------------------------------------------------------ 3. readiness ------------------------------------------------------------------ */
 
 const STATUS: Record<ReadinessStatus, { word: Txt; Icon: typeof CircleCheck }> = {
@@ -516,7 +329,7 @@ function ReadinessSection() {
   const counts = doc ? countByStatus(doc.items) : null;
   return (
     <section className="how-band how-cream pl-ready" aria-labelledby="pl-r-h" id="ready">
-      <div className="wrap-wide">
+      <div className="wrap">
         <SectionHead
           id="pl-r-h"
           n="03"
@@ -572,6 +385,7 @@ function ReadinessSection() {
             </p>
           </>
         )}
+        <RealSection />
       </div>
     </section>
   );
@@ -603,13 +417,13 @@ function RealSection() {
   const { lang } = useT();
   const en = lang === 'en';
   return (
-    <section className="how-band how-loop pl-real" aria-labelledby="pl-real-h" id="real">
-      <div className="wrap-wide">
+    <section className="pl-real" aria-labelledby="pl-real-h">
+      <div>
         <SectionHead
           id="pl-real-h"
           n="04"
           eyebrow={en ? 'Honest scope' : 'सच्चा दायरा'}
-          title={en ? 'Real today, and next' : 'आज असली, और आगे'}
+          title={en ? 'Real today, and next' : 'आज चालू, और आगे'}
           lead={
             en ? (
               <>
@@ -707,7 +521,7 @@ function PlanSection() {
   const en = lang === 'en';
   return (
     <section className="how-band how-cream pl-plan" aria-labelledby="pl-plan-h" id="plan">
-      <div className="wrap-wide">
+      <div className="wrap">
         <SectionHead
           id="pl-plan-h"
           n="05"
@@ -716,8 +530,8 @@ function PlanSection() {
           lead={en ? 'Three phases, each with the numbers it must produce.' : 'तीन चरण, हर एक के साथ वे आँकड़े जो उसे देने हैं।'}
         />
         <ol className="pl-phases">
-          {PLAN.map((p, i) => (
-            <Reveal as="li" key={p.when.en} className="pl-phase" delay={i * 80}>
+          {PLAN.map((p) => (
+            <li key={p.when.en} className="pl-phase">
               <span className="pl-when">{p.when[lang]}</span>
               <div>
                 <h3 className="pl-phase-title">{p.title[lang]}</h3>
@@ -729,7 +543,7 @@ function PlanSection() {
                   ))}
                 </ul>
               </div>
-            </Reveal>
+            </li>
           ))}
         </ol>
       </div>
@@ -744,7 +558,7 @@ function PaysSection({ perSeason, villages }: { perSeason: number; villages: num
   const en = lang === 'en';
   return (
     <section className="how-band how-gold pl-pays" aria-labelledby="pl-pays-h" id="pays">
-      <div className="wrap-wide">
+      <div className="wrap">
         <SectionHead id="pl-pays-h" n="06" eyebrow={en ? 'The case' : 'तर्क'} title={en ? 'Why it pays' : 'यह क्यों फ़ायदेमंद है'} />
         <div className="pl-pays-grid">
           <figure className="pl-quote">
@@ -784,11 +598,8 @@ function PaysSection({ perSeason, villages }: { perSeason: number; villages: num
 
 const TOC: { id: string; t: Txt }[] = [
   { id: 'cost', t: { en: 'Cost', hi: 'ख़र्च' } },
-  { id: 'measured', t: { en: 'Measured', hi: 'मापा गया' } },
   { id: 'ready', t: { en: 'Readiness', hi: 'तैयारी' } },
-  { id: 'real', t: { en: 'Real and next', hi: 'असली और आगे' } },
-  { id: 'plan', t: { en: '90-day plan', hi: '90 दिन' } },
-  { id: 'pays', t: { en: 'Why it pays', hi: 'क्यों फ़ायदेमंद' } },
+  { id: 'plan', t: { en: '90 days', hi: '90 दिन' } },
 ];
 
 export default function Pilot() {
@@ -797,34 +608,37 @@ export default function Pilot() {
   const [draft, setDraft] = useState<Draft>(() => toDraft(DEFAULT_COST_INPUTS));
   const est = useMemo(() => estimatePilotCost(fromDraft(draft)), [draft]);
   return (
-    <div className="how pilot">
-      <PageBand
-        eyebrow={en ? 'For a district, a jury or a funder' : 'ज़िले, निर्णायकों या फ़ंड देने वालों के लिए'}
-        title={en ? 'A pilot: cost, proof and readiness' : 'पायलट: ख़र्च, सबूत और तैयारी'}
-        lead={
-          en
-            ? 'What a pilot costs, what has been measured, how ready deployment is, and what is real today versus next. Estimates are labelled; measured numbers come from the API.'
-            : 'पायलट का ख़र्च, अब तक क्या मापा, तैनाती कितनी तैयार है, और आज क्या असली है, क्या आगे। अनुमान पर अनुमान लिखा है; मापे गए आँकड़े API से आते हैं।'
-        }
-      >
-        <nav className="pl-toc" aria-label={en ? 'On this page' : 'इस पेज पर'}>
-          <ol>
-            {TOC.map((x, i) => (
-              <li key={x.id}>
-                <Link to={{ hash: x.id }}>
-                  <span className="pl-toc-n" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span> {x.t[lang]}
-                </Link>
-              </li>
-            ))}
-          </ol>
-        </nav>
-      </PageBand>
+    <div className="xp how pilot">
+      <header className="xp-hero wrap">
+        <div className="xp-hero-text">
+          <h1 className="xp-h1">{en ? 'A pilot: what it costs, how ready, 90 days' : 'पायलट: ख़र्च, तैयारी और 90 दिन'}</h1>
+          <p className="xp-lead">
+            {en
+              ? 'For a district: what alerts cost a village each monsoon, what has to be true before a real village is warned, and a 90-day plan. Estimates are labelled.'
+              : 'ज़िले के लिए: एक गाँव पर हर मानसून चेतावनियों का ख़र्च, किसी असली गाँव को चेतावनी देने से पहले क्या तैयार होना चाहिए, और 90 दिन की योजना। अनुमान पर अनुमान लिखा है।'}
+          </p>
+          <nav className="pl-toc" aria-label={en ? 'On this page' : 'इस पेज पर'}>
+            <ol>
+              {TOC.map((x, i) => (
+                <li key={x.id}>
+                  <Link to={{ hash: x.id }}>
+                    <span className="pl-toc-n" aria-hidden="true">{i + 1}</span> {x.t[lang]}
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        </div>
+      </header>
       <CostSection draft={draft} setDraft={setDraft} />
-      <MeasuredSection />
-      <ReadinessSection />
-      <RealSection />
-      <PlanSection />
       <PaysSection perSeason={est.perSeason} villages={est.inputs.villages} />
+      <ReadinessSection />
+      <PlanSection />
+      <p className="wrap xp-next">
+        <Link to="/proof" className="go-link">
+          {en ? 'What has been measured, and the back-test' : 'अब तक क्या मापा, और बैक-टेस्ट'} →
+        </Link>
+      </p>
     </div>
   );
 }

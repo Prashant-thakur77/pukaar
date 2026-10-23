@@ -1,8 +1,10 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, LoaderCircle, UserCheck } from 'lucide-react';
 import { api, ApiError } from '../../api';
 import { Page } from './Sections';
+import { useConsole } from './consoleContext';
+import { useMedia } from '../../hooks/useMedia';
 import { DeniedNote, ErrorState, Skeleton } from '../../components/States';
 import { usePoll } from '../../hooks/usePoll';
 import { useT } from '../../i18n';
@@ -24,7 +26,9 @@ export default function RosterPage() {
 function Roster() {
   const { t } = useT();
   const [params, setParams] = useSearchParams();
-  const district = params.get('district') ?? '';
+  const c = useConsole();
+  // The header's district, unless the link names one.
+  const district = params.get('district') ?? c.district ?? '';
   const start = params.get('start') ?? todayIST();
   const poll = usePoll(() => api.roster({ district: district || undefined, start }), [district, start], 60000);
   const view = poll.data;
@@ -171,12 +175,25 @@ function Week({ view, start, onGo, onChanged }: { view: RosterView; start: strin
   const [editing, setEditing] = useState<Editing | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const selectId = useId();
+  const phone = useMedia('(max-width: 639px)');
+  const today = todayIST();
   const gaps = emptyShifts(view.days);
   const shiftName = (s: ShiftId) => t(s === 'day' ? 'roster.shift.day' : 'roster.shift.night');
   const hours = (s: ShiftId) => {
     const sh = view.shifts.find((x) => x.id === s);
     return sh ? `${sh.start}–${sh.end}` : '';
   };
+  const form = editing && (
+    <ShiftForm
+      key={`${editing.date}-${editing.shift}`}
+      district={view.district}
+      editing={editing}
+      title={`${shiftName(editing.shift)} · ${dayLabel(editing.date, lang)} · ${view.district}`}
+      officers={view.officers}
+      onDone={(msg) => { setEditing(null); setSaved(msg); onChanged(); }}
+      onCancel={() => setEditing(null)}
+    />
+  );
 
   return (
     <section className="rs-week" aria-labelledby="rs-week-h">
@@ -218,6 +235,23 @@ function Week({ view, start, onGo, onChanged }: { view: RosterView; start: strin
         </nav>
       </div>
 
+      {phone ? (
+        <ul className="rs-days">
+          {view.days.map((d) => (
+            <DayFold
+              key={d.date}
+              day={d}
+              open={d.date === today || d.date === addDays(today, 1)}
+              shiftName={shiftName}
+              hours={hours}
+              editing={editing}
+              onEdit={(s) => { setSaved(null); setEditing({ date: d.date, shift: s, entry: d.shifts[s].entry }); }}
+            >
+              {editing?.date === d.date ? form : null}
+            </DayFold>
+          ))}
+        </ul>
+      ) : (
       <div className="table-wrap rs-table-wrap" tabIndex={0} role="region" aria-label={`${t('roster.week')} · ${view.district}`}>
         <table className="data-table stack-sm rs-table">
           <thead>
@@ -251,23 +285,99 @@ function Week({ view, start, onGo, onChanged }: { view: RosterView; start: strin
           </tbody>
         </table>
       </div>
+      )}
       {saved && (
         <p className="ok-text" role="status">
           {saved}
         </p>
       )}
-      {editing && (
-        <ShiftForm
-          key={`${editing.date}-${editing.shift}`}
-          district={view.district}
-          editing={editing}
-          title={`${shiftName(editing.shift)} · ${dayLabel(editing.date, lang)} · ${view.district}`}
-          officers={view.officers}
-          onDone={(msg) => { setEditing(null); setSaved(msg); onChanged(); }}
-          onCancel={() => setEditing(null)}
-        />
-      )}
+      {!phone && form}
     </section>
+  );
+}
+
+/**
+ * A phone (spec 4.10): one fold per day. Today and tomorrow open; the rest closed, their summary saying who is on
+ * each shift ("दिन: officer1 / officer2 · रात: officer3"), and an empty shift in red: "खाली · भरें".
+ */
+function DayFold({ day, open, shiftName, hours, editing, onEdit, children }: {
+  children?: ReactNode;
+  day: RosterDay;
+  open: boolean;
+  shiftName: (s: ShiftId) => string;
+  hours: (s: ShiftId) => string;
+  editing: Editing | null;
+  onEdit: (s: ShiftId) => void;
+}) {
+  const { t, lang } = useT();
+  const hi = lang === 'hi';
+  const short = (s: ShiftId) => (s === 'day' ? (hi ? 'दिन' : 'Day') : hi ? 'रात' : 'Night');
+  const empty = SHIFTS.filter((s) => !day.shifts[s].entry);
+  return (
+    <li className={`rs-day-fold${empty.length ? ' has-gap' : ''}`}>
+      <details open={open}>
+        <summary>
+          <span className="rs-fold-day">{dayLabel(day.date, lang)}</span>
+          <span className="rs-fold-who">
+            {SHIFTS.map((s) => {
+              const e = day.shifts[s].entry;
+              return (
+                <span key={s} className={e ? undefined : 'is-gap'}>
+                  {short(s)}: {e ? [e.primary, e.backup].filter(Boolean).join(' / ') : hi ? 'खाली · भरें ›' : 'empty · fill ›'}
+                </span>
+              );
+            })}
+          </span>
+        </summary>
+        <div className="rs-fold-body">
+          {SHIFTS.map((s) => {
+            const e = day.shifts[s].entry;
+            const now = isCurrent(day, s);
+            const label = `${shiftName(s)} ${hours(s)}`;
+            return (
+              <div key={s} className={`rs-fold-shift${e ? '' : ' is-empty'}${now ? ' is-now' : ''}`}>
+                <p className="rs-fold-h">
+                  {label}
+                  {now && <span className="rs-now-word"> · {t('roster.current')}</span>}
+                </p>
+                {e ? (
+                  <dl className="rs-people">
+                    <div>
+                      <dt>{t('roster.primary')}</dt>
+                      <dd className="rs-primary">{e.primary}</dd>
+                    </div>
+                    {e.backup && (
+                      <div>
+                        <dt>{t('roster.backup')}</dt>
+                        <dd>{e.backup}</dd>
+                      </div>
+                    )}
+                    {e.escalation && (
+                      <div>
+                        <dt>{e.escalation_title}</dt>
+                        <dd>{e.escalation}</dd>
+                      </div>
+                    )}
+                  </dl>
+                ) : (
+                  <p className="rs-none">{hi ? 'खाली: कोई तैनात नहीं' : 'Empty: nobody rostered'}</p>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-ghost rs-fold-edit"
+                  aria-expanded={editing?.date === day.date && editing.shift === s}
+                  onClick={() => onEdit(s)}
+                  aria-label={t('roster.edit.aria', { d: dayLabel(day.date, lang), s: label })}
+                >
+                  {e ? t('roster.edit') : hi ? 'भरें' : 'Fill'}
+                </button>
+              </div>
+            );
+          })}
+          {children}
+        </div>
+      </details>
+    </li>
   );
 }
 

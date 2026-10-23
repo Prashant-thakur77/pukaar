@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronRight, CircleCheck, Eye, Map as MapIcon, Mic, PhoneCall, UserCheck } from 'lucide-react';
 import { api } from '../api';
@@ -12,9 +12,10 @@ import { levelRank } from '../lib/levels';
 import { DEFAULT_COST_INPUTS, estimatePilotCost, fmtRupees } from '../lib/pilotCost';
 import { readLS, writeLS } from '../store';
 import type { PublicOverview } from '../types';
-import { ValleySketch } from '../components/ValleySketch';
+import { ValleyMap } from '../components/ValleyMap';
+import { useInView } from '../hooks/useMotion';
 // The alert lead from the story data (scripts/story.py), never typed by hand.
-import { lead_hours_watch_to_peak_day as GOHAR_ALERT_LEAD_H } from '../data/story-gohar-2023.json';
+import { first as GOHAR_FIRST, lead_hours_watch_to_peak_day as GOHAR_ALERT_LEAD_H } from '../data/story-gohar-2023.json';
 import './landing.css';
 
 const CACHE_KEY = 'pukaar.overview';
@@ -31,6 +32,22 @@ function readCached(): PublicOverview | null {
   }
 }
 
+// The story's chart (S3), one still frame: its own chunk, fetched only when the band nears the screen.
+const StoryChart = lazy(() => import('../components/StoryChart'));
+
+function StoryFrame() {
+  const { ref, inView } = useInView<HTMLDivElement>(0);
+  return (
+    <div ref={ref} className="home-frame">
+      {inView && (
+        <Suspense fallback={null}>
+          <StoryChart cursor={Date.parse(GOHAR_FIRST.watch)} height={180} />
+        </Suspense>
+      )}
+    </div>
+  );
+}
+
 const PER_VILLAGE_SEASON = fmtRupees(estimatePilotCost(DEFAULT_COST_INPUTS).perSeason);
 
 /**
@@ -41,6 +58,8 @@ export default function Landing() {
   const { t, lang } = useT();
   const hi = lang === 'hi';
   const [cached] = useState(readCached);
+  // The valley and the rows light each other (S2).
+  const [hot, setHot] = useState<string | null>(null);
   const { data: fresh, error } = usePoll(() => api.overview(), [], 30000);
   useEffect(() => {
     if (fresh) writeLS(CACHE_KEY, JSON.stringify(fresh));
@@ -138,7 +157,7 @@ export default function Landing() {
         <div className="home-pick">
           <h2 className="home-h2">{hi ? 'अपना गाँव चुनें' : 'Choose your village'}</h2>
           {rows.length > 0 ? (
-            <VillageRows villages={rows} label={hi ? 'पाँच गाँव' : 'The villages'} />
+            <VillageRows villages={rows} label={hi ? 'पाँच गाँव' : 'The villages'} hot={hot} onHot={setHot} />
           ) : (
             /* The list's own height, held while it loads, so nothing below it jumps when it arrives. */
             <p className="vrows vrows-wait">{hi ? 'गाँवों की सूची आ रही है…' : 'Loading the villages…'}</p>
@@ -164,7 +183,7 @@ export default function Landing() {
         {/* The story begins here: the valley (the seam for the live S2 map) and the line. Beside the status on a
             desk, under it on a phone. */}
         <div className="home-lede">
-          <ValleySketch villages={villages} />
+          <ValleyMap villages={villages} hot={hot} onHot={setHot} />
           <h2 id="story-h" className="home-display" lang="hi">
             नदी से पहले, गाँव तक।
           </h2>
@@ -206,10 +225,13 @@ export default function Landing() {
 
       <section className="home-band home-proof" aria-labelledby="proof-h">
         <div className="wrap home-split">
-          <p className="home-num" aria-hidden="true">
-            {GOHAR_ALERT_LEAD_H}
-            <span>{hi ? 'घंटे' : 'h'}</span>
-          </p>
+          <div>
+            <p className="home-num" aria-hidden="true">
+              {GOHAR_ALERT_LEAD_H}
+              <span>{hi ? 'घंटे' : 'h'}</span>
+            </p>
+            <StoryFrame />
+          </div>
           <div>
             <h2 id="proof-h" className="home-h2">
               {hi ? `${GOHAR_ALERT_LEAD_H} घंटे पहले चेतावनी मिल सकती थी` : `The warning could have come ${GOHAR_ALERT_LEAD_H} hours earlier`}
@@ -219,7 +241,7 @@ export default function Landing() {
                 ? 'जुलाई 2023 की बाढ़ के असली पूर्वानुमान पर पुकार के नियम चलाए गए: गोहर में नदी के सबसे ऊँचे दिन से इतने घंटे पहले ‘सतर्क’ आ जाता। यह बैक-टेस्ट है, असली चेतावनी नहीं।'
                 : 'Pukaar’s rules were run on the real forecasts of the July 2023 flood: in Gohar, Watch would have come this many hours before the river’s highest day. This is a back-test, not a real alert.'}
             </p>
-            <Link to="/impact" className="go-link">
+            <Link to="/proof" className="go-link">
               {hi ? 'सबूत देखें' : 'See the proof'} <ArrowRight aria-hidden="true" />
             </Link>
           </div>

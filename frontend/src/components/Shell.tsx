@@ -33,13 +33,8 @@ const isStaffRoute = (p: string) => /^\/(console|audit|roster)(\/|$)/.test(p);
 
 type NavItem = { to: string; key: Key; sub?: Key };
 /** The four public places (spec 2.3): status, report, how it works, proof and pilot. */
-const HOW: NavItem[] = [
-  { to: '/how', key: 'nav.loop', sub: 'nav.loop.sub' },
-  { to: '/agents', key: 'nav.agents', sub: 'nav.agents.sub' },
-  { to: '/sensors', key: 'nav.sensors', sub: 'nav.sensors.sub' },
-];
 const PROOF: NavItem[] = [
-  { to: '/impact', key: 'nav.impact' },
+  { to: '/proof', key: 'nav.impact', sub: 'nav.impact.sub' },
   { to: '/pilot', key: 'nav.pilot', sub: 'nav.pilot.sub' },
 ];
 
@@ -184,12 +179,9 @@ function MenuSheet({ onClose }: { onClose: () => void }) {
         <NavLink to="/live" className={row}>
           {t('nav.map')}
         </NavLink>
-        <p className="sheet-h">{t('nav.how')}</p>
-        {HOW.map((g) => (
-          <NavLink key={g.to} to={g.to} end className={row}>
-            {t(g.key)}
-          </NavLink>
-        ))}
+        <NavLink to="/how" end className={row}>
+          {t('nav.how')}
+        </NavLink>
         <p className="sheet-h">{t('nav.proof')}</p>
         {PROOF.map((g) => (
           <NavLink key={g.to} to={g.to} end className={row}>
@@ -244,7 +236,9 @@ function Header() {
           <NavLink to="/report" className={({ isActive }) => `hd-link${isActive ? ' is-active' : ''}`}>
             {t('nav.report')}
           </NavLink>
-          <NavGroup label={t('nav.how')} items={HOW} id="hd-how" />
+          <NavLink to="/how" end className={({ isActive }) => `hd-link${isActive ? ' is-active' : ''}`}>
+            {t('nav.how')}
+          </NavLink>
           <NavGroup label={t('nav.proof')} items={PROOF} id="hd-proof" />
         </nav>
         <div className="hd-tools">
@@ -397,9 +391,9 @@ function Footer() {
         </nav>
         <nav className="ft-col" aria-label={en ? 'How it works' : 'कैसे काम करता है'}>
           <Link to="/how">{t('nav.how')}</Link>
-          <Link to="/agents">{t('nav.agents')}</Link>
-          <Link to="/sensors">{t('nav.sensors')}</Link>
-          <Link to="/impact">{t('nav.impact')}</Link>
+          <Link to="/how#agents">{t('nav.agents')}</Link>
+          <Link to="/how#sensors">{t('nav.sensors')}</Link>
+          <Link to="/proof">{t('nav.impact')}</Link>
           <Link to="/pilot">{t('nav.pilot')}</Link>
           <a href="https://github.com/Prashant-thakur77/pukaar" target="_blank" rel="noreferrer">
             GitHub ↗

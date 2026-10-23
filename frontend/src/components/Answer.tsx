@@ -179,7 +179,7 @@ export interface RowVillage {
 }
 
 /** C7: one 56 px row per village; the whole row is the link. Highest level first, then by name. */
-export function VillageRows({ villages, label }: { villages: RowVillage[]; label: string }) {
+export function VillageRows({ villages, label, hot = null, onHot, sub }: { villages: RowVillage[]; label: string; hot?: string | null; onHot?: (id: string | null) => void; sub?: Record<string, ReactNode> }) {
   const sorted = [...villages].sort((a, b) => levelStep(b.level) - levelStep(a.level) || a.name.localeCompare(b.name));
   return (
     <ul className="vrows" aria-label={label}>
@@ -188,9 +188,17 @@ export function VillageRows({ villages, label }: { villages: RowVillage[]; label
         const Icon = v.unknown ? CloudOff : LEVEL_ICON[v.level];
         return (
           <li key={v.id}>
-            <Link to={`/village/${v.id}`} className={`vrow lv-${shown}`}>
+            <Link
+              to={`/village/${v.id}`}
+              className={`vrow lv-${shown}${hot === v.id ? ' is-hot' : ''}`}
+              onPointerEnter={onHot && (() => onHot(v.id))}
+              onPointerLeave={onHot && (() => onHot(null))}
+              onFocus={onHot && (() => onHot(v.id))}
+              onBlur={onHot && (() => onHot(null))}
+            >
               <span className="vrow-name">
                 <span lang="hi">{v.name_hi}</span> <span className="vrow-en" lang="en">{v.name}</span>
+                {sub?.[v.id] && <span className="vrow-sub">{sub[v.id]}</span>}
               </span>
               <span className="vrow-level">
                 <Icon aria-hidden="true" />

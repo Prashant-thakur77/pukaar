@@ -40,11 +40,11 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/live',
     targets: [
       {
-        sel: '[data-tour="live-map"]',
+        sel: '[data-tour="live-list"]',
         title: { en: 'Every village, every 15 minutes', hi: 'हर गाँव, हर 15 मिनट' },
         body: {
-          en: 'Each marker is a village, coloured and labelled by its risk level, worked out again from fresh forecasts every 15 minutes. Tap one to see why.',
-          hi: 'हर निशान एक गाँव है, उसके ख़तरे के स्तर के रंग और नाम के साथ। हर 15 मिनट नए पूर्वानुमान से दोबारा तय होता है। वजह देखने के लिए किसी पर टैप करें।',
+          en: 'Each row is a village with its risk level in words and icon, worked out again from fresh forecasts every 15 minutes. The map is one tap away. Tap a village to see why.',
+          hi: 'हर पंक्ति एक गाँव है, उसका ख़तरे का स्तर शब्द और निशान के साथ। हर 15 मिनट नए पूर्वानुमान से दोबारा तय होता है। नक्शा एक टैप दूर है। वजह देखने के लिए किसी गाँव पर टैप करें।',
         },
       },
     ],
@@ -103,15 +103,23 @@ export const TOUR_STEPS: TourStep[] = [
         sel: '[data-tour="how-loop"]',
         title: { en: 'Each step, and why it works', hi: 'हर क़दम, और वह क्यों काम करता है' },
         body: {
-          en: 'Seven steps from a forecast to a confirmed alert, each with the AWS service behind it and the research that backs it.',
-          hi: 'पूर्वानुमान से पुष्टि हुई चेतावनी तक सात क़दम, हर एक के पीछे की AWS सेवा और उसे सही ठहराने वाला शोध।',
+          en: 'Eight steps from a forecast to a confirmed alert and the roll-call after, each with the research that backs it; the AWS services are one tap away for engineers.',
+          hi: 'पूर्वानुमान से पुष्टि हुई चेतावनी और बाद की हाज़िरी तक आठ क़दम, हर एक के साथ उसे सही ठहराने वाला शोध; इंजीनियरों के लिए AWS सेवाएँ एक टैप पर।',
         },
       },
     ],
   },
   {
-    route: '/impact',
+    route: '/proof',
     targets: [
+      {
+        sel: '[data-tour="story"]',
+        title: { en: 'The night the river rose', hi: 'वह रात जब नदी चढ़ी' },
+        body: {
+          en: 'The July 2023 floods, replayed hour by hour: when Pukaar’s rules would have said get ready, watch and warning, and what happened in the villages.',
+          hi: 'जुलाई 2023 की बाढ़, घंटे दर घंटे दोबारा: पुकार के नियम कब ‘तैयार रहें’, ‘सतर्क’ और ‘चेतावनी’ कहते, और गाँवों में क्या हुआ।',
+        },
+      },
       {
         sel: '[data-tour="scores"]',
         title: { en: 'Scored against real floods, honestly', hi: 'असली बाढ़ों पर जाँचा, ईमानदारी से' },

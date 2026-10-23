@@ -1,0 +1,38 @@
+/* S3, the scroll story (components/StoryScroller.tsx). The chart stays; the steps pass it. */
+.s3 { display: grid; gap: 0; }
+.s3-stick {
+  position: sticky; top: var(--header-h); z-index: 2;
+  display: grid; gap: var(--sp-2); padding: var(--sp-2) 0 var(--sp-3);
+  background: var(--bg); border-bottom: 1px solid var(--line);
+}
+.s3-valley { display: none; }
+.s3-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); }
+.s3-chips li { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--t-small); font-weight: 700; color: var(--lv-ink); }
+.s3-chips li.lv-normal { color: var(--ink-2); font-weight: 400; }
+.s3-chips svg { width: 18px; height: 18px; }
+.s3-steps { list-style: none; margin: 0; padding: 0; }
+.s3-steps li { min-height: 70vh; display: grid; align-content: center; gap: var(--sp-2); padding: var(--sp-6) 0 var(--sp-6) var(--sp-4); border-left: 3px solid var(--line); }
+.s3-steps li.is-on { border-left-color: var(--accent); }
+.s3-when { font-size: var(--t-small); font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.s3-title { font-size: var(--t-h2); line-height: var(--lh-h2); font-weight: 700; color: var(--ink); }
+.s3-title.lv-watch, .s3-title.lv-warning, .s3-title.lv-critical { color: var(--lv-ink); }
+.s3-text { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-2); max-width: 34em; }
+.s3-src { display: flex; flex-wrap: wrap; gap: 0 var(--sp-4); }
+.s3-src a { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: var(--tap); font-size: var(--t-small); color: var(--accent-text); }
+.s3-src svg { width: 16px; height: 16px; }
+@media (prefers-reduced-motion: no-preference) {
+  .s3-steps li { transition: border-color var(--dur-slow) var(--ease-out); }
+}
+
+/* Reduced motion, or no observer: four still frames, in order. */
+.s3-still { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-7); }
+.s3-still li { display: grid; gap: var(--sp-2); }
+
+@media (min-width: 1024px) {
+  .s3 { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: var(--sp-8); align-items: start; }
+  .s3-stick { top: calc(var(--header-h) + var(--sp-5)); border-bottom: 0; padding: 0; gap: var(--sp-5); }
+  .s3-valley { display: block; max-width: 520px; }
+  .s3-chips { display: none; }
+  .s3-steps li { min-height: 85vh; padding: 0 0 0 var(--sp-5); }
+  .s3-still { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--sp-7); }
+}

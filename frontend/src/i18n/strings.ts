@@ -19,7 +19,8 @@ export const strings = {
   'nav.live': { hi: 'लाइव नक्शा', en: 'Live' },
   'nav.report': { hi: 'सूचना दें', en: 'Report' },
   'nav.console': { hi: 'अधिकारी', en: 'Console' },
-  'nav.impact': { hi: 'असर', en: 'Impact' },
+  'nav.impact': { hi: 'सबूत', en: 'Proof' },
+  'nav.impact.sub': { hi: 'जुलाई 2023 का बैक-टेस्ट और ईमानदार सीमाएँ', en: 'The July 2023 back-test and honest limits' },
   'nav.menu': { hi: 'मेन्यू खोलें', en: 'Open menu' },
   'nav.close': { hi: 'मेन्यू बंद करें', en: 'Close menu' },
   'nav.skip': { hi: 'सीधे सामग्री पर जाएँ', en: 'Skip to content' },
@@ -705,7 +706,7 @@ export const strings = {
 
   // impact
   'impact.eyebrow': { hi: 'असर', en: 'Impact' },
-  'impact.title': { hi: 'हम क्या माप रहे हैं', en: 'What we can show, and what we cannot yet' },
+  'impact.title': { hi: 'जो दिखा सकते हैं, और जो अभी नहीं', en: 'What we can show, and what we cannot yet' },
   'impact.lead': { hi: 'पुराने असली डेटा पर नियम दोबारा चलाकर देखा कि चेतावनी कितनी पहले आती।', en: 'We re-ran the rules on archived real data to see how early a warning would have come.' },
   'impact.backtest': { hi: 'बैक-टेस्ट', en: 'Back-test' },
   'impact.backtest.none': { hi: 'बैक-टेस्ट के नतीजे अभी उपलब्ध नहीं हैं।', en: 'Back-test results are not yet available.' },
@@ -914,14 +915,10 @@ export const strings = {
   },
   'soil.dry': { hi: '0 सूखा ({v})', en: '0 dry ({v})' },
   'soil.wet': { hi: '1 गीला ({v})', en: '1 wet ({v})' },
-  'nav.loop': { hi: 'पूरा चक्र', en: 'The loop' },
-  'nav.loop.sub': { hi: 'पूर्वानुमान से “मिल गया” तक सात क़दम', en: 'Seven steps from forecast to “मिल गया”' },
   'nav.agents': { hi: 'एजेंट', en: 'Agents' },
-  'nav.agents.sub': { hi: 'क्या करते हैं, क्या कभी नहीं कर सकते', en: 'What they do, what they may never do' },
   'nav.sensors': { hi: 'सेंसर', en: 'Sensors' },
-  'nav.sensors.sub': { hi: 'नदी के गेज से नियमों तक', en: 'From the river gauge to the rules' },
   'nav.pilot': { hi: 'पायलट', en: 'Pilot' },
-  'nav.pilot.sub': { hi: 'ख़र्च, मापे गए आँकड़े, तैयारी', en: 'Cost, what is measured, readiness' },
+  'nav.pilot.sub': { hi: 'ख़र्च, तैयारी और 90 दिन', en: 'Cost, readiness and 90 days' },
 
   // virtual staff gauges (CrowdWater pattern)
   'state.loading': { hi: 'लोड हो रहा है…', en: 'Loading…' },

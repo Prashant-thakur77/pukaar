@@ -3,7 +3,7 @@
 `backend/src/Pukaar/scripts/score.py` (`python -m Pukaar.scripts.score`) asks two questions
 of the back-test: did the rules warn the villages that were actually hit, and which data
 source did the work? It writes `data/scores.json` (copied to `frontend/src/data/scores.json`
-for the Impact page); `scripts/build_charts.py` draws `docs/charts/scores.svg` from it.
+for the Proof page, /proof); `scripts/build_charts.py` draws `docs/charts/scores.svg` from it.
 
 The river trigger was rebuilt on 22 October 2026 (rules `risk-rules-v2`): a river cell chosen
 for each village, return-period thresholds, the GloFAS ensemble probability, and official data

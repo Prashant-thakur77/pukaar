@@ -127,7 +127,7 @@
   box-shadow: inset 4px 0 0 var(--lv);
   transition: background-color var(--dur-quick) var(--ease-out);
 }
-.vrow:hover { background: var(--surface-2); }
+.vrow:hover, .vrow.is-hot { background: var(--surface-2); }
 .vrow-name { min-width: 0; }
 .vrow-name [lang='hi'] { font-size: var(--t-body); font-weight: 700; }
 .vrow-en { font-size: var(--t-small); color: var(--ink-3); }

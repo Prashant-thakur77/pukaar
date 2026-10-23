@@ -24,8 +24,8 @@ minute, deploy with short timers:
 
 | # | Do | You should see | If it fails |
 |---|---|---|---|
-| 1 | Open the landing page | The promise, live counters, Watch -> Approve -> Call, the 112 button | Counters read 0 on a fresh stack; that is correct, not an error |
-| 2 | Open **Live** | Map with five villages, each with a level icon and word; approximate-location note | If map tiles do not load, the village list below the map carries the same data |
+| 1 | Open the home page | The five villages' levels first (a status line, then one row per village), the report button and 112; below, the valley with each village in its live level colour, the three steps, and the July 2023 teaser | With no network it paints the last copy this phone saw, with its time |
+| 2 | Open **Live** | The five villages as a list first, each with its level icon and word and how far it is from the Watch line; on a phone **Map** shows the map, on a desk it fills the right side once the page is idle | If map tiles do not load, the list carries the same data |
 | 3 | **Sign in** as `officer1` | Officer console: ranked village queue, pending approvals, reports, Ask Pukaar | Local mode: the demo-user buttons. AWS: the Cognito users from `make seed` |
 | 4 | In the console open **Demo · Replay** and press **Start replay** (July 2023) | REPLAY banner everywhere with a progress bar. The console asks for about 4 s per hour of data ("Replay speed: ~4 s per hour of data"), so the 97 hours take about 6-7 minutes. Sujanpur reaches watch at once and critical 37 replay hours (about 2.5 minutes) in; Pandoh and Gohar reach warning from rain 50 replay hours (about 3.5 minutes) in. Every village shows "Get ready" (the 7-day river outlook, never an alert) from the start. Open alerts stay pending at the level they rose to even after the village level eases: the alert card keeps the level it rose to. At the end the banner reads "Replay finished — Reset to clear" | If nothing rises, check `/replay/status`; `available` must list `himachal_2023_07` (`python -m Pukaar.scripts.fetch_replay`) |
 | 5 | Open the pending Sujanpur alert | Hindi and English draft, which model wrote it, draft-check result, recipients count, decision trace with values against thresholds | With no model access the amber chip reads "Rule fallback: model unavailable — fixed Hindi template". That is the outage path working, not a bug. If the level rose again while the alert waited, the chip reads "Level rose while waiting — fixed template for the new level" |
@@ -38,7 +38,7 @@ minute, deploy with short timers:
 | 12 | Officer console: the report appears; mark it verified, then undo | State changes, undo restores | — |
 | 13 | **Ask Pukaar**: "Which villages need attention?" | Answer, bar chart with each bar in its village's level colour (icon and word in the legend) and a dashed 100 % "warning threshold" line, highlighted villages, tool trace. Under the chart: "Level also depends on rain, verified reports and the 3-sweep hold" | Without a model it says "rule-router (no model call)" and still answers from the tools |
 | 14 | Open the **Audit trail** on the alert | Every allow and deny for that alert with the policy and reason; routine reads are hidden by default ("Show reads"), denies are counted and highlighted | — |
-| 15 | Open **Impact** | Back-test table: July 2023 crosses; Mandi 2025 "never crossed", models missed it | — |
+| 15 | Open **Proof** (`/proof`; the old `/impact` link still works) | "The night the river rose": scroll, and the chart's marker moves through 7-11 July 2023 while the five villages change colour; then the back-test table: July 2023 crosses; Mandi 2025 "never crossed", models missed it | With reduced motion the story is four still frames |
 | 16 | **Reset replay** | The button reads "Resetting…", then a toast: "Replay reset: villages back to normal". Replay data gone, audit kept | — |
 
 What the walk shows: code decides and the model only words the alert; every

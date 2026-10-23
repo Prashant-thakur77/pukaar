@@ -226,8 +226,8 @@ painter and critical CSS, and the deferred `pk-fallback-*.js` starts the app the
 
 `frontend/scripts/csp-check.mjs` serves the production build with exactly these headers (read from the
 template, region filled in), answers the stack's API host from a local backend, gives map tiles a
-1×1 PNG, and opens 18 pages in headless Chromium: `/`, `/live`, `/report`, `/village/thunag`, `/how`,
-`/sensors`, `/agents`, `/impact`, `/pilot`, a tracking page, `/login`, `/status.html`, and signed in, the
+1×1 PNG, and opens 16 pages in headless Chromium: `/`, `/live`, `/report`, `/village/thunag`, `/how`,
+`/proof`, `/pilot`, a tracking page, `/login`, `/status.html`, and signed in, the
 console's inbox (waiting and sent), reports, settings, audit and roster. It fails on any `securitypolicyviolation` event or CSP console message, and
 on a missing header. It also opens an after-action-style page from a `blob:` URL the way the console
 does and checks its inline styles survive. With `CSP_OVERRIDE="default-src 'self'"` the same run

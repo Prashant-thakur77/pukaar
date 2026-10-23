@@ -13,7 +13,7 @@ or a section names an alarm that no longer exists.
 |---|---|
 | Dashboard | CloudWatch, dashboard `pukaar-<stage>` (sweep, model, delivery, approvals, API, DLQs) |
 | Logs | `/aws/lambda/pukaar-api-<stage>`, `pukaar-sweep-<stage>`, `pukaar-workflow-<stage>`, `pukaar-worker-<stage>`, `pukaar-gauge-ingest-<stage>`, `pukaar-canary-<stage>`; Step Functions `/aws/vendedlogs/states/pukaar-approval-<stage>` |
-| Console | `/console/inbox` (approvals, and what was sent), `/console/villages`, `/console/reports`, `/console/rollcall`, `/console/roster`, `/console/audit`; `/sensors` |
+| Console | `/console/inbox` (approvals, and what was sent), `/console/villages`, `/console/reports`, `/console/rollcall`, `/console/roster`, `/console/audit`; `/how#sensors` |
 | Queues | `pukaar-sweep-dlq-<stage>`, `pukaar-worker-dlq-<stage>` |
 | Alarm topic | SNS `pukaar-alarms-<stage>`; subscribe the on-call phone (SMS) and e-mail. With no subscriber nobody hears an alarm |
 
@@ -359,7 +359,7 @@ still watched on the forecast, but the observed river level is missing or untrus
 sends an OK message when the gauge recovers.
 
 **First 3 checks.**
-1. `/sensors`: which gauge, and its reasons (`silent`, `low_battery`, `bad_quality`), last reading time,
+1. `/how#sensors`: which gauge, and its reasons (`silent`, `low_battery`, `bad_quality`), last reading time,
    battery voltage and firmware.
 2. Gauge-ingest logs (`/aws/lambda/pukaar-gauge-ingest-<stage>`) and the IoT topic rule's errors in the
    worker DLQ: are readings arriving and being refused, or not arriving at all?
@@ -383,7 +383,7 @@ its outdoor siren may not sound. The alarm sends an OK message when the device i
 the alarm layer has been tested on hardware yet (docs/hardware/ALARM.md).
 
 **First 3 checks.**
-1. `/sensors`, "Sirens and devices": which device, its health and reasons, last seen and on which path,
+1. `/how#sensors`, "Sirens and devices": which device, its health and reasons, last seen and on which path,
    state of charge, faults, last test.
 2. Are all devices in the area offline at once? Then it is the mobile tower or a LoRa relay, not the node
    (the FloodNet triage rule). Check the other devices of the village and its neighbours.
@@ -409,7 +409,7 @@ state of charge) or an audible test (current draw or the sound-level rise was ou
 range). Device ingest emits `SirenTestFailed`; the device's health becomes "fault" until a test passes.
 
 **First 3 checks.**
-1. `/sensors`: the device's last silent and audible test, their detail and measurements (amplifier
+1. `/how#sensors`: the device's last silent and audible test, their detail and measurements (amplifier
    current against its reference, SPL rise against the minimum).
 2. The device's events (`GET /devices/{id}/events?type=test_result`): is it one failure or a run of
    them? Which part failed?
@@ -437,7 +437,7 @@ duty officer on Telegram and Web Push ("थुनाग का सायरन �
 1. The alert's siren tier in the console (`GET /alerts/{id}/sirens`): commanded, started or nothing?
    A command that never started means the node did not get it; started but not verified means it got it
    and the evidence was missing.
-2. The device on `/sensors`: last seen, path, faults. An offline node explains it
+2. The device on `/how#sensors`: last seen, path, faults. An offline node explains it
    (`pukaar-<stage>-siren-offline`).
 3. The device's events: `rejected` with `bad_sig`, `expired` or `replayed` means a key, clock or counter
    problem, not a dead siren.
@@ -649,8 +649,8 @@ commit.
 - [ ] The "Who to call" table is filled in and on the DEOC wall.
 - [ ] The duty roster is filled to the end of June, with the ADM or DM as escalation; `nobody-on-duty` is OK.
 - [ ] Every village's thresholds and river cell reviewed with the DDMA; changes recorded with a date.
-- [ ] Gauges: batteries, solar, mount height and datum checked on site; `/sensors` shows each healthy.
-- [ ] Sirens and pradhan boxes (where installed): `/sensors` shows each `ok`; a silent test passed this
+- [ ] Gauges: batteries, solar, mount height and datum checked on site; `/how#sensors` shows each healthy.
+- [ ] Sirens and pradhan boxes (where installed): `/how#sensors` shows each `ok`; a silent test passed this
       week and an audible test this month; batteries, panels, earthing (10 ohm or less) and surge
       protectors checked; SPL at the farthest covered house re-measured (ambient + 10 dB, or the house is
       marked "phone and relay only"); the officers' numbers are on each node's SMS allow-list.

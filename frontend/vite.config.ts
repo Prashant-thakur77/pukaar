@@ -51,7 +51,7 @@ export default defineConfig({
         globIgnores: [
           '**/maplibre*', '**/HeroScene*', '**/*latin-ext*', '**/*cyrillic*', '**/*greek*', '**/*vietnamese*',
           '**/noto-sans-devanagari*',
-          '**/ConsoleLayout-*', '**/Inbox-*', '**/AuditPage-*', '**/AskSection-*', '**/Sections-*', '**/console-*', '**/Roster-*', '**/Pilot-*', '**/Impact-*', '**/Agents-*', '**/How-*', '**/Sensors-*',
+          '**/ConsoleLayout-*', '**/Inbox-*', '**/AuditPage-*', '**/AskSection-*', '**/Sections-*', '**/console-*', '**/Roster-*', '**/Pilot-*', '**/Proof-*', '**/How-*', '**/StoryScroller-*',
         ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // One classic script, as registerSW.js registers it.

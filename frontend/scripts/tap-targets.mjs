@@ -83,6 +83,9 @@ const PAGES = [
   { name: 'live-map', path: '/live', prep: showMap },
   // Thunag has mapped safe places and walking routes, so its page draws a map.
   { name: 'village-map', path: '/village/thunag', prep: showMap },
+  { name: 'home', path: '/' },
+  { name: 'how', path: '/how' },
+  { name: 'proof', path: '/proof' },
   { name: 'pilot', path: '/pilot' },
   { name: 'report', path: '/report' },
   // The compose step shows more controls (staff gauge, photo, voice) once a village is picked.

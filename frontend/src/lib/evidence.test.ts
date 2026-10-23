@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DecisionTrace } from '../types';
-import { evidenceLines, holdLine } from './evidence';
+import { evidenceLines, holdLine, shortReason } from './evidence';
 
 const reading = (over: Record<string, unknown> = {}) => ({
   kind: 'reading',
@@ -88,5 +88,21 @@ describe('evidence formatter', () => {
       const lines = evidenceLines({ evidence: [reading({ rain_24h_mm: 20, rain_level: 'normal', discharge_peak: 0.3, river_level: 'normal' }), calm] }, 'en').map((l) => l.text);
       expect(lines).toContain('No heavy burst: at most 30 mm in 3 hours, below the 45 mm limit');
     });
+  });
+});
+
+describe('shortReason', () => {
+  it('names the rule that raised the level most, in words, never as an id', () => {
+    expect(shortReason(['rain_24h>=64.5mm:watch'], 'hi')).toBe('अगले 24 घंटे में बारिश 64.5 मिमी से ज़्यादा');
+    expect(shortReason(['rain_24h>=64.5mm:watch'], 'en')).toBe('Rain next 24 h over 64.5 mm');
+    expect(shortReason(['rain_24h>=115.6mm:warning', 'discharge>=4.619:critical', 'two_sources_agree:+1'], 'en')).toBe('River flow over 4.62 m³/s');
+    expect(shortReason(['gauge_unconfirmed:warning', 'rain_intensity:3h=48>=45mm+rain_24h:warning'], 'en')).toBe('Heavy burst: 48 mm in 3 h');
+    expect(shortReason(['river_ensemble:P(warning)=0.4>=0.3:warning'], 'hi')).toBe('नदी: 40% पूर्वानुमान चेतावनी रेखा पार');
+    expect(shortReason(['official:CWC+IMD:warning'], 'en')).toBe('Official: CWC, IMD');
+  });
+  it('says nothing rather than show an unknown id', () => {
+    expect(shortReason(['something_new:watch'], 'en')).toBeNull();
+    expect(shortReason([], 'en')).toBeNull();
+    expect(shortReason(undefined, 'hi')).toBeNull();
   });
 });
