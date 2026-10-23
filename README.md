@@ -1,5 +1,28 @@
 <div align="center">
 
+<a href="https://youtu.be/fc7pBvKPwFI"><img src="docs/media/pukaar-raahat-thumbnail.jpg" alt="Pukaar Raahat: relief before the river. Watch the 2:48 film" width="100%"></a>
+
+# पुकार राहत · Pukaar Raahat
+
+### Flood relief that reaches the village before the river does.
+**नदी से पहले, गाँव तक: चेतावनी भी, राहत भी।**
+
+On this branch, Pukaar's live flood warning gains a relief layer on a public chain: cash released on a rule sealed before the monsoon, the flood confirmed by two of three independent keys (pradhan, officer, Sentinel-2), and a public receipt for every household with no personal data on chain.
+
+**[Watch the film (2:48)](https://youtu.be/fc7pBvKPwFI)** · **[Live relief ledger](https://main.d227ld968f3fok.amplifyapp.com/raahat)** · **[How Raahat works](#raahat-where-the-money-goes)** · **[Writeup](docs/submission/w3sg-writeup.md)** · **[ReliefPool on BaseScan](https://sepolia.basescan.org/address/0x8ef8BCe3E7800845ae6b17A51bDe56554bF47C52)**
+
+![Web3 for Social Good 2026](docs/badges/web3-for-social-good-2026.svg) ![Tech Track](docs/badges/tech-track.svg) ![Base Sepolia testnet](docs/badges/base-sepolia-testnet.svg) ![tests 1006 + 200 + 53 passing](docs/badges/tests-1006-200-53-passing.svg) ![contracts 100% coverage](docs/badges/contracts-100-coverage.svg) ![live smoke 86 of 86](docs/badges/live-smoke-86-of-86.svg)
+
+</div>
+
+**Try it in two minutes.** Open the [live relief ledger](https://main.d227ld968f3fok.amplifyapp.com/raahat) (no sign-in) and press **Re-verify** on any alert: your browser reads the hash from the chain, fetches the public alert feed and checks that they match. To run a flood yourself, sign in at [/login](https://main.d227ld968f3fok.amplifyapp.com/login) as `judge`, password `Judge-E5FCkUl3uY-2026`, start the July 2023 replay in the console, approve Pandoh's Warning, then under **Release relief** release tier 1, attest as officer, run the satellite check and release tier 2. Judge accounts act on replays only, and every replay is labelled on chain (`exercise=true`). tINR is a test token with no value; amounts are illustrative, SDRF norms to be mapped with DDMA.
+
+Everything below is Pukaar, the live warning loop Raahat builds on (first built for the AWS Environmental Hacks, on its own stack `pukaar-dev`); Raahat runs on a separate stack, `pukaar-raahat`, with its own site.
+
+---
+
+<div align="center">
+
 <img src="docs/media/pukaar-pitch-poster.jpg" alt="पुकार Pukaar: the call that reaches the village before the river does" width="100%">
 
 # पुकार · Pukaar
