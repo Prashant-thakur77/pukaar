@@ -74,7 +74,3 @@ Oxfam's UnBlocked Cash pilot in Vanuatu (2019) cut onboarding to about 3.6 minut
 ## Feasibility
 
 The warning loop has been live since 11 Oct 2026. Raahat is one module, deployed today on a testnet at no cost. Gas per alert on Base is a few cents (two transactions: the anchor and the outcome). Two partner dependencies stand between this and a pilot, and we name both: a licensed INR rail, and the DDMA's mapping of SDRF norms to the rule.
-
-## Team
-
-Prashant Bahuguna, Prashant Thakur, Puneet Yadav.

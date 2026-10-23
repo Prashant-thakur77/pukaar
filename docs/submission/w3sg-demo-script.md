@@ -22,7 +22,7 @@ Recorded on the deployed stack (`pukaar-raahat`, Base Sepolia) during a labelled
 | 1:30–2:00 | `/raahat` rule card ("sealed since …"), then Console → Release relief: "Tier 1 · 30 households × ₹1,500 = ₹45,000" (Pandoh) → Release → confirm | "This part is new. The relief rule was written and sealed before the monsoon. When Pandoh reaches Warning on the forecast, before the water, the officer releases the anticipatory tranche. In Bangladesh, $53 a week before the flood made families 52% less likely to go a day without eating." |
 | 2:00–2:30 | Console: officer attests (severity 2) and runs the satellite check (Sentinel-2, severity 3); the pradhan attests from the demo photo; three chips green, "confirmed"; Release tier 2; the pradhan enters UPI references and receipts fill 0 → n; `/raahat` row fills; BaseScan `Released` and `PayoutReceipt` | "The ledger updates as it happens. Every rupee is a public transaction a donor, a journalist or a villager can open. No wallet, no app, no account for the villager." |
 | 2:30–2:50 | The real / replay / simulated / planned table | "After the flood, three independent parties confirm it, the pradhan, the district officer and the satellite, each with their own key. Two of three unlock the second tranche, and every household's receipt is public while its identity is not. The money today is a test token; the rail and the SDRF amounts need the DDMA and a licensed partner." |
-| 2:50–3:00 | Team, 112 | "Pukaar Raahat: the call that reaches the village before the river, and the help that does too." |
+| 2:50–3:00 | End card, 112 | "Pukaar Raahat: the call that reaches the village before the river, and the help that does too." |
 
 ## On-screen labels
 

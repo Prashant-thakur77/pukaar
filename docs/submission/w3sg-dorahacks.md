@@ -30,8 +30,6 @@ Live demo:     https://main.d227ld968f3fok.amplifyapp.com/raahat
 Demo video:    https://youtu.be/fc7pBvKPwFI
 ```
 
-Team: Prashant Bahuguna, Prashant Thakur, Puneet Yadav.
-
 ## Details (paste as markdown)
 
 ```markdown
@@ -86,7 +84,6 @@ There is no token sale, DAO, NFT or upgradeable proxy: four small contracts and 
 
 The money is TestINR, a test token with no value; a real pilot needs a licensed INR rail. The amounts await mapping to SDRF norms with the district authority. On the testnet our server holds the attesters' keys; in a pilot each officer and pradhan signs on their own device.
 
-Team: Prashant Bahuguna, Prashant Thakur, Puneet Yadav.
 ```
 
 ## YouTube (upload before submitting)
