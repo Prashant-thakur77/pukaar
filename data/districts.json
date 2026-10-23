@@ -1,0 +1,7 @@
+{
+  "_note": "One entry per district Pukaar serves. Hand-kept, read by scripts/seed.py (never by code at run time: the seed copies each district's Hindi name and LGD code onto its villages' records, and the CAP feed reads them from there). lgd_code: the Local Government Directory (lgdirectory.gov.in) district code, the geocode SACHET's own CAP messages carry ('LGD District Code'); Himachal Pradesh is LGD state 2. Hamirpur 17 and Mandi 22 were checked against the LGD district list as mirrored by Google Data Commons (scripts/india_lgd) and the India Data Portal (district_lgd.csv). officers: the district's fallback approval chain (usernames, in call order) used for its villages on a production stage when no duty roster row covers the shift; empty until the DDMA names them. A dev stage gives every village the demo officers of villages.json instead. Add a district with scripts/add_village.py (docs/DEPLOY.md, 'Adding a village or a district').",
+  "districts": {
+    "Hamirpur": {"name_hi": "हमीरपुर", "state": "Himachal Pradesh", "lgd_state_code": "2", "lgd_code": "17", "officers": []},
+    "Mandi": {"name_hi": "मंडी", "state": "Himachal Pradesh", "lgd_state_code": "2", "lgd_code": "22", "officers": []}
+  }
+}

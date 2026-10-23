@@ -171,6 +171,77 @@ production stack never gets these users (see [Production stage](#production-stag
 
 `make reset-demo` clears demo state on the deployed stack.
 
+`make seed` is also the migration for a stack deployed before the alert status index: it gives every
+older alert its index keys (`gsi2`), its district and its village pointer, and repairs its counters into
+the per-person markers. It is idempotent; run it once after `make deploy`.
+
+### Adding a village or a district
+
+No code is edited. `scripts/add_village.py` writes the data, and `make seed` loads it:
+
+```
+make add-village NAME=Bali NAME_HI="बाली" DISTRICT=Mandi LAT=31.612 LON=77.118 [LGD_VILLAGE=012345]
+make add-village NAME=Kasol NAME_HI="कसोल" DISTRICT=Kullu LAT=32.010 LON=77.315 \
+  DISTRICT_HI="कुल्लू" LGD_DISTRICT=20          # a new district: its Hindi name and LGD code
+```
+
+It adds the village to `data/villages.json` (coordinates marked unverified, no gauge, no devices), a new
+district to `data/districts.json` (Hindi name, LGD code, an empty fallback officer list), the village to
+`data/official_sources.json` (IMD district; CWC stations empty), and, unless `OFFLINE=1` or the flood API
+cannot be reached, the GloFAS cells within 7 km with the cell the existing rule suggests to
+`data/river_cells.json` (`calibrate --cells`; about two minutes, one request per cell). It refuses a
+duplicate id, a second village of the same name in a district, coordinates outside India and an LGD
+district code that disagrees with the file. It never chooses the river cell.
+
+It prints, and writes to `data/onboarding/<id>.md`, the checklist of what people still verify: the
+coordinates on the ground, the LGD village code, the river cell against OpenStreetMap and the model's
+routing, the return-period thresholds (`calibrate`), CWC stations, safe places and their routes walked by
+the pradhan, devices, the district's officers, DDMA head and roster (new district), the printed card, and
+one drill. Then `make seed` puts the village and its district's codes into the table (the CAP feed reads
+the LGD codes from the village record) and `make deploy` rebuilds the image for the files the Lambdas read
+at run time (safe places, official sources).
+
+### Staff roles and district scope
+
+Four Cognito groups: `officer`, `pradhan`, `state_operator` (SDMA: reads every district; acts only where
+assigned or rostered; no sirens) and `ddma_head` (reads their own districts; changes their district's
+settings, such as critical auto-send, in the console: `PATCH /districts/{district}/settings`, audited).
+An account takes one role, in that order. Districts are data, not a Cognito attribute:
+
+```
+make staff-assign STAFF=dso_mandi DISTRICTS="Mandi"        # an officer of Mandi
+make staff-assign STAFF=dc_kullu DISTRICTS="Kullu"         # a DDMA head (group ddma_head)
+make staff-assign STAFF=dso_mandi DISTRICTS=""             # no district
+```
+
+An officer also acts where the duty roster has them (yesterday to tomorrow) and on villages whose officer
+list names them. On dev the seed gives every village the demo officers `officer1` and `officer2` and
+assigns them every district; on prod (`STAGE=prod`) a village takes its own `officers` from
+`data/villages.json`, else its district's from `data/districts.json` (empty until the DDMA names them), and
+the seed adds no demo phones. Details in [SECURITY.md](SECURITY.md#who-may-read-villagers-data).
+
+### API throttle
+
+API Gateway's HTTP API throttles each route on its own bucket (`infra/template.yaml`, `RouteSettings`), so
+the acknowledgement webhooks, the voice and Telegram webhooks and the villagers' public reads never starve
+one another or the console. Per second (burst):
+
+| Route | District pilot (template) | Statewide, 1,000 villages (set before the season) |
+|---|---|---|
+| `POST /telegram/webhook` (मिल गया, roll-call) | 100 (200) | 300 (600): one bot sends at most ~30 a second, so taps arrive near that rate, with bursts |
+| `POST /alerts/{id}/ack` | 50 (100) | 200 (400) |
+| Voice webhooks (each) | 50 (100) | the provider's calls per second × 3 |
+| `GET /public/villages/{id}/now` | 200 (400) | 1,000 (2,000) |
+| `GET /villages/{id}` | 100 (200) | 500 (1,000) |
+| `GET /public/overview`, `/villages` | 50 (100) | 100 (200); the overview is a fixed handful of table reads |
+| `POST /sensors/{id}/readings` (HTTPS gauges) | 10 (20): 600 gauges at one a minute | gauges on MQTT (IoT Core), which this never touches |
+| `POST /reports` | 10 (20) | 10 (20): the report-abuse guard stays; each source and village is limited in DynamoDB |
+| Everything else (signed-in console) | 20 (50) | 50 (100) |
+
+All of them together stay under the account's regional API Gateway quota (10,000 a second). The next limit
+is the API Lambda's concurrency (1,000 by default in an account, often 10 in a new one: ask AWS Support
+to raise it before a pilot), then DynamoDB on-demand, which follows the load.
+
 ## 5a. After-action report by e-mail (Amazon SES)
 
 Every alert that closes gets an after-action report (`services/after_action.py`):

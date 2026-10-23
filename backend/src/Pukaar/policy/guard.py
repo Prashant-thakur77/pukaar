@@ -24,7 +24,11 @@ READ_ONLY_TOOLS = {
     "get_village_risk", "get_recent_reports", "get_past_events", "get_safe_places",
     "query_readings", "query_alerts", "query_reports", "query_deliveries", "village_stats", "rank_villages",
 }
-ROLE_TYPES = {"officer": "Officer", "pradhan": "Pradhan", "system": "System", "agent": "Agent"}
+ROLE_TYPES = {"officer": "Officer", "pradhan": "Pradhan", "system": "System", "agent": "Agent",
+              "state_operator": "StateOperator", "ddma_head": "DDMAHead"}
+# Roles that read every village's records (lists are not cut to principal.village_ids). A DDMA head reads the
+# villages of their districts (principal.village_ids, filled at sign-in), like a pradhan their own.
+READS_EVERYTHING = {"officer", "state_operator"}
 RESOURCE_TYPES = {"village": "Village", "alert": "Alert", "report": "Report", "rollcall": "RollCall", "tool": "Tool",
                   "app": "App", "device": "Device"}
 DENY_HINTS = {
@@ -67,14 +71,17 @@ DENY_HINTS = {
     "view_devices": "Only a district officer, or the pradhan of this village, can see its devices.",
     "manage_device": "Only a district officer can change a device; turning on autonomy needs a second officer.",
     "pour_test": "Only a district officer, or the pradhan of this village, can start a rain-gauge pour test.",
+    "change_settings": "Only the DDMA head of this district can change its settings.",
 }
 
 
 @dataclass
 class Principal:
     username: str
-    role: str  # officer | pradhan | system | agent
+    role: str  # officer | pradhan | system | agent | state_operator | ddma_head
     village_ids: list[str] = field(default_factory=list)
+    # A staff account's districts (services/scope.py): a DDMA head's, filled at sign-in from their SCOPE row.
+    district_ids: list[str] = field(default_factory=list)
     # Set by api/auth.Allowed(replay_reads=True) when Cedar lets this caller read replay records only
     # (a public demo account): the route then serves replay records and nothing live.
     replay_only: bool = False
@@ -97,6 +104,11 @@ def _policies() -> tuple[str, list[tuple[str, str]]]:
     return text, meta
 
 
+def _policy_index(pid: str) -> int:
+    m = re.fullmatch(r"policy(\d+)", pid)
+    return int(m.group(1)) if m else 1_000_000
+
+
 def _readable(policy_ids: list[str]) -> list[tuple[str, str]]:
     """cedarpy names policies policy0..N in file order; map to @id/@desc."""
     _, meta = _policies()
@@ -114,7 +126,7 @@ def _entities(p: Principal, resource_type: str, resource_id: str) -> list[dict[s
     ptype = ROLE_TYPES.get(p.role)
     ents: list[dict[str, Any]] = [
         {"uid": {"type": f"Pukaar::{ptype}", "id": p.username},
-         "attrs": {"village_ids": list(p.village_ids)}, "parents": []},
+         "attrs": {"village_ids": list(p.village_ids), "district_ids": list(p.district_ids)}, "parents": []},
         {"uid": {"type": "Pukaar::ToolGroup", "id": "read_only"}, "attrs": {}, "parents": []},
     ]
     parents = []
@@ -130,6 +142,10 @@ def _entities(p: Principal, resource_type: str, resource_id: str) -> list[dict[s
 CONTEXT_DEFAULTS: dict[str, Any] = {
     "level": "normal", "approved": False, "all_officers_timed_out": False, "replay": False, "channel": "",
     "village_id": "",
+    # district scope (services/scope.py): the village's district from its record, whether the request names a
+    # village or a district, and whether this staff account is assigned or rostered there. Always computed
+    # here for a staff principal, never taken from a caller.
+    "district": "", "scoped": False, "in_scope": False,
     # the alarm layer (policy/base.cedar, services/sirens.py)
     "pattern": "", "src": "", "drill": False, "critical_auto_send": False, "machine_evidence_critical": False,
     "second_officer_distinct": False, "device_simulated": False, "device_village_id": "", "kind": "",
@@ -143,11 +159,36 @@ def _context(raw: dict[str, Any]) -> dict[str, Any]:
     return ctx
 
 
+_SCOPE_KEYS = ("district", "scoped", "in_scope")
+
+
+def _with_scope(principal: Principal, resource_type: str, resource_id: str, context: dict[str, Any] | None,
+                repo: Any) -> dict[str, Any]:
+    """The context with the district-scope facts of a staff principal, read from the records (never from the
+    caller: any district/scoped/in_scope a caller passed is dropped first)."""
+    from Pukaar.services import scope
+
+    ctx = {k: v for k, v in (context or {}).items() if k not in ("scoped", "in_scope")}
+    if principal.role not in scope.SCOPED_ROLES:
+        return ctx
+    if repo is None:
+        from Pukaar.store.repo import get_repo
+
+        repo = get_repo()
+    ctx.update(scope.facts(repo, principal, resource_type, resource_id, ctx))
+    return ctx
+
+
 def evaluate(principal: Principal, action: str, resource_type: str, resource_id: str,
-             context: dict[str, Any] | None = None) -> Decision:
+             context: dict[str, Any] | None = None, *, repo: Any = None, scoped: bool = False) -> Decision:
+    """The policy decision alone, no audit row. With a repo, the district-scope facts are read from the records
+    first (as authorize() always does); without one, the context is taken as given (policy unit tests).
+    scoped: the context already carries the scope facts (authorize computed them)."""
     try:
         if principal.role not in ROLE_TYPES:
             return Decision(False, f"Unknown role '{principal.role}'.", [])
+        if not scoped and repo is not None:
+            context = _with_scope(principal, resource_type, resource_id, context, repo)
         policies, _ = _policies()
         request = {
             "principal": f'Pukaar::{ROLE_TYPES[principal.role]}::"{principal.username}"',
@@ -158,7 +199,9 @@ def evaluate(principal: Principal, action: str, resource_type: str, resource_id:
         result = cedarpy.is_authorized(request, policies, _entities(principal, resource_type, resource_id))
         if result.diagnostics.errors:
             return Decision(False, "Policy evaluation error; denied.", [])
-        matched = _readable(list(result.diagnostics.reasons))
+        # In file order: when two forbids match, the reason given is the one written first (cedarpy's own
+        # order is not stable), e.g. the public demo accounts' before the district scope's.
+        matched = _readable(sorted(result.diagnostics.reasons, key=_policy_index))
         ids = [pid for pid, _ in matched]
         if result.allowed:
             return Decision(True, matched[0][1] if matched else "allowed", ids)
@@ -172,7 +215,12 @@ def evaluate(principal: Principal, action: str, resource_type: str, resource_id:
 
 def authorize(principal: Principal, action: str, resource_type: str, resource_id: str,
               context: dict[str, Any] | None = None, *, repo: Any = None) -> Decision:
-    decision = evaluate(principal, action, resource_type, resource_id, context)
+    try:
+        context = _with_scope(principal, resource_type, resource_id, context, repo)
+    except Exception as exc:  # fail closed: an unreadable scope is out of scope
+        log(_LOG, "scope facts failed", 40, error=str(exc)[:200])
+        context = {**(context or {}), "district": "", "scoped": True, "in_scope": False}
+    decision = evaluate(principal, action, resource_type, resource_id, context, scoped=True)
     row = AuditRow(
         at=clock.iso(clock.now()), id=new_id("aud"), actor=principal.username, role=principal.role,
         action=action, resource=f"{resource_type}:{resource_id}",

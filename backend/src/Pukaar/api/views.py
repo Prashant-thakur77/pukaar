@@ -210,6 +210,22 @@ def is_drill(a: Alert) -> bool:
     return bool(a.decision_trace.get("drill")) and not is_replay(a)
 
 
+def _reached_a_phone(repo: Repo, a: Alert) -> bool:
+    """The alert reached at least one real phone. phones_reached_count says so at once; an alert counted before
+    that counter existed (or never repaired) is read from its rows."""
+    if a.phones_reached_count > 0:
+        return True
+    return any(d.channel in {"telegram", "voice"} and d.status in _REAL_PHONE_DELIVERY for d in repo.list_deliveries(a.id))
+
+
+def _village_counts(repo: Repo, v: Village, since: str, until: str) -> tuple[int, int, int, int]:
+    """(reports, forecast checks, gauge readings, of which simulated) for one village: COUNT queries only."""
+    gauged = v.gauge is not None
+    return (repo.count_live_reports(v.id), repo.count_live_readings(v.id, since, until),
+            repo.count_sensor_readings(v.id, since, until) if gauged else 0,
+            repo.count_sensor_readings(v.id, since, until, simulated=True) if gauged else 0)
+
+
 def counters(repo: Repo, now: datetime | None = None) -> dict[str, int]:
     """The public counters. Each one counts real records only (docs/CONTRACT.md):
 
@@ -218,6 +234,9 @@ def counters(repo: Repo, now: datetime | None = None) -> dict[str, int]:
     replay_alerts_approved             replay alerts an officer approved through the approval workflow
     forecast_checks_24h                forecast readings the sweep stored (one per village per sweep), last 24 h
     gauge_readings_24h[_simulated]     river-gauge readings received in the last 24 h (of which simulated)
+
+    The per-village counts are COUNT queries (no item bodies), run PUKAAR_SWEEP_CONCURRENCY at a time on AWS.
+    The sweep stores the result (refresh_counters) and /public/overview reads that one item (public_counters).
     """
     now = now or clock.now()
     since, until = clock.iso(now - timedelta(hours=COUNTER_WINDOW_HOURS)), clock.iso(now)
@@ -225,17 +244,58 @@ def counters(repo: Repo, now: datetime | None = None) -> dict[str, int]:
     alerts = repo.list_alerts(limit=500)
     sent = [a for a in alerts if went_out(a) and not is_replay(a) and not is_drill(a)]
     drills = [a for a in alerts if is_drill(a) and went_out(a)]
-    gauged = [v for v in villages if v.gauge is not None]
+    s = get_settings()
+    if s.is_local or len(villages) < 2:  # moto's in-process table is not safe for threads; DynamoDB is
+        per = [_village_counts(repo, v, since, until) for v in villages]
+    else:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=min(s.sweep_concurrency, len(villages))) as pool:
+            per = list(pool.map(lambda v: _village_counts(repo, v, since, until), villages))
     return {
         "villages_watched": len(villages),
         "alerts_sent": len(sent),
         "phones_acknowledged": sum(a.acknowledged_count for a in sent),
-        "reports_received": sum(1 for v in villages for r in repo.list_reports(v.id, limit=500) if not r.replay),
-        "drills_delivered": sum(1 for a in drills if any(d.channel in {"telegram", "voice"} and d.status in _REAL_PHONE_DELIVERY
-                                                         for d in repo.list_deliveries(a.id))),
+        "reports_received": sum(p[0] for p in per),
+        "drills_delivered": sum(1 for a in drills if _reached_a_phone(repo, a)),
         "replay_alerts_approved": sum(1 for a in alerts if is_replay(a) and a.approved),
-        "forecast_checks_24h": sum(repo.count_live_readings(v.id, since, until) for v in villages),
-        "gauge_readings_24h": sum(repo.count_sensor_readings(v.id, since, until) for v in gauged),
-        "gauge_readings_24h_simulated": sum(repo.count_sensor_readings(v.id, since, until, simulated=True)
-                                            for v in gauged),
+        "forecast_checks_24h": sum(p[1] for p in per),
+        "gauge_readings_24h": sum(p[2] for p in per),
+        "gauge_readings_24h_simulated": sum(p[3] for p in per),
     }
+
+
+COUNTERS_SUMMARY = "counters"
+
+
+def refresh_counters(repo: Repo, now: datetime | None = None) -> dict[str, int] | None:
+    """Compute the counters and store them (repo SUMMARY counters). The sweep calls it once a run. Never raises."""
+    now = now or clock.now()
+    try:
+        body = counters(repo, now)
+        repo.put_summary(COUNTERS_SUMMARY, body, clock.iso(now))
+        return body
+    except Exception as exc:
+        from Pukaar.core.log import get_logger, log
+
+        log(get_logger("views"), "counters not refreshed", 30, error=str(exc)[:200])
+        return None
+
+
+def public_counters(repo: Repo, now: datetime | None = None) -> tuple[dict[str, int], str]:
+    """(counters, when they were counted) for a public page: the stored summary while it is younger than
+    PUKAAR_COUNTERS_MAX_AGE_SECONDS (the sweep writes it every 15 minutes), so a page read costs one GetItem
+    whatever the number of villages; otherwise computed now and stored."""
+    now = now or clock.now()
+    max_age = get_settings().counters_max_age_seconds
+    if max_age > 0:
+        stored = repo.get_summary(COUNTERS_SUMMARY)
+        if stored is not None and 0 <= (now - clock.parse(stored[0])).total_seconds() <= max_age:
+            return stored[1], stored[0]
+    body = counters(repo, now)
+    if max_age > 0:
+        try:
+            repo.put_summary(COUNTERS_SUMMARY, body, clock.iso(now))
+        except Exception:
+            pass
+    return body, clock.iso(now)

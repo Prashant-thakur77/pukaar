@@ -208,9 +208,11 @@ def round_limiters(share: int) -> tuple[RateLimiter, RateLimiter]:
     batches running at once. Each batch worker is its own Lambda, so the shares add up to the limit."""
     s = get_settings()
     share = max(1, share)
-    # No burst: n workers starting together must not send n bursts in the same second.
+    # No burst: n workers starting together must not send n bursts in the same second. On AWS each Telegram
+    # slot is also taken from the bot's budget shared by every Lambda (telegram.shared_bucket), so another
+    # village's alert running at the same time never adds its own full rate on top of this one's.
     return (RateLimiter(s.telegram_rate_per_second / share, burst=1,
-                        per_key_interval=s.telegram_chat_interval_seconds),
+                        per_key_interval=s.telegram_chat_interval_seconds, shared=telegram.shared_bucket()),
             RateLimiter(s.voice_calls_per_second / share, burst=1))
 
 
@@ -427,13 +429,17 @@ def _claim(rd: _Round, item: _Item) -> Delivery | None:
 
 
 def _write(rd: _Round, item: _Item, **fields: Any) -> Delivery:
-    """Record the outcome without undoing an acknowledgement that arrived while the send was in flight."""
+    """Record the outcome without undoing an acknowledgement that arrived while the send was in flight.
+    A row that now says "sent" counts its person as reached, once (count_reached)."""
     repo, alert_id, rid, ch = rd.repo, rd.alert.id, item.recipient.id, item.channel
     try:
-        return repo.update_delivery(alert_id, rid, channel=ch, condition=Attr("acknowledged_at").not_exists(), **fields)
+        d = repo.update_delivery(alert_id, rid, channel=ch, condition=Attr("acknowledged_at").not_exists(), **fields)
     except ConflictError:
         fields.pop("status", None)
-        return repo.update_delivery(alert_id, rid, channel=ch, **fields)
+        d = repo.update_delivery(alert_id, rid, channel=ch, **fields)
+    if d.status in REACHED:
+        count_reached(repo, alert_id, rid, ch)
+    return d
 
 
 def _defer(rd: _Round, item: _Item, claimed: Delivery, reason: str) -> str:
@@ -528,17 +534,58 @@ def voice_retry_due(repo: Repo, alert: Alert) -> bool:
                for d in rows)
 
 
-def recount(repo: Repo, alert_id: str) -> Alert | None:
-    """delivered_count and acknowledged_count, in people: a "both" recipient counts once."""
-    rows = repo.list_deliveries(alert_id)
-    if repo.get_alert(alert_id) is None:
-        return None
-    from Pukaar.services import events
+PHONE_CHANNELS = {"telegram", "voice"}  # a real phone; the "stub" channel of demo recipients is not one
 
-    alert = repo.update_alert(alert_id, delivered_count=len({d.recipient_id for d in rows if d.status in REACHED}),
-                              acknowledged_count=len({d.recipient_id for d in rows if d.acknowledged_at}))
-    events.counts_changed(alert)
+
+def count_reached(repo: Repo, alert_id: str, recipient_id: str, channel: str) -> bool:
+    """Count a person reached, once however many rows, rounds or workers report it: an idempotent marker, and
+    an atomic ADD by whoever created it (Repo.mark_person). A real phone also counts in phones_reached_count.
+    O(1) per send: nothing reads the alert's other rows. True when a counter moved."""
+    return repo.mark_person(alert_id, recipient_id, "reached", phone=channel in PHONE_CHANNELS)
+
+
+def repair_counts(repo: Repo, alert_id: str, *, emit: bool = True) -> Alert | None:
+    """The full recount, for repair and audit: delivered_count, phones_reached_count and acknowledged_count
+    from the delivery rows themselves, in people (a "both" recipient counts once).
+
+    It never races an acknowledgement: the person markers missing for a reached or acknowledged row are
+    written first (without moving a counter), then each counter is set to its number of markers only if the
+    counter still holds the value read (a conditional write, tried again when an ADD landed in between).
+    Run once at the end of each delivery round (workflow/steps.py), and by hand: it reads every row of the
+    alert, so it is never on the path of a single tap."""
+    alert = repo.get_alert(alert_id)
+    if alert is None:
+        return None
+    rows = repo.list_deliveries(alert_id)
+    truth = {"reached": {d.recipient_id for d in rows if d.status in REACHED},
+             "phone": {d.recipient_id for d in rows if d.status in REACHED and d.channel in PHONE_CHANNELS},
+             "acked": {d.recipient_id for d in rows if d.acknowledged_at}}
+    for kind, people in truth.items():
+        for rid in people - repo.list_markers(alert_id, kind):
+            repo.put_marker(alert_id, rid, kind, phone=rid in truth["phone"])
+    for _ in range(5):
+        current = repo.get_alert(alert_id)
+        if current is None:
+            return None
+        seen = {f: int(getattr(current, f) or 0) for f in Repo.COUNTER_FIELDS.values()}
+        new = {f: len(repo.list_markers(alert_id, kind)) for kind, f in Repo.COUNTER_FIELDS.items()}
+        if new == seen:
+            alert = current
+            break
+        updated = repo.set_counts_if_unchanged(alert_id, seen, new)
+        if updated is not None:
+            alert = updated
+            log(_LOG, "counts repaired", 30, alert_id=alert_id, before=seen, after=new)
+            metric("CountsRepaired", 1)
+            break
+    if emit:
+        from Pukaar.services import events
+
+        events.counts_changed(alert)
     return alert
+
+
+recount = repair_counts  # the earlier name; callers on the hot path use count_reached and acknowledge
 
 
 def acknowledge(repo: Repo, alert_id: str, recipient_id: str, channel: str = "") -> Delivery | None:
@@ -546,13 +593,24 @@ def acknowledge(repo: Repo, alert_id: str, recipient_id: str, channel: str = "")
 
     channel "voice" acknowledges the person's call row (delivery/ivr.py); anything else their
     Telegram (or stub) row. Either stops further re-sends to that person on every channel.
+
+    O(1) whatever the size of the alert: the row's own conditional write (acknowledged_at not yet set) is
+    the idempotent transition, and the person is counted by an atomic ADD with a marker (Repo.mark_person),
+    so concurrent taps never overwrite each other's count and a "both" person counts once.
     """
     try:
         d = repo.update_delivery(alert_id, recipient_id, channel=channel, condition=Attr("acknowledged_at").not_exists(),
                                  acknowledged_at=clock.iso(clock.now()), status="acknowledged")
     except ConflictError:
         return None
-    recount(repo, alert_id)
+    moved = repo.mark_person(alert_id, recipient_id, "acked")
+    moved = count_reached(repo, alert_id, recipient_id, d.channel) or moved  # an ack means it reached them
+    if moved:
+        from Pukaar.services import events
+
+        alert = repo.get_alert(alert_id)
+        if alert is not None:
+            events.counts_changed(alert)
     _relay_done(repo, alert_id, d)
     return d
 
@@ -565,7 +623,7 @@ def _relay_done(repo: Repo, alert_id: str, d: Delivery) -> None:
         if person is None or not person.is_relay:
             return
         if any(x.recipient_id == d.recipient_id and x.channel != d.channel and x.acknowledged_at
-               for x in repo.list_deliveries(alert_id)):
+               for x in repo.get_deliveries(alert_id, [d.recipient_id])):
             return  # a "both" relay already acknowledged on the other channel: recorded once
         repo.add_timeline(alert_id, "relay_done", hi.relay_done_detail(person.name, person.role, d.channel))
         metric("RelayDone", 1)

@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 
 from Pukaar.api.auth import require_user
 from Pukaar.core import clock
-from Pukaar.policy.guard import Principal, authorize, evaluate
+from Pukaar.policy.guard import READS_EVERYTHING, Principal, authorize, evaluate
 from Pukaar.services import sirens
 from Pukaar.services.devices import registry, shadow
 from Pukaar.store.models import Device, Village
@@ -67,14 +67,14 @@ def _request_error(exc: sirens.RequestError) -> HTTPException:
 def list_devices(principal: Principal = Depends(require_user)) -> dict:
     repo = get_repo()
     # An officer is asked once; a pradhan once for each of their own villages (no policy matches an empty one).
-    villages = [""] if principal.role == "officer" else ([v for v in principal.village_ids if v] or [""])
+    villages = [""] if principal.role in READS_EVERYTHING else ([v for v in principal.village_ids if v] or [""])
     allowed = [v for v in villages
                if authorize(principal, "view_devices", "app", "pukaar", {"village_id": v}, repo=repo).allowed]
     if not allowed:
         raise _deny("view_devices", "You can only see the devices of your own villages.", principal.role)
     now = clock.now()
     devices = repo.list_devices()
-    if principal.role != "officer":
+    if principal.role not in READS_EVERYTHING:
         devices = [d for d in devices if d.village_id in allowed]
     return {"devices": [registry.view(d, now) for d in devices]}
 
@@ -86,13 +86,14 @@ def _can(principal: Principal, v: Village, devices: list[Device]) -> dict[str, b
     mine = any(sirens._starter(d) == principal.username for d in devices)
     test = first is not None and evaluate(principal, "test_siren", "device", first.device_id,
                                           {"kind": "silent", "hour_ist": hour, "village_id": v.id,
-                                           "device_simulated": first.simulated}).allowed
+                                           "device_simulated": first.simulated}, repo=get_repo()).allowed
     return {"test_siren": test,
             "sound_siren": first is not None and evaluate(principal, "sound_siren", "village", v.id,
                                                           {"village_id": v.id, "level": "warning",
-                                                           "pattern": "W1"}).allowed,
+                                                           "pattern": "W1"}, repo=get_repo()).allowed,
             "stop_siren": first is not None and evaluate(principal, "stop_siren", "village", v.id,
-                                                         {"village_id": v.id, "started_by_self": mine}).allowed}
+                                                         {"village_id": v.id, "started_by_self": mine},
+                                                         repo=get_repo()).allowed}
 
 
 @router.get("/villages/{village_id}/devices")
@@ -152,7 +153,8 @@ def sound(village_id: str, body: SoundBody, principal: Principal = Depends(requi
     if body.level == "critical" and principal.role == "officer":
         # The two-person rule: is this officer allowed to start one at all? (a judge is not)
         probe = evaluate(principal, "sound_siren", "village", v.id,
-                         {"village_id": v.id, "level": "critical", "second_officer_distinct": True, "pattern": "C1"})
+                         {"village_id": v.id, "level": "critical", "second_officer_distinct": True, "pattern": "C1"},
+                         repo=repo)
         if not probe.allowed:
             _allow(repo, principal, "sound_siren", "village", v.id,
                    {"village_id": v.id, "level": "critical", "pattern": "C1"})  # the audited deny
@@ -176,7 +178,7 @@ def confirm(request_id: str, principal: Principal = Depends(require_user)) -> di
         raise HTTPException(404, "Siren request not found")
     probe = evaluate(principal, "sound_siren", "village", req.village_id,
                      {"village_id": req.village_id, "level": "critical", "second_officer_distinct": True,
-                      "pattern": "C1"})
+                      "pattern": "C1"}, repo=repo)
     if not probe.allowed or principal.role != "officer":
         _allow(repo, principal, "sound_siren", "village", req.village_id,
                {"village_id": req.village_id, "level": "critical", "pattern": "C1"})

@@ -93,7 +93,15 @@ function MeasuredBody({ m }: { m: PilotMetrics }) {
         <Measure
           value={fmtNumber(d.reached, lang)}
           label={en ? 'Phones reached' : 'फ़ोन तक पहुँचे'}
-          note={en ? 'Summed over drills; demo recipients without a phone not counted' : 'सब अभ्यासों का जोड़; बिना फ़ोन वाले डेमो नाम नहीं गिने'}
+          note={
+            d.demo_recipients
+              ? en
+                ? `Of ${fmtNumber(d.delivered ?? d.reached, lang)} delivered (the count on each alert); ${fmtNumber(d.demo_recipients, lang)} demo recipients without a phone not counted`
+                : `कुल ${fmtNumber(d.delivered ?? d.reached, lang)} तक पहुँचा (हर चेतावनी पर यही गिनती); बिना फ़ोन वाले ${fmtNumber(d.demo_recipients, lang)} डेमो नाम नहीं गिने`
+              : en
+                ? 'Summed over drills; demo recipients without a phone not counted'
+                : 'सब अभ्यासों का जोड़; बिना फ़ोन वाले डेमो नाम नहीं गिने'
+          }
         />
         <Measure value={share(d, lang)} label={en ? 'Pressed “मिल गया”' : '“मिल गया” दबाया'} />
         <Measure

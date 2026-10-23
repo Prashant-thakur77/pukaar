@@ -13,6 +13,17 @@ Keys:
   SAFESHARE#id META                   (family link pointer; TTL 7 days)
   HELPNOTE#chat META                  (waiting for a short note after "need help"; TTL 1 hour)
   ALERTLOG    iso#alert_id            (index of every alert, newest last)
+  VILLAGE#id  ALERTREF#iso#alert_id   (the village's own alert history: a village page reads only its alerts)
+  ALERT#id    PERSON#reached#recipient (phone: a real phone, not the demo stub) | PERSON#acked#recipient
+              (one marker per person counted, created only if absent; only the call that created it ADDs
+              to the alert's counter, so a repeated tap or a retried webhook never counts twice)
+  SUMMARY     counters                (the public counters, written by the sweep: /public/overview reads one item)
+  RATEBUCKET#name  window | PAUSE     (a send-rate budget shared by every Lambda: delivery/ratelimit.py; TTL)
+  CHATVILLAGE#chat  village_id        (the villages a Telegram chat is registered in: /stop finds them all)
+  CONSENT#chat  META                  (a /start waiting for the consent button; TTL 1 day; nothing else is kept)
+  ERASURE     due_iso#recipient       (personal data still to erase after the last village link went; services/privacy.py)
+  OFFICER#username SCOPE              (the districts a staff account is assigned to; services/scope.py)
+  DISTRICT#name SETTINGS              (district settings a DDMA head may change: critical auto-send)
   REPORTREF#id META                   (pointer to the report item)
   TRACK#code  META                    (pointer from a tracking code to its report)
   AUDIT#date  iso#id                  (append only; no update or delete path)
@@ -30,7 +41,10 @@ Keys:
               | CTR (atomic command counter) | SHADOW#name (local mode only)
   ALERT#id    SIREN#device#round      (the siren tier; never a people DELIVERY# row)
   SIRENREQ#id META                    (two-person siren request; TTL 1 day); VILLAGE#id SIRENREQ#iso#id pointer
-Sparse GSI gsi1: gsi1pk = "OPEN#ALERT" / "OPEN#REPORT" while work is open.
+Sparse GSI gsi1: gsi1pk = "OPEN#ALERT" / "OPEN#REPORT" while work is open; "OPEN#ROLLCALL" (gsi1sk closes_at).
+GSI gsi2 (alert META items only): gsi2pk = "ALERTS#<status>", gsi2sk = "<created_at>#<id>". The inbox reads
+the pending alerts of the whole state, or of one district (a filter on the alert's district), newest first,
+however many alerts exist: a status is never looked for among only the newest few hundred alerts.
 """
 
 from __future__ import annotations
@@ -81,7 +95,7 @@ from Pukaar.store.models import (
 )
 
 M = TypeVar("M", bound=BaseModel)
-_KEY_FIELDS = {"pk", "sk", "gsi1pk", "gsi1sk", "ttl", "kind"}
+_KEY_FIELDS = {"pk", "sk", "gsi1pk", "gsi1sk", "gsi2pk", "gsi2sk", "ttl", "kind"}
 ROLLCALL_TTL_DAYS = 30
 PUSH_TTL_DAYS = 180
 ROSTER_TTL_DAYS = 400  # a year of duty charts, for the after-action record
@@ -152,17 +166,18 @@ def table_schema(name: str) -> dict[str, Any]:
         "BillingMode": "PAY_PER_REQUEST",
         "KeySchema": [{"AttributeName": "pk", "KeyType": "HASH"}, {"AttributeName": "sk", "KeyType": "RANGE"}],
         "AttributeDefinitions": [
-            {"AttributeName": n, "AttributeType": "S"} for n in ("pk", "sk", "gsi1pk", "gsi1sk")
+            {"AttributeName": n, "AttributeType": "S"} for n in ("pk", "sk", "gsi1pk", "gsi1sk", "gsi2pk", "gsi2sk")
         ],
         "GlobalSecondaryIndexes": [
             {
-                "IndexName": "gsi1",
+                "IndexName": name,
                 "KeySchema": [
-                    {"AttributeName": "gsi1pk", "KeyType": "HASH"},
-                    {"AttributeName": "gsi1sk", "KeyType": "RANGE"},
+                    {"AttributeName": f"{name}pk", "KeyType": "HASH"},
+                    {"AttributeName": f"{name}sk", "KeyType": "RANGE"},
                 ],
                 "Projection": {"ProjectionType": "ALL"},
             }
+            for name in ("gsi1", "gsi2")
         ],
     }
 
@@ -216,9 +231,35 @@ class Repo:
                 return total
             kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
 
-    def _gsi(self, gsi1pk: str) -> list[dict]:
-        page = self.t.query(IndexName="gsi1", KeyConditionExpression=Key("gsi1pk").eq(gsi1pk))
-        return page.get("Items", [])
+    def _gsi(self, gsi1pk: str, sk_after: str | None = None) -> list[dict]:
+        cond = Key("gsi1pk").eq(gsi1pk)
+        if sk_after is not None:
+            cond = cond & Key("gsi1sk").gt(sk_after)
+        kwargs: dict[str, Any] = {"IndexName": "gsi1", "KeyConditionExpression": cond}
+        items: list[dict] = []
+        while True:
+            page = self.t.query(**kwargs)
+            items.extend(page.get("Items", []))
+            if "LastEvaluatedKey" not in page:
+                return items
+            kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
+    def _batch_get(self, keys: Iterable[tuple[str, str]], *, consistent: bool = False) -> dict[tuple[str, str], dict]:
+        """Many items by key, 100 to a BatchGetItem call (DynamoDB's limit), unprocessed keys retried.
+        Returns {(pk, sk): item} for the keys that exist."""
+        client, name, out = self.t.meta.client, self.t.name, {}
+        unique = list(dict.fromkeys(keys))
+        for i in range(0, len(unique), 100):
+            request: dict | None = {name: {"Keys": [{"pk": pk, "sk": sk} for pk, sk in unique[i:i + 100]],
+                                           "ConsistentRead": consistent}}
+            for _ in range(10):
+                if not request:
+                    break
+                resp = client.batch_get_item(RequestItems=request)
+                for item in resp.get("Responses", {}).get(name, []):
+                    out[(str(item["pk"]), str(item["sk"]))] = item
+                request = resp.get("UnprocessedKeys") or None
+        return out
 
     def _update(self, pk: str, sk: str, fields: dict[str, Any], *, remove: Iterable[str] = (), condition: Any = None,
                 add: dict[str, int] | None = None) -> dict:
@@ -269,9 +310,15 @@ class Repo:
         item = self._get(f"VILLAGE#{village_id}", "META")
         return _model(Village, item) if item else None
 
+    def village_ids(self) -> list[str]:
+        return [str(i["sk"]) for i in self._query("VILLAGES")]
+
     def list_villages(self) -> list[Village]:
-        ids = [str(i["sk"]) for i in self._query("VILLAGES")]
-        villages = [v for v in (self.get_village(i) for i in ids) if v is not None]
+        """Every village: one registry query, then BatchGetItem (100 keys a call), never one GetItem per
+        village. 1,000 villages are 1 + 10 calls."""
+        keys = [(f"VILLAGE#{i}", "META") for i in self.village_ids()]
+        items = self._batch_get(keys)
+        villages = [_model(Village, items[k]) for k in keys if k in items]
         return sorted(villages, key=lambda v: v.name)
 
     def update_village(self, village_id: str, **fields: Any) -> Village:
@@ -486,6 +533,36 @@ class Repo:
         now = int(clock.now().timestamp())
         return [_model(Report, i) for i in items if not _expired(i, now)]
 
+    def count_live_reports(self, village_id: str) -> int:
+        """Reports of a village that are not a replay's and not yet expired; Select=COUNT, no bodies read."""
+        now = int(clock.now().timestamp())
+        flt = (Attr("replay").not_exists() | Attr("replay").eq(False)) & (Attr("ttl").not_exists() | Attr("ttl").gt(now))
+        return self._count(f"VILLAGE#{village_id}", "REPORT#", "REPORT#~", flt)
+
+    def redact_reports(self, village_id: str, needles: list[str], replacement: str = "[removed]") -> int:
+        """Erasure (services/privacy.py): every report of the village whose words, transcript or masked copy
+        holds one of `needles` (a phone number, a chat id) gets it replaced. The report itself, its state and
+        its time stay: they are the authority's record. Returns how many reports changed."""
+        needles = [n for n in needles if n and len(n) >= 6]
+        if not needles:
+            return 0
+        changed = 0
+        for item in self._query(f"VILLAGE#{village_id}", "REPORT#"):
+            fields: dict[str, Any] = {}
+            for key in ("text", "transcript", "masked_text", "summary_en", "reporter_name"):
+                value = item.get(key)
+                if not isinstance(value, str) or not value:
+                    continue
+                new = value
+                for n in needles:
+                    new = new.replace(n, replacement)
+                if new != value:
+                    fields[key] = new
+            if fields:
+                self._update(str(item["pk"]), str(item["sk"]), fields)
+                changed += 1
+        return changed
+
     def bump_rate(self, scope: str, key: str, window: str, ttl_seconds: int = 86400) -> int:
         """Add one to a fixed-window counter and return the new count (services/report_guard.py).
         One atomic ADD per call: two Lambdas never both read the old count."""
@@ -496,6 +573,17 @@ class Repo:
     # -- recipients ------------------------------------------------------
     def put_recipient(self, r: Recipient) -> None:
         self._put({"pk": f"VILLAGE#{r.village_id}", "sk": f"RECIPIENT#{r.id}", **r.model_dump()})
+        if r.takes_telegram:
+            # Where this chat is registered, so /stop (and erasure) finds every village in one query.
+            self._put({"pk": f"CHATVILLAGE#{r.id}", "sk": r.village_id})
+
+    def chat_villages(self, chat_id: str) -> list[str]:
+        """The villages a Telegram chat is registered in, from its pointer rows and, for a registration made
+        before the pointers existed, from the village registry (one BatchGetItem per 100 villages)."""
+        found = {str(i["sk"]) for i in self._query(f"CHATVILLAGE#{chat_id}")}
+        keys = [(f"VILLAGE#{v}", f"RECIPIENT#{chat_id}") for v in self.village_ids()]
+        found |= {pk.removeprefix("VILLAGE#") for pk, _ in self._batch_get(keys, consistent=True)}
+        return sorted(found)
 
     def list_recipients(self, village_id: str) -> list[Recipient]:
         return [_model(Recipient, i) for i in self._query(f"VILLAGE#{village_id}", "RECIPIENT#")]
@@ -519,7 +607,133 @@ class Repo:
     def delete_recipient(self, village_id: str, recipient_id: str) -> bool:
         old = self.t.delete_item(Key={"pk": f"VILLAGE#{village_id}", "sk": f"RECIPIENT#{recipient_id}"},
                                  ReturnValues="ALL_OLD")
+        self.t.delete_item(Key={"pk": f"CHATVILLAGE#{recipient_id}", "sk": village_id})
         return bool(old.get("Attributes"))
+
+    # -- consent and erasure (services/privacy.py) -------------------------
+    def put_consent_wait(self, chat_id: str, village_id: str, ttl_seconds: int = 86400) -> None:
+        """A /start shown the notice, waiting for the consent button. Holds the village only: the person is
+        not stored until they agree, and this row expires in a day if they never do."""
+        expires = int(clock.now().timestamp()) + ttl_seconds
+        self._put({"pk": f"CONSENT#{chat_id}", "sk": "META", "village_id": village_id, "expires": expires,
+                   "ttl": expires})
+
+    def consume_consent_wait(self, chat_id: str, village_id: str) -> bool:
+        """True once for the village the notice was shown for; the row is deleted."""
+        try:
+            old = self.t.delete_item(Key={"pk": f"CONSENT#{chat_id}", "sk": "META"}, ReturnValues="ALL_OLD",
+                                     ConditionExpression=Attr("village_id").eq(village_id)).get("Attributes")
+        except ClientError:
+            return False
+        return bool(old) and int(old.get("expires", 0)) >= clock.now().timestamp()
+
+    def drop_consent_wait(self, chat_id: str) -> None:
+        self.t.delete_item(Key={"pk": f"CONSENT#{chat_id}", "sk": "META"})
+
+    def put_erasure(self, recipient_id: str, villages: list[str], due: str, reason: str,
+                    needles: list[str] | None = None) -> None:
+        """Schedule the erasure of what is left of a person once their last village link went (a /stop,
+        a removal). `needles` are the strings to scrub from reports (the phone number, the chat id); the row
+        holds them until it runs, and is deleted when it has run."""
+        self._put({"pk": "ERASURE", "sk": f"{due}#{recipient_id}", "recipient_id": recipient_id,
+                   "villages": sorted(set(villages)), "reason": reason, "needles": list(needles or []),
+                   "due": due})
+
+    def due_erasures(self, now_iso: str) -> list[dict[str, Any]]:
+        kwargs: dict[str, Any] = {"KeyConditionExpression": Key("pk").eq("ERASURE") & Key("sk").lte(f"{now_iso}#~")}
+        items: list[dict] = []
+        while True:
+            page = self.t.query(**kwargs)
+            items.extend(page.get("Items", []))
+            if "LastEvaluatedKey" not in page:
+                return [_from_dynamo(i) for i in items]
+            kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
+    def list_erasures(self) -> list[dict[str, Any]]:
+        return [_from_dynamo(i) for i in self._query("ERASURE")]
+
+    def delete_erasure(self, sk: str) -> None:
+        self.t.delete_item(Key={"pk": "ERASURE", "sk": sk})
+
+    def erase_alert_person(self, alert_id: str, recipient_id: str, pseudonym: str) -> int:
+        """Re-key one person's rows of one alert (both delivery channels and the counter markers) under a
+        pseudonym, without their name, chat id, number or call ids. Status, channel, attempts and times stay:
+        the minimal record of who-was-reached-when the authority keeps. Counters do not move. Returns rows moved."""
+        pk = f"ALERT#{alert_id}"
+        moved = 0
+        olds = [f"DELIVERY#{delivery_key(recipient_id, ch)}" for ch in ("", "voice")] + \
+            [f"PERSON#{kind}#{recipient_id}" for kind in ("reached", "acked")]
+        found = self._batch_get([(pk, sk) for sk in olds], consistent=True)
+        for (_, sk), item in found.items():
+            new = {k: v for k, v in item.items() if k not in {"name", "call_ids", "digit", "error", "all_clear_call_id"}}
+            if sk.startswith("DELIVERY#"):
+                channel = str(item.get("channel") or "")
+                new.update(sk=f"DELIVERY#{delivery_key(pseudonym, channel)}", recipient_id=pseudonym,
+                           name="(erased)", erased=True)
+            else:
+                new.update(sk=sk.rsplit("#", 1)[0] + f"#{pseudonym}")
+            self.t.put_item(Item=new)
+            self.t.delete_item(Key={"pk": pk, "sk": sk})
+            moved += 1
+        return moved
+
+    def delete_rollcall_person(self, rollcall_id: str, recipient_id: str) -> None:
+        for sk in (f"ASKED#{recipient_id}", f"RESP#{recipient_id}"):
+            self.t.delete_item(Key={"pk": f"ROLLCALL#{rollcall_id}", "sk": sk})
+
+    def delete_chat_rows(self, chat_id: str) -> None:
+        """Rows keyed by a chat id alone: the help-note wait, the consent wait, the village pointers."""
+        for pk, sk in [(f"HELPNOTE#{chat_id}", "META"), (f"CONSENT#{chat_id}", "META")] + \
+                [(f"CHATVILLAGE#{chat_id}", str(i["sk"])) for i in self._query(f"CHATVILLAGE#{chat_id}")]:
+            self.t.delete_item(Key={"pk": pk, "sk": sk})
+
+    # -- staff scope and district settings (services/scope.py) -----------
+    def put_staff_scope(self, username: str, districts: list[str]) -> None:
+        self._put({"pk": f"OFFICER#{username}", "sk": "SCOPE", "districts": sorted(set(districts))})
+
+    def get_staff_scope(self, username: str) -> list[str]:
+        item = self._get(f"OFFICER#{username}", "SCOPE")
+        return [str(d) for d in (item or {}).get("districts", [])]
+
+    def get_district_settings(self, district: str) -> dict[str, Any]:
+        item = self._get(f"DISTRICT#{district}", "SETTINGS")
+        return {k: v for k, v in _from_dynamo(item).items() if k not in _KEY_FIELDS} if item else {}
+
+    def put_district_settings(self, district: str, fields: dict[str, Any]) -> dict[str, Any]:
+        return {k: v for k, v in _from_dynamo(self._update(f"DISTRICT#{district}", "SETTINGS", fields)).items()
+                if k not in _KEY_FIELDS}
+
+    # -- the public counters (api/views.py), written by the sweep --------
+    def put_summary(self, name: str, body: dict[str, Any], at: str) -> None:
+        self._put({"pk": "SUMMARY", "sk": name, "at": at, "body": json.dumps(body, separators=(",", ":"))})
+
+    def get_summary(self, name: str) -> tuple[str, dict[str, Any]] | None:
+        item = self._get("SUMMARY", name)
+        return (str(item["at"]), json.loads(str(item["body"]))) if item else None
+
+    # -- a send-rate budget shared by every process (delivery/ratelimit.py) --
+    def take_rate_slots(self, name: str, window: int, limit: int, n: int = 1, ttl_seconds: int = 120) -> bool:
+        """Take n slots of a fixed window's budget: one conditional ADD, so two Lambdas never both take the
+        last slot. False (nothing taken) when the window has fewer than n left."""
+        try:
+            self._update(f"RATEBUCKET#{name}", f"W#{window}", {"ttl": int(clock.now().timestamp()) + ttl_seconds},
+                         add={"n": n}, condition=Attr("n").not_exists() | Attr("n").lte(limit - n))
+            return True
+        except ConflictError:
+            return False
+
+    def get_rate_pause(self, name: str) -> float:
+        item = self._get(f"RATEBUCKET#{name}", "PAUSE")
+        return float(item.get("until", 0)) if item else 0.0
+
+    def set_rate_pause(self, name: str, until: float) -> None:
+        """The far side said 429: every process waits until `until` (epoch seconds). Only ever extended."""
+        try:
+            self._update(f"RATEBUCKET#{name}", "PAUSE", {"until": Decimal(str(round(until, 3))),
+                                                         "ttl": int(until) + 3600},
+                         condition=Attr("until").not_exists() | Attr("until").lt(Decimal(str(round(until, 3)))))
+        except ConflictError:
+            pass
 
     def put_link_code(self, code: str, username: str, ttl_seconds: int = 900) -> None:
         self._put({"pk": f"LINKCODE#{code}", "sk": "META", "username": username,
@@ -703,12 +917,37 @@ class Repo:
 
     # -- alerts ----------------------------------------------------------
     def put_alert(self, a: Alert) -> None:
-        item: dict[str, Any] = {"pk": f"ALERT#{a.id}", "sk": "META", **a.model_dump()}
+        if not a.district:
+            v = self.get_village(a.village_id)
+            if v is not None:
+                a = a.model_copy(update={"district": v.district})
+        item: dict[str, Any] = {"pk": f"ALERT#{a.id}", "sk": "META", **a.model_dump(),
+                                "gsi2pk": f"ALERTS#{a.status}", "gsi2sk": f"{a.created_at}#{a.id}"}
         if a.status in OPEN_ALERT_STATUSES:
             item.update(gsi1pk="OPEN#ALERT", gsi1sk=a.created_at)
         self._put(item, condition=Attr("pk").not_exists())
         self._put({"pk": "ALERTLOG", "sk": f"{a.created_at}#{a.id}", "alert_id": a.id, "village_id": a.village_id,
                    "replay": a.replay})
+        self._put({"pk": f"VILLAGE#{a.village_id}", "sk": f"ALERTREF#{a.created_at}#{a.id}", "alert_id": a.id,
+                   "replay": a.replay})
+
+    def index_alert(self, alert_id: str) -> bool:
+        """Migration (scripts/seed.py): give an alert written before the status index its index keys,
+        district and village pointer. Idempotent; False when it already had them or is gone."""
+        item = self._get(f"ALERT#{alert_id}", "META")
+        if not item or item.get("gsi2pk"):
+            return False
+        a = _model(Alert, item)
+        district = a.district or ((self.get_village(a.village_id) or Village(id="", name="", name_hi="", district="",
+                                                                              lat=0, lon=0)).district)
+        self._update(f"ALERT#{a.id}", "META", {"gsi2pk": f"ALERTS#{a.status}", "gsi2sk": f"{a.created_at}#{a.id}",
+                                               "district": district})
+        self._put({"pk": f"VILLAGE#{a.village_id}", "sk": f"ALERTREF#{a.created_at}#{a.id}", "alert_id": a.id,
+                   "replay": a.replay})
+        return True
+
+    def all_alert_ids(self) -> list[str]:
+        return [str(i["alert_id"]) for i in self._query("ALERTLOG")]
 
     def get_alert(self, alert_id: str) -> Alert | None:
         item = self._get(f"ALERT#{alert_id}", "META")
@@ -719,6 +958,8 @@ class Repo:
         sets = {k: (v.model_dump() if isinstance(v, BaseModel) else v) for k, v in fields.items() if v is not None}
         sets["updated_at"] = clock.iso(clock.now())
         status = fields.get("status")
+        if status is not None:
+            sets["gsi2pk"] = f"ALERTS#{status}"  # the status index follows the status (gsi2sk never changes)
         if status is not None and status not in OPEN_ALERT_STATUSES:
             remove += ["gsi1pk", "gsi1sk"]
         cond = Attr("pk").exists() if condition is None else (Attr("pk").exists() & condition)
@@ -734,16 +975,123 @@ class Repo:
             **fields,
         )
 
-    def list_alerts(self, *, status: str | None = None, village_id: str | None = None, limit: int = 100) -> list[Alert]:
-        filtered = bool(status or village_id)
-        refs = self._query("ALERTLOG", newest_first=True, limit=500 if filtered else limit)
+    def _alerts_by_id(self, ids: list[str]) -> list[Alert]:
+        """The alerts, in the order of ids, by BatchGetItem (never one GetItem per alert)."""
+        items = self._batch_get([(f"ALERT#{i}", "META") for i in ids])
+        return [_model(Alert, items[(f"ALERT#{i}", "META")]) for i in ids if (f"ALERT#{i}", "META") in items]
+
+    def _alerts_with_status(self, status: str, district: str | None, limit: int) -> list[Alert]:
+        """Newest first from the status index (gsi2): every alert with that status, however old."""
+        kwargs: dict[str, Any] = {"IndexName": "gsi2", "KeyConditionExpression": Key("gsi2pk").eq(f"ALERTS#{status}"),
+                                  "ScanIndexForward": False}
+        if district:
+            kwargs["FilterExpression"] = Attr("district").eq(district)
+        out: list[Alert] = []
+        while len(out) < limit:
+            page = self.t.query(**kwargs)
+            out += [_model(Alert, i) for i in page.get("Items", [])]
+            if "LastEvaluatedKey" not in page:
+                break
+            kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+        return out[:limit]
+
+    def list_alerts(self, *, status: str | None = None, village_id: str | None = None, district: str | None = None,
+                    limit: int = 100) -> list[Alert]:
+        """Newest first. village_id: that village's own history (VILLAGE#id ALERTREF#). status (one, or several
+        comma separated) with or without district: the status index, so an old pending alert is never missed.
+        Neither: the newest `limit` of the alert log."""
+        wanted = [s for s in (status or "").split(",") if s]
         if village_id:
-            refs = [r for r in refs if r.get("village_id") == village_id]
-        alerts = [a for a in (self.get_alert(r["alert_id"]) for r in refs) if a is not None]
-        if status:
-            wanted = set(status.split(","))
-            alerts = [a for a in alerts if a.status in wanted]
-        return alerts[:limit]
+            alerts: list[Alert] = []
+            kwargs: dict[str, Any] = {"KeyConditionExpression": Key("pk").eq(f"VILLAGE#{village_id}")
+                                      & Key("sk").begins_with("ALERTREF#"), "ScanIndexForward": False}
+            while len(alerts) < limit:
+                page = self.t.query(**kwargs, Limit=max(limit, 25))
+                batch = self._alerts_by_id([str(r["alert_id"]) for r in page.get("Items", [])])
+                alerts += [a for a in batch if (not wanted or a.status in wanted)
+                           and (not district or a.district == district)]
+                if "LastEvaluatedKey" not in page:
+                    break
+                kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+            return alerts[:limit]
+        if wanted:
+            merged = [a for s in wanted for a in self._alerts_with_status(s, district, limit)]
+            return sorted(merged, key=lambda a: (a.created_at, a.id), reverse=True)[:limit]
+        if district:
+            out: list[Alert] = []
+            kwargs = {"KeyConditionExpression": Key("pk").eq("ALERTLOG"), "ScanIndexForward": False}
+            while len(out) < limit:
+                page = self.t.query(**kwargs, Limit=max(limit, 100))
+                out += [a for a in self._alerts_by_id([str(r["alert_id"]) for r in page.get("Items", [])])
+                        if a.district == district]
+                if "LastEvaluatedKey" not in page:
+                    break
+                kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+            return out[:limit]
+        refs = self._query("ALERTLOG", newest_first=True, limit=limit)
+        return self._alerts_by_id([str(r["alert_id"]) for r in refs])
+
+    # -- counters in people (delivery/dispatch.py) ------------------------
+    # The counters, and which person marker each counts: delivered_count every PERSON#reached# marker,
+    # phones_reached_count those of them reached on a real phone (phone=True), acknowledged_count PERSON#acked#.
+    COUNTER_FIELDS = {"reached": "delivered_count", "acked": "acknowledged_count", "phone": "phones_reached_count"}
+
+    def mark_person(self, alert_id: str, recipient_id: str, kind: str, *, phone: bool = False) -> bool:
+        """Count one person once. First the marker PERSON#<kind>#<recipient>, created only if absent (one
+        conditional put: of any number of concurrent taps, retried webhooks or workers, exactly one wins);
+        then, for the winner only, one atomic ADD on the alert's counter(s): kind "reached" adds to
+        delivered_count, and to phones_reached_count too when phone (a real phone, not the demo stub).
+        Two table writes per person, whatever the size of the alert. The markers are the truth and the
+        counters their running totals: a crash between the two leaves a counter one short until
+        dispatch.repair_counts sets it to the number of markers. True when this call counted the person."""
+        try:
+            self._put({"pk": f"ALERT#{alert_id}", "sk": f"PERSON#{kind}#{recipient_id}",
+                       "at": clock.iso(clock.now()), "phone": bool(phone)}, condition=Attr("pk").not_exists())
+        except ConflictError:
+            return False
+        add = {self.COUNTER_FIELDS[kind]: 1}
+        if kind == "reached" and phone:
+            add["phones_reached_count"] = 1
+        try:
+            self._update(f"ALERT#{alert_id}", "META", {}, add=add, condition=Attr("pk").exists())
+        except ConflictError:
+            return False  # no such alert: the stray marker counts nothing
+        return True
+
+    def list_markers(self, alert_id: str, kind: str) -> set[str]:
+        """Recipients with a marker of this kind; "phone": the reached markers made for a real phone."""
+        prefix = "reached" if kind == "phone" else kind
+        return {str(i["sk"]).split("#", 2)[2] for i in self._query(f"ALERT#{alert_id}", f"PERSON#{prefix}#")
+                if kind != "phone" or i.get("phone")}
+
+    def put_marker(self, alert_id: str, recipient_id: str, kind: str, *, phone: bool = False) -> bool:
+        """Repair only (dispatch.repair_counts): the marker without the counter. A reached marker made for a
+        stub that the rows now show reached a phone is set to phone. False when nothing changed."""
+        sk = f"PERSON#{'reached' if kind == 'phone' else kind}#{recipient_id}"
+        try:
+            self._put({"pk": f"ALERT#{alert_id}", "sk": sk, "at": clock.iso(clock.now()), "repaired": True,
+                       "phone": bool(phone or kind == "phone")}, condition=Attr("pk").not_exists())
+            return True
+        except ConflictError:
+            if kind != "phone":
+                return False
+        try:
+            self._update(f"ALERT#{alert_id}", sk, {"phone": True}, condition=Attr("phone").ne(True))
+            return True
+        except ConflictError:
+            return False
+
+    def set_counts_if_unchanged(self, alert_id: str, seen: dict[str, int], new: dict[str, int]) -> Alert | None:
+        """Set the counters to `new` only if they still hold `seen`: a repair never overwrites an ADD that
+        landed after it read them. None when one moved (the caller reads again)."""
+        cond = Attr("pk").exists()
+        for field_name, value in seen.items():
+            same = Attr(field_name).eq(value) if value else (Attr(field_name).not_exists() | Attr(field_name).eq(0))
+            cond = cond & same
+        try:
+            return _model(Alert, self._update(f"ALERT#{alert_id}", "META", dict(new), condition=cond))
+        except ConflictError:
+            return None
 
     def open_alerts(self) -> list[Alert]:
         return [_model(Alert, i) for i in self._gsi("OPEN#ALERT")]
@@ -895,7 +1243,9 @@ class Repo:
 
     def put_rollcall(self, rc: RollCall) -> None:
         ttl = self._rollcall_ttl()
-        self._put({"pk": f"ROLLCALL#{rc.id}", "sk": "META", "ttl": ttl, **rc.model_dump()},
+        # gsi1 OPEN#ROLLCALL by closing time: the overview finds every open roll-call in one query.
+        self._put({"pk": f"ROLLCALL#{rc.id}", "sk": "META", "ttl": ttl, **rc.model_dump(),
+                   "gsi1pk": "OPEN#ROLLCALL", "gsi1sk": rc.closes_at},
                   condition=Attr("pk").not_exists())
         self._put({"pk": f"VILLAGE#{rc.village_id}", "sk": f"ROLLCALL#{rc.opened_at}#{rc.id}", "rollcall_id": rc.id,
                    "ttl": ttl})
@@ -907,6 +1257,10 @@ class Repo:
     def update_rollcall(self, rollcall_id: str, *, condition: Any = None, **fields: Any) -> RollCall:
         cond = Attr("pk").exists() if condition is None else (Attr("pk").exists() & condition)
         return _model(RollCall, self._update(f"ROLLCALL#{rollcall_id}", "META", fields, condition=cond))
+
+    def open_rollcalls(self, now_iso: str) -> list[RollCall]:
+        """Roll-calls that close after now, every village, one index query."""
+        return [_model(RollCall, i) for i in self._gsi("OPEN#ROLLCALL", sk_after=now_iso)]
 
     def list_rollcalls(self, village_id: str, limit: int = 20) -> list[RollCall]:
         refs = self._query(f"VILLAGE#{village_id}", "ROLLCALL#", newest_first=True, limit=limit)

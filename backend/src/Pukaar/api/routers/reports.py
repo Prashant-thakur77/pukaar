@@ -9,7 +9,7 @@ from Pukaar.api import views
 from Pukaar.api.auth import Allowed
 from Pukaar.core import clock
 from Pukaar.handlers import worker
-from Pukaar.policy.guard import Principal
+from Pukaar.policy.guard import READS_EVERYTHING, Principal
 from Pukaar.services import report_guard
 from Pukaar.services import reports as svc
 from Pukaar.services import staff_gauge as staff
@@ -83,7 +83,7 @@ def list_reports(village_id: str = "", state: str = "",
                  principal: Principal = Depends(Allowed("view_reports", "village", replay_reads=True))) -> list[dict]:
     repo = get_repo()
     villages = [village_id] if village_id else [v.id for v in repo.list_villages()]
-    if principal.role == "pradhan":
+    if principal.role not in READS_EVERYTHING:
         villages = [v for v in villages if v in principal.village_ids]
     out = [r for vid in villages for r in repo.list_reports(vid, limit=100)]
     if principal.replay_only:

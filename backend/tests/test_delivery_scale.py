@@ -29,6 +29,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 import pytest
+from boto3.dynamodb.conditions import Attr
 from Pukaar.core.config import get_settings
 from Pukaar.delivery import dispatch, telegram
 from Pukaar.delivery.ratelimit import RateLimiter
@@ -334,7 +335,9 @@ def test_429_past_the_time_budget_is_queued_unsent_then_sent_next_pass(repo, fro
     rows = telegram_rows(repo, a.id)
     assert rows and all(d.status == "failed" and d.deferred and d.attempts == 0 for d in rows)
     assert all(d.error.startswith("queued, not sent") for d in rows)
-    assert repo.get_alert(a.id).delivered_count == 0
+    # Counted as they are reached (Repo.mark_person): only the demo stubs so far, no queued Telegram send.
+    got = repo.get_alert(a.id)
+    assert (got.delivered_count, got.phones_reached_count) == (base, 0)
     # The state machine waits retry_after (WaitBeforeBatches), then the next pass sends everyone, once.
     waits = []
     done = drive_delivery(s.handle, first, sleep=waits.append)
@@ -405,7 +408,8 @@ def in_memory_rows(repo, latency: float):
 
     rows: dict[tuple[str, str], dict] = {}
     lock = threading.Lock()
-    mine = lambda sk: sk.startswith("DELIVERY#") or sk == "TGFILE"  # noqa: E731
+    # The delivery rows, the Telegram file id and the per-person counter markers (Repo.mark_person).
+    mine = lambda sk: sk.startswith(("DELIVERY#", "PERSON#")) or sk == "TGFILE"  # noqa: E731
 
     class LoadRepo(Repo):
         def _put(self, item, condition=None):
@@ -440,8 +444,19 @@ def in_memory_rows(repo, latency: float):
                 rows[(pk, sk)] = {k: v for k, v in row.items() if v is not None}
                 return dict(rows[(pk, sk)])
 
+        def mark_person(self, alert_id, recipient_id, kind, *, phone=False):
+            """The marker in memory; the counter's ADD costs one table call too (its total is set from the
+            markers by the repair at the end of the round, as in production after a lost ADD)."""
+            try:
+                self._put({"pk": f"ALERT#{alert_id}", "sk": f"PERSON#{kind}#{recipient_id}", "phone": phone},
+                          condition=Attr("pk").not_exists())
+            except ConflictError:
+                return False
+            time.sleep(latency)
+            return True
+
         def _query(self, pk, prefix="", *, newest_first=False, limit=None):
-            if prefix != "DELIVERY#":
+            if not prefix.startswith(("DELIVERY#", "PERSON#")):
                 return super()._query(pk, prefix, newest_first=newest_first, limit=limit)
             time.sleep(latency)
             with lock:

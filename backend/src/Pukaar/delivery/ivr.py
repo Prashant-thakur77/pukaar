@@ -80,8 +80,12 @@ def answered(repo: Repo, ctx: CallContext) -> Delivery:
     if not fields:
         return d
     d = repo.update_delivery(d.alert_id, d.recipient_id, channel="voice", **fields)
-    if "status" in fields:
-        dispatch.recount(repo, d.alert_id)
+    if "status" in fields and dispatch.count_reached(repo, d.alert_id, d.recipient_id, "voice"):
+        from Pukaar.services import events
+
+        alert = repo.get_alert(d.alert_id)
+        if alert is not None:
+            events.counts_changed(alert)
     return d
 
 
@@ -198,8 +202,7 @@ def call_status(repo: Repo, ctx: CallContext, st: voice.CallStatus) -> str:
         d = repo.update_delivery(d.alert_id, d.recipient_id, channel="voice", **fields)
     except ConflictError:
         return "missing"
-    if "status" in fields:
-        dispatch.recount(repo, d.alert_id)
+    # A call that never connected only ever turns a not-yet-reached row "failed": no counter moves.
     if outcome == "not_connected" and not d.sent_at and (st.category == "invalid_number" or d.attempts >= s_max):
         dispatch.flag_unreachable(repo, ctx.alert, d)
     log(_LOG, "call ended", alert_id=d.alert_id, recipient=d.recipient_id, status=st.call_status,

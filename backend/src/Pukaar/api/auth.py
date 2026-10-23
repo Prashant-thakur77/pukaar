@@ -28,7 +28,12 @@ DEV_USERS = {
     # The public demo accounts, as on the live stack: Cedar holds them to replay alerts only.
     "judge": ("officer", []),
     "judge_pradhan": ("pradhan", ["thunag"]),
+    # Local only: a state (SDMA) operator, and the DDMA head of Mandi (district from their SCOPE row, seeded).
+    "state_operator1": ("state_operator", []),
+    "ddma_mandi": ("ddma_head", []),
 }
+# Cognito groups, strongest first: an account in two groups takes the first (one role per account).
+ROLE_GROUPS = ("officer", "ddma_head", "state_operator", "pradhan")
 
 
 def dev_token(username: str) -> str:
@@ -42,11 +47,24 @@ def _from_claims(claims: dict) -> Principal | None:
     groups = claims.get("cognito:groups") or []
     if isinstance(groups, str):
         groups = [g.strip() for g in groups.strip("[]").replace(",", " ").split() if g.strip()]
-    role = "officer" if "officer" in groups else ("pradhan" if "pradhan" in groups else None)
+    role = next((g for g in ROLE_GROUPS if g in groups), None)
     if role is None:
         return None
     villages = [v.strip() for v in str(claims.get("custom:village_ids", "")).split(",") if v.strip()]
     return Principal(str(claims.get("cognito:username") or claims.get("username") or claims.get("sub")), role, villages)
+
+
+def with_districts(p: Principal) -> Principal:
+    """A DDMA head's districts come from their SCOPE row (data the DDMA keeps; make staff-assign), and the
+    villages they read are those districts' villages, so the list routes cut to them as for a pradhan."""
+    if p.role != "ddma_head":
+        return p
+    from Pukaar.services import scope
+
+    repo = get_repo()
+    districts = scope.districts_of(repo, p)
+    villages = [v.id for v in repo.list_villages() if v.district in districts]
+    return replace(p, district_ids=districts, village_ids=villages)
 
 
 @lru_cache(maxsize=1)
@@ -79,9 +97,10 @@ def current_principal(request: Request) -> Principal | None:
             data = jwt.decode(token, get_secret("link_secret", generate_locally=True) or "", algorithms=["HS256"])
         except jwt.PyJWTError:
             return None
-        return Principal(data["sub"], data["role"], list(data.get("village_ids", [])))
+        return with_districts(Principal(data["sub"], data["role"], list(data.get("village_ids", []))))
     claims = verify_cognito(token)
-    return _from_claims(claims) if claims else None
+    p = _from_claims(claims) if claims else None
+    return with_districts(p) if p else None
 
 
 def require_user(request: Request) -> Principal:
@@ -123,18 +142,21 @@ class Allowed:
     """
 
     def __init__(self, action: str, resource_type: str = "app", path_param: str | None = None,
-                 village_from_path: bool = False, replay_reads: bool = False) -> None:
+                 village_from_path: bool = False, replay_reads: bool = False, district_param: str | None = None) -> None:
         self.action, self.resource_type, self.path_param = action, resource_type, path_param
         self.village_from_path = village_from_path
         self.replay_reads = replay_reads
+        # district_param: the path (or query) parameter naming the district the action is about (the roster,
+        # district settings), for the district scope (services/scope.py).
+        self.district_param = district_param
 
     def _decide(self, principal: Principal, rid: str, context: dict, repo) -> tuple[Decision, bool]:
         """(the audited decision, whether it holds for replay records only). One audit row."""
         if self.replay_reads and context.get("replay") is not True:
-            live = evaluate(principal, self.action, self.resource_type, rid, context)
+            live = evaluate(principal, self.action, self.resource_type, rid, context, repo=repo)
             if not live.allowed:
                 as_replay = {**context, "replay": True}
-                if evaluate(principal, self.action, self.resource_type, rid, as_replay).allowed:
+                if evaluate(principal, self.action, self.resource_type, rid, as_replay, repo=repo).allowed:
                     return authorize(principal, self.action, self.resource_type, rid, as_replay, repo=repo), True
         return authorize(principal, self.action, self.resource_type, rid, context, repo=repo), False
 
@@ -146,8 +168,12 @@ class Allowed:
             village = request.query_params.get("village_id", "")
         repo = get_repo()
         context = {"village_id": village, **resource_facts(repo, self.resource_type, rid)}
-        own = [v for v in principal.village_ids if v] if principal.role == "pradhan" else []
-        if principal.role == "pradhan" and not context.get("village_id") and own:
+        if self.district_param:
+            context["district"] = str(request.path_params.get(self.district_param)
+                                      or request.query_params.get(self.district_param, ""))
+        cut = principal.role in {"pradhan", "ddma_head"}  # lists cut to their own villages
+        own = [v for v in principal.village_ids if v] if cut else []
+        if cut and not context.get("village_id") and not context.get("district") and own:
             results = [self._decide(principal, rid, {**context, "village_id": v}, repo) for v in own]
             allowed = [r for r in results if r[0].allowed]
             decision, replay_only = (allowed[0][0], any(r[1] for r in allowed)) if allowed else results[0]

@@ -46,7 +46,7 @@ from Pukaar.core.config import get_settings
 from Pukaar.core.ids import new_id
 from Pukaar.core.log import get_logger, log, metric
 from Pukaar.policy.guard import SYSTEM, Principal, authorize
-from Pukaar.services import events
+from Pukaar.services import district_settings, events
 from Pukaar.services.devices import keys, protocol, registry, shadow
 from Pukaar.services.devices.siren_model import PATTERN_DEFAULTS, is_verified
 from Pukaar.store.models import (
@@ -306,7 +306,8 @@ def _sound_for_alert(repo: Repo, alert: Alert, *, src: str, round_no: int, only_
     second = pattern == "C1" and _confirmed_request(repo, alert.village_id, alert.id) is not None
     for d in sirens:
         ctx = {"level": alert.level, "approved": alert.approved, "all_officers_timed_out":
-               alert.status == "auto_sent_unapproved", "critical_auto_send": get_settings().critical_auto_send,
+               alert.status == "auto_sent_unapproved",
+               "critical_auto_send": district_settings.critical_auto_send(repo, alert.district),
                "pattern": pattern, "src": src, "drill": drill, "replay": alert.replay, "device_simulated": d.simulated,
                "machine_evidence_critical": evidence, "second_officer_distinct": second,
                "village_id": alert.village_id}

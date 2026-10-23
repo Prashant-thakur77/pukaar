@@ -46,7 +46,7 @@ DEPLOY_EXTRA   = $(if $(ALARM_EMAIL),AlarmEmail=$(ALARM_EMAIL)) \
                  $(if $(CAP_SENDER_NAME_HI),'CapSenderNameHi="$(CAP_SENDER_NAME_HI)"')
 
 .PHONY: help install test test-backend test-frontend lint build deploy deploy-web \
-        seed reset-demo drill waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt device-provision siren-sim protocol-vectors ses-verify it secrets vapid-keys local validate smoke
+        seed reset-demo drill add-village staff-assign waf-edge restore-drill voice-add recipient-role voice-list voice-remove voice-urls officer-phone gauge-sim gauge-provision gauge-sim-mqtt device-provision siren-sim protocol-vectors ses-verify it secrets vapid-keys local validate smoke
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -105,7 +105,7 @@ vapid-keys: ## Make the Web Push (VAPID) key pair in SSM, private key never show
 	cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.vapid_keys $(if $(ROTATE),--rotate,)
 
 seed: ## Seed villages into the deployed table and create Cognito demo users (villages only for STAGE=prod)
-	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.seed
+	$(STACK_ENV); cd backend && PUKAAR_STAGE=$(STAGE) PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.seed
 	@if [ "$(STAGE)" = prod ]; then echo "STAGE=prod: no demo or judge users. Add each officer and pradhan by hand (docs/DEPLOY.md, \"Production stage\")."; \
 	else $(PYTHON) scripts/seed_users.py; fi
 
@@ -119,6 +119,16 @@ drill: ## Send a labelled drill alert to registered phones (VILLAGE=gohar LEVEL=
 voice-add: ## Register a consented voice number (VILLAGE= NAME= PHONE=+91.. CONSENT="verbal, 2026-10-25"; ROLE=pradhan, CHAT= for Telegram too)
 	@test -n "$(VILLAGE)" -a -n "$(NAME)" -a -n "$(PHONE)" -a -n "$(CONSENT)" || { echo 'usage: make voice-add VILLAGE=gohar NAME="Asha Devi" PHONE=+919812345678 CONSENT="verbal, field visit 2026-10-25"'; exit 2; }
 	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.voice add "$(VILLAGE)" "$(NAME)" "$(PHONE)" "$(CONSENT)" "$(ROLE)" "$(CHAT)"
+
+add-village: ## Add a village (and its district) to data/ with candidate river cells and a checklist (NAME= NAME_HI= DISTRICT= LAT= LON=; DISTRICT_HI= LGD_DISTRICT= LGD_VILLAGE= ID= OFFLINE=1)
+	@test -n "$(NAME)" -a -n "$(NAME_HI)" -a -n "$(DISTRICT)" -a -n "$(LAT)" -a -n "$(LON)" || { echo 'usage: make add-village NAME=Bali NAME_HI="बाली" DISTRICT=Mandi LAT=31.6 LON=77.1 [DISTRICT_HI=मंडी LGD_DISTRICT=22 LGD_VILLAGE=... ID=bali OFFLINE=1]'; exit 2; }
+	$(PYTHON) scripts/add_village.py --name "$(NAME)" --name-hi "$(NAME_HI)" --district "$(DISTRICT)" --lat "$(LAT)" --lon "$(LON)" \
+	  $(if $(DISTRICT_HI),--district-hi "$(DISTRICT_HI)") $(if $(LGD_DISTRICT),--lgd-district "$(LGD_DISTRICT)") \
+	  $(if $(LGD_VILLAGE),--lgd-village "$(LGD_VILLAGE)") $(if $(ID),--id "$(ID)") $(if $(OFFLINE),--offline)
+
+staff-assign: ## Assign a staff account to districts, for the district scope (STAFF= DISTRICTS="Mandi,Kullu"; empty DISTRICTS removes)
+	@test -n "$(STAFF)" || { echo 'usage: make staff-assign STAFF=officer3 DISTRICTS="Mandi,Hamirpur"'; exit 2; }
+	$(STACK_ENV); cd backend && PYTHONPATH=src $(PYTHON) -m Pukaar.scripts.staff "$(STAFF)" "$(DISTRICTS)"
 
 recipient-role: ## Make a registered person a relay or a villager again (VILLAGE= ID=<chat id or v_...> ROLE=pradhan|gauge_reader|task_force|villager)
 	@test -n "$(VILLAGE)" -a -n "$(ID)" -a -n "$(ROLE)" || { echo 'usage: make recipient-role VILLAGE=gohar ID=123456789 ROLE=pradhan'; exit 2; }

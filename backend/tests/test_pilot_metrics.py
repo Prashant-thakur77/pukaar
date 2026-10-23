@@ -86,10 +86,39 @@ def test_live_alerts_are_apart_from_drills_and_replays_never_count(repo, frozen)
     _delivery(repo, drill, "a", ack_min=9)
 
     m = pilot.metrics(repo)
-    assert m["live"] == {"alerts": 1, "reached": 2, "acknowledged": 1, "ack_share": 0.5,
-                         "median_minutes_first_ack": 3.0, "median_minutes_to_ack": 3.0}
+    assert m["live"] == {"alerts": 1, "delivered": 2, "reached": 2, "demo_recipients": 0, "acknowledged": 1,
+                         "ack_share": 0.5, "median_minutes_first_ack": 3.0, "median_minutes_to_ack": 3.0}
     assert m["drills"]["alerts"] == 1 and m["drills"]["median_minutes_first_ack"] == 9.0
     assert m["counters"]["alerts_sent"] == 1 and m["counters"]["drills_delivered"] == 1
+
+
+def test_a_drill_reads_the_same_on_the_overview_and_the_pilot_page(repo, frozen, monkeypatch):
+    """The live drill: one real Telegram phone and the two demo recipients (stub channel). The overview's
+    delivered_count (3: everyone, the demo stub included) and the pilot page's numbers now say the same thing:
+    delivered 3, of which reached on a real phone 1 (phones_reached_count), demo recipients 2."""
+    from Pukaar.api.routers import public
+    from Pukaar.delivery import dispatch
+
+    monkeypatch.setattr(public, "get_repo", lambda: repo)
+    d = _alert(repo, 1, drill=True)
+    _delivery(repo, d, "4242424242", channel="telegram")
+    _delivery(repo, d, "stub-gohar-1", channel="stub")
+    _delivery(repo, d, "stub-gohar-2", channel="stub")
+    dispatch.repair_counts(repo, d.id, emit=False)  # what the end of the delivery round does
+
+    row = next(a for a in public.overview()["recent_alerts"] if a["id"] == d.id)
+    g = pilot.metrics(repo)["drills"]
+    assert (row["delivered_count"], row["phones_reached_count"]) == (3, 1)
+    assert (g["delivered"], g["reached"], g["demo_recipients"]) == (3, 1, 2)
+    assert g["delivered"] == row["delivered_count"] and g["reached"] == row["phones_reached_count"]
+
+
+def test_a_both_channel_person_is_one_person_reached(repo, frozen):
+    d = _alert(repo, 1, drill=True)
+    _delivery(repo, d, "777", channel="telegram", ack_min=2)
+    _delivery(repo, d, "777", channel="voice")
+    g = pilot.metrics(repo)["drills"]
+    assert (g["reached"], g["acknowledged"]) == (1, 1)
 
 
 def test_backtest_lead_times_come_from_the_file(repo, frozen):

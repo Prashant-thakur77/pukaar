@@ -298,7 +298,8 @@ Authenticator)। यह हर बार 6 अंकों का नया क
 The pradhan is the village's **relay** for Pukaar, the DDMA's Hindi voice flood-warning system. Only
 district officers approve alerts; the pradhan cannot and need not.
 
-1. **When an alert comes** (a Telegram voice message headed "आप गाँव के रिले हैं: सायरन बजाएँ और माइक से
+1. **When an alert comes** (a Telegram audio file, an MP3 titled "पुकार", with the alert written under it,
+   headed "आप गाँव के रिले हैं: सायरन बजाएँ और माइक से
    सबको बताएँ, फिर 'मिल गया' दबाएँ।", or a phone call where calls are on): listen, sound the siren, announce
    by megaphone (scripts per level in section 1, taken from the village page's "What to do now"), and only
    then press **1** on the call or **✅ मिल गया** on Telegram. The officer's console then shows "Relay done:

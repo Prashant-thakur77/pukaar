@@ -240,6 +240,8 @@ Resources:
         - { AttributeName: sk, AttributeType: S }
         - { AttributeName: gsi1pk, AttributeType: S }
         - { AttributeName: gsi1sk, AttributeType: S }
+        - { AttributeName: gsi2pk, AttributeType: S }
+        - { AttributeName: gsi2sk, AttributeType: S }
       KeySchema:
         - { AttributeName: pk, KeyType: HASH }
         - { AttributeName: sk, KeyType: RANGE }
@@ -248,6 +250,14 @@ Resources:
           KeySchema:
             - { AttributeName: gsi1pk, KeyType: HASH }
             - { AttributeName: gsi1sk, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        # Alerts by status (gsi2pk ALERTS#<status>, gsi2sk <created_at>#<id>; store/repo.py): the inbox finds
+        # every pending alert, of the state or of one district, however many alerts exist. Only alert META
+        # items carry these keys, so the index holds one small row per alert (on-demand, no hourly cost).
+        - IndexName: gsi2
+          KeySchema:
+            - { AttributeName: gsi2pk, KeyType: HASH }
+            - { AttributeName: gsi2sk, KeyType: RANGE }
           Projection: { ProjectionType: ALL }
       TimeToLiveSpecification: { AttributeName: ttl, Enabled: true }
       PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
@@ -1236,6 +1246,17 @@ Resources:
     Type: AWS::Cognito::UserPoolGroup
     Properties: { UserPoolId: !Ref UserPool, GroupName: pradhan, Description: Village heads }
 
+  # District scope (policy/base.cedar): a state operator reads every district and acts only where assigned
+  # or rostered; a DDMA head reads their districts and changes their settings. Districts are data
+  # (make staff-assign), not a Cognito attribute.
+  StateOperatorGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties: { UserPoolId: !Ref UserPool, GroupName: state_operator, Description: SDMA state operators }
+
+  DdmaHeadGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties: { UserPoolId: !Ref UserPool, GroupName: ddma_head, Description: DDMA heads (their districts) }
+
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
@@ -1318,6 +1339,14 @@ Resources:
         AllowMethods: [GET, POST, PATCH, DELETE, OPTIONS]
         AllowHeaders: [authorization, content-type]
         MaxAge: 600
+      # Every route below has its own token bucket (per second, burst), so the acknowledgement webhooks, the
+      # voice and Telegram webhooks and the villagers' public reads never starve one another, and none of them
+      # starves the officers' console (the default, for every route not listed: the signed-in /{proxy+}).
+      # Sized for a district pilot (about 50 villages, 10,000 phones; docs/DEPLOY.md "API throttle" has the
+      # statewide numbers). Telegram sends at most ~25 messages a second from one bot, so acknowledgements
+      # come at about that rate, with bursts when people read late; a call's webhooks come at the voice
+      # rate (2 calls a second). All the buckets together stay far under the account's regional API Gateway
+      # quota (10,000 a second); the API Lambda's concurrency is the next limit (docs/DEPLOY.md).
       DefaultRouteSettings:
         ThrottlingBurstLimit: 50
         ThrottlingRateLimit: 20
@@ -1326,8 +1355,34 @@ Resources:
         # source (salted IP hash) and each village has its own limit in DynamoDB, and a report over it is
         # kept and held for an officer (services/report_guard.py). The web app queues a 429 and retries.
         "POST /reports": { ThrottlingBurstLimit: 20, ThrottlingRateLimit: 10 }
-        "POST /sensors/{id}/readings": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 2 }
-        "POST /sensors/{id}/backfill": { ThrottlingBurstLimit: 5, ThrottlingRateLimit: 1 }
+        # HTTPS gauges: 10 a second is 600 gauges at one reading a minute; past that, gauges use MQTT
+        # (AWS IoT Core), which this throttle never touches. Each gauge is also held to one reading a
+        # minute by its own pointer (Repo.put_sensor_reading).
+        "POST /sensors/{id}/readings": { ThrottlingBurstLimit: 20, ThrottlingRateLimit: 10 }
+        "POST /sensors/{id}/backfill": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 2 }
+        # Acknowledgements and roll-call answers: "मिल गया" taps (Telegram) and the web ack link.
+        "POST /telegram/webhook": { ThrottlingBurstLimit: 200, ThrottlingRateLimit: 100 }
+        "POST /alerts/{id}/ack": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        # Voice calls: key presses and call status, at the voice provider's own pace.
+        "GET /voice/exotel/flow": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        "HEAD /voice/exotel/flow": { ThrottlingBurstLimit: 20, ThrottlingRateLimit: 10 }
+        "GET /voice/exotel/gather": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        "POST /voice/exotel/status": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        "POST /voice/plivo/answer": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        "POST /voice/plivo/digits": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        "POST /voice/plivo/hangup": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        # Villagers opening their village during an alert: the 2 kB answer first, then the full page.
+        "GET /public/villages/{id}/now": { ThrottlingBurstLimit: 400, ThrottlingRateLimit: 200 }
+        "GET /villages/{id}": { ThrottlingBurstLimit: 200, ThrottlingRateLimit: 100 }
+        "GET /villages/{id}/safe-places": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        "GET /alerts/{id}/audio": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        "GET /villages": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        "GET /public/overview": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        "GET /cap/alerts.atom": { ThrottlingBurstLimit: 40, ThrottlingRateLimit: 20 }
+        "GET /cap/alerts/{file}": { ThrottlingBurstLimit: 40, ThrottlingRateLimit: 20 }
+        # The officer's one-tap approval link: a handful of officers.
+        "GET /approval/{token}": { ThrottlingBurstLimit: 20, ThrottlingRateLimit: 10 }
+        "POST /approval/{token}": { ThrottlingBurstLimit: 20, ThrottlingRateLimit: 10 }
 
   # ---------------------------------------------------------------- AWS WAF on prod (CloudFront in front of the API)
   # AWS WAF attaches to REST APIs, CloudFront, ALB, AppSync and Cognito, not to an HTTP API. So on prod, with the

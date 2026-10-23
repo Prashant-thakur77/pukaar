@@ -2,9 +2,11 @@
 
 Limits (delivery/ratelimit.py): every call waits for a slot under the overall rate
 (PUKAAR_TELEGRAM_RATE_PER_SECOND, 25 by default, under Telegram's ~30) and one message per chat
-per PUKAAR_TELEGRAM_CHAT_INTERVAL_SECONDS. A 429 answer pauses every sender of this process for
-retry_after seconds and raises TelegramRateLimited: the caller tries again or puts the send back
-unsent (dispatch.py). A 429 is never a sent message.
+per PUKAAR_TELEGRAM_CHAT_INTERVAL_SECONDS. On AWS the slot also comes from one budget shared by every
+Lambda (SharedBucket in DynamoDB), so two villages alerting at once share the bot's rate instead of each
+taking all of it. A 429 answer pauses every sender of this process, and through the shared budget every
+other Lambda, for retry_after seconds and raises TelegramRateLimited: the caller tries again or puts the
+send back unsent (dispatch.py). A 429 is never a sent message.
 
 One HTTP client per process keeps the connection open: thousands of sends do not each pay a TLS
 handshake. The alert audio is uploaded once; later sends pass the file id Telegram gave back.
@@ -21,7 +23,7 @@ import httpx
 
 from Pukaar.core.config import get_settings
 from Pukaar.core.secrets import get_secret
-from Pukaar.delivery.ratelimit import RateLimiter
+from Pukaar.delivery.ratelimit import RateLimiter, SharedBucket
 from Pukaar.templates import hi
 
 API = "https://api.telegram.org"
@@ -61,19 +63,39 @@ def configured() -> bool:
 
 def set_transport(transport: httpx.BaseTransport | None) -> None:
     """Tests: route every call to a fake server (None: the real one). Resets the client and the limiter."""
-    global _client, _transport, _limiter
+    global _client, _transport, _limiter, _shared
     with _lock:
         if _client is not None:
             _client.close()
-        _client, _transport, _limiter = None, transport, None
+        _client, _transport, _limiter, _shared = None, transport, None, None
+
+
+_shared: SharedBucket | None = None
+
+
+def shared_bucket() -> SharedBucket | None:
+    """The bot's one budget across every Lambda (delivery/ratelimit.SharedBucket), or None when
+    PUKAAR_TELEGRAM_SHARED_LIMIT is off (local mode, tests)."""
+    global _shared
+    s = get_settings()
+    if not s.telegram_shared_limit:
+        return None
+    with _lock:
+        if _shared is None:
+            from Pukaar.store.repo import get_repo
+
+            _shared = SharedBucket(get_repo(), "telegram", s.telegram_rate_per_second)
+        return _shared
 
 
 def limiter() -> RateLimiter:
     global _limiter
+    bucket = shared_bucket()
     with _lock:
         if _limiter is None:
             s = get_settings()
-            _limiter = RateLimiter(s.telegram_rate_per_second, per_key_interval=s.telegram_chat_interval_seconds)
+            _limiter = RateLimiter(s.telegram_rate_per_second, per_key_interval=s.telegram_chat_interval_seconds,
+                                   shared=bucket)
         return _limiter
 
 
@@ -132,7 +154,20 @@ def audio_file_id(message: Any) -> str | None:
 
 
 def send_text(chat_id: str, text: str) -> None:
-    _call("sendMessage", {"chat_id": chat_id, "text": text, "disable_web_page_preview": True})
+    _call("sendMessage", {"chat_id": chat_id, "text": text[:4096], "disable_web_page_preview": True})
+
+
+def consent_keyboard(village_id: str) -> dict:
+    """"I agree" / "No" under the enrolment notice; callback data stays under Telegram's 64 bytes."""
+    return {"inline_keyboard": [[
+        {"text": hi.CONSENT_BUTTON, "callback_data": f"consent:{village_id}"[:64]},
+        {"text": hi.DECLINE_BUTTON, "callback_data": "noconsent"},
+    ]]}
+
+
+def send_consent(chat_id: str, village_id: str, text: str) -> None:
+    _call("sendMessage", {"chat_id": chat_id, "text": text[:4096], "disable_web_page_preview": True,
+                          "reply_markup": consent_keyboard(village_id)})
 
 
 def answer_callback(callback_id: str, text: str) -> None:

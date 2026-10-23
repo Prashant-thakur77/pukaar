@@ -1,8 +1,11 @@
 // Pukaar role policies. Default is deny; forbid overrides permit.
-// Principals: Pukaar::Officer, Pukaar::Pradhan, Pukaar::System, Pukaar::Agent.
+// Principals: Pukaar::Officer, Pukaar::Pradhan, Pukaar::System, Pukaar::Agent,
+//             Pukaar::StateOperator (SDMA: reads every district; acts only where assigned or rostered),
+//             Pukaar::DDMAHead (their districts: reads reports and metrics, changes district settings).
 // Resources:  Pukaar::Village, Pukaar::Alert, Pukaar::Report, Pukaar::RollCall, Pukaar::Tool, Pukaar::App,
 //             Pukaar::Device (a siren, pradhan box, relay, rain node or gauge).
-// Context:    level, approved, all_officers_timed_out, replay, channel, village_id.
+// Context:    level, approved, all_officers_timed_out, replay, channel, village_id,
+//             district / scoped / in_scope (services/scope.py: from the records, never from the request).
 
 @id("officer-operate")
 @desc("Officers run the console: approve, decline, edit or snooze pending alerts, triage reports, see who an alert reached, issue directives, update the shelter ledger, run replays, read the audit trail, ask the analyst and tick any village's early-action checklist.")
@@ -287,6 +290,77 @@ permit (
   action == Pukaar::Action::"all_clear",
   resource is Pukaar::Alert
 );
+
+// -- district scope (services/scope.py) and the state and district roles ------------------------------
+// After the public demo accounts' and the replay forbids, so a refusal names theirs first (guard.py sorts by file order).
+@id("staff-own-district")
+@desc("An officer or a state operator acts only on villages of the districts they are assigned to (their scope, the village's officer list, their sign-in's villages) or rostered on from yesterday to tomorrow; a replay is a rehearsal and is not held to a district.")
+forbid (
+  principal,
+  action in [
+    Pukaar::Action::"approve", Pukaar::Action::"decline", Pukaar::Action::"edit_alert", Pukaar::Action::"snooze_alert",
+    Pukaar::Action::"set_report_state", Pukaar::Action::"issue_directive", Pukaar::Action::"tick_checklist",
+    Pukaar::Action::"set_shelter_status", Pukaar::Action::"block_road", Pukaar::Action::"set_recipient_role",
+    Pukaar::Action::"open_rollcall", Pukaar::Action::"remind_rollcall", Pukaar::Action::"set_gauge_thresholds",
+    Pukaar::Action::"manage_staff_gauge", Pukaar::Action::"confirm_staff_reading", Pukaar::Action::"set_alert_outcome",
+    Pukaar::Action::"edit_roster", Pukaar::Action::"take_over_duty", Pukaar::Action::"sound_siren",
+    Pukaar::Action::"stop_siren", Pukaar::Action::"test_siren", Pukaar::Action::"manage_device", Pukaar::Action::"pour_test",
+    Pukaar::Action::"send_drill", Pukaar::Action::"change_settings"
+  ],
+  resource
+)
+when {
+  (principal is Pukaar::Officer || principal is Pukaar::StateOperator) &&
+  context.scoped == true && context.in_scope != true && context.replay != true
+};
+
+@id("state-operator-read")
+@desc("A state (SDMA) operator reads every district: the console, reports, who an alert reached, roll-calls, after-action reports, the audit trail, the roster and the devices.")
+permit (
+  principal is Pukaar::StateOperator,
+  action in [
+    Pukaar::Action::"view_console", Pukaar::Action::"view_reports", Pukaar::Action::"view_recipients",
+    Pukaar::Action::"view_rollcall", Pukaar::Action::"view_after_action", Pukaar::Action::"read_audit",
+    Pukaar::Action::"view_roster", Pukaar::Action::"view_devices", Pukaar::Action::"view_gauge_proposal",
+    Pukaar::Action::"health_deep", Pukaar::Action::"ask_analyst"
+  ],
+  resource
+);
+
+@id("state-operator-act-where-assigned")
+@desc("A state operator approves, declines or edits alerts, triages reports, issues directives and runs roll-calls only in a district they are assigned to or rostered on; never sirens or devices.")
+permit (
+  principal is Pukaar::StateOperator,
+  action in [
+    Pukaar::Action::"approve", Pukaar::Action::"decline", Pukaar::Action::"edit_alert", Pukaar::Action::"snooze_alert",
+    Pukaar::Action::"set_report_state", Pukaar::Action::"issue_directive", Pukaar::Action::"open_rollcall",
+    Pukaar::Action::"remind_rollcall", Pukaar::Action::"set_alert_outcome", Pukaar::Action::"block_road",
+    Pukaar::Action::"set_shelter_status"
+  ],
+  resource
+)
+when { context.scoped == true && context.in_scope == true };
+
+@id("ddma-head-own-district")
+@desc("A DDMA head reads the console, reports, roll-calls, after-action reports, the roster and the devices of their own districts.")
+permit (
+  principal is Pukaar::DDMAHead,
+  action in [
+    Pukaar::Action::"view_console", Pukaar::Action::"view_reports", Pukaar::Action::"view_rollcall",
+    Pukaar::Action::"view_after_action", Pukaar::Action::"view_roster", Pukaar::Action::"view_devices"
+  ],
+  resource
+)
+when { context.district != "" && principal.district_ids.contains(context.district) };
+
+@id("ddma-head-district-settings")
+@desc("A DDMA head changes their own district's settings (critical auto-send) and its duty roster; audited.")
+permit (
+  principal is Pukaar::DDMAHead,
+  action in [Pukaar::Action::"change_settings", Pukaar::Action::"edit_roster"],
+  resource
+)
+when { context.district != "" && principal.district_ids.contains(context.district) };
 
 // -- the alarm layer: sirens, pradhan boxes, relays (services/sirens.py, api/routers/devices.py) ----------------
 // policy/guard.py fills every context key these read, so a missing key never turns into an evaluation error:

@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import sys
 
+from Pukaar.core.config import get_settings
 from Pukaar.core.ids import new_id
 from Pukaar.delivery import voice
 from Pukaar.services import recipients
@@ -98,8 +99,11 @@ def remove(village_id: str, recipient_id: str) -> None:
         repo.put_recipient(r.model_copy(update={"channel": "telegram", "phone": None, "consent": None}))
         print(f"{recipient_id}: calls stopped; Telegram kept")
     else:
-        repo.delete_recipient(village_id, recipient_id)
-        print(f"{recipient_id}: removed")
+        from Pukaar.services import privacy
+
+        privacy.remove_recipient(repo, village_id, recipient_id, "removed by the operator (scripts/voice.py)")
+        print(f"{recipient_id}: removed; what is left of them (delivery rows, their number in reports) is erased "
+              f"after {get_settings().unlinked_retention_days} days (docs/SECURITY.md, DPDP)")
 
 
 def urls(api_url: str) -> None:

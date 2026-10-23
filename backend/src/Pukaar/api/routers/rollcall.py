@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from Pukaar.api.auth import Allowed, require_user
-from Pukaar.policy.guard import Principal, authorize
+from Pukaar.policy.guard import READS_EVERYTHING, Principal, authorize
 from Pukaar.services import rollcall as svc
 from Pukaar.store.models import RollCall
 from Pukaar.store.repo import get_repo
@@ -36,7 +36,7 @@ def list_rollcalls(village_id: str = "",
     repo = get_repo()
     villages = repo.list_villages()
     ids = [village_id] if village_id else [v.id for v in villages]
-    if principal.role != "officer":
+    if principal.role not in READS_EVERYTHING:
         ids = [i for i in ids if i in principal.village_ids]
     if principal.replay_only:
         # A public demo account reads replay records only. The board names villagers, and a replay

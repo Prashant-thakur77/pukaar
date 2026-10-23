@@ -7,9 +7,13 @@ No names, phone numbers or chat ids: deliveries are only counted and timed.
 drills      hand-started test alerts (scripts/drill.py) that reached at least one real phone
 live        live flood alerts that went out (views.went_out); never replays, never drills
   alerts                    alerts in the group
-  reached                   deliveries that reached a real phone (sent or acknowledged; the stub channel
-                            for demo recipients is not a phone and is left out), summed over the alerts
-  acknowledged              of those, how many pressed "मिल गया"
+  delivered                 people the alerts reached, the demo stub channel included: the sum of the alerts'
+                            delivered_count, the number /public/overview shows for each alert
+  reached                   of them, people reached on a real phone (Telegram, or a call answered; the stub
+                            channel for demo recipients is not a phone and is left out), each person once per
+                            alert however many channels: the sum of the alerts' phones_reached_count
+  demo_recipients           delivered - reached: the demo recipients without a phone
+  acknowledged              of the people reached on a phone, how many pressed "मिल गया"
   ack_share                 acknowledged / reached, 0..1 (null when nothing was reached)
   median_minutes_first_ack  per alert: first send to the first acknowledgement; the median over alerts
   median_minutes_to_ack     per person: their send to their acknowledgement; the median over people
@@ -55,13 +59,15 @@ def _real(deliveries: list[Delivery]) -> list[Delivery]:
 
 
 def _group(pairs: list[tuple[Alert, list[Delivery]]]) -> dict[str, Any]:
-    reached = acked = 0
+    reached = acked = delivered = 0
     per_alert: list[float] = []
     per_person: list[float] = []
-    for _, ds in pairs:
-        reached += len(ds)
+    for alert, ds in pairs:
+        people = {d.recipient_id for d in ds}  # a "both" person counts once, as in phones_reached_count
+        reached += len(people)
+        delivered += max(alert.delivered_count, len(people))
         acks = [d for d in ds if d.acknowledged_at]
-        acked += len(acks)
+        acked += len({d.recipient_id for d in acks})
         if acks:
             first_sent = min(d.sent_at for d in ds if d.sent_at)
             first_ack = min(d.acknowledged_at for d in acks if d.acknowledged_at)
@@ -71,7 +77,9 @@ def _group(pairs: list[tuple[Alert, list[Delivery]]]) -> dict[str, Any]:
         per_person += [m for m in (_minutes(d.sent_at, d.acknowledged_at) for d in acks) if m is not None]
     return {
         "alerts": len(pairs),
+        "delivered": delivered,
         "reached": reached,
+        "demo_recipients": delivered - reached,
         "acknowledged": acked,
         "ack_share": round(acked / reached, 3) if reached else None,
         "median_minutes_first_ack": _median(per_alert),
@@ -151,7 +159,7 @@ def metrics(repo: Repo) -> dict[str, Any]:
         elif views.went_out(a):
             live.append((a, _real(repo.list_deliveries(a.id))))
     return {
-        "counters": views.counters(repo),
+        "counters": views.public_counters(repo)[0],
         "drills": _group(drills),
         "live": _group(live),
         "backtest": backtest_lead_times(),

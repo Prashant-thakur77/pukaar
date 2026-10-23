@@ -149,6 +149,18 @@ class Settings:
     siren_commands_per_village_per_hour: int = 6
     # Observed rain (services/rain_obs.py) may raise a level (never lower one; alone at most Warning).
     rain_obs_enabled: bool = True
+    # -- scale (docs/CONTRACT.md, "At scale") --
+    # /public/overview serves the counters the sweep stored while they are younger than this (one read
+    # whatever the number of villages); 0 counts them on every request (local mode, tests).
+    counters_max_age_seconds: int = 0
+    # One Telegram budget for every Lambda (delivery/ratelimit.SharedBucket, DynamoDB): concurrent village
+    # alerts share PUKAAR_TELEGRAM_RATE_PER_SECOND instead of each taking it. On by default on AWS.
+    telegram_shared_limit: bool = False
+    # -- DPDP (services/privacy.py, docs/SECURITY.md "DPDP") --
+    # A person whose last village link went (/stop, बंद करें, a removal) keeps no number or chat id: what is
+    # left of them (delivery rows, roll-call rows, their number in a report) is erased this many days later.
+    # 0 erases at the next sweep. The recipient record itself is deleted at once.
+    unlinked_retention_days: int = 30
 
     def reask_cooldown(self, level: str) -> int:
         """Minutes before an unsent alert at this level is asked again while the level holds."""
@@ -256,6 +268,10 @@ def get_settings() -> Settings:
         siren_check_seconds=max(30, int(os.environ.get("PUKAAR_SIREN_CHECK_SECONDS", "180"))),
         siren_commands_per_village_per_hour=max(1, int(os.environ.get("PUKAAR_SIREN_COMMANDS_PER_HOUR", "6"))),
         rain_obs_enabled=_bool("PUKAAR_RAIN_OBS", True),
+        counters_max_age_seconds=max(0, int(os.environ.get("PUKAAR_COUNTERS_MAX_AGE_SECONDS",
+                                                           "1200" if mode == "aws" else "0"))),
+        telegram_shared_limit=_bool("PUKAAR_TELEGRAM_SHARED_LIMIT", mode == "aws"),
+        unlinked_retention_days=max(0, int(os.environ.get("PUKAAR_UNLINKED_RETENTION_DAYS", "30") or "30")),
     )
 
 

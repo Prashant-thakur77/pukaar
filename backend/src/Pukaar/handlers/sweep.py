@@ -5,8 +5,9 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from Pukaar.api import views
 from Pukaar.core.log import get_logger, log, metric
-from Pukaar.services import gauge, model_probe, roster, sirens
+from Pukaar.services import gauge, model_probe, privacy, roster, sirens
 from Pukaar.services.decision_engine import sweep_all
 from Pukaar.store.repo import get_repo
 from Pukaar.workflow.client import get_workflow
@@ -30,6 +31,10 @@ def handler(event: dict[str, Any] | None = None, context: Any = None) -> dict[st
     # a command not verified 180 s after it was sent -> SirenUnconfirmed (alarmed), the duty officer told. Never raise.
     siren_health = sirens.health_scan(repo)
     unconfirmed = sirens.check_unconfirmed(repo)
+    # The public counters, stored once a run: /public/overview reads this one item (never raises).
+    views.refresh_counters(repo)
+    # DPDP: personal data of people whose last village link went N days ago (services/privacy.py; never raises).
+    erased = privacy.run_due(repo)
     summary = {r.village_id: {"level": r.level, "raw": r.raw_level, "rose": r.rose, "alert_id": r.alert_id,
                               "skipped": r.skipped, "note": r.note} for r in results}
     errors = sum(1 for r in results if r.note.startswith("error"))
@@ -38,4 +43,5 @@ def handler(event: dict[str, Any] | None = None, context: Any = None) -> dict[st
     if errors < len(results):
         metric("SweepCompleted", 1)
     return {"villages": summary, "errors": errors, "nobody_on_duty": empty, "gauges_unhealthy": unhealthy,
-            "sirens_offline": siren_health.get("offline", []), "sirens_unconfirmed": unconfirmed}
+            "sirens_offline": siren_health.get("offline", []), "sirens_unconfirmed": unconfirmed,
+            "erasures": erased}

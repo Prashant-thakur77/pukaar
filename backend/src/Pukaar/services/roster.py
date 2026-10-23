@@ -192,6 +192,12 @@ def week(repo: Repo, district: str, start: date, days: int = 7) -> list[dict[str
     return out
 
 
+def _auto_send(repo: Repo, district: str) -> bool:
+    from Pukaar.services import district_settings
+
+    return district_settings.critical_auto_send(repo, district)
+
+
 def view(repo: Repo, district: str | None, start: date | None, now: datetime | None = None) -> dict[str, Any]:
     now = now or clock.now()
     names = districts(repo)
@@ -210,7 +216,8 @@ def view(repo: Repo, district: str | None, start: date | None, now: datetime | N
         "days": week(repo, chosen, start) if chosen else [],
         "now": [on_duty(repo, d, now, fallback[d]).view() for d in names],
         "officers": sorted({o for v in villages for o in v.officers}),
-        "critical_auto_send": s.critical_auto_send, "critical_auto_send_label": DDMA_LABEL,
+        # The district's critical auto-send: its DDMA head's decision when made, else the deployment's default.
+        "critical_auto_send": _auto_send(repo, chosen), "critical_auto_send_label": DDMA_LABEL,
         "approval_timeout_seconds": s.approval_timeout_seconds,
     }
 

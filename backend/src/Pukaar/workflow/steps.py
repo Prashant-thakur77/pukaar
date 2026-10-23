@@ -49,7 +49,7 @@ from Pukaar.core.log import get_logger, log, metric
 from Pukaar.delivery import dispatch, officer_call, telegram, voice
 from Pukaar.llm.bedrock import BedrockLLM
 from Pukaar.policy.guard import SYSTEM, authorize
-from Pukaar.services import after_action, events, officer_push, rollcall, roster, sirens
+from Pukaar.services import after_action, district_settings, events, officer_push, rollcall, roster, sirens
 from Pukaar.services.drafting import draft_alert
 from Pukaar.store.models import Alert, Delivery
 from Pukaar.store.repo import ConflictError, Repo
@@ -279,7 +279,7 @@ class Steps:
 
     def step_auto_send(self, e: dict) -> dict:
         alert = self._alert(e["alert_id"])
-        if not get_settings().critical_auto_send:
+        if not district_settings.critical_auto_send(self.repo, alert.district):
             # Off by configuration (PUKAAR_CRITICAL_AUTO_SEND=false): nothing goes out without a person.
             # The state machine goes on to the last call (step_unanswered), which makes this loud.
             self.repo.update_alert(alert.id, task_token=None)

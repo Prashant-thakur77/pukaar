@@ -70,12 +70,18 @@ larger.
 
 The card has no room for these; the pradhan or volunteer says them.
 
-- The Telegram message comes from the Pukaar bot as a voice message in Hindi, titled "पुकार". The
+- The Telegram message comes from the Pukaar bot as an audio file (an MP3 titled "पुकार" that plays in
+  Telegram's audio player when tapped; not a voice note), with the same alert written in Hindi under it
+  and the **✅ मिल गया** button. On a slow connection the written text arrives first: read it, then press. The
   phone call is a woman's voice reading the alert: "पुकार: [गाँव] के लिए …", then "संदेश मिल गया हो तो 1
   दबाएँ। मदद चाहिए तो 2 दबाएँ। संदेश दोबारा सुनने के लिए 3 दबाएँ।"
 - If nobody presses a key, the call may come again 10 to 15 minutes later, three calls at most.
 - Village codes for Telegram: थुनाग `thunag`, जंजैहली `janjehli`, गोहर `gohar`, पंडोह `pandoh`,
-  सुजानपुर `sujanpur`. Example: `/start gohar`.
+  सुजानपुर `sujanpur`. Example: `/start gohar`. The bot then shows what it keeps (chat id, Telegram name,
+  village), why and for how long; nothing is kept until the person presses **✅ सहमत हूँ / I agree**.
+  Sending a district's name (`/start Mandi`) lists its village codes.
+- To stop the alerts, send `/stop` or **बंद करें**: the name and chat id are removed at once, and from the
+  records of past alerts within 30 days.
 - On the report page, choose the village, then speak (up to 20 seconds), take a photo or write, and
   press **भेजें**. Without network the report waits on the phone and goes by itself later. A code comes
   back to follow what happened.

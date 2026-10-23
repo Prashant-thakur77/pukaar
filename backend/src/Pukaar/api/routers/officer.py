@@ -13,8 +13,8 @@ from Pukaar.core.config import get_settings
 from Pukaar.core.ids import new_id
 from Pukaar.handlers import worker
 from Pukaar.llm.bedrock import BedrockLLM
-from Pukaar.policy.guard import Principal, authorize
-from Pukaar.services import after_action, analyst, checklist, roster, safe_places
+from Pukaar.policy.guard import READS_EVERYTHING, Principal, authorize
+from Pukaar.services import after_action, analyst, checklist, district_settings, roster, safe_places
 from Pukaar.services import replay as replay_svc
 from Pukaar.store.models import (
     ALERT_OUTCOMES, OPEN_ALERT_STATUSES, RELAY_ROLES, SHELTER_STATES, AuditRow, Directive, ShelterStatus,
@@ -32,7 +32,8 @@ def _llm() -> BedrockLLM | None:
 
 @router.get("/me")
 def me(principal: Principal = Depends(require_user)) -> dict:
-    return {"username": principal.username, "role": principal.role, "village_ids": principal.village_ids}
+    return {"username": principal.username, "role": principal.role, "village_ids": principal.village_ids,
+            "district_ids": principal.district_ids}
 
 
 @router.post("/me/telegram-link")
@@ -80,9 +81,12 @@ def health_deep(_: Principal = Depends(Allowed("health_deep"))) -> dict:
 
 
 @router.get("/alerts")
-def list_alerts(status: str = "", village_id: str = "", principal: Principal = Depends(Allowed("view_console"))) -> list[dict]:
-    alerts = get_repo().list_alerts(status=status or None, village_id=village_id or None)
-    if principal.role != "officer":
+def list_alerts(status: str = "", village_id: str = "", district: str = "",
+                principal: Principal = Depends(Allowed("view_console"))) -> list[dict]:
+    """status=pending (and district=...) reads the status index: every pending alert, however old
+    (Repo.list_alerts), never only those among the newest few hundred."""
+    alerts = get_repo().list_alerts(status=status or None, village_id=village_id or None, district=district or None)
+    if principal.role not in READS_EVERYTHING:
         alerts = [a for a in alerts if a.village_id in principal.village_ids]
     return [views.alert(a) for a in alerts]
 
@@ -91,7 +95,7 @@ def list_alerts(status: str = "", village_id: str = "", principal: Principal = D
 def get_alert(alert_id: str, principal: Principal = Depends(Allowed("view_console", "alert", "alert_id"))) -> dict:
     repo = get_repo()
     a = repo.get_alert(alert_id)
-    if a is None or (principal.role != "officer" and a.village_id not in principal.village_ids):
+    if a is None or (principal.role not in READS_EVERYTHING and a.village_id not in principal.village_ids):
         raise HTTPException(404, "Alert not found")
     audit = [r for day in {a.created_at[:10], clock.iso(clock.now())[:10]} for r in repo.list_audit(day, f"alert:{a.id}")]
     # Each row says whether the person is a village relay (pradhan, gauge reader, task force).
@@ -296,10 +300,16 @@ class DirectiveBody(BaseModel):
 
 
 @router.post("/directives")
-def create_directive(body: DirectiveBody, principal: Principal = Depends(Allowed("issue_directive", "village"))) -> dict:
+def create_directive(body: DirectiveBody, principal: Principal = Depends(require_user)) -> dict:
     repo = get_repo()
     if repo.get_village(body.village_id) is None:
         raise HTTPException(404, "Village not found")
+    # Against the village in the body, the one the directive is for (its district scope included).
+    decision = authorize(principal, "issue_directive", "village", body.village_id, {"village_id": body.village_id},
+                         repo=repo)
+    if not decision.allowed:
+        raise HTTPException(403, {"code": "denied", "reason": decision.reason, "action": "issue_directive",
+                                  "role": principal.role})
     if body.type not in hi.DIRECTIVE_HI:
         raise HTTPException(400, f"type must be one of {', '.join(hi.DIRECTIVE_HI)}")
     for old in repo.list_directives(body.village_id):
@@ -326,7 +336,8 @@ def _roster_error(exc: roster.RosterError) -> HTTPException:
 
 
 @router.get("/roster")
-def get_roster(district: str = "", start: str = "", _: Principal = Depends(Allowed("view_roster"))) -> dict:
+def get_roster(district: str = "", start: str = "",
+               _: Principal = Depends(Allowed("view_roster", district_param="district"))) -> dict:
     """The week from `start` (IST date; default today) for one district, and who is on duty now in each."""
     try:
         return roster.view(get_repo(), district or None, roster.parse_day(start) if start else None)
@@ -344,7 +355,7 @@ class RosterShiftBody(BaseModel):
 
 @router.post("/roster/{district}/{day}/{shift}")
 def put_roster_shift(district: str, day: str, shift: str, body: RosterShiftBody,
-                     principal: Principal = Depends(Allowed("edit_roster"))) -> dict:
+                     principal: Principal = Depends(Allowed("edit_roster", district_param="district"))) -> dict:
     repo = get_repo()
     try:
         row = roster.set_shift(repo, principal.username, principal.role, district, day, shift, primary=body.primary,
@@ -357,7 +368,7 @@ def put_roster_shift(district: str, day: str, shift: str, body: RosterShiftBody,
 
 @router.delete("/roster/{district}/{day}/{shift}")
 def delete_roster_shift(district: str, day: str, shift: str,
-                        principal: Principal = Depends(Allowed("edit_roster"))) -> dict:
+                        principal: Principal = Depends(Allowed("edit_roster", district_param="district"))) -> dict:
     try:
         cleared = roster.clear_shift(get_repo(), principal.username, principal.role, district, day, shift)
     except roster.RosterError as exc:
@@ -366,13 +377,35 @@ def delete_roster_shift(district: str, day: str, shift: str,
 
 
 @router.post("/roster/{district}/take-over")
-def take_over_duty(district: str, principal: Principal = Depends(Allowed("take_over_duty"))) -> dict:
+def take_over_duty(district: str, principal: Principal = Depends(Allowed("take_over_duty", district_param="district"))) -> dict:
     """"Taking over": the signed-in officer becomes the primary of the shift running now (audited)."""
     try:
         row = roster.take_over(get_repo(), principal.username, principal.role, district)
     except roster.RosterError as exc:
         raise _roster_error(exc) from None
     return row.model_dump()
+
+
+# -- district settings (Cedar "ddma-head-district-settings"): a signed, audited in-app decision ----------
+class DistrictSettingsBody(BaseModel):
+    # None: back to the deployment's default (template parameter CriticalAutoSend).
+    critical_auto_send: bool | None = None
+
+
+@router.get("/districts/{district}/settings")
+def get_district_settings(district: str,
+                          _: Principal = Depends(Allowed("view_roster", district_param="district"))) -> dict:
+    return district_settings.view(get_repo(), district)
+
+
+@router.patch("/districts/{district}/settings")
+def patch_district_settings(district: str, body: DistrictSettingsBody,
+                            principal: Principal = Depends(Allowed("change_settings", district_param="district"))) -> dict:
+    """Only the district's DDMA head (Cedar); the change, who made it and when go to the audit trail."""
+    try:
+        return district_settings.set_critical_auto_send(get_repo(), district, body.critical_auto_send, principal)
+    except ValueError as exc:
+        raise HTTPException(400, {"code": "settings", "reason": str(exc)}) from None
 
 
 class ChecklistBody(BaseModel):

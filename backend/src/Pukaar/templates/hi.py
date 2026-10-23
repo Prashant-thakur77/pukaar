@@ -240,3 +240,91 @@ def nudge_officer(village_hi: str, level: str, minutes_left: int, url: str, repl
             f"{minutes_left} मिनट में अगले अधिकारी से पूछा जाएगा।\n"
             f"Reminder: still waiting for your decision. The next officer is asked in {minutes_left} min.\n\n"
             f"Approve / decline: {url}")
+
+
+# -- Telegram enrolment: notice, consent, leaving (api/routers/telegram.py, services/privacy.py) -----------------
+# DPDP Act 2023: a notice before consent (what is kept, why, for how long, how to leave), consent by a clear
+# act (the button), and leaving as easy as joining. NOTICE_VERSION goes into the stored consent record.
+NOTICE_VERSION = "telegram-notice-v1"
+TELEGRAM_MAX_CHARS = 4096
+CONSENT_BUTTON = "✅ सहमत हूँ / I agree"
+DECLINE_BUTTON = "✖ नहीं / No"
+# Words that end a registration, besides /stop: a person who types "बंद करें" means it.
+STOP_WORDS = {"/stop", "stop", "बंद करें", "बंद करे", "बंद", "band karein", "band karo"}
+
+
+def enrol_notice(village_hi: str, village_en: str, district: str, days: int) -> str:
+    """Shown before anything about the person is stored."""
+    return (
+        f"पुकार: {village_hi} ({district}) की बाढ़ चेतावनियाँ इस चैट पर पाने के लिए नीचे “सहमत हूँ” दबाएँ।\n"
+        "हम क्या रखेंगे: आपकी टेलीग्राम चैट आईडी, टेलीग्राम पर आपका नाम और आपका गाँव।\n"
+        "क्यों: केवल बाढ़ की चेतावनी, सब-ठीक का संदेश और “आप सुरक्षित हैं?” पूछने के लिए। किसी और काम में नहीं।\n"
+        "कब तक: जब तक आप जुड़े हैं। /stop या “बंद करें” भेजते ही आपका नाम और चैट आईडी हटा दी जाती है, और "
+        f"पुराने संदेशों के रिकॉर्ड से {days} दिन में; उनमें केवल बिना नाम की गिनती और समय बचते हैं।\n"
+        "कभी भी छोड़ें: /stop या “बंद करें” लिखें।\n\n"
+        f"Pukaar: to get flood alerts for {village_en} ({district}) in this chat, press “I agree” below.\n"
+        "What we keep: your Telegram chat id, your Telegram name and your village.\n"
+        "Why: only to send flood alerts, the all-clear and the “are you safe?” question. Never for anything else.\n"
+        "How long: while you are registered. Send /stop or “बंद करें” and your name and chat id are deleted at "
+        f"once, and from the records of past alerts within {days} days; only anonymous counts and times are kept.\n"
+        "Leave any time: send /stop or “बंद करें”."
+    )
+
+
+def enrolled(village_hi: str, village_en: str) -> str:
+    return (f"पुकार: आप {village_hi} की बाढ़ चेतावनियों के लिए जुड़ गए हैं। आपात स्थिति में 112 पर कॉल करें। "
+            f"छोड़ने के लिए /stop या “बंद करें” लिखें।\n"
+            f"Pukaar: you will get flood alerts for {village_en}. In an emergency call 112. To leave, send /stop.")
+
+
+ALREADY_ENROLLED = ("पुकार: आप इस गाँव के लिए पहले से जुड़े हैं। छोड़ने के लिए /stop लिखें।\n"
+                    "Pukaar: you are already registered for this village. To leave, send /stop.")
+CONSENT_EXPIRED = "यह अनुरोध पुराना हो गया। /start <गाँव का कोड> फिर भेजें। · Expired: send /start <village code> again."
+CONSENT_THANKS = "धन्यवाद, जुड़ गए। · Registered."
+DECLINED = "पुकार: ठीक है, आपके बारे में कुछ नहीं रखा गया। · Pukaar: fine, nothing about you was stored."
+NOT_REGISTERED = ("पुकार: यह चैट किसी गाँव से नहीं जुड़ी है; हटाने को कुछ नहीं है।\n"
+                  "Pukaar: this chat is not registered for any village; there is nothing to remove.")
+
+
+def stopped(villages: list[str], days: int) -> str:
+    names = ", ".join(villages)
+    return (f"पुकार: आप हटा दिए गए ({names})। आपका नाम और चैट आईडी अभी हटा दी गई, और पुराने संदेशों के रिकॉर्ड "
+            f"से {days} दिन में। फिर जुड़ने के लिए /start <गाँव का कोड> भेजें।\n"
+            f"Pukaar: you have left ({names}). Your name and chat id are deleted now, and from the records of past "
+            f"alerts within {days} days. To join again, send /start <village code>.")
+
+
+def _fit(text: str, limit: int = TELEGRAM_MAX_CHARS - 96) -> str:
+    return text if len(text) <= limit else text[: limit - 2].rstrip() + " …"
+
+
+def start_help(districts: list[str], web_url: str) -> str:
+    """The answer to /start with no code or an unknown one: short, and the same size for 5 villages or 5,000
+    (Telegram refuses a message over 4,096 characters). It names the districts, never every village."""
+    shown = ", ".join(districts[:40]) + (" …" if len(districts) > 40 else "")
+    return _fit(
+        "पुकार: अपने गाँव का कोड भेजें, जैसे /start thunag\n"
+        f"कोड कहाँ मिलेगा: गाँव के कार्ड पर, अपने प्रधान से, या {web_url}/live पर अपना गाँव खोलें।\n"
+        "अपने ज़िले के गाँवों के कोड देखने के लिए ज़िले का नाम भेजें, जैसे /start Mandi; "
+        "या गाँव के नाम के पहले अक्षर, जैसे /start thu\n\n"
+        "Pukaar: send your village code, for example /start thunag. The code is on the village card, with your "
+        f"pradhan, or on {web_url}/live (open your village). To see the codes of one district send its name, "
+        "for example /start Mandi, or the first letters of your village, for example /start thu.\n"
+        f"Districts · ज़िले: {shown}"
+    )
+
+
+def village_codes(title: str, rows: list[tuple[str, str, str]]) -> str:
+    """Village codes (code, Hindi name, English name) under a title, cut to fit one Telegram message."""
+    head = f"पुकार: {title} ({len(rows)}):\n"
+    out, used = [], len(head)
+    for i, (code, name_hi, name) in enumerate(rows):
+        line = f"/start {code} · {name_hi} ({name})"
+        if used + len(line) + 1 > TELEGRAM_MAX_CHARS - 300:
+            more = len(rows) - i
+            out.append(f"… और {more} · {more} more: भेजें /start <गाँव के पहले अक्षर> · "
+                       "send /start and the first letters of your village")
+            break
+        out.append(line)
+        used += len(line) + 1
+    return head + "\n".join(out)

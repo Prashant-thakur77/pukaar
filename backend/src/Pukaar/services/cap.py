@@ -37,9 +37,12 @@ Choices (OASIS CAP 1.2, http://docs.oasis-open.org/emergency/cap/v1.2/):
 
 from __future__ import annotations
 
+import json
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
+from pathlib import Path
 from typing import Iterable, Sequence
 
 from Pukaar.core import clock
@@ -69,18 +72,41 @@ OET_VALUE_NAME = "OET:v1.2"
 OET_FLOOD = "OET-081"
 OET_FLASH_FLOOD = "OET-079"
 
-# Local Government Directory (lgdirectory.gov.in) district codes, the geocode SACHET's
-# own CAP messages carry ("LGD District Code"). Checked against the LGD district list
-# as mirrored by Google Data Commons (scripts/india_lgd) and the India Data Portal
-# (district_lgd.csv): Himachal Pradesh is state 2, Hamirpur 17, Mandi 22. The same
-# lists give Jaisalmer 103, which a live SACHET message for Jaisalmer carries.
+# Local Government Directory (lgdirectory.gov.in) codes, the geocodes SACHET's own CAP messages carry
+# ("LGD District Code", "LGD Village Code"). They are data, not code: data/districts.json holds each
+# district's Hindi name and LGD code (checked against the LGD district list as mirrored by Google Data
+# Commons and the India Data Portal: Himachal Pradesh is state 2, Hamirpur 17, Mandi 22), and a village's
+# own LGD code goes in data/villages.json ("lgd_code") once verified; an unverified code is worse than none.
+# The seed copies them onto each village's record (Village.district_hi, lgd_district_code, lgd_village_code),
+# which wins; data/districts.json is read by district name for a record seeded before those fields existed.
+# Adding a district is scripts/add_village.py and a seed, never an edit here.
 LGD_DISTRICT_VALUE_NAME = "LGD District Code"
-LGD_DISTRICT_CODES: dict[str, str] = {"Hamirpur": "17", "Mandi": "22"}
-# LGD village codes, by village id. Empty: none of the five villages' codes could be
-# verified from a public LGD extract, and an unverified code is worse than none.
 LGD_VILLAGE_VALUE_NAME = "LGD Village Code"
-LGD_VILLAGE_CODES: dict[str, str] = {}
-DISTRICT_HI = {"Hamirpur": "हमीरपुर", "Mandi": "मंडी"}
+
+
+@lru_cache(maxsize=4)
+def _districts_file(path: str) -> dict[str, dict]:
+    try:
+        return dict(json.loads(Path(path).read_text(encoding="utf-8")).get("districts") or {})
+    except (OSError, ValueError):
+        return {}
+
+
+def district_info(district: str) -> dict:
+    """data/districts.json's entry for a district ({} when it has none)."""
+    from Pukaar.core.config import get_settings
+
+    return _districts_file(str(get_settings().data_dir / "districts.json")).get(district) or {}
+
+
+def district_hi(village: Village) -> str:
+    return village.district_hi or district_info(village.district).get("name_hi") or village.district
+
+
+def lgd_codes(village: Village) -> tuple[str | None, str | None]:
+    """(district code, village code) for the CAP geocodes: the village record's, else data/districts.json's."""
+    return (village.lgd_district_code or district_info(village.district).get("lgd_code") or None,
+            village.lgd_village_code or None)
 
 # level -> (urgency, severity, certainty, responseType)
 MAPPING: dict[str, tuple[str, str, str, str]] = {
@@ -262,7 +288,7 @@ def area_desc(village: Village | None, name: str, name_hi: str, hindi: bool) -> 
     """At most 50 characters (SACHET's areaDesc limit), shortening the state, then the district."""
     district = village.district if village else ""
     if hindi:
-        d = DISTRICT_HI.get(district, district)
+        d = district_hi(village) if village else district
         options = [f"{name_hi}, {d}, {STATE_HI}", f"{name_hi}, {d}, हि.प्र.", f"{name_hi}, {d}"] if d \
             else [f"{name_hi}, {STATE_HI}"]
         return _fit([*options, name_hi])
@@ -277,8 +303,8 @@ def _area(info: ET.Element, village: Village | None, name: str, name_hi: str, hi
     if village is None:
         return
     _sub(area, "circle", f"{village.lat:.5f},{village.lon:.5f} {AREA_RADIUS_KM:g}")
-    codes = [(LGD_DISTRICT_VALUE_NAME, LGD_DISTRICT_CODES.get(village.district)),
-             (LGD_VILLAGE_VALUE_NAME, LGD_VILLAGE_CODES.get(village.id))]
+    district_code, village_code = lgd_codes(village)
+    codes = [(LGD_DISTRICT_VALUE_NAME, district_code), (LGD_VILLAGE_VALUE_NAME, village_code)]
     for value_name, value in codes:
         if value:
             g = _sub(area, "geocode")

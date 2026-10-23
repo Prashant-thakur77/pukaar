@@ -194,6 +194,12 @@ class Village(BaseModel):
     data_ok_at: str | None = None  # time of the last sweep with complete data
     data_missing_sweeps: int = 0
     data_note: str = ""
+    # From data/districts.json and data/villages.json at seed time, never from code (services/cap.py):
+    # the district's Hindi name and its Local Government Directory (LGD) code, and the village's LGD
+    # code when one was verified. None: not known, and the CAP message carries no such geocode.
+    district_hi: str | None = None
+    lgd_district_code: str | None = None
+    lgd_village_code: str | None = None
 
 
 class Reading(BaseModel):
@@ -477,8 +483,14 @@ class Alert(BaseModel):
     decided_by: str | None = None
     decided_at: str | None = None
     approved: bool = False
+    # Counted in people, each once, by an atomic ADD with a per-person marker (Repo.mark_person):
+    # delivered_count  everyone reached, the demo stub channel included (a replay reaches only the stub)
+    # phones_reached_count  of them, people reached on a real phone (Telegram, or a call answered); never the stub
+    # acknowledged_count  people who pressed "मिल गया" (or 1 on a call)
     delivered_count: int = 0
     acknowledged_count: int = 0
+    phones_reached_count: int = 0
+    district: str = ""  # the village's district when the alert was made: the inbox filters by it
     audio_key: str | None = None
     task_token: str | None = None
     token_version: int = 0
@@ -623,6 +635,9 @@ class Delivery(BaseModel):
     # workers or retries touch it; deferred: put back unsent (Telegram 429 or out of time), sent next pass.
     send_round: int | None = None
     deferred: bool = False
+    # Erasure (services/privacy.py): the person left and their name, chat id and call ids were removed;
+    # recipient_id is then a pseudonym and the row keeps only channel, status, attempts and times.
+    erased: bool = False
 
     @property
     def row_key(self) -> str:

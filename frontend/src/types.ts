@@ -966,8 +966,12 @@ export interface PublicOverview extends SampleFlag {
 /** GET /public/pilot-metrics (api/pilot.py). Null means not measured yet; nothing is estimated. */
 export interface PilotGroup {
   alerts: number;
-  /** Real-phone deliveries (never the stub channel), summed over the alerts. */
+  /** Everyone the alerts reached, demo stub recipients included: the alerts' delivered_count summed. */
+  delivered?: number;
+  /** Of them, people reached on a real phone (never the stub channel), each once per alert. */
   reached: number;
+  /** delivered - reached: demo recipients without a phone. */
+  demo_recipients?: number;
   acknowledged: number;
   /** 0..1 */
   ack_share: number | null;

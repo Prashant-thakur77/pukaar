@@ -1,4 +1,4 @@
-# Security: report abuse, device signing and browser headers
+# Security: report abuse, data protection, device signing and browser headers
 
 Three protections for a public pilot: the anonymous report page cannot be used to raise a public level
 or to crowd villagers out, nobody can sound a siren without a command signed for that one device, and
@@ -104,6 +104,58 @@ the month. The CSP's `connect-src` gains `https://*.cloudfront.net` on that prod
   MFA ON, no SMS) and has no demo users; dev keeps TOTP optional (docs/DEPLOY.md, "Production stage").
 - **Retention.** With `RetentionDays` set (365 on prod), a report, its photo and its voice note
   expire that many days after they were made (DynamoDB TTL and an S3 lifecycle rule).
+- **District scope.** An officer acts (approve, decline, edit, triage, directives, roll-calls, roads,
+  shelters, gauges, sirens, the roster) only on villages of a district they are assigned to (their
+  `SCOPE` row, `make staff-assign`; the village's officer list; the villages on their sign-in) or rostered
+  on from yesterday to tomorrow (`services/scope.py`, Cedar `staff-own-district`). The district comes from
+  the village record, never from the request, and a caller cannot claim scope in the context. A state
+  (SDMA) operator (group `state_operator`) reads every district and acts only where assigned or
+  rostered, never on sirens; a DDMA head (group `ddma_head`) reads their own districts' console, reports,
+  roll-calls and roster, and changes their district's settings (critical auto-send), audited. Replays are
+  not held to a district: they never reach a phone or a siren. `backend/tests/test_district_scope.py`
+  holds the matrix.
+
+## DPDP: consent, leaving and erasure of villagers' data
+
+What the Digital Personal Data Protection Act 2023 asks of a data fiduciary (the DDMA, for a pilot), and
+how Pukaar does it for the people it alerts. This is engineering, not legal advice; the notice text and
+the retention period are for the DDMA to approve. The rules' core obligations commence about 13 May 2027.
+
+**Notice before consent (Telegram).** `/start <village code>` stores nothing about the person. The bot
+answers with a notice in Hindi and English (`templates/hi.enrol_notice`): what is kept (Telegram chat id,
+Telegram name, village), why (flood alerts, the all-clear, "are you safe?"; nothing else), for how long
+(while registered; erased as below) and how to leave (`/stop` or "बंद करें"). Under it are **✅ सहमत हूँ / I
+agree** and **✖ नहीं / No**. Only "I agree" stores the recipient, with a consent record
+(`telegram button, telegram-notice-v1, <time>` in `Recipient.consent`). Until then a one-day row holds the
+village asked for, and "No" deletes it. Voice-only numbers are added by the operator with the household's
+recorded consent (`make voice-add CONSENT=...`), as before.
+
+**Leaving.** `/stop`, or the words "बंद करें" (also "बंद", "stop"), removes the person from every village
+at once: the recipient records, the chat's village pointers and any waiting consent or help note. No alert,
+all-clear or roll-call reaches them after that. `make voice-remove` does the same for a voice-only number
+(for a Telegram-and-calls person it stops the calls and deletes the number from their record).
+
+**Erasure.** What is left of a person after their last village link went is erased
+`PUKAAR_UNLINKED_RETENTION_DAYS` days later (30 by default; 0 erases at the next sweep). The sweep runs it
+(`services/privacy.run_due`, at most 50 people a run):
+
+| Record | What happens |
+|---|---|
+| Recipient record (name, chat id, phone, consent) | Deleted at once, on `/stop` or removal |
+| Delivery rows of every alert of their villages | Re-keyed under a random pseudonym; name, chat id, call ids and key presses removed. Kept: channel, status, attempts, sent and acknowledged times |
+| Per-person counter markers of those alerts | Re-keyed under the same pseudonym, so the alert's counts stay exact |
+| Roll-call rows (asked, answered, note) | Deleted (they expire after 30 days anyway) |
+| Villager reports in their villages | Their phone number (+91…, 91…, the 10 digits) and chat id replaced by `[removed]` wherever the words, transcript or masked copy hold them; the report stays |
+| Audit trail | Untouched (append-only); it never held a villager's chat id or number. One row records the erasure under the pseudonym |
+
+The minimal record kept is the authority's: that an alert reached N people on a channel at a time, and how
+many acknowledged. A person who joins again before their erasure runs keeps their history: the pending
+erasure is cancelled. `backend/tests/test_telegram_enrolment.py` checks that no chat id is left anywhere in
+the table after an erasure.
+
+**Not covered yet.** A household's number given only on paper to the pradhan, a DPIA, a breach-response
+plan and the grievance officer's name in the notice are the DDMA's (docs/RUNBOOK.md, consent section).
+Officers' own accounts are staff data, managed in Cognito.
 
 ## Device signing (sirens, pradhan boxes, gauges)
 

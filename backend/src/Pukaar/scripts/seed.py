@@ -10,6 +10,7 @@ they never reach a real phone. Real recipients join through the bot (/start).
 from __future__ import annotations
 
 import json
+import os
 
 from Pukaar.core.config import get_settings
 from Pukaar.services import checklist
@@ -21,9 +22,43 @@ from Pukaar.store.repo import Repo, get_repo
 STUB_RECIPIENTS_PER_VILLAGE = 2
 
 
+def is_production(stage: str | None = None) -> bool:
+    """A production stage (PUKAAR_STAGE=prod, or a stack named *-prod): no demo officers on every village."""
+    stage = get_settings().stage if stage is None else stage
+    return stage == "prod" or os.environ.get("PUKAAR_STACK", "").endswith("-prod")
+
+
+def village_officers(raw: dict, district: dict, demo_officers: list[str], production: bool) -> list[str]:
+    """A village's fallback approval chain (Village.officers; used when no roster row covers the shift).
+    The village's own list in villages.json wins; then, on a dev stage, the demo officers on every village
+    (officer1, officer2: the demo's behaviour); on production, the district's own list in districts.json,
+    which is empty until the DDMA names it: never the same two people for every village of the state."""
+    if raw.get("officers"):
+        return [str(o) for o in raw["officers"]]
+    if not production:
+        return list(demo_officers)
+    return [str(o) for o in district.get("officers") or []]
+
+
+def migrate_alerts(repo: Repo) -> int:
+    """Idempotent: alerts written before the status index (gsi2) and the per-village alert pointers get them,
+    and their counters are repaired into the per-person markers (delivery/dispatch.repair_counts)."""
+    from Pukaar.delivery import dispatch
+
+    moved = 0
+    for alert_id in repo.all_alert_ids():
+        if repo.index_alert(alert_id):
+            dispatch.repair_counts(repo, alert_id, emit=False)
+            moved += 1
+    return moved
+
+
 def seed(repo: Repo) -> list[str]:
     s = get_settings()
+    production = is_production()
     cfg = json.loads((s.data_dir / "villages.json").read_text(encoding="utf-8"))
+    dpath = s.data_dir / "districts.json"
+    districts = json.loads(dpath.read_text(encoding="utf-8")).get("districts", {}) if dpath.exists() else {}
     th_path = s.data_dir / "thresholds.json"
     thresholds = json.loads(th_path.read_text(encoding="utf-8")) if th_path.exists() else {}
     officers = [o["username"] for o in cfg.get("officers", [])]
@@ -31,10 +66,13 @@ def seed(repo: Repo) -> list[str]:
     for raw in cfg["villages"]:
         existing = repo.get_village(raw["id"])
         th = thresholds.get(raw["id"])
+        district = districts.get(raw["district"]) or {}
         village = Village(
             id=raw["id"], name=raw["name"], name_hi=raw["name_hi"], district=raw["district"], lat=raw["lat"],
             lon=raw["lon"], coords_verified=False, coords_source=raw.get("coords_source"), population=None,
-            officers=officers,
+            officers=village_officers(raw, district, officers, production),
+            district_hi=district.get("name_hi"), lgd_district_code=district.get("lgd_code") or None,
+            lgd_village_code=raw.get("lgd_code") or None,
             thresholds=Thresholds.from_file(th) if th else None,
             # Illustrative thresholds, to be set from the gauge's own record after installation.
             gauge=GaugeConfig.model_validate(raw["gauge"]) if raw.get("gauge") else None,
@@ -47,7 +85,7 @@ def seed(repo: Repo) -> list[str]:
             village.data_missing_sweeps, village.data_note = existing.data_missing_sweeps, existing.data_note
             village.replay = False  # live records never carry the replay flag (services/replay.py)
         repo.put_village(village)
-        for i in range(1, STUB_RECIPIENTS_PER_VILLAGE + 1):
+        for i in range(1, 0 if production else STUB_RECIPIENTS_PER_VILLAGE + 1):  # demo phones: dev only
             # The first demo phone stands for the pradhan: a relay, contacted first (delivery/dispatch.py).
             repo.put_recipient(Recipient(id=f"stub-{raw['id']}-{i}", village_id=raw["id"],
                                          name=f"Demo phone {i} (stub channel)", channel="stub",
@@ -68,6 +106,15 @@ def seed(repo: Repo) -> list[str]:
         # The device registry: the village's sirens and boxes (labelled simulators today) and its gauge.
         registry.seed_village(repo, village, raw.get("devices") or [])
         seeded.append(raw["id"])
+    if not production:
+        # The demo officers act on every district (services/scope.py); on production the DDMA assigns each
+        # officer to their districts (make staff-assign) or rosters them.
+        names = sorted({str(raw["district"]) for raw in cfg["villages"]})
+        for o in officers:
+            repo.put_staff_scope(o, names)
+        if "Mandi" in names:
+            repo.put_staff_scope("ddma_mandi", ["Mandi"])  # the local demo DDMA head (api/auth.DEV_USERS)
+    migrate_alerts(repo)
     return seeded
 
 

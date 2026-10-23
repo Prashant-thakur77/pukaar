@@ -33,10 +33,13 @@ The LGD district codes come from the Local Government Directory list as mirrored
 Google Data Commons (`scripts/india_lgd`) and the India Data Portal (`district_lgd.csv`).
 Both lists give Himachal Pradesh as state 2, Hamirpur 17 and Mandi 22, and both give
 Jaisalmer 103, the same code SACHET's live message uses. Code 33 is Hoshiarpur in
-Punjab, not Mandi. Village-level LGD codes are not included. None of the five villages'
-codes could be checked against a public LGD extract, so `LGD_VILLAGE_CODES` in
-`services/cap.py` is empty until someone verifies them. Sujanpur is a town, so it
-would need a local body code, not a village code.
+Punjab, not Mandi. The codes are data: each district's in `data/districts.json`, a village's
+own as `lgd_code` in `data/villages.json`; the seed copies them onto the village record and
+`services/cap.py` reads them from there (a new district needs no code edit:
+`scripts/add_village.py`, docs/DEPLOY.md). Village-level LGD codes are not included yet. None
+of the five villages' codes could be checked against a public LGD extract, so none carries
+one until someone verifies it. Sujanpur is a town, so it would need a local body code, not a
+village code.
 
 ## How an authority would relay Pukaar's alerts
 

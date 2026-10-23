@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from Pukaar.api import pilot, views
 from Pukaar.api.auth import DEV_USERS, dev_token
+from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.delivery import dispatch, telegram
 from Pukaar.services import cap
@@ -90,21 +93,35 @@ def village_safe_places(village_id: str) -> dict:
 
 @router.get("/public/overview")
 def overview() -> dict:
+    """A fixed number of table calls whatever the number of villages (docs/CONTRACT.md, "At scale"): the village
+    registry and BatchGetItem, the stored counters (one item, written by the sweep), one query for every open
+    roll-call, the newest alerts, and the replay's copies."""
     repo = get_repo()
     alerts = repo.list_alerts(limit=12)
     villages = repo.list_villages()
     shown = replay_svc.display(repo, villages)
+    counts, counted_at = views.public_counters(repo)
+    now = clock.now()
+    open_calls: dict[str, Any] = {}
+    for rc in sorted(repo.open_rollcalls(clock.iso(now)), key=lambda r: r.opened_at):
+        open_calls[rc.village_id] = rc  # the newest open roll-call of each village
     return {
-        "counters": views.counters(repo),
+        "counters": counts,
+        "counters_as_of": counted_at,
         # The village's own (approximate) location, never a villager's.
         "villages": [{"id": v.id, "name": v.name, "name_hi": v.name_hi, "lat": v.lat, "lon": v.lon,
+                      "district": v.district,
                       "level": shown[v.id]["level"], "live_level": v.level, "replay": shown[v.id]["replay"],
                       "coords_verified": v.coords_verified, "data_status": v.data_status,
-                      "data_ok_at": v.data_ok_at, "rollcall": rollcall.public_for_village(repo, v.id)}
+                      "data_ok_at": v.data_ok_at,
+                      "rollcall": rollcall.public_summary(open_calls.get(v.id))}
                      for v in villages],
+        # delivered_count counts everyone the alert reached, the demo stub channel included;
+        # phones_reached_count only real phones (the number /public/pilot-metrics calls "reached").
         "recent_alerts": [{"id": a.id, "village_name": a.village_name, "village_name_hi": a.village_name_hi,
                            "level": a.level, "status": a.status, "created_at": a.created_at, "approved": a.approved,
-                           "delivered_count": a.delivered_count, "acknowledged_count": a.acknowledged_count,
+                           "delivered_count": a.delivered_count, "phones_reached_count": a.phones_reached_count,
+                           "acknowledged_count": a.acknowledged_count,
                            "replay": a.replay} for a in alerts],
         "replay": {"active": repo.get_replay().active},
     }

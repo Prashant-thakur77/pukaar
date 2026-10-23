@@ -331,10 +331,16 @@ GET  /public/villages/{id}/now  {id,name,name_hi,district,level,level_since,live
                               status,route_blocked}|null, river{unit,thresholds|null,points[[at,discharge]] (<= 96)},
                               generated_at}. Cache-Control: public, max-age=30. 404 for an unknown village.
 Every response of 1 kB or more is gzipped when the client sends Accept-Encoding: gzip.
-GET  /public/overview        {counters: Counters, villages[{id,name,name_hi,lat,lon,level,live_level,replay,
-                              coords_verified,data_status,data_ok_at,rollcall}],
+GET  /public/overview        {counters: Counters, counters_as_of, villages[{id,name,name_hi,lat,lon,district,level,
+                              live_level,replay,coords_verified,data_status,data_ok_at,rollcall}],
                               recent_alerts[{id,village_name,village_name_hi,level,status,created_at,
-                              approved,delivered_count,acknowledged_count,replay}], replay{active}}
+                              approved,delivered_count,phones_reached_count,acknowledged_count,replay}],
+                              replay{active}}
+          delivered_count counts everyone the alert reached, the demo stub channel included;
+          phones_reached_count only real phones (Telegram, or a call answered): the number
+          /public/pilot-metrics calls "reached". A fixed handful of table calls at any number of
+          villages: the counters are the sweep's stored copy (counters_as_of; at most
+          PUKAAR_COUNTERS_MAX_AGE_SECONDS old, 1200 on AWS), open roll-calls come from one index query.
 Counters  every one counted from stored records, nothing estimated (api/views.py counters()):
           villages_watched              villages in the registry
           alerts_sent                   live flood alerts that went out: delivered, auto_sent_unapproved,
@@ -354,9 +360,13 @@ GET  /public/pilot-metrics   {counters: Counters, drills: Group, live: Group, ba
                              not_set, false_alarm_rate|null, by_rule: [{rule, alerts, real_flood, no_flood,
                              unknown, not_set, false_alarm_rate|null}]}: counts of "was this real?" over
                              closed live alerts, per rule family; no ids, no people
-          Group = {alerts, reached, acknowledged, ack_share|null, median_minutes_first_ack|null,
-                   median_minutes_to_ack|null}; drills = drill alerts that reached a real phone, live = live
-                   alerts that went out. reached counts real-phone deliveries only (never the stub channel).
+          Group = {alerts, delivered, reached, demo_recipients, acknowledged, ack_share|null,
+                   median_minutes_first_ack|null, median_minutes_to_ack|null}; drills = drill alerts that
+                   reached a real phone, live = live alerts that went out. delivered = the alerts'
+                   delivered_count summed (everyone, demo stub channel included: the number the overview
+                   shows per alert); reached = people reached on a real phone, each once per alert (the
+                   alerts' phones_reached_count); demo_recipients = delivered - reached. The live drill reads
+                   delivered 3, reached 1, demo_recipients 2.
                    Null means not measured yet; nothing is estimated.
           backtest = {rules, scenarios[{name, title, title_hi, villages_scored, villages_alerted,
                      median_lead_hours|null, max_lead_hours|null, villages_get_ready,
@@ -620,6 +630,31 @@ about 7 minutes whatever the batching. One Lambda worker holds 250 recipients, s
 The sweep evaluates villages 16 at a time (`PUKAAR_SWEEP_CONCURRENCY`) on a bounded thread pool; each
 village claims its own window and its error stays its own. With 0.6 s of mocked forecast I/O per
 village, 200 villages took 9 to 10 s (120 s one at a time; `tests/test_sweep_concurrency.py`).
+
+### At scale: counts, the inbox, the overview and the bot's budget
+
+- **Counting people.** A delivery row that becomes "sent", and each "मिल गया", counts its person once by
+  two conditional writes: a marker `PERSON#<reached|acked>#<recipient>` (a reached one says whether it was a real phone) created only if absent (of
+  any number of concurrent taps exactly one creates it), then, by that one only, an atomic `ADD` on the
+  alert's `delivered_count`, `phones_reached_count` or `acknowledged_count`. The markers are the truth;
+  a crash between the two leaves a counter one short until the repair below.
+  A tap reads and writes a fixed handful of items whatever the size of the alert (it used to re-read
+  every delivery row: O(N²) reads over an alert), and concurrent taps never overwrite each other.
+  `dispatch.repair_counts` is the full recount, for repair and audit: it writes any missing marker, then
+  sets each counter to its number of markers only if the counter still holds what it read. It runs once
+  at the end of each delivery round, and in the migration (`make seed`). `tests/test_ack_counters.py`.
+- **The inbox.** `GET /alerts?status=pending[&district=Mandi]` reads the status index (`gsi2`,
+  `ALERTS#<status>`), newest first: every pending alert of the state or the district, however many
+  newer ones exist. A village page reads its own pointers (`VILLAGE#id ALERTREF#`).
+  `tests/test_scale_reads.py` puts 600 newer alerts in front of an old pending one.
+- **The overview.** Villages come by `BatchGetItem` (100 a call), the counters from one stored item the
+  sweep writes, the open roll-calls from one index query: at 1,000 villages the route makes at most 25
+  table calls (`tests/test_scale_reads.py`, in-process moto, under 10 s on a laptop).
+- **One Telegram budget.** On AWS each Telegram send also takes a slot from a budget every Lambda shares
+  (`delivery/ratelimit.SharedBucket`: half-second windows in DynamoDB, one conditional `ADD` per send),
+  and a 429 seen by one Lambda pauses all of them. Two villages alerting at once share the bot's
+  `PUKAAR_TELEGRAM_RATE_PER_SECOND` instead of each taking all of it (`PUKAAR_TELEGRAM_SHARED_LIMIT`,
+  on by default on AWS; `tests/test_shared_ratelimit.py`).
 
 Worker Lambda (`Pukaar.handlers.worker.handler`) events:
 `{"task": "transcribe_report", "report_id", "village_id"}`,

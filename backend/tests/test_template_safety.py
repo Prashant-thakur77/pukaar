@@ -752,3 +752,47 @@ def test_siren_alarms_watch_the_metrics_the_code_emits():
     failed = alarms["SirenTestFailedAlarm"]
     assert failed["Metrics"][0]["Period"] == 3600 and failed["TreatMissingData"] == "notBreaching"
     assert alarms["SirenUnconfirmedAlarm"]["Metrics"][0]["Period"] == 60
+
+
+def _route_keys() -> set[str]:
+    out = set()
+    for res in RES.values():
+        for ev in (res.get("Properties", {}).get("Events") or {}).values():
+            if ev.get("Type") == "HttpApi":
+                p = ev["Properties"]
+                out.add(f"{p['Method']} {p['Path']}")
+    return out
+
+
+def test_each_public_flow_has_its_own_throttle_so_none_starves_another():
+    api = RES["HttpApi"]["Properties"]
+    routes, default = api["RouteSettings"], api["DefaultRouteSettings"]
+    assert set(routes) <= _route_keys(), set(routes) - _route_keys()  # every setting names a real route
+    own = ["POST /telegram/webhook", "POST /alerts/{id}/ack", "GET /voice/exotel/gather", "POST /voice/exotel/status",
+           "POST /voice/plivo/digits", "GET /public/villages/{id}/now", "GET /villages/{id}", "GET /public/overview",
+           "POST /sensors/{id}/readings"]
+    for key in own:
+        assert key in routes, key
+        assert routes[key]["ThrottlingBurstLimit"] >= routes[key]["ThrottlingRateLimit"] > 0, key
+    # The ack and webhook paths, and the villagers' page, each above the console's default.
+    for key in ("POST /telegram/webhook", "POST /alerts/{id}/ack", "GET /public/villages/{id}/now", "GET /villages/{id}"):
+        assert routes[key]["ThrottlingRateLimit"] > default["ThrottlingRateLimit"], key
+    assert routes["POST /sensors/{id}/readings"]["ThrottlingRateLimit"] >= 10  # 600 HTTPS gauges at 1/min
+    # The report-abuse guard stays: reports below the default, each source and village limited in DynamoDB.
+    assert routes["POST /reports"]["ThrottlingRateLimit"] <= 10
+    # All buckets together stay well under the regional account quota (10,000 a second).
+    assert sum(r["ThrottlingRateLimit"] for r in routes.values()) + default["ThrottlingRateLimit"] < 2000
+
+
+def test_alert_status_index_and_staff_groups():
+    from Pukaar.store.repo import table_schema
+
+    p = next(r for r in RES.values() if r["Type"] == "AWS::DynamoDB::Table")["Properties"]
+    names = [g["IndexName"] for g in p["GlobalSecondaryIndexes"]]
+    assert names == ["gsi1", "gsi2"]
+    local = table_schema("x")
+    assert [g["IndexName"] for g in local["GlobalSecondaryIndexes"]] == names  # the local table mirrors it
+    assert {a["AttributeName"] for a in p["AttributeDefinitions"]} == \
+        {a["AttributeName"] for a in local["AttributeDefinitions"]}
+    groups = {r["Properties"]["GroupName"] for r in RES.values() if r["Type"] == "AWS::Cognito::UserPoolGroup"}
+    assert groups == {"officer", "pradhan", "state_operator", "ddma_head"}
