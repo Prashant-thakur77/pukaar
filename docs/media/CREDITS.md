@@ -31,3 +31,11 @@ Pexels License (https://www.pexels.com/license/): free to use, no attribution re
 ## Screens
 
 All app screens are recorded from the live site (https://main.d15r7ktz99l46x.amplifyapp.com) with Playwright. The 3D valley on the landing page and the 3D map use AWS Open Data Terrain Tiles (Mapzen terrarium, `s3://elevation-tiles-prod`); map data © OpenStreetMap contributors.
+
+## The Raahat film (`pukaar-raahat.mp4`)
+
+- **Narration:** Chatterbox TTS with the same built-in synthetic voice as above.
+- **Score and sound effects:** synthesised for this film by `video/narration/score.py` (cued to the film's timeline by `video/raahat.mjs`) and `video/narration/sfx.py`, from code with no samples. Original work, dedicated to the public domain under CC0 1.0.
+- **Stock footage:** `timelapse`, `river` and `damage` from the list above (Pexels License).
+- **Satellite images:** Sentinel-2 L2A (Copernicus data, modified), from AWS Open Data (`s3://sentinel-cogs`), as served by the live site under `/satellite/2023/`.
+- **Screens:** recorded with Playwright from the Raahat stack's live site (https://main.d227ld968f3fok.amplifyapp.com) during a labelled replay; the chain output is `cast` (Foundry) against Base Sepolia.

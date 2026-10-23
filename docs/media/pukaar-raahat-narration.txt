@@ -1,0 +1,37 @@
+In 2025, a dog woke a Himalayan village at midnight. No warning reached them. And when relief comes, nobody can see where it goes. This is Pukaar Raahat.
+
+On the night of 30 June 2025, cloudbursts hit Mandi district: at least 10 dead, 34 missing. Relief is paid after the water, and the village can't check who got it.
+
+Money before the water works. In Bangladesh in 2020, the World Food Programme sent $53 by mobile money, about a week before the flood peaked, to over 23,000 households. They were 52% less likely to go a day without eating.
+
+Today, Pukaar warns villages before a flood, live on AWS. Raahat adds the money: released before the river, on a sealed rule, every rupee on a public chain.
+
+The rule is set before the monsoon: at Warning, ₹1,500 per household; once the flood is confirmed, ₹4,000 more; then a 72-hour cooldown. Then it's sealed on chain. Nobody can change it mid-flood, not even us.
+
+Now July 2023, replayed on the deployed stack, labelled as an exercise. Pandoh reaches Warning. The officer approves the Hindi alert in one tap.
+
+As it goes out, the alert is anchored on Base. Re-verify fetches the public alert feed and hashes it in your browser. It matches.
+
+Code checks the sealed rule: Pandoh is at Warning, 30 households registered. One tap releases tier one, before the water: 30 times ₹1,500. The contract checks the rule again, and pays.
+
+After the flood, three independent keys can confirm it. Pandoh's pradhan attests first, from a verified photo of the village.
+
+The district officer attests, severity two. Two of three agree: the flood is confirmed. And the satellite adds a third.
+
+Sentinel-2 images of the river, before and after: water went from 2.07 to 4.10 square kilometres. Severity three. The image's hash goes on chain, so anyone can check it.
+
+Confirmation unlocks tier two: ₹4,000 for each household. The contract checks the three keys itself.
+
+The pradhan records each payment's UPI reference. On chain, it's a receipt for a hashed household: no name, no phone number.
+
+It all lands on one public page: the alert, both tranches, three confirmations, the receipts.
+
+Anyone can open every transaction: no wallet, no account.
+
+Why a chain? A rule nobody can quietly change, a confirmation no one person controls, receipts anyone can audit. And if the chain is down, the warning still goes out.
+
+Read from Base Sepolia right now: the rule sealed, the alert marked as an exercise, three attesters, both tranches, the receipt. 53 contract tests, full coverage.
+
+What's not real yet: the money is a test token. The amounts await the state's relief norms, and our server holds the testnet keys.
+
+The river will still rise. Now help reaches first.

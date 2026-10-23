@@ -4,6 +4,8 @@
 //   node video/record.mjs demo      # video/demo.mjs    -> docs/media/pukaar-demo.mp4 (+ silent cut, .srt, poster)
 //   node video/record.mjs trailer   # video/trailer.mjs -> docs/media/pukaar-trailer.mp4
 //   node video/record.mjs pitch     # video/pitch.mjs   -> docs/media/pukaar-pitch.mp4 (own compositor, video/lib/compose.mjs)
+//   node video/record.mjs raahat    # video/raahat.mjs  -> docs/media/pukaar-raahat.mp4 (Web3 for Social Good demo; stage
+//                                   #   it first with node video/raahat-live.mjs)
 //
 // Options: --only a,b (re-record only these scenes), --plan (narrate and print the timing only), --preview (with
 // --only: just those scenes, into video/.out/preview.mp4).
@@ -43,8 +45,8 @@ import {
 import { pukaarFacts } from "./lib/facts.mjs";
 
 const KIND = process.argv[2];
-if (!["demo", "trailer", "pitch"].includes(KIND)) {
-  console.error("usage: node video/record.mjs demo|trailer|pitch [--only a,b] [--plan] [--preview]");
+if (!["demo", "trailer", "pitch", "raahat"].includes(KIND)) {
+  console.error("usage: node video/record.mjs demo|trailer|pitch|raahat [--only a,b] [--plan] [--preview]");
   process.exit(2);
 }
 const arg = (k) => {
@@ -121,7 +123,8 @@ function scriptDoc(doc, scenes, tls, total, words, intro = null) {
 
 async function main() {
   const def = await import(`./${KIND}.mjs`);
-  const facts = await pukaarFacts(ROOT);
+  // a film may read its own numbers (Raahat: its own stack and the chain); every other film reads Pukaar's
+  const facts = def.facts ? await def.facts(ROOT) : await pukaarFacts(ROOT);
   log("facts", JSON.stringify(facts).slice(0, 600));
   const browser = await chromium.launch({
     executablePath: CHROME,

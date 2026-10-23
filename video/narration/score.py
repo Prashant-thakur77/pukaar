@@ -1,7 +1,7 @@
 """An original score for the pitch video, synthesised from scratch (no samples, no third-party audio).
 
 usage: python3 score.py cues.json out.wav
-cues.json: {"duration": s, "sections": [{"from": s, "to": s, "mood": m, "gain_db": 0}], "hits": [s, ...],
+cues.json: {"duration": s, "sections": [{"from": s, "to": s, "mood": m, "gain_db": 0, "bpm": optional}], "hits": [s, ...],
             "drops": [[s, dur], ...]}
 Moods, in the video's order: night (a low drone and a slow heartbeat), sombre (piano over a D-minor pad), tense
 (pulsing low strings and a ticking clock), hope (the pad opens into D major, rising piano), drive (100 bpm: kick,
@@ -290,7 +290,7 @@ def mood_resolve(bus, a, b):
 
 
 MOODS = {"night": mood_night, "sombre": mood_sombre, "tense": mood_tense, "hope": mood_hope,
-         "drive": mood_drive, "build": lambda bus, a, b: mood_drive(bus, a, b, full=True),
+         "drive": mood_drive, "build": lambda bus, a, b, **kw: mood_drive(bus, a, b, full=True, **kw),
          "reflect": mood_reflect, "resolve": mood_resolve}
 
 XF = 1.6
@@ -298,7 +298,7 @@ mixL, mixR = np.zeros(N), np.zeros(N)
 for s in cues["sections"]:
     bus = Bus()
     a, b = float(s["from"]), float(s["to"])
-    MOODS[s["mood"]](bus, a, b + XF)
+    MOODS[s["mood"]](bus, a, b + XF, **({"bpm": s["bpm"]} if "bpm" in s else {}))
     g = np.zeros(N)
     ia, ib = int(a * SR), int(min(DUR, b + XF) * SR)
     g[ia:ib] = 1

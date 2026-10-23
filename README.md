@@ -425,7 +425,7 @@ sign-in; the demo user names are in [DEMO.md](DEMO.md#sign-in).
 
 ## Raahat: where the money goes
 
-Pukaar Raahat (पुकार राहत) is the relief layer on this branch, built for the Web3 for Social Good Hackathon 2026. Pukaar already predicts the flood and proves the warning reached each phone; Raahat pays the household before the water rises, by a rule sealed before the monsoon, and every rupee can be traced from forecast to phone on a public chain. Live: [the relief ledger](https://main.d227ld968f3fok.amplifyapp.com/raahat) on its own stack (`pukaar-raahat`, kept apart from `pukaar-dev`). Plan and reasoning: [PLAN.md](PLAN.md); submission: [docs/submission/w3sg-writeup.md](docs/submission/w3sg-writeup.md).
+Pukaar Raahat (पुकार राहत) is the relief layer on this branch, built for the Web3 for Social Good Hackathon 2026. Pukaar already predicts the flood and proves the warning reached each phone; Raahat pays the household before the water rises, by a rule sealed before the monsoon, and every rupee can be traced from forecast to phone on a public chain. Live: [the relief ledger](https://main.d227ld968f3fok.amplifyapp.com/raahat) on its own stack (`pukaar-raahat`, kept apart from `pukaar-dev`). Plan and reasoning: [PLAN.md](PLAN.md); submission: [docs/submission/w3sg-writeup.md](docs/submission/w3sg-writeup.md); film: [docs/media/pukaar-raahat.mp4](docs/media/pukaar-raahat.mp4) (2:48, one replayed flood end to end on the live stack and Base Sepolia; [script](docs/submission/w3sg-film-script.md), [captions](docs/media/pukaar-raahat.srt)).
 
 It does three things:
 

@@ -117,6 +117,31 @@
       #gaps .arrow { font: 800 44px/1 var(--sans); color: var(--marigold); text-align: center; }
       #gaps .fix { composes: tick; }
 
+      /* ------------------------------------------------------------ stat: a sourced number counted up, one at a time */
+      #stat .stage { position: absolute; inset: 70px 140px 200px; display: flex; flex-direction: column; justify-content: center; gap: 34px; }
+      #stat h2 { margin: 0; font: 400 76px/1.04 var(--display); text-transform: uppercase; max-width: 1500px; }
+      #stat .row { display: grid; grid-template-columns: repeat(var(--n, 2), 1fr); gap: 40px; }
+      #stat .st { background: #fff; border: 3px solid var(--ink); box-shadow: 10px 10px 0 var(--ink); border-radius: 14px; padding: 28px 34px; }
+      #stat .big { font: 400 170px/0.95 var(--display); letter-spacing: 0.01em; }
+      #stat .lbl { font: 700 36px/1.25 var(--sans); margin-top: 8px; }
+      #stat .src { font: 500 22px/1.4 var(--mono); color: var(--ink-3); }
+
+      /* ------------------------------------------------------------ ticks: a title, then one card per beat */
+      #ticks .stage { position: absolute; inset: 60px 140px 200px; display: flex; flex-direction: column; justify-content: center; gap: 30px; }
+      #ticks h2 { margin: 0 0 8px; font: 400 84px/1 var(--display); text-transform: uppercase; }
+      #ticks .tick { font-size: 40px; padding: 24px 30px; } #ticks .tick small { font-size: 28px; }
+      #ticks .tick .ic { width: 68px; height: 68px; } #ticks .tick .ic svg { width: 40px; height: 40px; }
+
+      /* ------------------------------------------------------------ sat: Sentinel-2 water before and after, and its hash */
+      #sat .stage { position: absolute; inset: 50px 110px 190px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr auto; gap: 22px 40px; }
+      #sat h2 { grid-column: 1 / -1; margin: 0; font: 400 66px/1 var(--display); text-transform: uppercase; }
+      #sat figure { margin: 0; position: relative; border: 3px solid var(--ink); box-shadow: 10px 10px 0 var(--ink); border-radius: 12px; overflow: hidden; background: #0f1416; }
+      #sat figure img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      #sat figcaption { position: absolute; left: 14px; top: 14px; background: rgb(12 12 11 / 82%); color: var(--paper); font: 700 24px/1.2 var(--mono); padding: 8px 14px; border-radius: 8px; }
+      #sat .facts { grid-column: 1 / -1; display: flex; gap: 40px; align-items: baseline; flex-wrap: wrap; }
+      #sat .facts .k { font: 400 64px/1 var(--display); } #sat .facts .k small { font: 700 26px/1 var(--sans); margin-left: 10px; }
+      #sat .hash { font: 600 22px/1.3 var(--mono); color: var(--ink-3); }
+
       /* ------------------------------------------------------------ phone: a live page in a phone frame */
       #phone .stage { position: absolute; inset: 40px 0 170px; display: flex; align-items: center; justify-content: center; gap: 110px; }
       #phone .dev { width: 430px; height: 860px; border-radius: 54px; background: #10120e; padding: 20px; box-shadow: 14px 14px 0 var(--ink); border: 3px solid var(--ink); }
@@ -132,7 +157,7 @@
     <section class="mode" id="hook"></section>
     <section class="mode" id="turn">
       <div class="wrap">
-        <div class="wm in" id="turn-wm"><span class="hi">पुकार</span><span class="en">Pukaar</span></div>
+        <div class="wm in" id="turn-wm"><span class="hi brand-hi">पुकार</span><span class="en brand-en">Pukaar</span></div>
         <div>
           <p class="one in" id="turn-one"></p>
           <div class="who" id="turn-who"></div>
@@ -161,10 +186,13 @@
         </div>
       </div>
     </section>
+    <section class="mode" id="stat"><div class="stage" id="stat-stage"></div></section>
+    <section class="mode" id="ticks"><div class="stage" id="ticks-stage"></div></section>
+    <section class="mode" id="sat"><div class="stage" id="sat-stage"></div></section>
     <section class="mode" id="close">
       <div class="wrap">
         <p class="call in" id="close-call"></p>
-        <div class="wm in" id="close-wm"><span class="hi">पुकार</span><span class="en">Pukaar</span></div>
+        <div class="wm in" id="close-wm"><span class="hi brand-hi">पुकार</span><span class="en brand-en">Pukaar</span></div>
         <div class="url in" id="close-url"></div>
         <div class="meta in" id="close-meta"></div>
       </div>
@@ -186,6 +214,12 @@
         heard: '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>',
         wake: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
         report: '<svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 013 3v6a3 3 0 01-6 0V5a3 3 0 013-3z"/><path d="M19 11a7 7 0 01-14 0M12 18v4"/></svg>',
+        lock: '<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>',
+        three: '<svg viewBox="0 0 24 24"><circle cx="6" cy="7" r="3"/><circle cx="18" cy="7" r="3"/><circle cx="12" cy="17" r="3"/><path d="M8.5 9l2 5M15.5 9l-2 5"/></svg>',
+        receipt: '<svg viewBox="0 0 24 24"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>',
+        coins: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>',
+        key: '<svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2"/></svg>',
+        scale: '<svg viewBox="0 0 24 24"><path d="M12 3v18M5 7h14M5 7l-3 7a4 4 0 006 0zM19 7l-3 7a4 4 0 006 0z"/></svg>',
       };
 
       window.__prepare = async () => {
@@ -193,6 +227,9 @@
         const m = DATA.mode;
         document.body.className = DATA.bg ?? (m === "hook" || m === "close" ? "night" : "paper");
         $(m === "terminal" ? "term" : m).classList.add("on");
+        // a film may carry its own wordmark (Raahat: पुकार राहत · Pukaar Raahat); Pukaar's films keep the default
+        document.querySelectorAll(".brand-hi").forEach((e) => (e.textContent = DATA.brandHi ?? "पुकार"));
+        document.querySelectorAll(".brand-en").forEach((e) => (e.textContent = DATA.brandEn ?? "Pukaar"));
         if (m === "hook") {
           // beats: [{text: "words [marked]"} | {brand: true, pre: "That's"}]
           window.__hook = {
@@ -205,7 +242,7 @@
                 root.querySelectorAll(".beat").forEach((el) => el.classList.add("gone"));
                 const d = document.createElement("div");
                 d.className = "brand";
-                d.innerHTML = `<span class="w that">${esc(b.pre)}</span><span class="w hi">पुकार</span><span class="w en">Pukaar</span>`;
+                d.innerHTML = `<span class="w that">${esc(b.pre)}</span><span class="w hi">${esc(DATA.brandHi ?? "पुकार")}</span><span class="w en">${esc(DATA.brandEn ?? "Pukaar")}</span>`;
                 root.appendChild(d);
                 d.querySelectorAll(".w").forEach((w, i) => show(w, 40 + i * 180));
                 return;
@@ -256,7 +293,7 @@
               for (const [i, o] of g.out.entries()) {
                 const d = document.createElement("div");
                 d.className = "l" + (g.hot?.includes(i) ? " hot" : "");
-                d.innerHTML = esc(o).replace(/\b(SUCCEEDED|ok|delivered|CREATE_COMPLETE|UPDATE_COMPLETE)\b/g, '<span class="ok">$1</span>');
+                d.innerHTML = esc(o).replace(/\b(SUCCEEDED|ok|delivered|CREATE_COMPLETE|UPDATE_COMPLETE|true)\b/g, '<span class="ok">$1</span>');
                 scr.appendChild(d);
               }
               // keep the newest output in view
@@ -269,7 +306,7 @@
           st.innerHTML =
             `<h2 class="in">${marked(DATA.title)}</h2>` +
             DATA.rows
-              .map((r) => `<div class="row in"><span class="gap">${esc(r.gap)}</span><span class="arrow">→</span><div class="tick"><span class="ic">${ICON[r.icon]}</span><span>${esc(r.big)}<small>${esc(r.small)}</small></span></div></div>`)
+              .map((r) => `<div class="row in"><span class="gap"${DATA.strike === false ? ' style="text-decoration:none"' : ""}>${esc(r.gap)}</span><span class="arrow">→</span><div class="tick"><span class="ic">${ICON[r.icon]}</span><span>${esc(r.big)}<small>${esc(r.small)}</small></span></div></div>`)
               .join("");
           show(st.children[0], 50);
           sweep(st.children[0], 400);
@@ -296,6 +333,55 @@
               requestAnimationFrame(step);
             },
           };
+        }
+        if (m === "stat") {
+          // title "words [marked]", stats [{value, decimals, prefix, suffix, label}], source
+          const st = $("stat-stage");
+          st.style.setProperty("--n", DATA.stats.length);
+          st.innerHTML =
+            `<h2 class="in">${marked(DATA.title)}</h2><div class="row">` +
+            DATA.stats.map((x) => `<div class="st in"><div class="big">${esc(x.prefix ?? "")}<span class="n">0</span>${esc(x.suffix ?? "")}</div><div class="lbl">${marked(x.label)}</div></div>`).join("") +
+            `</div><div class="src in">${esc(DATA.source)}</div>`;
+          show(st.children[0], 50);
+          sweep(st.children[0], 400);
+          window.__stat = {
+            show(k) {
+              const box = st.querySelectorAll(".st")[k];
+              show(box);
+              sweep(box, 500);
+              const x = DATA.stats[k], n = box.querySelector(".n"), t0 = performance.now();
+              const step = (now) => {
+                const t = Math.min(1, (now - t0) / 900), e = 1 - Math.pow(1 - t, 3);
+                n.textContent = (x.value * e).toLocaleString("en-IN", { maximumFractionDigits: x.decimals ?? 0, minimumFractionDigits: x.decimals ?? 0 });
+                if (t < 1) requestAnimationFrame(step);
+              };
+              requestAnimationFrame(step);
+              if (k === DATA.stats.length - 1) show(st.querySelector(".src"), 600);
+            },
+          };
+        }
+        if (m === "ticks") {
+          const st = $("ticks-stage");
+          st.innerHTML =
+            `<h2 class="in">${marked(DATA.title)}</h2>` +
+            DATA.rows.map((r) => `<div class="tick in"><span class="ic">${ICON[r.icon]}</span><span>${marked(r.big)}<small>${esc(r.small)}</small></span></div>`).join("");
+          show(st.children[0], 50);
+          sweep(st.children[0], 400);
+          window.__ticks = { show: (k) => { show(st.children[k + 1]); sweep(st.children[k + 1], 350); } };
+        }
+        if (m === "sat") {
+          // the before and after images, the measured areas, the severity and the evidence hash
+          const st = $("sat-stage");
+          st.innerHTML =
+            `<h2 class="in">${marked(DATA.title)}</h2>` +
+            `<figure class="in"><img src="${esc(DATA.before.src)}"/><figcaption>${esc(DATA.before.label)}</figcaption></figure>` +
+            `<figure class="in"><img src="${esc(DATA.after.src)}"/><figcaption>${esc(DATA.after.label)}</figcaption></figure>` +
+            `<div class="facts">${DATA.facts.map((f) => `<span class="k in">${esc(f.k)}<small>${esc(f.small)}</small></span>`).join("")}<span class="hash in">${esc(DATA.hash)}</span></div>`;
+          await Promise.all([...st.querySelectorAll("img")].map((i) => (i.complete ? 0 : new Promise((r) => { i.onload = r; i.onerror = r; }))));
+          show(st.children[0], 50);
+          sweep(st.children[0], 400);
+          // 0, 1: the two images; 2 on: each fact, then the hash
+          window.__sat = { show: (k) => show(k < 2 ? st.children[k + 1] : st.children[3].children[k - 2]) };
         }
         if (m === "close") {
           $("close-call").innerHTML = marked(DATA.call).replace(/\n/g, "<br>");

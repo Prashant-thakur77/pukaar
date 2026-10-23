@@ -6,6 +6,7 @@
 //                so a click, zoom or highlight lands on the word that names it. Captions are NOT in the recording.
 //   3. assemble  cut the scenes, overlay the caption bar (rendered from the spoken text, at most 2 lines of 42
 //                characters, timed to the audio), mix the narration to -16 LUFS, and write the outputs.
+import { readdirSync } from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync, copyFileSync } from "node:fs";
@@ -16,7 +17,14 @@ import { fileURLToPath } from "node:url";
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const require = createRequire(join(ROOT, "frontend", "package.json"));
 export const { chromium } = require("playwright");
-export const CHROME = "/home/prashant/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome";
+// The Chromium Playwright installed (any build under ~/.cache/ms-playwright), or VIDEO_CHROME.
+export const CHROME =
+  process.env.VIDEO_CHROME ??
+  (() => {
+    const base = join(process.env.HOME, ".cache/ms-playwright");
+    const dir = readdirSync(base).filter((d) => /^chromium-\d+$/.test(d)).sort().pop();
+    return join(base, dir, "chrome-linux64/chrome");
+  })();
 
 export const log = (...a) => console.log("[video]", ...a);
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -210,7 +218,10 @@ export function pageHelpers() {
     },
     box(el, opts = {}) {
       const pad = opts.pad ?? 10;
-      const r = el.getBoundingClientRect ? docRect(el) : el;
+      const r0 = el.getBoundingClientRect ? docRect(el) : el;
+      // a page laid out larger with CSS zoom on <body> (window.__vZoom): the box is placed in body's own px
+      const z = window.__vZoom ?? 1;
+      const r = { x: r0.x / z, y: r0.y / z, w: r0.w / z, h: r0.h / z };
       const b = body();
       const d = document.createElement("div");
       d.className = "__vbox";
@@ -707,7 +718,23 @@ export function mixAudio(tls, total, work, music = null) {
     for (const l of tl.lines) plan.clips.push({ path: l.take.path, t: tl.start + l.start });
     for (const x of tl.audio ?? []) plan.clips.push({ path: x.path, t: tl.start + x.t, gain_db: x.gain_db ?? 0 });
   }
-  if (music) {
+  if (music?.cues) {
+    // a score cued to the film (narration/score.py) and sound effects (narration/sfx.py), as the pitch has
+    const sfxDir = join(ROOT, "video/.out/sfx");
+    if (!existsSync(join(sfxDir, "whoosh.wav"))) {
+      const r = spawnSync(PY, [join(ROOT, "video/narration/sfx.py"), sfxDir], { encoding: "utf8" });
+      if (r.status !== 0) throw new Error(`sfx.py failed\n${r.stderr}`);
+    }
+    const { sfx = [], ...cues } = music.cues(tls, total);
+    writeFileSync(join(work, "score-cues.json"), JSON.stringify({ duration: total, ...cues }, null, 1));
+    const bed = join(work, "score.wav");
+    const r = spawnSync(PY, [join(ROOT, "video/narration/score.py"), join(work, "score-cues.json"), bed], { encoding: "utf8" });
+    if (r.status !== 0) throw new Error(`score.py failed\n${r.stderr}`);
+    const { cues: _, target_lufs, ...level } = music;
+    plan.music = { path: bed, ...level };
+    plan.sfx = sfx.map((x) => ({ path: join(sfxDir, `${x.name}.wav`), t: x.t, gain_db: x.gain ?? -12, dur: x.dur ?? null, fade: x.fade ?? null }));
+    plan.target_lufs = target_lufs ?? null;
+  } else if (music) {
     const bed = join(ROOT, "video/.out/music", `bed-${music.seed}-${Math.ceil(total)}.wav`);
     if (!existsSync(bed)) {
       mkdirSync(dirname(bed), { recursive: true });
@@ -750,7 +777,7 @@ export function mux(video, wav, out) {
     "-c:a",
     "aac",
     "-b:a",
-    "160k",
+    "192k",
     "-ar",
     "48000",
     "-ac",

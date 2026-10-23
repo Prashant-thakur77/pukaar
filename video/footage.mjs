@@ -12,9 +12,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
-const ROOT = "/home/prashant/projects/Pukaar";
-const { chromium } = await import(join(ROOT, "frontend/node_modules/playwright/index.mjs"));
-const CHROME = "/home/prashant/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome";
+// this checkout (never another worktree), and the Chromium the engine uses
+const { ROOT, CHROME, chromium } = await import("./lib/engine.mjs");
 const clips = JSON.parse(readFileSync(join(ROOT, "video/footage.json"), "utf8")).clips;
 const OUT = join(ROOT, "video/.out/footage");
 mkdirSync(OUT, { recursive: true });

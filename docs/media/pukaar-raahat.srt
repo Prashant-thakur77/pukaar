@@ -1,0 +1,398 @@
+1
+00:00:00,100 --> 00:00:03,159
+In 2025, a dog woke a
+Himalayan village at midnight.
+
+2
+00:00:03,209 --> 00:00:04,832
+No warning reached them.
+
+3
+00:00:04,882 --> 00:00:05,863
+And when relief comes,
+
+4
+00:00:05,913 --> 00:00:07,657
+nobody can see where it goes.
+
+5
+00:00:07,707 --> 00:00:10,199
+This is Pukaar Raahat.
+
+6
+00:00:10,399 --> 00:00:12,738
+On the night of 30 June 2025,
+
+7
+00:00:12,789 --> 00:00:14,354
+cloudbursts hit Mandi district:
+
+8
+00:00:14,404 --> 00:00:16,751
+at least 10 dead, 34 missing.
+
+9
+00:00:16,801 --> 00:00:18,282
+Relief is paid after the water,
+
+10
+00:00:18,332 --> 00:00:20,201
+and the village can't check who got it.
+
+11
+00:00:20,251 --> 00:00:22,030
+Money before the water works.
+
+12
+00:00:22,080 --> 00:00:23,614
+In Bangladesh in 2020,
+
+13
+00:00:23,664 --> 00:00:26,766
+the World Food Programme
+sent $53 by mobile money,
+
+14
+00:00:26,816 --> 00:00:28,270
+about a week before the flood peaked,
+
+15
+00:00:28,320 --> 00:00:30,567
+to over 23,000 households.
+
+16
+00:00:30,617 --> 00:00:32,359
+They were 52% less likely
+
+17
+00:00:32,409 --> 00:00:34,164
+to go a day without eating.
+
+18
+00:00:34,564 --> 00:00:37,003
+Today, Pukaar warns
+villages before a flood,
+
+19
+00:00:37,053 --> 00:00:38,141
+live on AWS.
+
+20
+00:00:38,191 --> 00:00:39,171
+Raahat adds the money:
+
+21
+00:00:39,221 --> 00:00:40,200
+released before the river,
+
+22
+00:00:40,250 --> 00:00:41,133
+on a sealed rule,
+
+23
+00:00:41,183 --> 00:00:43,198
+every rupee on a public chain.
+
+24
+00:00:43,598 --> 00:00:45,756
+The rule is set before the monsoon:
+
+25
+00:00:45,806 --> 00:00:47,404
+at Warning, ₹1,500 per household;
+
+26
+00:00:47,454 --> 00:00:49,708
+once the flood is confirmed, ₹4,000 more;
+
+27
+00:00:49,758 --> 00:00:51,618
+then a 72-hour cooldown.
+
+28
+00:00:51,668 --> 00:00:52,957
+Then it's sealed on chain.
+
+29
+00:00:53,006 --> 00:00:54,375
+Nobody can change it mid-flood,
+
+30
+00:00:54,425 --> 00:00:55,332
+not even us.
+
+31
+00:00:55,382 --> 00:00:56,683
+Now July 2023,
+
+32
+00:00:56,733 --> 00:00:57,972
+replayed on the deployed stack,
+
+33
+00:00:58,022 --> 00:00:59,700
+labelled as an exercise.
+
+34
+00:00:59,750 --> 00:01:00,895
+Pandoh reaches Warning.
+
+35
+00:01:00,945 --> 00:01:02,594
+The officer approves the Hindi alert
+
+36
+00:01:02,644 --> 00:01:03,713
+in one tap.
+
+37
+00:01:04,513 --> 00:01:05,162
+As it goes out,
+
+38
+00:01:05,212 --> 00:01:07,121
+the alert is anchored on Base.
+
+39
+00:01:07,171 --> 00:01:09,094
+Re-verify fetches the public alert feed
+
+40
+00:01:09,144 --> 00:01:10,556
+and hashes it in your browser.
+
+41
+00:01:10,605 --> 00:01:11,766
+It matches.
+
+42
+00:01:11,966 --> 00:01:13,218
+Code checks the sealed rule:
+
+43
+00:01:13,268 --> 00:01:14,348
+Pandoh is at Warning,
+
+44
+00:01:14,398 --> 00:01:16,017
+30 households registered.
+
+45
+00:01:16,067 --> 00:01:17,329
+One tap releases tier one,
+
+46
+00:01:17,379 --> 00:01:18,268
+before the water:
+
+47
+00:01:18,318 --> 00:01:20,453
+30 times ₹1,500.
+
+48
+00:01:20,503 --> 00:01:22,166
+The contract checks the rule again,
+
+49
+00:01:22,216 --> 00:01:23,192
+and pays.
+
+50
+00:01:23,992 --> 00:01:24,705
+After the flood,
+
+51
+00:01:24,755 --> 00:01:26,947
+three independent keys can confirm it.
+
+52
+00:01:26,997 --> 00:01:28,585
+Pandoh's pradhan attests first,
+
+53
+00:01:28,635 --> 00:01:30,693
+from a verified photo of the village.
+
+54
+00:01:31,293 --> 00:01:32,752
+The district officer attests,
+
+55
+00:01:32,802 --> 00:01:34,168
+severity two.
+
+56
+00:01:34,218 --> 00:01:35,112
+Two of three agree:
+
+57
+00:01:35,162 --> 00:01:36,688
+the flood is confirmed.
+
+58
+00:01:36,738 --> 00:01:38,982
+And the satellite adds a third.
+
+59
+00:01:39,582 --> 00:01:41,186
+Sentinel-2 images of the river,
+
+60
+00:01:41,236 --> 00:01:42,433
+before and after:
+
+61
+00:01:42,483 --> 00:01:46,338
+water went from 2.07 to
+4.10 square kilometres.
+
+62
+00:01:46,388 --> 00:01:47,367
+Severity three.
+
+63
+00:01:47,417 --> 00:01:48,752
+The image's hash goes on chain,
+
+64
+00:01:48,802 --> 00:01:50,509
+so anyone can check it.
+
+65
+00:01:50,709 --> 00:01:52,249
+Confirmation unlocks tier two:
+
+66
+00:01:52,298 --> 00:01:54,443
+₹4,000 for each household.
+
+67
+00:01:54,493 --> 00:01:56,974
+The contract checks the three keys itself.
+
+68
+00:01:58,174 --> 00:02:01,296
+The pradhan records each
+payment's UPI reference.
+
+69
+00:02:01,346 --> 00:02:03,584
+On chain, it's a receipt
+for a hashed household:
+
+70
+00:02:03,634 --> 00:02:04,267
+no name,
+
+71
+00:02:04,316 --> 00:02:05,556
+no phone number.
+
+72
+00:02:06,156 --> 00:02:07,855
+It all lands on one public page:
+
+73
+00:02:07,905 --> 00:02:09,316
+the alert, both tranches,
+
+74
+00:02:09,367 --> 00:02:10,213
+three confirmations,
+
+75
+00:02:10,263 --> 00:02:11,432
+the receipts.
+
+76
+00:02:11,482 --> 00:02:12,994
+Anyone can open every transaction:
+
+77
+00:02:13,044 --> 00:02:13,485
+no wallet,
+
+78
+00:02:13,535 --> 00:02:14,570
+no account.
+
+79
+00:02:14,670 --> 00:02:15,404
+Why a chain?
+
+80
+00:02:15,454 --> 00:02:17,158
+A rule nobody can quietly change,
+
+81
+00:02:17,209 --> 00:02:19,057
+a confirmation no one person controls,
+
+82
+00:02:19,107 --> 00:02:20,775
+receipts anyone can audit.
+
+83
+00:02:20,825 --> 00:02:22,146
+And if the chain is down,
+
+84
+00:02:22,196 --> 00:02:23,751
+the warning still goes out.
+
+85
+00:02:23,951 --> 00:02:25,600
+Read from Base Sepolia right now:
+
+86
+00:02:25,650 --> 00:02:26,349
+the rule sealed,
+
+87
+00:02:26,399 --> 00:02:28,003
+the alert marked as an exercise,
+
+88
+00:02:28,053 --> 00:02:28,888
+three attesters,
+
+89
+00:02:28,938 --> 00:02:29,773
+both tranches,
+
+90
+00:02:29,823 --> 00:02:30,796
+the receipt.
+
+91
+00:02:30,846 --> 00:02:32,166
+53 contract tests,
+
+92
+00:02:32,217 --> 00:02:33,465
+full coverage.
+
+93
+00:02:33,665 --> 00:02:34,612
+What's not real yet:
+
+94
+00:02:34,662 --> 00:02:36,461
+the money is a test token.
+
+95
+00:02:36,511 --> 00:02:38,242
+The amounts await the
+state's relief norms,
+
+96
+00:02:38,293 --> 00:02:40,736
+and our server holds the testnet keys.
+
+97
+00:02:41,136 --> 00:02:42,243
+The river will still rise.
+
+98
+00:02:42,294 --> 00:02:44,052
+Now help reaches first.
