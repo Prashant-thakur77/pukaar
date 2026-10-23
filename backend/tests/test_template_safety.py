@@ -293,6 +293,9 @@ VOICE_ROUTES = {
     ("/voice/exotel/flow", "GET"), ("/voice/exotel/flow", "HEAD"), ("/voice/exotel/gather", "GET"),
     ("/voice/exotel/status", "POST"), ("/voice/plivo/answer", "POST"), ("/voice/plivo/digits", "POST"),
     ("/voice/plivo/hangup", "POST"),
+    # inbound calls (delivery/inbound.py): IVR self-enrolment and "report what you see"
+    ("/voice/exotel/inbound/{part}", "GET"), ("/voice/exotel/inbound/{part}", "HEAD"),
+    ("/voice/plivo/inbound", "POST"), ("/voice/plivo/inbound-hangup", "POST"),
 }
 
 

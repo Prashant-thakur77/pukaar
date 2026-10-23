@@ -5,6 +5,7 @@
     python -m Pukaar.scripts.voice list <village>
     python -m Pukaar.scripts.voice remove <village> <recipient id>
     python -m Pukaar.scripts.voice urls <api url>
+    python -m Pukaar.scripts.voice codes
     python -m Pukaar.scripts.voice officer <username> <+91XXXXXXXXXX | remove | show>
 
 add: a new voice-only recipient (id v_<ulid>); with a Telegram chat id, that existing Telegram
@@ -17,8 +18,10 @@ role: make a registered person (a Telegram chat id, or a v_... id) a relay: prad
 task_force; or villager again. A pradhan who registered with /start <village> is a villager until this
 is run (or an officer sets it in the console). Audited ("recipient_role_changed", actor "cli").
 
-urls: the three URLs to paste into the Exotel flow, with the webhook key from SSM. Treat the
-output as a secret.
+urls: the URLs to paste into the Exotel flows (the alert call, and the inbound menu people call to join
+or report), and Plivo's inbound URLs, with the webhook key from SSM. Treat the output as a secret.
+
+codes: each village's keypad code for joining by phone (Village.ivr_code), for the village card.
 
 officer: the duty officer's phone for the wake-up call (delivery/officer_call.py): when an approval
 waits and the officer has not opened the link, they are phoned at the nudge. The call only sends the
@@ -114,6 +117,20 @@ def urls(api_url: str) -> None:
     print(f"Greeting (dynamic URL):  {base}/voice/exotel/flow?k={key}&part=greeting")
     print(f"Gather (dynamic URL):    {base}/voice/exotel/flow?k={key}&part=menu")
     print(f"Passthru URL:            {base}/voice/exotel/gather?k={key}")
+    # The inbound flow (people calling in to join or to report; docs/VOICE.md "Inbound calls").
+    print("Inbound flow (the number people call):")
+    for part, applet in (("prompt", "Gather (dynamic URL)"), ("key", "Passthru after the Gather"),
+                         ("next", "Passthru: record or close"), ("recorded", "Passthru after Record"),
+                         ("closing", "Greeting (dynamic URL)"), ("missed", "Passthru in the missed-call flow")):
+        print(f"  {applet + ':':34} {base}/voice/exotel/inbound/{part}?k={key}")
+    print(f"Plivo inbound answer URL:  {base}/voice/plivo/inbound?k={key}")
+    print(f"Plivo inbound hangup URL:  {base}/voice/plivo/inbound-hangup?k={key}")
+
+
+def codes() -> None:
+    """The keypad code of each village for joining by phone (print it on the village card)."""
+    for v in get_repo().list_villages():
+        print(f"{v.ivr_code or '-':>6}  {v.id}  {v.name} ({v.district})")
 
 
 def officer(username: str, phone: str) -> None:
@@ -144,6 +161,8 @@ def main(argv: list[str]) -> None:
         remove(*args)
     elif cmd == "urls" and len(args) == 1:
         urls(args[0])
+    elif cmd == "codes" and not args:
+        codes()
     elif cmd == "officer" and len(args) == 2:
         officer(*args)
     else:

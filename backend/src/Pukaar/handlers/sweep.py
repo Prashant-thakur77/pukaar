@@ -35,6 +35,10 @@ def handler(event: dict[str, Any] | None = None, context: Any = None) -> dict[st
     views.refresh_counters(repo)
     # DPDP: personal data of people whose last village link went N days ago (services/privacy.py; never raises).
     erased = privacy.run_due(repo)
+    # The duty officer's morning digest: once per district per day from 08:00 IST (services/duty.py; never raises).
+    from Pukaar.services import duty
+
+    digests = duty.maybe_send_digests(repo)
     summary = {r.village_id: {"level": r.level, "raw": r.raw_level, "rose": r.rose, "alert_id": r.alert_id,
                               "skipped": r.skipped, "note": r.note} for r in results}
     errors = sum(1 for r in results if r.note.startswith("error"))
@@ -44,4 +48,4 @@ def handler(event: dict[str, Any] | None = None, context: Any = None) -> dict[st
         metric("SweepCompleted", 1)
     return {"villages": summary, "errors": errors, "nobody_on_duty": empty, "gauges_unhealthy": unhealthy,
             "sirens_offline": siren_health.get("offline", []), "sirens_unconfirmed": unconfirmed,
-            "erasures": erased}
+            "erasures": erased, "digests": digests}

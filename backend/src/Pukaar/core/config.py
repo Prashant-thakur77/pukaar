@@ -161,6 +161,25 @@ class Settings:
     # left of them (delivery rows, roll-call rows, their number in a report) is erased this many days later.
     # 0 erases at the next sweep. The recipient record itself is deleted at once.
     unlinked_retention_days: int = 30
+    # -- reach and the duty officer (services/sachet.py, sachet_request.py, group_approval.py, duty.py) --
+    # SACHET in: NDMA's public CAP RSS for Himachal Pradesh, read as one more official source (evidence only;
+    # it raises a level only with official_raises_level, never lowers one). The URL is configurable.
+    sachet_enabled: bool = True
+    sachet_rss_url: str = "https://sachet.ndma.gov.in/cap_public_website/rss/rss_himachal.xml"
+    sachet_max_items: int = 12
+    # SACHET out: the "Request SACHET / cell broadcast" package for HPSDMA. The e-mail address the officer's
+    # mail goes to (empty: the officer types it), and the default radius of the targeting polygon.
+    sachet_request_email: str = ""
+    sachet_request_radius_km: float = 5.0
+    # Grouped approval: pending alerts of one district from the same cause, created within this many minutes.
+    group_window_minutes: int = 180
+    # The duty officer's daily health digest (Telegram and Web Push), once per district at this IST hour.
+    duty_digest_enabled: bool = True
+    duty_digest_hour_ist: int = 8
+    # Inbound IVR (delivery/inbound.py): self-enrolment and "report what you see". Live only when
+    # voice_provider is exotel or plivo. A missed call is called back (one callback per number a day) only
+    # when this is on: each callback is a billed call, so the DDMA decides.
+    ivr_missed_call_callback: bool = False
 
     def reask_cooldown(self, level: str) -> int:
         """Minutes before an unsent alert at this level is asked again while the level holds."""
@@ -272,6 +291,16 @@ def get_settings() -> Settings:
                                                            "1200" if mode == "aws" else "0"))),
         telegram_shared_limit=_bool("PUKAAR_TELEGRAM_SHARED_LIMIT", mode == "aws"),
         unlinked_retention_days=max(0, int(os.environ.get("PUKAAR_UNLINKED_RETENTION_DAYS", "30") or "30")),
+        sachet_enabled=_bool("PUKAAR_SACHET", True),
+        sachet_rss_url=os.environ.get("PUKAAR_SACHET_RSS_URL", "").strip()
+        or "https://sachet.ndma.gov.in/cap_public_website/rss/rss_himachal.xml",
+        sachet_max_items=max(1, min(50, int(os.environ.get("PUKAAR_SACHET_MAX_ITEMS", "12") or "12"))),
+        sachet_request_email=os.environ.get("PUKAAR_SACHET_REQUEST_EMAIL", "").strip(),
+        sachet_request_radius_km=max(0.5, min(25.0, float(os.environ.get("PUKAAR_SACHET_RADIUS_KM", "5") or "5"))),
+        group_window_minutes=max(5, int(os.environ.get("PUKAAR_GROUP_WINDOW_MINUTES", "180") or "180")),
+        duty_digest_enabled=_bool("PUKAAR_DUTY_DIGEST", True),
+        duty_digest_hour_ist=max(0, min(23, int(os.environ.get("PUKAAR_DUTY_DIGEST_HOUR_IST", "8") or "8"))),
+        ivr_missed_call_callback=_bool("PUKAAR_IVR_MISSED_CALL_CALLBACK", False),
     )
 
 

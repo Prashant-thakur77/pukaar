@@ -18,6 +18,7 @@ import {
   Sparkles,
   Sun,
   SunMoon,
+  UserPlus,
   X,
 } from 'lucide-react';
 import { api } from '../../api';
@@ -155,6 +156,7 @@ function useItems(pendingN: number, openReports: number): { main: Item[]; work: 
   const c = useConsole();
   const main: Item[] = [
     ...(c.officer ? [] : [{ to: '/console/mine', key: 'cs.nav.mine' as Key, icon: Home }]),
+    ...(c.role === 'pradhan' ? [{ to: '/console/enrol', key: 'cs.nav.enrol' as Key, icon: UserPlus }] : []),
     { to: '/console/inbox', key: 'cs.nav.inbox', icon: InboxIcon, badge: pendingN, urgent: (c.pending.data ?? []).some((a) => a.status === 'pending' && a.level === 'critical') },
     { to: '/console/villages', key: 'cs.nav.villages', icon: LayoutList },
     { to: '/console/reports', key: 'cs.nav.reports', icon: FileText, badge: openReports },
@@ -169,6 +171,7 @@ function useItems(pendingN: number, openReports: number): { main: Item[]; work: 
   const work: Item[] = c.officer
     ? [
         { to: '/console/roster', key: 'cs.nav.roster', icon: CalendarClock },
+        { to: '/console/enrol', key: 'cs.nav.enrol', icon: UserPlus },
         { to: '/console/audit', key: 'cs.nav.audit', icon: ScrollText },
       ]
     : [];

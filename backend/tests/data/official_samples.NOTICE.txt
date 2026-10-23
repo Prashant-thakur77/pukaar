@@ -14,3 +14,18 @@ imd_district_warning_featureinfo.json
   The district polygon geometries were replaced by null to keep the file small; the properties
   are unmodified. Colour codes from the layer's own style (WarningsDistrictColor):
   1 red #F20505, 2 orange #F28705, 3 yellow #F2E205, 4 green #078C03, 0 none.
+
+sachet_rss_himachal.xml
+  NDMA SACHET public RSS for Himachal Pradesh, fetched on 23 October 2026:
+  GET https://sachet.ndma.gov.in/cap_public_website/rss/rss_himachal.xml
+  Unmodified: ten items from IMD Shimla (thunderstorms, light to moderate rain and snow).
+
+sachet_cap_imd_shimla_thunderstorm.xml
+  The CAP 1.2 message of the newest item above, fetched the same day:
+  GET https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1792044694412014
+  Unmodified. Sender Himachal-Pradesh-SDMA re-issuing IMD Shimla; severity Moderate; no polygon inline
+  (its "Polygon URL" parameter answered 403 to an anonymous request).
+
+sachet_cap_flood_fixture.xml
+  NOT from SACHET: a hand-written CAP 1.2 message in SACHET's shape (a Severe heavy-rain alert for Mandi
+  with an inline polygon and the LGD district code), to test the matching and the level it implies.

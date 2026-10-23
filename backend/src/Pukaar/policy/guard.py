@@ -72,6 +72,10 @@ DENY_HINTS = {
     "manage_device": "Only a district officer can change a device; turning on autonomy needs a second officer.",
     "pour_test": "Only a district officer, or the pradhan of this village, can start a rain-gauge pour test.",
     "change_settings": "Only the DDMA head of this district can change its settings.",
+    "enrol_household": "Only a district officer, or the pradhan of this village, can enrol its households.",
+    "request_sachet": "Only a district officer can prepare a SACHET request, for an approved Warning or Critical.",
+    "write_handover": "Only a district officer can write the shift handover note.",
+    "ack_handover": "Only a district officer can acknowledge a handover note.",
 }
 
 

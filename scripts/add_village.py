@@ -143,6 +143,9 @@ def add_village(data_dir: Path, *, name: str, name_hi: str, district: str, lat: 
                              "coords_source": "scripts/add_village.py: entered by hand, not verified on the ground"}
     if lgd_village:
         entry["lgd_code"] = lgd_village
+    # The keypad code for the enrolment IVR (delivery/inbound.py): the next free one, printed on the village card.
+    used = [int(v["ivr_code"]) for v in villages["villages"] if str(v.get("ivr_code") or "").isdigit()]
+    entry["ivr_code"] = str(max(used, default=1000) + 1)
     entry["devices"] = []
 
     cells, cells_note = None, "--offline"

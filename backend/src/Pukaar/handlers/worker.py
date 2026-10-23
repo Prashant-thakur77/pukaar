@@ -2,6 +2,7 @@
 
 {"task": "process_report", "report_id"}       transcribe, structure, describe, verify
 {"task": "replay", "speed_seconds_per_hour"}  walk the active replay scenario
+{"Records": [{"EventSource": "aws:sns", ...}]}  an alarm on the alarm topic: page the duty officer (pager.py)
 """
 
 from __future__ import annotations
@@ -32,6 +33,12 @@ def run_task(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
+    records = (event or {}).get("Records") or []
+    if records and all((r or {}).get("EventSource") == "aws:sns" for r in records):
+        # The alarm topic (infra/template.yaml, WorkerFunction Events): page the duty officer (handlers/pager.py).
+        from Pukaar.handlers import pager
+
+        return pager.handler(event, context)
     return run_task(event)
 
 

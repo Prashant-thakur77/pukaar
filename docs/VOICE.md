@@ -377,6 +377,54 @@ the call was `not_possible` and why, and the reminders still go. The provider's 
 speaks the words (no Polly audio is made for it). The call token names the person
 `o_<username, base64url>` and attempt -1, so it can never act on an alert call's counters.
 
+## Inbound calls: joining and reporting by phone
+
+EWS1294 in Cambodia grew mainly by people calling a short code and choosing their place on the keypad
+(61% of its subscribers in 2022 signed up that way, and registration calls used about ten times the
+minutes of the alerts). Pukaar's inbound menu (`delivery/inbound.py`) does the same on the same
+provider, behind the same switch: with `VoiceProvider=off` every inbound route refuses (403).
+
+One number, one menu, all in Hindi:
+
+| Key | What happens |
+|---|---|
+| 1 | Join: the notice is read (what is kept: the number and the village; why: alerts, the all-clear and "are you safe?"; how long; how to leave). "1" agrees; nothing is stored before it. Then the village code on the keypad and `#` (the code is `ivr_code` in `data/villages.json`, on the village card and in the console's Enrol page; `scripts/add_village.py` gives a new village the next free code), then "1" to confirm. Stored: the caller id as the number, channel voice, `enrolled_via` "ivr", by "self", and the consent record (`ivr-notice-v1`, the key press and when). A number already enrolled there is told so. |
+| 2 | Water rising: the village code, then a 20-second recording after the beep. |
+| 3 | A road or bridge blocked: the same. |
+| 9 | Leave: the village code and "1"; the number is taken off that village (a "both" person keeps Telegram) and erased later (`privacy.py`). |
+
+A report by phone is made with the caller's verified role: the caller id matched to a number enrolled
+in that village. A relay's (pradhan, gauge reader, task force) report is auto-verified
+(`verified_by` "auto:ivr-relay:<role>") and the village is evaluated at once, so the officer is asked
+without waiting for a second report or the next sweep; the duty officers hear of every phone report on
+Telegram and Web Push. An unknown caller's report waits in the officers' queue like any unverified
+report. The recording is fetched into the report (Plivo's public URL; Exotel's with the account key);
+a caller who hangs up during the recording still leaves a report, flagged `no_recording`. Reports by
+phone count against the same per-source and per-village limits as the web form (the source is a salted
+hash of the caller id).
+
+**Missed calls.** With `PUKAAR_IVR_MISSED_CALL_CALLBACK=true` (off by default: each callback is a billed
+call, so the DDMA decides), a call that arrives with no session is rejected unanswered (free for the
+caller) and Pukaar calls back into the same menu, at most once per number a day. Exotel needs the
+secret `exotel_inbound_app_id` (the inbound flow's app id) for the callback.
+
+**Plivo.** Point the inbound number's application at `POST <api>/voice/plivo/inbound?k=<key>` (answer)
+and `POST <api>/voice/plivo/inbound-hangup?k=<key>` (hangup). Each step answers with `<GetDigits>`, a
+`<Record maxLength="20">` or the closing words; every request's `X-Plivo-Signature-V3` is checked.
+
+**Exotel.** Build a second flow for the ExoPhone that people call, with the key in each URL:
+
+1. Gather, dynamic URL `GET <api>/voice/exotel/inbound/prompt?k=<key>` (the words and keypad for this step);
+2. Passthru `GET <api>/voice/exotel/inbound/key?k=<key>`: 302 goes back to step 1, 200 goes on to step 3;
+3. Passthru `GET <api>/voice/exotel/inbound/next?k=<key>`: 200 goes to step 4, 302 to step 6;
+4. Record (voicemail), 20 seconds; its prompt: "बीप के बाद बीस सेकंड में बताइए आप क्या देख रहे हैं और कहाँ।";
+5. Passthru `GET <api>/voice/exotel/inbound/recorded?k=<key>` (it sends RecordingUrl);
+6. Greeting, dynamic URL `GET <api>/voice/exotel/inbound/closing?k=<key>`, then Hangup.
+
+For missed calls, a separate missed-call flow: Passthru `GET <api>/voice/exotel/inbound/missed?k=<key>`
+then Hangup. Tested with the local fakes in `backend/tests/test_inbound_ivr.py`; not yet on a real
+number.
+
 ## Known limits
 
 - The safety roll-call is not asked by call yet. A voice-only person is recorded as asked with the
@@ -386,3 +434,5 @@ speaks the words (no Polly audio is made for it). The call token names the perso
   the menu.
 - One Polly voice (Hindi). Pahadi or Nepali recordings are a separate step.
 - No SMS fallback yet (needs DLT registration).
+- The inbound menu has not run on a real number; the Exotel flow above is built from Exotel's applet
+  behaviour (Passthru branches on 200 or 302) and needs a test call before a district relies on it.

@@ -15,7 +15,7 @@ or a section names an alarm that no longer exists.
 | Logs | `/aws/lambda/pukaar-api-<stage>`, `pukaar-sweep-<stage>`, `pukaar-workflow-<stage>`, `pukaar-worker-<stage>`, `pukaar-gauge-ingest-<stage>`, `pukaar-canary-<stage>`; Step Functions `/aws/vendedlogs/states/pukaar-approval-<stage>` |
 | Console | `/console/inbox` (approvals, and what was sent), `/console/villages`, `/console/reports`, `/console/rollcall`, `/console/roster`, `/console/audit`; `/how#sensors` |
 | Queues | `pukaar-sweep-dlq-<stage>`, `pukaar-worker-dlq-<stage>` |
-| Alarm topic | SNS `pukaar-alarms-<stage>`; subscribe the on-call phone (SMS) and e-mail. With no subscriber nobody hears an alarm |
+| Alarm topic | SNS `pukaar-alarms-<stage>`; subscribe the on-call phone (SMS) and e-mail. With no subscriber nobody hears an alarm. The worker Lambda is subscribed too and pages the primary and backup officer on duty on Telegram and Web Push (below, "The duty officer's day") |
 
 A quick Logs Insights query that answers most first questions (pick the function's log group):
 
@@ -499,6 +499,82 @@ rule on `/pilot` and `GET /public/pilot-metrics` (counts only). Replays and dril
 Review the per-rule numbers monthly in the monsoon. A rule with a high false-alarm rate is a
 threshold to recalibrate with the DDMA, not a rule to switch off quietly.
 
+## The duty officer's day
+
+**08:00 IST: the health digest.** The first sweep after 08:00 IST sends each district's digest once, on
+Telegram and Web Push, to the officers on duty for the day shift (the roster; the village fallback list
+when nobody is rostered): when the sweep last ran and which villages have stale or missing data, the
+gauges and sirens that are unhealthy (simulators named as such), the open alerts, and the readiness gaps
+(an empty shift in the next 24 hours, a village with nobody enrolled or no relay, an unacknowledged
+handover). The roster page shows the same digest under "The 08:00 health digest"; the audit trail has
+one `duty_digest_sent` row per district. Act on the gaps the same morning: fill the roster, ask the
+pradhan to enrol households, test the siren that is overdue. `PUKAAR_DUTY_DIGEST=false` stops it;
+`PUKAAR_DUTY_DIGEST_HOUR_IST` moves it.
+
+**Each shift: the handover note.** Before leaving, the outgoing officer writes on the roster page what
+the next shift must know (a silent gauge, a blocked road, an alert still open, a call to return). An
+officer of the incoming shift reads it and presses "Read: acknowledge"; the writer cannot acknowledge
+their own note, and an acknowledged note cannot be changed. Both are in the audit trail
+(`handover_written`, `handover_acknowledged`). A note left unacknowledged shows as a gap in the next
+digest.
+
+**Paging beyond e-mail.** Every alarm on `pukaar-alarms-<stage>` (and its return to OK) also goes to the
+primary and backup officer on duty, on Telegram and Web Push: in the district the alarm names (its
+`District` dimension, as on `nobody-on-duty`), or in every district when it names none. The escalation
+officer (ADM or DM) is not paged for an alarm; they are phoned for an unanswered alert. Each page is in
+the audit trail (`alarm_paged`). Officers who have not linked Telegram (Console, Settings) and turned on
+Web Push get only the e-mail.
+
+## Valley-wide events: grouped approval
+
+When several villages of one district wait together from the same cause (the July 2023 replay raised 4
+of 5 at once), the inbox shows "N villages of <district> are waiting together" and "Review as a group".
+The group page shows the evidence they share first, then each village's level and exact message, each
+one approved unless you mark it declined. One hold-to-approve decides them all. Underneath, nothing is
+merged: each village is checked by Cedar on its own (your district), audited on its own and decided with
+its own approval token, so a village outside your district comes back "not allowed" and the others go
+ahead; a village that timed out to the next officer comes back "too late". Open a village alone ("Open
+alone") whenever its message needs an edit first. The audit trail has one `group_decision` row besides
+each village's own.
+
+## Asking HPSDMA for SACHET or cell broadcast
+
+Pukaar cannot issue on SACHET or cell broadcast; only HPSDMA (and the national agencies) can. For an
+approved Warning or Critical, the alert's record in the inbox has "Request SACHET / cell broadcast":
+it prepares a CAP 1.2 file (a polygon of the chosen radius around the village, the LGD district code,
+Hindi and English), the cell-broadcast text in Hindi (UCS-2) and English (GSM 7-bit), each within four
+CBS pages, and the steps. Then:
+1. Phone the HPSDMA State Emergency Operation Centre (1070) and say the request is coming.
+2. Download the CAP file and e-mail it with the texts ("E-mail it" opens a ready e-mail; set the address
+   HPSDMA agreed with `PUKAAR_SACHET_REQUEST_EMAIL`).
+3. Ask HPSDMA to confirm when it went out, and write that in the handover note: Pukaar does not know
+   whether or when a broadcast was sent, and never says it was.
+4. Keep calling the households that did not confirm; cell broadcast does not say who heard.
+5. When the village is back to normal, send HPSDMA the cancel the same way.
+Every preparation (view, download, copy, e-mail) is in the audit trail (`sachet_request_prepared`) and
+on the alert's timeline. SACHET's own alerts for Himachal come in as evidence: they show in the
+decision's evidence as "SACHET (NDMA) alerts" and raise a level only when official data may
+(`PUKAAR_OFFICIAL_RAISES_LEVEL`).
+
+## Enrolling households
+
+EWS1294's lesson (Cambodia): enrolment, not the phone, leaves people out. Four ways in, each with the
+notice and an audited consent record:
+- **Telegram**: `/start <village code>` and "I agree" (the person themselves).
+- **The console's Enrol page** (officers for their district, the pradhan for their own village): read the
+  notice aloud, then add the household: name (optional), mobile number, role, "assisted" (elderly,
+  disabled, no phone of their own), how consent was given (in person, a signed or thumb-printed form, a
+  phone call), by whom (the person, a family member, a guardian) and who took it. A number already
+  enrolled in the village is refused. Removing a household erases what is left of it later.
+- **A vetted list (CSV)** from the panchayat or patwari: paste or choose the file and press Preview: each
+  row is checked (the number, duplicates in the file and in the village, the consent columns) and
+  errors are shown per row. Tick "consent attested" only for households that agreed themselves, name the
+  list, and enrol: nothing else is stored.
+- **By phone** (when voice is on): the household calls the service number, hears the notice, presses 1
+  and keys in the village code shown on the Enrol page (docs/VOICE.md, "Inbound calls").
+Check coverage against the household list, not the count of numbers: the digest names villages with
+nobody enrolled and villages with no pradhan, gauge reader or task force enrolled.
+
 ## Drills
 
 | When | What | Who |
@@ -570,8 +646,9 @@ table name is `pukaar-<stage>`, so either restore under that name after deleting
 "unreachable" on the alert and sent to the pradhan. Within a week the pradhan checks each one. A number
 unreachable on two alerts or drills in a row is removed until the household gives a new one.
 
-Never collect numbers from a list or a third party; every number comes from the household itself, with
-consent recorded.
+Never collect numbers from a list or a third party without the household's own consent. A panchayat or
+patwari list is only a starting point: it goes through the vetted import (below, "Enrolling households"),
+and a row is stored only when the officer attests that the household itself agreed after hearing the notice.
 
 ## Consent records
 

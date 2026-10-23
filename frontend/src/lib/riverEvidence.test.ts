@@ -80,6 +80,17 @@ describe('official sources', () => {
     expect(rows[1].level).toBe('warning');
     expect(rows[0].level).toBeUndefined();
   });
+
+  it('words a SACHET alert in force for the district, and none', () => {
+    const matched = [{ sender: 'Himachal-Pradesh-SDMA', headline_en: 'Heavy rainfall likely over Mandi.', headline_hi: 'मंडी में भारी बारिश।' }];
+    const [on] = officialRows([{ source: 'sachet', name: 'SACHET', status: 'ok', level: 'warning', matched }], 'en');
+    expect(`${on.label}: ${on.text}`).toBe('SACHET (NDMA) alerts: 1 in force (Himachal-Pradesh-SDMA): Heavy rainfall likely over Mandi.');
+    expect(on.level).toBe('warning');
+    const [hi] = officialRows([{ source: 'sachet', name: 'SACHET', status: 'ok', level: 'warning', matched }], 'hi');
+    expect(hi.text).toContain('मंडी में भारी बारिश');
+    const none = officialRows([{ source: 'sachet', name: 'SACHET', status: 'ok', level: 'normal', matched: [], regional_count: 3 } as never], 'en');
+    expect(none[0].text).toBe('none in force for this district; 3 elsewhere in Himachal');
+  });
 });
 
 describe('console evidence carries the odds, the outlook and the sources', () => {

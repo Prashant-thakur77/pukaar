@@ -288,6 +288,80 @@ const server = http.createServer(async (req, res) => {
       as_of: iso(0),
     });
   }
+  // Reach, enrolment and the duty officer (backend api/routers/reach.py). SAMPLE data.
+  if (p === '/alert-groups') {
+    if (!needUser()) return;
+    const waiting = alerts.filter((a) => a.status === 'pending');
+    if (waiting.length < 2) return send(res, 200, []);
+    return send(res, 200, [{
+      id: `Mandi|replay|rain|${waiting[0].id}`, key: 'Mandi|replay|rain', district: 'Mandi', stream: 'replay', replay: true, cause: 'rain',
+      cause_en: 'rain (forecast or measured)', cause_hi: 'बारिश (पूर्वानुमान या मापी गई)', count: waiting.length,
+      shared: { drivers: ['rain'], drivers_en: ['rain (forecast or measured)'], drivers_hi: ['बारिश (पूर्वानुमान या मापी गई)'], rules: ['rain_24h:warning'],
+        official: [{ source: 'sachet', name: 'SACHET (NDMA) CAP alerts for Himachal Pradesh', status: 'ok', level: 'watch', detail: 'SAMPLE: 1 SACHET alert in force for Mandi' }],
+        levels: {}, first_at: waiting[0].created_at, last_at: waiting[waiting.length - 1].created_at },
+      villages: waiting.map((a) => ({ alert_id: a.id, village_id: a.village_id, village_name: a.village_name, village_name_hi: a.village_name_hi, level: a.level,
+        previous_level: a.previous_level, text_hi: a.text_hi, text_en: a.text_en, reason_en: a.reason_en, created_at: a.created_at,
+        recipients_count: a.recipients_count, drivers: { rain: a.level }, status: a.status })),
+    }]);
+  }
+  if (p === '/alert-groups/decide') {
+    if (!needUser()) return;
+    if (user.role !== 'officer') return deny(res, 'alert.approve');
+    const results = (body.decisions ?? []).map((d) => {
+      const a = alerts.find((x) => x.id === d.alert_id);
+      if (!a || a.status !== 'pending') return { ...d, outcome: 'late' };
+      a.status = d.decision === 'approved' ? 'delivering' : 'declined';
+      a.approved = d.decision === 'approved';
+      return { ...d, village_name: a.village_name, outcome: 'decided' };
+    });
+    return send(res, 200, { results, decided: results.filter((r) => r.outcome === 'decided').length });
+  }
+  if (seg[0] === 'alerts' && seg[2] === 'sachet-request') {
+    if (!needUser()) return;
+    const a = alerts.find((x) => x.id === seg[1]);
+    if (!a) return send(res, 404, { detail: 'Alert not found' });
+    const hiText = `जिला आपदा प्रबंधन मंडी: ${a.village_name_hi} (मंडी) में बाढ़ की चेतावनी। नदी-नालों से दूर रहें। आपात: 112`;
+    const enText = `DDMA Mandi: Flood warning for ${a.village_name} (Mandi). Keep away from streams; be ready to move to high ground. Emergency: 112.`;
+    return send(res, 200, {
+      alert_id: a.id, identifier: `${a.id}-sachet-request`, filename: `${a.id}-sachet-request.xml`, cap_xml: '<?xml version="1.0"?><alert>SAMPLE</alert>',
+      text_hi: hiText, text_en: enText,
+      limits: { hi: { chars: hiText.length, pages: Math.ceil(hiText.length / 41), encoding: 'UCS-2', max_chars: 164 },
+        en: { chars: enText.length, pages: Math.ceil(enText.length / 93), encoding: 'GSM 7-bit', max_chars: 372 }, target_pages: 4, max_pages: 15, page: '82 octets' },
+      radius_km: body.radius_km ?? 5, polygon: [], email_to: '', mailto: 'mailto:?subject=SAMPLE', exercise: true,
+      steps_en: ['SAMPLE: call the HPSDMA State Emergency Operation Centre (1070).', 'E-mail the CAP file.'], steps_hi: ['नमूना: HPSDMA को फ़ोन करें (1070)।', 'CAP फ़ाइल ई-मेल करें।'],
+      not_sent_en: 'Prepared for HPSDMA. Pukaar has not sent a broadcast.', not_sent_hi: 'HPSDMA के लिए तैयार। पुकार ने कोई ब्रॉडकास्ट नहीं भेजा।',
+    });
+  }
+  if (seg[0] === 'villages' && seg[1] && seg[2] === 'households') {
+    if (!needUser()) return;
+    const v = VILLAGES.find((x) => x.id === seg[1]);
+    if (!v) return send(res, 404, { detail: 'Village not found' });
+    if (seg[3] === 'import') {
+      const rows = [{ row: 1, name: 'Sample household', phone_masked: '+91******78', channel: 'voice', role: 'villager', assisted: false, status: 'ok', errors: [],
+        duplicate_of: null, existing_id: null, consent_method: 'in_person', consent_given_by: 'self', consent_date: '2026-06-30' }];
+      return send(res, 200, { rows, counts: { ok: 1, duplicate: 0, exists: 0, error: 0 }, ...(body.commit ? { result: { stored: [], skipped: [], rows: 1 } } : {}) });
+    }
+    if (req.method === 'POST' || req.method === 'DELETE') return send(res, 200, { household: { id: 'v_sample', village_id: v.id, name: 'Household' }, created: true, removed: true });
+    return send(res, 200, {
+      village_id: v.id, village_name: v.name, village_name_hi: v.name_hi, ivr_code: '1001', notice_version: 'household-notice-v1',
+      consent_methods: {}, given_by: {},
+      households: [{ id: 'v_sample1', village_id: v.id, name: 'Sample household', role: 'pradhan', channel: 'voice', relay: true, phone_masked: '+91******78',
+        assisted: true, consent: 'SAMPLE', enrolled_via: 'form', enrolled_by: 'officer1' }],
+    });
+  }
+  if (p === '/duty/handover' || (seg[0] === 'duty' && seg[1] === 'handover')) {
+    if (!needUser()) return;
+    const slot = { date: iso(0).slice(0, 10), shift: 'day', label: 'day shift (SAMPLE)' };
+    return send(res, 200, { district: 'Mandi', shift: slot, next: { ...slot, shift: 'night', label: 'night shift (SAMPLE)' }, previous: { ...slot, shift: 'night', label: 'night shift (SAMPLE)' },
+      outgoing: null, history: [],
+      incoming: { district: 'Mandi', date: slot.date, shift: 'night', text: 'SAMPLE: Gohar gauge silent since 03:00; check at 09:00.', written_by: 'officer2', written_at: iso(H),
+        for_date: slot.date, for_shift: 'day', acknowledged_by: null, acknowledged_at: null } });
+  }
+  if (p === '/duty/digest') {
+    if (!needUser()) return;
+    return send(res, 200, { district: 'Mandi', at: iso(0), text: 'Pukaar morning check · Mandi (SAMPLE)\nOpen alerts: -\nReadiness gaps: none', sweep: { last_run: null, last_complete_data: null, villages: 4, stale: [] },
+      gauges_unhealthy: [], sirens_unhealthy: [], open_alerts: [], gaps: [] });
+  }
   if (p === '/villages') return send(res, 200, VILLAGES.map(village));
   if (seg[0] === 'villages' && seg[1] && (seg[2] === 'safe-places' || seg[2] === 'shelters')) {
     if (!VILLAGES.find((x) => x.id === seg[1])) return send(res, 404, { detail: 'Village not found' });

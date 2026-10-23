@@ -200,6 +200,9 @@ class Village(BaseModel):
     district_hi: str | None = None
     lgd_district_code: str | None = None
     lgd_village_code: str | None = None
+    # The number a caller keys in on the enrolment IVR to pick this village (delivery/inbound.py): from
+    # data/villages.json ("ivr_code") at seed time, printed on the village card. None: not reachable by keypad.
+    ivr_code: str | None = None
 
 
 class Reading(BaseModel):
@@ -561,6 +564,13 @@ class Recipient(BaseModel):
     # How and when the household agreed to be called (voice and both), e.g. "verbal, field visit 2026-10-25".
     consent: str | None = None
     language: str = "hi"
+    # Assisted household (elderly, disabled, no phone of their own): someone in the village checks on them
+    # in person. Shared with the assisted-households work; the enrolment form sets it (services/enrolment.py).
+    assisted: bool = False
+    # How the person was enrolled (services/enrolment.py): "telegram", "form", "csv" or "ivr", and by whom
+    # (an officer's or pradhan's username, or "self" for the caller on the IVR).
+    enrolled_via: str | None = None
+    enrolled_by: str | None = None
 
     @field_validator("phone")
     @classmethod
@@ -763,6 +773,23 @@ class RosterShift(BaseModel):
     # Handover: who took this shift over from whom, and when (the audit trail has it too).
     taken_over_from: str | None = None
     taken_over_at: str | None = None
+
+
+class HandoverNote(BaseModel):
+    """The shift handover (services/duty.py): the outgoing officer writes what the next shift must know, the
+    incoming officer acknowledges it. One per district shift; both steps are in the audit trail."""
+
+    district: str
+    date: str  # the IST date of the shift the note is written in (the outgoing shift)
+    shift: ShiftId
+    text: str
+    written_by: str
+    written_at: str
+    # The next shift, when the note was written: who is expected to acknowledge it.
+    for_date: str
+    for_shift: ShiftId
+    acknowledged_by: str | None = None
+    acknowledged_at: str | None = None
 
 
 class AuditRow(BaseModel):

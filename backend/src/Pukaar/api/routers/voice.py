@@ -231,3 +231,139 @@ async def plivo_hangup(request: Request, k: str = "", c: str = "") -> dict:
         return {"ok": True, "outcome": officer_call.call_status(get_repo(), w, st)}
     ctx = _context(_token(c), p.get("RequestUUID"), p.get("CallUUID"))
     return {"ok": True, "outcome": ivr.call_status(get_repo(), ctx, st)}
+
+
+# -- inbound calls: IVR self-enrolment and "report what you see" (delivery/inbound.py) ----------------------
+# Live only for the provider voice is switched to (PUKAAR_VOICE_PROVIDER); with voice off every inbound route
+# refuses. Checked as the other webhooks: the URL key, and Plivo's X-Plivo-Signature-V3. There is no per-call
+# token (Pukaar did not place the call): the caller id comes from the provider, the session from the call id.
+#
+#   GET|HEAD /voice/exotel/inbound/prompt     Gather applet (dynamic URL): this step's words and keypad (JSON)
+#   GET      /voice/exotel/inbound/key        Passthru after the Gather: 302 back to the Gather, 200 onwards
+#   GET      /voice/exotel/inbound/next       Passthru: 200 to the Record applet, 302 to the closing Greeting
+#   GET      /voice/exotel/inbound/recorded   Passthru after Record: makes the report (RecordingUrl)
+#   GET|HEAD /voice/exotel/inbound/closing    Greeting applet (dynamic URL): the closing words (text/plain)
+#   GET      /voice/exotel/inbound/missed     Passthru in the missed-call flow: the callback, if switched on
+#   POST     /voice/plivo/inbound             Plivo answer URL of the inbound number: the menu, each step, the
+#                                             recording (step=recorded), a missed call (rejected, called back)
+#   POST     /voice/plivo/inbound-hangup      Plivo hangup URL: ends the session
+def _inbound_live(provider: str) -> None:
+    from Pukaar.delivery import inbound
+
+    if not inbound.live(provider):
+        raise _refuse("inbound: voice is off for this provider", provider=provider)
+
+
+def _workflow():
+    from Pukaar.workflow.client import get_workflow
+
+    try:
+        return get_workflow()
+    except Exception:
+        return None
+
+
+def _exotel_prompt_json(say: str, digits: int, finish_on_hash: bool) -> dict:
+    return {"gather_prompt": {"text": say}, "max_input_digits": max(1, digits),
+            "finish_on_key": "#" if finish_on_hash else "", "input_timeout": 10 if finish_on_hash else 8,
+            "repeat_menu": 1, "repeat_gather_prompt": {"text": say}}
+
+
+@router.api_route("/voice/exotel/inbound/{part}", methods=["GET", "HEAD"])
+def exotel_inbound(part: str, request: Request, k: str = "", CallSid: str = "", CallFrom: str = "",  # noqa: N803
+                   From: str = "", digits: str = "", RecordingUrl: str = "") -> Response:  # noqa: N803
+    from Pukaar.delivery import inbound
+
+    _check_key(k)
+    _inbound_live("exotel")
+    if not CallSid:
+        raise _refuse("inbound: no call id")
+    repo = get_repo()
+    caller = inbound.caller_number(CallFrom or From)
+    if part == "prompt":
+        p = inbound.current(repo, CallSid, caller, "exotel")
+        return JSONResponse(_exotel_prompt_json(p.say, p.digits, p.finish_on_hash))
+    if part == "key":
+        p = inbound.press(repo, CallSid, caller, digits, "exotel")
+        if not p.end and p.gathers:
+            return PlainTextResponse("gather", status_code=302)
+        if p.end:
+            repo.put_inbound(CallSid, {"stage": "closing", "say": p.say})
+        return PlainTextResponse("next", status_code=200)
+    if part == "next":
+        recording = (repo.get_inbound(CallSid) or {}).get("stage") == "record"
+        return PlainTextResponse("record" if recording else "close", status_code=200 if recording else 302)
+    if part == "recorded":
+        p = inbound.recorded(repo, CallSid, caller, RecordingUrl or None, "exotel", workflow=_workflow())
+        repo.put_inbound(CallSid, {"stage": "closing", "say": p.say})
+        return PlainTextResponse("ok", status_code=200)
+    if part == "closing":
+        say = str((repo.get_inbound(CallSid) or {}).get("say") or inbound.GOODBYE_HI)
+        if request.method == "GET":
+            repo.delete_inbound(CallSid)
+        return PlainTextResponse(say, media_type="text/plain")
+    if part == "missed":
+        return PlainTextResponse(inbound.missed(repo, caller, "exotel"), status_code=200)
+    raise HTTPException(404, "Not found")
+
+
+def _plivo_prompt_xml(p, action_url: str, record_url: str) -> str:
+    from xml.sax.saxutils import escape, quoteattr
+
+    speak = f'<Speak language="hi-IN" voice="Polly.Aditi">{escape(p.say)}</Speak>'
+    if p.end:
+        return f'<?xml version="1.0" encoding="UTF-8"?><Response>{speak}<Hangup/></Response>'
+    if p.records:
+        return ('<?xml version="1.0" encoding="UTF-8"?><Response>'
+                f'{speak}<Record action={quoteattr(record_url)} method="POST" maxLength="{p.record_seconds}" '
+                'finishOnKey="#" playBeep="true" redirect="true" fileFormat="mp3"/></Response>')
+    finish = ' finishOnKey="#"' if p.finish_on_hash else ""
+    return ('<?xml version="1.0" encoding="UTF-8"?><Response>'
+            f'<GetDigits action={quoteattr(action_url)} method="POST" numDigits="{p.digits}" timeout="10" '
+            f'retries="1" playBeep="false" redirect="true"{finish}>{speak}</GetDigits>'
+            f'<Speak language="hi-IN" voice="Polly.Aditi">{escape(hi.VOICE_GOODBYE_HI)}</Speak><Hangup/></Response>')
+
+
+@router.post("/voice/plivo/inbound")
+async def plivo_inbound(request: Request, k: str = "", step: str = "") -> Response:
+    from Pukaar.core.config import get_settings
+    from Pukaar.delivery import inbound
+
+    _inbound_live("plivo")
+    p = await _plivo_params(request, k)
+    call_id = p.get("CallUUID") or p.get("RequestUUID") or ""
+    if not call_id:
+        raise _refuse("inbound: no call id")
+    repo = get_repo()
+    outbound = p.get("Direction", "").lower() == "outbound"  # our missed-call callback
+    caller = inbound.caller_number(p.get("To") if outbound else p.get("From"))
+    base = _public_url(request, "/voice/plivo/inbound").split("?", 1)[0]
+    action, record = f"{base}?k={k}", f"{base}?k={k}&step=recorded"
+    if step == "recorded":
+        prompt = inbound.recorded(repo, call_id, caller, p.get("RecordUrl") or p.get("RecordingUrl"), "plivo",
+                                  workflow=_workflow())
+    elif "Digits" in p:
+        prompt = inbound.press(repo, call_id, caller, p.get("Digits"), "plivo")
+    elif not outbound and repo.get_inbound(call_id) is None and get_settings().ivr_missed_call_callback:
+        # A missed call: rejected unanswered (free for the caller), then called back into this menu.
+        log(_LOG, "plivo missed call", outcome=inbound.missed(repo, caller, "plivo"))
+        return Response('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup reason="rejected"/></Response>',
+                        media_type=XML)
+    else:
+        prompt = inbound.current(repo, call_id, caller, "plivo")
+    return Response(_plivo_prompt_xml(prompt, action, record), media_type=XML)
+
+
+@router.post("/voice/plivo/inbound-hangup")
+async def plivo_inbound_hangup(request: Request, k: str = "") -> dict:
+    from Pukaar.delivery import inbound
+
+    _inbound_live("plivo")
+    p = await _plivo_params(request, k)
+    call_id = p.get("CallUUID") or p.get("RequestUUID") or ""
+    if call_id:
+        repo = get_repo()
+        if (repo.get_inbound(call_id) or {}).get("stage") == "record":  # hung up while recording: still a report
+            inbound.recorded(repo, call_id, None, None, "plivo", workflow=_workflow())
+        repo.delete_inbound(call_id)
+    return {"ok": True}

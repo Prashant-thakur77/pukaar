@@ -522,6 +522,13 @@ Resources:
         VoicePlivoAnswer: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/plivo/answer, Method: POST, Auth: { Authorizer: NONE } } }
         VoicePlivoDigits: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/plivo/digits, Method: POST, Auth: { Authorizer: NONE } } }
         VoicePlivoHangup: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/plivo/hangup, Method: POST, Auth: { Authorizer: NONE } } }
+        # Inbound calls (delivery/inbound.py): IVR self-enrolment and "report what you see". Refused unless the
+        # voice provider is switched on; checked by the webhook key (and Plivo's signature). {part} is one of
+        # prompt, key, next, recorded, closing, missed (the Exotel flow's applets).
+        VoiceExotelInbound: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/voice/exotel/inbound/{part}", Method: GET, Auth: { Authorizer: NONE } } }
+        VoiceExotelInboundHead: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: "/voice/exotel/inbound/{part}", Method: HEAD, Auth: { Authorizer: NONE } } }
+        VoicePlivoInbound: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/plivo/inbound, Method: POST, Auth: { Authorizer: NONE } } }
+        VoicePlivoInboundHangup: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/plivo/inbound-hangup, Method: POST, Auth: { Authorizer: NONE } } }
 
   SweepFunction:
     Type: AWS::Serverless::Function
@@ -690,6 +697,10 @@ Resources:
       Timeout: 900
       ImageConfig: { Command: [Pukaar.handlers.worker.handler] }
       LoggingConfig: { LogGroup: !Ref WorkerLogGroup }
+      # Paging beyond e-mail (handlers/pager.py, services/duty.page_alarm): every alarm on the topic also goes to
+      # the primary and backup officer on duty, on Telegram and Web Push. No new function: the worker takes it.
+      Events:
+        Alarms: { Type: SNS, Properties: { Topic: !Ref AlarmTopic } }
       Environment:
         Variables:
           PUKAAR_API_URL: !If [HasApiEdge, !Sub "https://${ApiEdgeDistribution.DomainName}", !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"]
@@ -1371,6 +1382,9 @@ Resources:
         "POST /voice/plivo/answer": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
         "POST /voice/plivo/digits": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
         "POST /voice/plivo/hangup": { ThrottlingBurstLimit: 100, ThrottlingRateLimit: 50 }
+        # Inbound calls (enrolment and reports by phone): people calling in, a few a second at most.
+        "GET /voice/exotel/inbound/{part}": { ThrottlingBurstLimit: 40, ThrottlingRateLimit: 20 }
+        "POST /voice/plivo/inbound": { ThrottlingBurstLimit: 40, ThrottlingRateLimit: 20 }
         # Villagers opening their village during an alert: the 2 kB answer first, then the full page.
         "GET /public/villages/{id}/now": { ThrottlingBurstLimit: 400, ThrottlingRateLimit: 200 }
         "GET /villages/{id}": { ThrottlingBurstLimit: 200, ThrottlingRateLimit: 100 }
@@ -1497,6 +1511,7 @@ Resources:
     Type: AWS::SNS::Subscription
     Condition: HasAlarmEmail
     Properties: { TopicArn: !Ref AlarmTopic, Protocol: email, Endpoint: !Ref AlarmEmail }
+
 
   # Pukaar EMF metrics carry dimensions (Purpose, Channel, ...); Metrics Insights
   # queries aggregate across all of them so the alarms do not depend on the set.

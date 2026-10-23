@@ -51,6 +51,8 @@ import type { Alert, Village } from '../../types';
 import { AfterActionLinks, Deliveries, OutcomePicker } from './AlertRecord';
 import { useConsole } from './consoleContext';
 import { PushNudge } from './PushNudge';
+import { GroupBanner } from './GroupReview';
+import { SachetRequest } from '../../components/SachetRequest';
 
 /*
  * The inbox (spec 4.9, C25/C26): what waits for a decision on the left, most severe and oldest first; the
@@ -192,6 +194,7 @@ export default function Inbox() {
         </div>
       </div>
       {view === 'pending' && <PushNudge />}
+      {view === 'pending' && c.officer && <GroupBanner district={c.district} />}
       {c.pending.loading && !c.pending.data ? (
         <Skeleton lines={4} />
       ) : c.pending.error && !c.pending.data ? (
@@ -929,6 +932,7 @@ function Record({ alert: a }: { alert: Alert }) {
         </p>
         {hasAfterAction(a) && <AfterActionLinks alert={a} />}
         {hasAfterAction(a) && c.officer && !a.replay && !a.decision_trace?.drill && <OutcomePicker alert={a} />}
+        {c.officer && <SachetRequest alert={a} />}
       </Section>
       {sent && (
         <Section title={t('console.deliveries', { n: a.recipients_count || a.delivered_count })}>

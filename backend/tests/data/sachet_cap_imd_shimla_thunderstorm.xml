@@ -1,0 +1,63 @@
+<cap:alert xmlns:cap="urn:oasis:names:tc:emergency:cap:1.2">
+<cap:identifier>IN-1792044694412014_14</cap:identifier>
+<cap:sender>Himachal-Pradesh-SDMA</cap:sender>
+<cap:sent>2026-10-15T11:47:09+05:30</cap:sent>
+<cap:status>Actual</cap:status>
+<cap:msgType>Update</cap:msgType>
+<cap:scope>Public</cap:scope>
+<cap:restriction/>
+<cap:addresses/>
+<cap:note/>
+<cap:references>IMD-Shimla,IN-1792044694412014_62,2026-10-15T11:41:02+05:30</cap:references>
+<cap:incidents/>
+<cap:info>
+<cap:language>HI</cap:language>
+<cap:category>Met</cap:category>
+<cap:event>Moderate Thunderstorms with surface wind</cap:event>
+<cap:urgency>Expected</cap:urgency>
+<cap:severity>Moderate</cap:severity>
+<cap:certainty>Likely</cap:certainty>
+<cap:audience>1</cap:audience>
+<cap:effective>2026-10-15T11:27:00+05:30</cap:effective>
+<cap:onset>2026-10-15T11:47:09+05:30</cap:onset>
+<cap:expires>2026-10-15T14:27:00+05:30</cap:expires>
+<cap:headline>अगले 3 घंटों मे  चंबा,हमीरपुर,कांगड़ा,किन्नौर,कुल्लू,लाहौलस्पीति,मंडी , शिमला में कई जगहों पर हल्की से मध्यम बारिश/बर्फबारी  तथा एक-दो  जगहों पर आंधी-तूफान ,तेज़ हवाएं (40-50kmph)की संभावना है</cap:headline>
+<cap:description/>
+<cap:instruction>Please follow SDMA guidelines.</cap:instruction>
+<cap:contact/>
+<cap:parameter>
+<cap:valueName>Polygon URL</cap:valueName>
+<cap:value>https://sachet.ndma.gov.in/cap_public_website/FetchPolygonXMLFile?identifier=1792044694412014</cap:value>
+</cap:parameter>
+<cap:area>
+<cap:areaDesc>Mid and high hill areas oh HP</cap:areaDesc>
+<cap:altitude>0</cap:altitude>
+<cap:ceiling>0</cap:ceiling>
+</cap:area>
+</cap:info>
+<cap:info>
+<cap:language>en-IN</cap:language>
+<cap:category>Met</cap:category>
+<cap:event>Moderate Thunderstorms with surface wind</cap:event>
+<cap:urgency>Expected</cap:urgency>
+<cap:severity>Moderate</cap:severity>
+<cap:certainty>Likely</cap:certainty>
+<cap:audience>1</cap:audience>
+<cap:effective>2026-10-15T11:27:00+05:30</cap:effective>
+<cap:onset>2026-10-15T11:47:09+05:30</cap:onset>
+<cap:expires>2026-10-15T14:27:00+05:30</cap:expires>
+<cap:headline>Light to Moderate rain/snow at many places accompaneid with Thunderstorms gusty wind (40-50kmph)  at isolated  places is very likely to occur over Chamba, Hamirpur, Kangra, Kinnaur, Kullu, Lahul and Spiti, Mandi, Shimla in next 3 hours.</cap:headline>
+<cap:description/>
+<cap:instruction>Please follow SDMA guidelines.</cap:instruction>
+<cap:contact/>
+<cap:parameter>
+<cap:valueName>Polygon URL</cap:valueName>
+<cap:value>https://sachet.ndma.gov.in/cap_public_website/FetchPolygonXMLFile?identifier=1792044694412014</cap:value>
+</cap:parameter>
+<cap:area>
+<cap:areaDesc>Mid and high hill areas oh HP</cap:areaDesc>
+<cap:altitude>0</cap:altitude>
+<cap:ceiling>0</cap:ceiling>
+</cap:area>
+</cap:info>
+</cap:alert>

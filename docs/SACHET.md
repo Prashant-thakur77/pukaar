@@ -41,6 +41,51 @@ of the five villages' codes could be checked against a public LGD extract, so no
 one until someone verifies it. Sujanpur is a town, so it would need a local body code, not a
 village code.
 
+## SACHET in: the Himachal feed as evidence
+
+`services/sachet.py` reads the public RSS for Himachal Pradesh
+(<https://sachet.ndma.gov.in/cap_public_website/rss/rss_himachal.xml>, `PUKAAR_SACHET_RSS_URL`; seen live
+on 23 October 2026 with ten IMD Shimla items) and the newest `PUKAAR_SACHET_MAX_ITEMS` (12) CAP messages
+it links to. The feed is fetched at most once every 10 minutes for every village, each message once a
+day. It is one more official source beside CWC and IMD (`services/official_data.py`):
+
+- a message covers a village when an inline `<polygon>` or `<circle>` contains the village point, its
+  `LGD District Code` geocode is the village's district code, or its headline or `areaDesc` names the
+  district (English or Hindi) or the village; anything else is listed as regional context;
+- only `Actual` messages in force count (an `Exercise`, an expired message, or one a `Cancel` refers to,
+  never does);
+- severity Extreme, Severe and Moderate imply Critical, Warning and Watch, for flood-related events only
+  (heavy rain, flood, cloudburst, landslide); a thunderstorm or "light to moderate rain" implies nothing;
+- like every official source it is evidence: it shows in the decision trace and the console's evidence
+  ("SACHET (NDMA) alerts"), raises a level only with `PUKAAR_OFFICIAL_RAISES_LEVEL`, never lowers one,
+  and never sounds a siren (Cedar `external-cap-never-sounds`); a failure reads "unavailable", never
+  "normal". `PUKAAR_SACHET=false` switches it off.
+
+The polygon file SACHET links to (`FetchPolygonXMLFile`) answered 403 to an anonymous request, so a
+message whose area is only in that file is matched by its district names. Saved samples and a
+hand-written flood fixture are in `backend/tests/data/` (see `official_samples.NOTICE.txt`).
+
+## SACHET out: the request package for HPSDMA
+
+The console's "Request SACHET / cell broadcast" (`services/sachet_request.py`) turns an approved Warning
+or Critical alert into what HPSDMA's operator needs, without pretending Pukaar can send it:
+
+- a CAP 1.2 message with `scope` Restricted and a `restriction` saying it is a district's request, not an
+  issued alert; `status` Exercise for a replay or drill; a 16-point polygon of the chosen radius (default
+  5 km, `PUKAAR_SACHET_RADIUS_KM`) around the village point, the same circle and the LGD district code;
+  `hi-IN` and `en-IN` blocks whose headline is the cell-broadcast text and whose description is the
+  officer-approved message;
+- the cell-broadcast text: source, hazard, place, action and 112, in Hindi (UCS-2, 41 characters a page)
+  and English (GSM 7-bit, 93 a page), each within four of the fifteen pages a CBS message may have
+  (3GPP TS 23.041: a page is 82 octets), so it also fits SACHET's SMS and app;
+- the steps: phone the HPSDMA State Emergency Operation Centre (1070), e-mail the file
+  (`PUKAAR_SACHET_REQUEST_EMAIL`), ask HPSDMA to confirm, keep calling the households that did not
+  confirm, and send the cancel the same way.
+
+Each preparation is audited (`sachet_request_prepared`) and on the alert's timeline as "prepared for
+HPSDMA; not sent by Pukaar". docs/RUNBOOK.md, "Asking HPSDMA for SACHET or cell broadcast", is the
+officer's version.
+
 ## How an authority would relay Pukaar's alerts
 
 1. **Own the decision.** The district (DDMA Mandi or Hamirpur) or HP SDMA decides

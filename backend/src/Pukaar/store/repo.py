@@ -41,6 +41,9 @@ Keys:
               | CTR (atomic command counter) | SHADOW#name (local mode only)
   ALERT#id    SIREN#device#round      (the siren tier; never a people DELIVERY# row)
   SIRENREQ#id META                    (two-person siren request; TTL 1 day); VILLAGE#id SIRENREQ#iso#id pointer
+  HANDOVER#district  date#shift       (the shift handover note and its acknowledgement; services/duty.py; TTL 400 days)
+  ONCE#name   key                     (a job done once per key, e.g. the 08:00 digest per district and day; TTL)
+  INBOUND#call_id META                (an inbound IVR call in progress: menu stage, caller; TTL 2 hours; delivery/inbound.py)
 Sparse GSI gsi1: gsi1pk = "OPEN#ALERT" / "OPEN#REPORT" while work is open; "OPEN#ROLLCALL" (gsi1sk closes_at).
 GSI gsi2 (alert META items only): gsi2pk = "ALERTS#<status>", gsi2sk = "<created_at>#<id>". The inbox reads
 the pending alerts of the whole state, or of one district (a filter on the alert's district), newest first,
@@ -87,6 +90,7 @@ from Pukaar.store.models import (
     RollCallAsked,
     RollCallResponse,
     RosterShift,
+    HandoverNote,
     SensorReading,
     ShelterStatus,
     StaffGauge,
@@ -1494,6 +1498,54 @@ class Repo:
     def get_local_shadow(self, device_id: str, name: str) -> dict[str, Any] | None:
         item = self._get(f"DEVICE#{device_id}", f"SHADOW#{name}")
         return {"desired": json.loads(str(item["desired"])), "version": int(item.get("version", 0))} if item else None
+
+    # -- the duty officer (services/duty.py) and inbound calls (delivery/inbound.py) --
+    def put_handover(self, h: HandoverNote, ttl_days: int = ROSTER_TTL_DAYS) -> None:
+        self._put({"pk": f"HANDOVER#{h.district}", "sk": f"{h.date}#{h.shift}", **h.model_dump(),
+                   "ttl": int(clock.now().timestamp()) + ttl_days * 86400})
+
+    def get_handover(self, district: str, date: str, shift: str) -> HandoverNote | None:
+        item = self._get(f"HANDOVER#{district}", f"{date}#{shift}")
+        return _model(HandoverNote, item) if item else None
+
+    def list_handovers(self, district: str, first_date: str, last_date: str) -> list[HandoverNote]:
+        kwargs: dict[str, Any] = {"KeyConditionExpression": Key("pk").eq(f"HANDOVER#{district}")
+                                  & Key("sk").between(f"{first_date}#", f"{last_date}#~")}
+        items: list[dict] = []
+        while True:
+            page = self.t.query(**kwargs)
+            items.extend(page.get("Items", []))
+            if "LastEvaluatedKey" not in page:
+                return [_model(HandoverNote, i) for i in items]
+            kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
+    def acknowledge_handover(self, district: str, date: str, shift: str, by: str, at: str) -> HandoverNote:
+        """Once: a second acknowledgement is a ConflictError."""
+        return _model(HandoverNote, self._update(f"HANDOVER#{district}", f"{date}#{shift}",
+                                                 {"acknowledged_by": by, "acknowledged_at": at},
+                                                 condition=Attr("pk").exists() & Attr("acknowledged_by").not_exists()))
+
+    def claim_once(self, name: str, key: str, ttl_seconds: int = 3 * 86400) -> bool:
+        """True for the first caller only (a conditional put): a job that must run once per key."""
+        try:
+            self._put({"pk": f"ONCE#{name}", "sk": key, "at": clock.iso(clock.now()),
+                       "ttl": int(clock.now().timestamp()) + ttl_seconds}, condition=Attr("pk").not_exists())
+            return True
+        except ConflictError:
+            return False
+
+    def put_inbound(self, call_id: str, fields: dict[str, Any], ttl_seconds: int = 2 * 3600) -> None:
+        self._put({"pk": f"INBOUND#{call_id}", "sk": "META", **fields,
+                   "ttl": int(clock.now().timestamp()) + ttl_seconds})
+
+    def get_inbound(self, call_id: str) -> dict[str, Any] | None:
+        item = self._get(f"INBOUND#{call_id}", "META")
+        if not item or _expired(item):
+            return None
+        return {k: v for k, v in _from_dynamo(item).items() if k not in _KEY_FIELDS}
+
+    def delete_inbound(self, call_id: str) -> None:
+        self.t.delete_item(Key={"pk": f"INBOUND#{call_id}", "sk": "META"})
 
     # -- maintenance -----------------------------------------------------
     def delete_where(self, predicate) -> int:

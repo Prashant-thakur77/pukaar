@@ -362,6 +362,89 @@ permit (
 )
 when { context.district != "" && principal.district_ids.contains(context.district) };
 
+// -- reach, enrolment and the duty officer (services/enrolment.py, sachet_request.py, duty.py, group_approval.py) --
+// A grouped approval is not an action of its own: each village of the group is checked with approve or decline
+// against its own alert and district (services/group_approval.decide_group).
+@id("officer-enrol-households")
+@desc("Officers enrol households by the form or a vetted list (CSV), edit or remove them; audited, and held to their district.")
+permit (
+  principal is Pukaar::Officer,
+  action == Pukaar::Action::"enrol_household",
+  resource is Pukaar::Village
+);
+
+@id("pradhan-enrol-own-village")
+@desc("A pradhan enrols, edits or removes households of their own village only.")
+permit (
+  principal is Pukaar::Pradhan,
+  action == Pukaar::Action::"enrol_household",
+  resource is Pukaar::Village
+)
+when { context.village_id != "" && principal.village_ids.contains(context.village_id) };
+
+@id("staff-request-sachet")
+@desc("An officer, or a state operator in a district they are assigned to, prepares the SACHET / cell-broadcast request for HPSDMA for a Warning or Critical alert. Pukaar never sends a broadcast.")
+permit (
+  principal,
+  action == Pukaar::Action::"request_sachet",
+  resource is Pukaar::Alert
+)
+when {
+  (principal is Pukaar::Officer ||
+   (principal is Pukaar::StateOperator && context.scoped == true && context.in_scope == true)) &&
+  (context.level == "warning" || context.level == "critical")
+};
+
+@id("officer-handover")
+@desc("Officers write the shift handover note and acknowledge the previous shift's; both go to the audit trail.")
+permit (
+  principal is Pukaar::Officer,
+  action in [Pukaar::Action::"write_handover", Pukaar::Action::"ack_handover"],
+  resource is Pukaar::App
+);
+
+@id("staff-own-district-reach")
+@desc("Enrolling households, the SACHET request and the handover are held to the officer's own districts (assigned or rostered), like every other act.")
+forbid (
+  principal,
+  action in [
+    Pukaar::Action::"enrol_household", Pukaar::Action::"request_sachet", Pukaar::Action::"write_handover",
+    Pukaar::Action::"ack_handover"
+  ],
+  resource
+)
+when {
+  (principal is Pukaar::Officer || principal is Pukaar::StateOperator) &&
+  context.scoped == true && context.in_scope != true && context.replay != true
+};
+
+@id("public-demo-accounts-reach")
+@desc("Public demo account (judge, judge_pradhan): it never enrols or removes a household, never writes or acknowledges a handover, and prepares a SACHET request for replay alerts only.")
+forbid (
+  principal,
+  action in [
+    Pukaar::Action::"enrol_household", Pukaar::Action::"request_sachet", Pukaar::Action::"write_handover",
+    Pukaar::Action::"ack_handover"
+  ],
+  resource
+)
+when {
+  [Pukaar::Officer::"judge", Pukaar::Pradhan::"judge",
+   Pukaar::Officer::"judge_pradhan", Pukaar::Pradhan::"judge_pradhan"].contains(principal) &&
+  context.replay != true
+};
+
+@id("agents-never-enrol")
+@desc("A model agent never enrols or removes a household, prepares a SACHET request or writes a handover.")
+forbid (
+  principal is Pukaar::Agent,
+  action in [
+    Pukaar::Action::"enrol_household", Pukaar::Action::"request_sachet", Pukaar::Action::"write_handover",
+    Pukaar::Action::"ack_handover"
+  ],
+  resource
+);
+
 // -- the alarm layer: sirens, pradhan boxes, relays (services/sirens.py, api/routers/devices.py) ----------------
 // policy/guard.py fills every context key these read, so a missing key never turns into an evaluation error:
 // pattern (W1, C1, A1, T1, D1), src, drill, critical_auto_send, machine_evidence_critical,

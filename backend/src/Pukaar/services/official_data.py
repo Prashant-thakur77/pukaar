@@ -14,6 +14,8 @@ Sources (each optional, each cached, each with a timeout):
 - Google Flood Hub: the latest flood status of gauges near the river cell
   (`floodStatus:searchLatestFloodStatusByArea`). Needs an API key (secret flood_hub_api_key);
   off by default (PUKAAR_FLOOD_HUB).
+- SACHET, India: NDMA's public CAP alerts for Himachal Pradesh (services/sachet.py), matched to the
+  village by polygon, circle, LGD district code or the district's name. On by default (PUKAAR_SACHET).
 - BIPAD, Nepal: river stations from the BIPAD portal (DHM data). Off by default (PUKAAR_BIPAD);
   none of the five villages is in Nepal. The request is adapted from CascadeWatch
   (github.com/Cassius-stack/cascadewatch, src/cascadewatch/adapters/bipad.py, Apache-2.0).
@@ -37,7 +39,7 @@ import httpx
 from Pukaar.core import clock
 from Pukaar.core.config import get_settings
 from Pukaar.core.log import get_logger, log
-from Pukaar.services import fetch_cache
+from Pukaar.services import fetch_cache, sachet
 from Pukaar.store.models import Village
 
 _LOG = get_logger("official_data")
@@ -339,6 +341,7 @@ NAMES = {
     "imd": "IMD district warning colour (all weather hazards)",
     "flood_hub": "Google Flood Hub gauges near the river cell",
     "bipad": "BIPAD river stations (DHM Nepal)",
+    "sachet": "SACHET (NDMA) CAP alerts for Himachal Pradesh",
 }
 
 
@@ -351,6 +354,8 @@ def _collect(client: httpx.Client, village: Village, at: datetime) -> list[dict[
         else _item("flood_hub", NAMES["flood_hub"], "off", detail="needs an API key; PUKAAR_FLOOD_HUB=true to use it"),
         "bipad": lambda: fetch_bipad(client, village, at) if s.bipad_enabled
         else _item("bipad", NAMES["bipad"], "off", detail="Nepal only; PUKAAR_BIPAD=true"),
+        # SACHET (services/sachet.py): NDMA's public CAP alerts for Himachal, cached for every village.
+        "sachet": lambda: sachet.item(client, village, at),
     }
     items: list[dict[str, Any]] = []
     for source, call in calls.items():

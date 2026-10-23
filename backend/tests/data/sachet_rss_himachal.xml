@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?xml-stylesheet title="XSL_formatting" type="text/xsl" href="feed.xsl"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Himachal Pradesh: CAP Disaster Alert Feeds</title>
+    <description>CAP Integrated Alert System Warning Updates</description>
+    <language>en</language>
+    <link>https://sachet.ndma.gov.in/cap_public_website/rss/rss_himachal.xml</link>
+    <atom:link href="https://sachet.ndma.gov.in/cap_public_website/rss/rss_himachal.xml" rel="self" type="application/rss+xml"/>
+    <copyright>public domain</copyright>
+    <pubDate>Fri, 16 Oct 2026 09:05:14 GMT</pubDate>
+    <item>
+      <title>अगले 3 घंटों मे  चंबा,हमीरपुर,कांगड़ा,किन्नौर,कुल्लू,लाहौलस्पीति,मंडी , शिमला में कई जगहों पर हल्की से मध्यम बारिश/बर्फबारी  तथा एक-दो  जगहों पर आंधी-तूफान ,तेज़ हवाएं (40-50kmph)की संभावना है</title>
+      <description/>
+      <category>Met</category>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1792044694412014</link>
+      <author>controlroom@ndma.gov.in (IMD Shimla)</author>
+      <guid isPermaLink="false">1792044694412014</guid>
+      <pubDate>Thu, 15 Oct 2026 06:17:11 GMT</pubDate>
+    </item>
+    <item>
+      <title>अगले 3 घंटों में चंबा, हमीरपुर, कांगड़ा, कुल्लू और लाहौल-स्पीति के कुछ इलाकों में ज़मीनी हवाओं के साथ मध्यम दर्जे की आंधी-तूफ़ान आने की बहुत संभावना है।</title>
+      <description/>
+      <category>Met</category>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1791702219168014</link>
+      <author>controlroom@ndma.gov.in (IMD Shimla)</author>
+      <guid isPermaLink="false">1791702219168014</guid>
+      <pubDate>Sun, 11 Oct 2026 07:09:07 GMT</pubDate>
+    </item>
+    <item>
+      <title>अगले 3 घंटों में बिलासपुर, मंडी, शिमला, सिरमौर, सोलन और ऊना में एक दो  जगहों पर ओलावृष्टि के साथ आंधी-तूफान आने की बहुत संभावना है।</title>
+      <description/>
+      <category>Met</category>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1791702218619014</link>
+      <author>controlroom@ndma.gov.in (IMD Shimla)</author>
+      <guid isPermaLink="false">1791702218619014</guid>
+      <pubDate>Sun, 11 Oct 2026 07:06:41 GMT</pubDate>
+    </item>
+    <item>
+      <title>अगले 6 घंटों में शिमला,सोलन ज़िलों और सिरमौर,मंडी,कुल्लू,बिलासपुर और किन्नौर ज़िलों के कुछ भाग में कई जगहों पर हल्की से मध्यम बारिश और एक दो जगहों पर तेज़ बारिश के दौर होने की बहुत संभावना है</title>
+      <description/>
+      <category>Met</category>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1790598591423014</link>
+      <author>controlroom@ndma.gov.in (IMD Shimla)</author>
+      <guid isPermaLink="false">1790598591423014</guid>
+      <pubDate>Mon, 28 Sep 2026 12:34:23 GMT</pubDate>
+    </item>
+    <item>
+      <title>अगले 6 घंटों में किन्नौर, कुल्लू, लाहौल स्पीति, शिमला और सिरमौर में कई जगहों पर हल्की बारिश/बर्फबारी और कुछ जगहों पर मध्यम बारिश/बर्फबारी के कुछ दौर होने की बहुत संभावना है।</title>
+      <description/>
+      <category>Met</category>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1790502766474014</link>
+      <author>controlroom@ndma.gov.in (IMD Shimla)</author>
+      <guid isPermaLink="false">1790502766474014</guid>
+      <pubDate>Sun, 27 Sep 2026 09:56:47 GMT</pubDate>
+    </item>
+    <item>
+      <title>अगले 3 घंटों में चंबा,कांगड़ा,किन्नौर,कुल्लू,लाहौलस्पीति,मंडी,शिमला,सिरमौर ज़िलों में ज़्यादातर स्थानों पर हल्की से मध्यम बारिश एवं एक-दो स्थानों पर तेज़ बारिश,आंधी-तूफ़ान होने की संभावना है|</title>
+      <description/>
+      <category>Met</category>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1789615585753014</link>
+      <author>controlroom@ndma.gov.in (IMD Shimla)</author>
+      <guid isPermaLink="false">1789615585753014</guid>
+      <pubDate>Thu, 17 Sep 2026 03:36:25 GMT</pubDate>
+    </item>
+    <item>
+      <title>अगले 3 घंटों में बिलासपुर, कुल्लू, मंडी, शिमला, सिरमौर और सोलन में कई जगहों पर हल्की से मध्यम बारिश और कुछ जगहों पर तेज़ बारिश के साथ-साथ गरज-चमक होने की बहुत संभावना है।</title>
+      <description/>
+      <category>Met</category>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1789291799608014</link>
+      <author>controlroom@ndma.gov.in (IMD Shimla)</author>
+      <guid isPermaLink="false">1789291799608014</guid>
+      <pubDate>Sun, 13 Sep 2026 09:34:05 GMT</pubDate>
+    </item>
+    <item>
+      <title>अगले 3 घंटों में बिलासपुर,हमीरपुर,कांगड़ा,किन्नौर,कुल्लू,मंडी,शिमला,सिरमौर,सोलन,ऊना में कई जगहों पर हल्की से मध्यम बारिश और एक दो जगहों पर तेज़ से बहुत तेज़ बारिश के साथ गरज की संभावना है।</title>
+      <description/>
+      <category>Met</category>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1788264212279014</link>
+      <author>controlroom@ndma.gov.in (IMD Shimla)</author>
+      <guid isPermaLink="false">1788264212279014</guid>
+      <pubDate>Tue, 01 Sep 2026 12:25:12 GMT</pubDate>
+    </item>
+    <item>
+      <title>अगले 3 घंटों में बिलासपुर,हमीरपुर,कांगड़ा,किन्नौर,कुल्लू,मंडी,शिमला,सिरमौर,सोलन जिलों में कई जगहों पर हल्की से मध्यम और एकदो  जगहों पर गर्जन  के साथ तेज़ से बहुत तेज़ बारिश  की संभावना है |</title>
+      <description/>
+      <category>Met</category>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1788090793062014</link>
+      <author>controlroom@ndma.gov.in (IMD Shimla)</author>
+      <guid isPermaLink="false">1788090793062014</guid>
+      <pubDate>Sun, 30 Aug 2026 11:55:42 GMT</pubDate>
+    </item>
+    <item>
+      <title>अगले 3 घंटों में शिमला, सिरमौर और सोलन ज़िलों में एक से दो स्थानों पर तेज़ से बहुत तेज़ बारिश होने की संभावना है।</title>
+      <description/>
+      <category>Met</category>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1787629339139014</link>
+      <author>controlroom@ndma.gov.in (IMD Shimla)</author>
+      <guid isPermaLink="false">1787629339139014</guid>
+      <pubDate>Tue, 25 Aug 2026 03:45:03 GMT</pubDate>
+    </item>
+  </channel>
+</rss>

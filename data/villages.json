@@ -9,6 +9,7 @@
       "lat": 31.55929,
       "lon": 77.16515,
       "coords_source": "open-meteo geocoding: Thunāg, Mandi, Himachal Pradesh",
+      "ivr_code": "1001",
       "gauge": {
         "device_id": "gauge-thunag-sim",
         "watch_cm": 120,
@@ -46,6 +47,7 @@
       "lat": 31.51852,
       "lon": 77.21928,
       "coords_source": "open-meteo geocoding: Janjeli, Mandi, Himachal Pradesh",
+      "ivr_code": "1002",
       "gauge": {
         "device_id": "gauge-janjehli-sim",
         "watch_cm": 110,
@@ -63,6 +65,7 @@
       "lat": 31.57975,
       "lon": 77.04841,
       "coords_source": "open-meteo geocoding: Gohar, Mandi, Himachal Pradesh",
+      "ivr_code": "1003",
       "gauge": {
         "device_id": "gauge-gohar-sim",
         "watch_cm": 140,
@@ -95,6 +98,7 @@
       "lat": 31.66902,
       "lon": 77.05359,
       "coords_source": "open-meteo geocoding: Pāndoh, Mandi, Himachal Pradesh",
+      "ivr_code": "1004",
       "gauge": {
         "device_id": "gauge-pandoh-sim",
         "watch_cm": 300,
@@ -112,6 +116,7 @@
       "lat": 31.83364,
       "lon": 76.50539,
       "coords_source": "open-meteo geocoding: Tīra Sujānpur, Hamirpur, Himachal Pradesh",
+      "ivr_code": "1005",
       "gauge": {
         "device_id": "gauge-sujanpur-sim",
         "watch_cm": 180,

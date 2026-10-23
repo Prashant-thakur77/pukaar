@@ -1049,6 +1049,7 @@ export const strings = {
   'cs.nav.directives': { hi: 'निर्देश', en: 'Directives' },
   'cs.nav.ask': { hi: 'पूछें', en: 'Ask' },
   'cs.nav.roster': { hi: 'रोस्टर', en: 'Roster' },
+  'cs.nav.enrol': { hi: 'परिवार जोड़ें', en: 'Enrol' },
   'cs.nav.audit': { hi: 'ऑडिट', en: 'Audit' },
   'cs.nav.demo': { hi: 'डेमो', en: 'Demo' },
   'cs.nav.replay': { hi: 'रीप्ले', en: 'Replay' },

@@ -46,6 +46,9 @@ the voice-call webhooks (`GET`/`HEAD /voice/exotel/flow`, `GET /voice/exotel/gat
 `POST /voice/plivo/answer`, `POST /voice/plivo/digits`, `POST /voice/plivo/hangup`: each needs the SSM
 `voice_webhook_key` in `?k=`, an HMAC-signed per-call token and a call id Pukaar placed, plus Plivo's
 `X-Plivo-Signature-V3`; anything else is a 403, see docs/VOICE.md),
+the inbound-call webhooks (`GET`/`HEAD /voice/exotel/inbound/{part}`, `POST /voice/plivo/inbound`,
+`POST /voice/plivo/inbound-hangup`: refused unless the voice provider is switched on, then the `?k=` key and
+Plivo's signature; IVR self-enrolment and "report what you see", docs/VOICE.md "Inbound calls"),
 `POST /auth/dev-login` (local only). Everything else needs an officer or
 pradhan token and passes `policy.guard.authorize()`.
 
@@ -312,6 +315,45 @@ POST /roster/{district}/{date}/{day|night}   officer: {primary, backup?, escalat
 DELETE /roster/{district}/{date}/{day|night} officer: {cleared}
 POST /roster/{district}/take-over   officer: the caller becomes the primary of the shift running now
                              -> RosterShift   (audited: duty_taken_over)
+GET  /alert-groups?district= officer, state operator: pending alerts of one district from one cause, created
+                             within PUKAAR_GROUP_WINDOW_MINUTES (180) of the first, two or more:
+                             [{id, district, stream: live|replay|drill, cause, cause_en, cause_hi, count,
+                             shared{drivers[], drivers_en[], drivers_hi[], rules[], official[], levels, first_at,
+                             last_at}, villages[{alert_id, village_id, village_name, village_name_hi, level,
+                             previous_level, text_hi, text_en, reason_en, created_at, recipients_count, drivers}]}]
+POST /alert-groups/decide    signed in: {decisions[{alert_id, decision: approved|declined}], reason?, group_id?}
+                             -> {results[{alert_id, decision, outcome: decided|denied|late|retry|missing,
+                             reason?}], decided}. Each alert is authorised on its own (Cedar approve or decline,
+                             its village's district) and decided with its own task token; one district per call;
+                             audited per alert and once as group_decision
+POST /alerts/{id}/sachet-request  Cedar request_sachet (officer; state operator where assigned), a published
+                             Warning or Critical: {radius_km? (0.5-25, default 5), via: view|download|copy|email}
+                             -> {identifier, filename, cap_xml (CAP 1.2, scope Restricted, polygon of 16 points +
+                             circle + LGD code, hi-IN and en-IN), text_hi, text_en, limits{hi, en: {chars, pages,
+                             encoding, max_chars}, target_pages: 4, max_pages: 15}, polygon[], steps_en[],
+                             steps_hi[], mailto, email_to, exercise, not_sent_en, not_sent_hi}; 409 otherwise.
+                             Audited (sachet_request_prepared) and on the timeline; Pukaar never sends a broadcast
+GET  /villages/{id}/households  Cedar view_recipients: {village_id, ivr_code, households[{id, name, role,
+                             channel, relay, phone_masked, assisted, consent, enrolled_via, enrolled_by}],
+                             consent_methods{}, given_by{}, notice_version}   (numbers masked)
+POST /villages/{id}/households  Cedar enrol_household (officer in district, pradhan own village):
+                             {recipient_id? (edit), name?, phone?, channel?: voice|both|telegram, role?,
+                             assisted?, consent?{method: in_person|signed_form|phone_call, given_by:
+                             self|family|guardian, taken_by, date}} -> {household, created}; consent is required
+                             for a new household and a new number; 400 with the reason (audited:
+                             household_enrolled, household_updated)
+DELETE /villages/{id}/households/{rid}?reason=  Cedar enrol_household: {removed} (erased later; household_removed)
+POST /villages/{id}/households/import  Cedar enrol_household: {csv, commit: false} -> {rows[{row, name,
+                             phone_masked, status: ok|duplicate|exists|error, errors[], ...}], counts};
+                             {csv, commit: true, source, attested_rows[], attestation{method, given_by,
+                             taken_by, date}} also stores the ok rows that are attested, nothing else ->
+                             result{stored[], skipped[], rows} (audited per household and households_imported)
+GET  /duty/digest?district=  Cedar view_roster: the 08:00 IST digest as data and {text} (sent once per district
+                             a day by the sweep to the officers on duty, Telegram and Web Push)
+GET  /duty/handover?district=  Cedar view_roster: {shift, next, previous, outgoing, incoming, history[]}
+POST /duty/handover/{district}  Cedar write_handover: {text (1-1000)} -> the handover view (handover_written)
+POST /duty/handover/{district}/{date}/{day|night}/ack  Cedar ack_handover, not the writer: -> the handover view
+                             (handover_acknowledged)
 POST /replay/start           officer: {scenario?: "himachal_2023_07"|"mandi_2025", speed_seconds_per_hour?: number}
                              -> ReplayStatus (speed capped so the run fits one worker invocation)
 POST /replay/reset           officer: {} -> ReplayStatus

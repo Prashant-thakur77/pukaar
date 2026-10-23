@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cap:alert xmlns:cap="urn:oasis:names:tc:emergency:cap:1.2">
+<cap:identifier>IN-TEST-FLOOD-MANDI-1</cap:identifier>
+<cap:sender>Himachal-Pradesh-SDMA</cap:sender>
+<cap:sent>2026-07-10T21:00:00+05:30</cap:sent>
+<cap:status>Actual</cap:status>
+<cap:msgType>Alert</cap:msgType>
+<cap:scope>Public</cap:scope>
+<cap:info>
+<cap:language>HI</cap:language>
+<cap:category>Met</cap:category>
+<cap:event>Heavy Rainfall</cap:event>
+<cap:urgency>Immediate</cap:urgency>
+<cap:severity>Severe</cap:severity>
+<cap:certainty>Likely</cap:certainty>
+<cap:effective>2026-07-10T21:00:00+05:30</cap:effective>
+<cap:expires>2026-07-11T09:00:00+05:30</cap:expires>
+<cap:headline>अगले 12 घंटों में मंडी ज़िले में भारी बारिश और अचानक बाढ़ की संभावना है।</cap:headline>
+<cap:instruction>नदी-नालों से दूर रहें।</cap:instruction>
+<cap:area><cap:areaDesc>मंडी</cap:areaDesc></cap:area>
+</cap:info>
+<cap:info>
+<cap:language>en-IN</cap:language>
+<cap:category>Met</cap:category>
+<cap:event>Heavy Rainfall</cap:event>
+<cap:urgency>Immediate</cap:urgency>
+<cap:severity>Severe</cap:severity>
+<cap:certainty>Likely</cap:certainty>
+<cap:effective>2026-07-10T21:00:00+05:30</cap:effective>
+<cap:expires>2026-07-11T09:00:00+05:30</cap:expires>
+<cap:headline>Heavy rainfall and flash floods likely over Mandi district in the next 12 hours.</cap:headline>
+<cap:instruction>Keep away from streams and rivers.</cap:instruction>
+<cap:area>
+<cap:areaDesc>Mandi</cap:areaDesc>
+<cap:polygon>31.40,77.00 31.40,77.40 31.70,77.40 31.70,77.00 31.40,77.00</cap:polygon>
+<cap:geocode><cap:valueName>LGD District Code</cap:valueName><cap:value>22</cap:value></cap:geocode>
+</cap:area>
+</cap:info>
+</cap:alert>

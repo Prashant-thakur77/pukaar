@@ -160,7 +160,29 @@ const SOURCE_NAME: Record<string, { en: string; hi: string }> = {
   imd: { en: 'IMD district colour', hi: 'IMD ज़िले का रंग' },
   flood_hub: { en: 'Google Flood Hub', hi: 'Google Flood Hub' },
   bipad: { en: 'BIPAD (Nepal)', hi: 'BIPAD (नेपाल)' },
+  sachet: { en: 'SACHET (NDMA) alerts', hi: 'SACHET (NDMA) चेतावनियाँ' },
 };
+
+/** A SACHET item (backend services/sachet.py): the alerts in force that cover this village, and the rest of the state. */
+interface SachetMatch {
+  headline_en?: string;
+  headline_hi?: string;
+  sender?: string;
+  covers?: string;
+}
+
+function sachetText(it: OfficialItem, lang: Lang): string {
+  const hi = lang === 'hi';
+  const matched = (it.matched ?? []) as SachetMatch[];
+  const regional = Number((it as { regional_count?: number }).regional_count ?? 0);
+  if (!matched.length) return hi ? `इस ज़िले के लिए कोई लागू नहीं; हिमाचल में और ${num(regional, lang)}` : `none in force for this district; ${regional} elsewhere in Himachal`;
+  const first = matched[0];
+  const head = (hi ? first.headline_hi || first.headline_en : first.headline_en || first.headline_hi) ?? '';
+  const short = head.length > 140 ? `${head.slice(0, 139)}…` : head;
+  return hi
+    ? `${num(matched.length, lang)} लागू (${first.sender ?? 'SACHET'}): ${short}`
+    : `${matched.length} in force (${first.sender ?? 'SACHET'}): ${short}`;
+}
 
 export interface OfficialRow {
   source: string;
@@ -188,7 +210,8 @@ export function officialRows(items: OfficialItem[] | null | undefined, lang: Lan
     } else if (it.source === 'imd') {
       const c = COLOUR[it.colour ?? 'none'] ?? { en: String(it.colour), hi: String(it.colour) };
       text = hi ? `आज और कल: ${c.hi} (सभी मौसम ख़तरे, सिर्फ़ बाढ़ नहीं)` : `${c.en} for today and tomorrow (every weather hazard, not floods alone)`;
-    } else text = it.detail ?? (hi ? 'ठीक' : 'ok');
+    } else if (it.source === 'sachet') text = sachetText(it, lang);
+    else text = it.detail ?? (hi ? 'ठीक' : 'ok');
     return { source: it.source, label, text, status: it.status, level: lv };
   });
 }

@@ -3,6 +3,7 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, LoaderCircle, UserCheck } from 'lucide-react';
 import { api, ApiError } from '../../api';
 import { Page } from './Sections';
+import { DutyHandover } from './DutyHandover';
 import { useConsole } from './consoleContext';
 import { useMedia } from '../../hooks/useMedia';
 import { DeniedNote, ErrorState, Skeleton } from '../../components/States';
@@ -51,6 +52,7 @@ function Roster() {
         ) : view ? (
           <>
             <OnDutyNow view={view} onChanged={poll.refresh} />
+            <DutyHandover district={view.district} />
             <Policy view={view} />
             <Week view={view} start={start} onGo={go} onChanged={poll.refresh} />
           </>
