@@ -267,10 +267,16 @@ try {
     mkdirSync(dir, { recursive: true });
     const { ctx, page } = await openPage(browser, base, data);
     log(`page: ${await page.evaluate(() => JSON.stringify(window.__dbg ?? null))}`);
+    // --clean: no chapter heading or caption (the "not to scale" badge stays), PNG, for slides
+    const clean = flag("--clean") || flag("--bare");
+    if (clean) await page.addStyleTag({ content: "#chapter, #cap { display: none !important; }" });
+    // --bare: also no 3D labels or leader lines (a slide background with its own text on top)
+    if (flag("--bare")) await page.addStyleTag({ content: ".tag, #lines { display: none !important; }" });
     for (const x of val("--preview").split(",")) {
       const t = /^[a-z]/.test(x) ? stillTime(tls, ...x.split("@")) : Number(x);
       await page.evaluate((v) => window.__render(v), t);
-      await page.screenshot({ path: join(dir, `p-${x.replace(/[^\w.+-]/g, "_")}.jpg`), type: "jpeg", quality: 85 });
+      const name = `p-${x.replace(/[^\w.+-]/g, "_")}`;
+      await page.screenshot(clean ? { path: join(dir, `${name}.png`), type: "png" } : { path: join(dir, `${name}.jpg`), type: "jpeg", quality: 85 });
     }
     await ctx.close();
     log(`previews in ${dir}`);
