@@ -1,4 +1,4 @@
-// The pitch video (3:40-3:55, hard limit 4:00): the night in Syathi, the scale across the Himalaya, why warnings fail,
+// The pitch video (3:40-3:55, hard limit 4:00): the night in Siyathi, the scale across the Himalaya, why warnings fail,
 // why it can be fixed, Pukaar live on AWS, how deep the AWS stack goes, what we want to build next, and the close.
 //   node video/live.mjs                 # stage the live replay first (the approve scene needs a pending alert)
 //   node video/record.mjs pitch [--plan] [--only a,b]   # --only re-captures just those live scenes
@@ -13,7 +13,7 @@ import { L as L0, ROOT } from "./lib/engine.mjs";
 
 /** A narration line, the name respelled for the voice only (Chatterbox read "Pukaar" as "Bukhar"). */
 const L = (text, say = text, opts = {}) =>
-  L0(text, say.replace(/Pukaar/g, "Poo-kaar").replace(/Syathi/g, "Syaathi"), opts);
+  L0(text, say.replace(/Pukaar/g, "Poo-kaar").replace(/Siyathi/g, "Siyaathi"), opts);
 
 export const SCENES = (f) => [
   // ================================================================ 1 · the night
@@ -28,7 +28,7 @@ export const SCENES = (f) => [
         "The night of 30 June 2025. | Cloudburst after cloudburst | hit Mandi district.",
         "The night of the thirtieth of June, twenty twenty-five. | Cloudburst after cloudburst | hit Mandi district.",
       ),
-      L("There was a red alert for the district. | But what woke Syathi village | was not a warning.", undefined, {
+      L("There was a red alert for the district. | But what woke Siyathi village | was not a warning.", undefined, {
         pre: 0.2,
       }),
     ],
@@ -36,7 +36,7 @@ export const SCENES = (f) => [
   },
   {
     id: "dog",
-    tag: "Syathi · 2025",
+    tag: "Siyathi · 2025",
     lead: 0.25,
     gap: 0.75,
     lines: [

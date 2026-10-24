@@ -27,7 +27,7 @@ Code: https://github.com/Prashant-thakur77/pukaar
 - Headline cuts quote headlines as published, in neutral type; no mastheads, logos, layouts or photos are reproduced.
 
 ## Sources behind every number and headline on screen
-- Syathi, 30 Jun 2025: “more than 60 people”, “20 households”; Mohan's quote: The Tribune, “Pet dog emerges saviour in Mandi village, saves 60 lives amid monsoon fury”, 9 Jul 2025. https://www.tribuneindia.com/news/himachal/pet-dog-emerges-saviour-in-mandi-village-saves-60-lives-amid-monsoon-fury
+- Siyathi, 30 Jun 2025: “more than 60 people”, “20 households”; Mohan's quote: The Tribune, “Pet dog emerges saviour in Mandi village, saves 60 lives amid monsoon fury”, 9 Jul 2025. https://www.tribuneindia.com/news/himachal/pet-dog-emerges-saviour-in-mandi-village-saves-60-lives-amid-monsoon-fury
 - Red alert for Mandi district, 30 Jun 2025: ANI via The News Mill, “Red alert issued in Mandi district of Himachal Pradesh, Beas river flooded after heavy rainfall”, 30 Jun 2025. https://thenewsmill.com/2025/06/red-alert-issued-in-mandi-district-of-himachal-pradesh-beas-river-flooded-after-heavy-rainfall/
 - 169 floods a year (2005–2024 average), the most frequent disaster: CRED / UCLouvain, EM-DAT, 2025 Disasters in Numbers. https://files.emdat.be/reports/2025_EMDAT_report.pdf
 - 1.81 billion people exposed to 1-in-100-year floods; 390 million in India: Rentschler, Salhab & Jafino, Nature Communications 13, 3527 (2022). https://pmc.ncbi.nlm.nih.gov/articles/PMC9240081/

@@ -1,5 +1,5 @@
 {
-  "_note": "Coordinates from the Open-Meteo geocoding API (GeoNames) on 2026-10-09; not verified on the ground (coords_verified=false). Population unknown (null). Syathi (Dharampur, the 2025 village in the README) could not be geocoded by Open-Meteo or OpenStreetMap Nominatim, so Pandoh is the fifth village. Officer telegram ids are filled at run time by /start in the bot.",
+  "_note": "Coordinates from the Open-Meteo geocoding API (GeoNames) on 2026-10-09; not verified on the ground (coords_verified=false). Population unknown (null). Siyathi (Dharampur, the 2025 village in the README) could not be geocoded by Open-Meteo or OpenStreetMap Nominatim, so Pandoh is the fifth village. Officer telegram ids are filled at run time by /start in the bot.",
   "villages": [
     {
       "id": "thunag",

@@ -18,26 +18,26 @@ function Quote() {
   return (
     <blockquote className="dog-quote">
       <p lang="en">“Can we trust a dog to warn us next time?”</p>
-      <footer>{lang === 'hi' ? 'मोहन, स्याठी गाँव, मंडी' : 'Mohan, Syathi village, Mandi'}</footer>
+      <footer>{lang === 'hi' ? 'मोहन, सियाठी गाँव, मंडी' : 'Mohan, Siyathi village, Mandi'}</footer>
     </blockquote>
   );
 }
 
 /**
- * The night of 30 June 2025 in Syathi: a red alert was out for the district, and what woke the
+ * The night of 30 June 2025 in Siyathi: a red alert was out for the district, and what woke the
  * village was a dog. Told plainly, with its sources; `quote` is the short form for other pages.
  */
 export function DogStory({ variant = 'full' }: { variant?: 'full' | 'quote' }) {
   const { lang } = useT();
   if (variant === 'quote')
     return (
-      <section className="band story-dog is-quote" aria-label={lang === 'hi' ? 'स्याठी की रात' : 'The night in Syathi'}>
+      <section className="band story-dog is-quote" aria-label={lang === 'hi' ? 'सियाठी की रात' : 'The night in Siyathi'}>
         <div className="wrap dog-quote-wrap">
           <Quote />
           <p className="dog-answer">
             {lang === 'hi'
-              ? '30 जून 2025 की रात स्याठी के 60 से ज़्यादा लोगों को एक कुत्ते के भौंकने से समय पर निकलने का मौका मिला। यह पन्ना जाँचता है कि पुकार कितनी पहले चेतावनी देता।'
-              : 'On the night of 30 June 2025 a dog’s barking got more than 60 people in Syathi out in time. This page checks how much earlier Pukaar would have warned.'}{' '}
+              ? '30 जून 2025 की रात सियाठी के 60 से ज़्यादा लोगों को एक कुत्ते के भौंकने से समय पर निकलने का मौका मिला। यह पन्ना जाँचता है कि पुकार कितनी पहले चेतावनी देता।'
+              : 'On the night of 30 June 2025 a dog’s barking got more than 60 people in Siyathi out in time. This page checks how much earlier Pukaar would have warned.'}{' '}
             <a className="dog-src-link" href={DOG.url} target="_blank" rel="noreferrer">
               {DOG.source} <ArrowUpRight aria-hidden="true" />
             </a>
@@ -49,7 +49,7 @@ export function DogStory({ variant = 'full' }: { variant?: 'full' | 'quote' }) {
     <section className="band story-dog" aria-labelledby="dog-title">
       <div className="wrap dog-grid">
         <Reveal variant="slide">
-          <p className="eyebrow">{lang === 'hi' ? 'उसी रात · स्याठी, मंडी' : 'That same night · Syathi, Mandi'}</p>
+          <p className="eyebrow">{lang === 'hi' ? 'उसी रात · सियाठी, मंडी' : 'That same night · Siyathi, Mandi'}</p>
           <h2 id="dog-title" className="display-3">
             {lang === 'hi' ? 'गाँव को एक कुत्ते ने जगाया।' : 'A dog woke the village.'}
           </h2>
@@ -57,8 +57,8 @@ export function DogStory({ variant = 'full' }: { variant?: 'full' | 'quote' }) {
         <Reveal delay={100} className="dog-body">
           <p className="dog-text" lang={lang}>
             {lang === 'hi'
-              ? 'उस दिन मंडी ज़िले के लिए रेड अलर्ट जारी था। आधी रात के ठीक बाद स्याठी गाँव में एक पालतू कुत्ता भौंकने लगा। उसकी आवाज़ पर 20 घरों के 60 से ज़्यादा लोग पाँच मिनट में बाहर निकल आए।'
-              : 'A red alert was out for Mandi district that day. Just past midnight in Syathi village, a pet dog began to bark. Within five minutes more than 60 people from 20 households were out of their homes.'}
+              ? 'उस दिन मंडी ज़िले के लिए रेड अलर्ट जारी था। आधी रात के ठीक बाद सियाठी गाँव में एक पालतू कुत्ता भौंकने लगा। उसकी आवाज़ पर 20 घरों के 60 से ज़्यादा लोग पाँच मिनट में बाहर निकल आए।'
+              : 'A red alert was out for Mandi district that day. Just past midnight in Siyathi village, a pet dog began to bark. Within five minutes more than 60 people from 20 households were out of their homes.'}
           </p>
           <Quote />
           <p className="dog-answer">

@@ -133,7 +133,7 @@ people dead and 34 missing
 ([Down To Earth](https://www.downtoearth.org.in/natural-disasters/cloudbursts-devastate-himachals-mandi-at-least-10-dead-34-missing-after-1900-excess-rain-on-july-1));
 by 9 July the count was 15 dead and 27 still missing
 ([PTI](https://www.theweek.in/wire-updates/national/2025/07/09/des92-hp-calamity-cm-thakur.html)).
-In Syathi village, Dharampur, no report says any warning reached the village: a family's dog woke
+In Siyathi village, Dharampur, no report says any warning reached the village: a family's dog woke
 them around midnight and more than 60 people got out before the slope came
 down ([The Tribune](https://www.tribuneindia.com/news/himachal/pet-dog-emerges-saviour-in-mandi-village-saves-60-lives-amid-monsoon-fury)).
 In December 2023 Himachal had 1 of India's 338 Central Water Commission flood-forecasting

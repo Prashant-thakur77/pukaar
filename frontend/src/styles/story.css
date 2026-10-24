@@ -493,7 +493,7 @@
 .impact-band .pg-title { max-width: 18ch; }
 .sc-summary { font-family: var(--font-display); font-weight: 400; border-radius: var(--r-2); background: var(--surface-2); color: var(--ink); }
 .impact .score-counts dd { font-family: var(--font-display); font-variant-numeric: lining-nums; }
-/* the story: a dog woke Syathi (sourced) */
+/* the story: a dog woke Siyathi (sourced) */
 .story-dog { background: var(--bg); color: var(--ink); padding: clamp(64px, 9vw, 128px) 0; border-top: 1px solid var(--line); }
 /* -- landing: the hero says the level and where to look, in one line -- */
 .dog-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(28px, 5vw, 80px); align-items: start; }

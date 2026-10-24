@@ -100,7 +100,7 @@ export function layersFor(id, c) {
         { type: "text", cls: "eyebrow", html: "Mandi district · Himachal Pradesh", from: 0.5, to: 3.1, x: 150, y: 430, size: 26, anim: "rise", fadeOut: 0.5 },
         { type: "text", html: "The night of *30 June 2025*", from: 0.8, to: 3.1, x: 150, y: 480, size: 96, stagger: 0.12, fadeOut: 0.5 },
         { type: "cut", outlet: "ANI · The News Mill", date: "30 Jun 2025, 9:48 am", text: "Red alert issued in Mandi district of Himachal Pradesh, Beas river flooded after heavy rainfall", from: at(1) + 0.1, to: ch(1, 1) + 0.2, x: 360, y: 300, w: 1150, rot: -2.5, seed: 3 },
-        { type: "text", html: "स्याठी · *Syathi*", from: ch(1, 1), to: dur, x: 150, y: 420, size: 120, stagger: 0.2 },
+        { type: "text", html: "सियाठी · *Siyathi*", from: ch(1, 1), to: dur, x: 150, y: 420, size: 120, stagger: 0.2 },
       ],
       sfx: [
         { name: "rain", t: 0, gain: -14, dur: 60, fade: 2.5 },
@@ -118,7 +118,7 @@ export function layersFor(id, c) {
         { type: "text", html: "It was a *dog*, barking.", from: at(0), to: at(2), x: 150, y: 420, size: 120, stagger: 0.13 },
         { type: "stat", value: 60, suffix: "+", label: "people from *20 households* got out\nbefore the slope came down", source: "The Tribune · 9 Jul 2025", from: at(2), to: at(3), x: 150, y: 250, w: 760, size: 230 },
         { type: "cut", outlet: "The Tribune", date: "9 Jul 2025", text: "Pet dog emerges saviour in Mandi village, saves 60 lives amid monsoon fury", from: ch(2, 1), to: at(3), x: 900, y: 560, w: 900, rot: 2.5, seed: 9 },
-        { type: "quote", text: "Can we trust a dog to warn us next time? We need proper early warning systems…", who: "Mohan, a villager of Syathi", source: "quoted in The Tribune · 9 Jul 2025", from: at(3) - 0.1, to: dur, x: 200, y: 250, w: 1520, size: 74, span: 2.6 },
+        { type: "quote", text: "Can we trust a dog to warn us next time? We need proper early warning systems…", who: "Mohan, a villager of Siyathi", source: "quoted in The Tribune · 9 Jul 2025", from: at(3) - 0.1, to: dur, x: 200, y: 250, w: 1520, size: 74, span: 2.6 },
       ],
       sfx: [{ name: "paper_slam", t: ch(2, 1), gain: -9 }, { name: "hit", t: at(2), gain: -16 }],
     };
@@ -396,7 +396,7 @@ export function score(startOf, T) {
 }
 
 export const SOURCES = [
-  ["Syathi, 30 Jun 2025: “more than 60 people”, “20 households”; Mohan's quote", "The Tribune, “Pet dog emerges saviour in Mandi village, saves 60 lives amid monsoon fury”, 9 Jul 2025", "https://www.tribuneindia.com/news/himachal/pet-dog-emerges-saviour-in-mandi-village-saves-60-lives-amid-monsoon-fury"],
+  ["Siyathi, 30 Jun 2025: “more than 60 people”, “20 households”; Mohan's quote", "The Tribune, “Pet dog emerges saviour in Mandi village, saves 60 lives amid monsoon fury”, 9 Jul 2025", "https://www.tribuneindia.com/news/himachal/pet-dog-emerges-saviour-in-mandi-village-saves-60-lives-amid-monsoon-fury"],
   ["Red alert for Mandi district, 30 Jun 2025", "ANI via The News Mill, “Red alert issued in Mandi district of Himachal Pradesh, Beas river flooded after heavy rainfall”, 30 Jun 2025", "https://thenewsmill.com/2025/06/red-alert-issued-in-mandi-district-of-himachal-pradesh-beas-river-flooded-after-heavy-rainfall/"],
   ["169 floods a year (2005–2024 average), the most frequent disaster", "CRED / UCLouvain, EM-DAT, 2025 Disasters in Numbers", "https://files.emdat.be/reports/2025_EMDAT_report.pdf"],
   ["1.81 billion people exposed to 1-in-100-year floods; 390 million in India", "Rentschler, Salhab & Jafino, Nature Communications 13, 3527 (2022)", "https://pmc.ncbi.nlm.nih.gov/articles/PMC9240081/"],
