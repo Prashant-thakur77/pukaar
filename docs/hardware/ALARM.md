@@ -337,7 +337,6 @@ lakh each (U).
 | ModularSensors (BSD-3) | Battery tiers, fast first cadence, WDT, CI matrix | All of these | Durable buffer; shadows and Jobs; an alarm-reserve tier |
 | IOT_Cooper (none, ideas) | Clamps errors into "safe" values | One schema for firmware and server constants | Errors are explicit; unknown never means OK |
 | SEN0676 library (none) | Modbus registers | Clean-room driver | Exception handling; read-before-write |
-| AcuIfero (CC BY) | Actuator protocol, per-incident idempotency, unused action guard | Idempotency, allowed actions, 6/h rate limit | Dispatched versus verified; stop and all-clear; the guard enforced (Cedar) |
 | OpenFloodAI (MIT intent) | UNKNOWN_DEGRADED, fails closed | Health states that fail closed | Applied to sirens and rain (stuck bucket) |
 | SURGE (MIT) | All-clear cancels by id | All-clear names the sounded alert | A1 only on sirens that started |
 | open-ews (MIT) | Area-targeted audio broadcast | Siren as an area audio channel | Device acknowledgement and verification |

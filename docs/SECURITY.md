@@ -261,7 +261,7 @@ Amplify sends these on every file (`infra/template.yaml`, `AmplifyApp.CustomHead
 | `style-src-attr` | `'unsafe-inline'` | inline `style=""` attributes only: the after-action report is e-mail-safe HTML with inline styles, and the console opens it from a `blob:` URL, which inherits this policy. React's style props go through the CSSOM and need nothing |
 | `img-src` | `'self' data: blob:`, `tile.openstreetmap.org`, `s3.amazonaws.com/elevation-tiles-prod/`, `*.s3.amazonaws.com`, `*.s3.<region>.amazonaws.com` | map tiles, terrain tiles, inline SVG textures, presigned report photos |
 | `media-src` | `'self' blob:`, the two S3 patterns | presigned alert and report audio; a voice note played back before sending |
-| `font-src` | `'self' data:` | self-hosted Noto Sans Devanagari, Inter and Tiro (no Google Fonts request) |
+| `font-src` | `'self' data:` | self-hosted Noto Sans Devanagari and Tiro Devanagari Hindi, and Mukta on the officer pages (no Google Fonts request) |
 | `connect-src` | `'self'`, `*.execute-api.<region>`, `cognito-idp.<region>`, `*.appsync-api.<region>`, `wss://*.appsync-realtime-api.<region>`, the two tile hosts | the API, sign-in, live push, and MapLibre and the service worker fetching tiles |
 | `worker-src` / `child-src` | `'self' blob:` | the service worker; MapLibre's blob worker |
 | `manifest-src` | `'self'` | the PWA manifest |
