@@ -1,4 +1,3 @@
-Mukta (mukta-*.woff2, Regular and SemiBold, subset to Devanagari and Latin, unhinted; officer pages only): Copyright (c) 2014, Girish Dalvi, Ek Type (https://github.com/EkType/Mukta)
 Noto Sans Devanagari (noto-sans-devanagari-*.woff2, subset to wght 400-700): Copyright 2022 The Noto Project Authors (https://github.com/notofonts/devanagari)
 Copyright 2020 The Indigo Project Authors (https://github.com/TiroTypeworks/Indigo)
 

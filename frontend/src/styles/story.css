@@ -528,7 +528,7 @@
    serif numbers; status as a word with a rule, never a pill.
    ===================================================================================================== */
 .pilot .pl-head { margin-bottom: clamp(24px, 3vw, 40px); max-width: 64ch; }
-.pilot .pl-head :is(.how-h, .xp-h2) { margin-bottom: var(--sp-4); }
+.pilot .pl-head .how-h { margin-bottom: var(--sp-4); }
 .pl-n { font-variant-numeric: tabular-nums; }
 .pl-lead { margin: 0; font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); }
 .pl-h3 { margin: clamp(28px, 3.4vw, 44px) 0 var(--sp-4); font-family: var(--font-display); font-weight: 400; font-size: var(--t-h2); line-height: 1.25; }

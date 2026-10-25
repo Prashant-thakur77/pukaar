@@ -45,14 +45,12 @@ export default defineConfig({
         // The app shell (including /report and its fonts) is precached so the
         // report page opens with no network; API calls are never cached. Left out, so a
         // phone on 2G does not download them in the background on its first visit:
-        // MapLibre and the 3D terrain; the Noto Sans Devanagari subsets (a system font on Android) and
-        // the officer pages' Mukta subsets (see tokens.css); and the officer and explainer pages, which
-        // load on demand.
+        // MapLibre and the 3D terrain; the Noto Sans Devanagari subsets (a system font on
+        // Android, see tokens.css); and the officer and explainer pages, which load on demand.
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         globIgnores: [
           '**/maplibre*', '**/HeroScene*', '**/*latin-ext*', '**/*cyrillic*', '**/*greek*', '**/*vietnamese*',
           '**/noto-sans-devanagari*',
-          '**/mukta-*',
           '**/ConsoleLayout-*', '**/Inbox-*', '**/AuditPage-*', '**/AskSection-*', '**/Sections-*', '**/console-*', '**/Roster-*', '**/Pilot-*', '**/Proof-*', '**/How-*', '**/StoryScroller-*',
         ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
