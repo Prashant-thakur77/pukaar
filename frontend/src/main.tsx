@@ -7,11 +7,12 @@ import './agents.css';
 import './gauges.css';
 import './roster.css';
 import './editorial.css';
+import './water.css';
 import App from './App';
 import { prefetchRoute } from './api';
 import { applyTheme, usePrefs } from './store';
 import { handOff } from './boot/handoff';
-import { loadLang, scopeFor } from './i18n';
+import { loadLang } from './i18n';
 
 applyTheme(usePrefs.getState().theme);
 // Pages hand over from the boot painter once they have their answer; never leave it standing longer than this.
@@ -33,7 +34,7 @@ window.addEventListener('vite:preloadError', () => {
 });
 
 // Only the language this page shows is downloaded before the first render; the other follows when idle.
-const lang = usePrefs.getState().lang[scopeFor(window.location.pathname)];
+const lang = usePrefs.getState().lang;
 const render = () =>
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

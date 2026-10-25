@@ -8,16 +8,15 @@
  * Sanskritised words) before release.
  */
 import { use } from 'react';
-import { useLocation } from 'react-router-dom';
-import { usePrefs, type Lang, type LangScope } from './store';
+import { scopeFor, usePrefs, type Lang } from './store';
 import type { strings } from './i18n/strings';
 import type { AlertStatus, DirectiveType, Level, ReportState, ReportType, Severity } from './types';
 
 type Entry = { hi: string; en: string };
 
 /**
- * The few strings shown in both languages at once on any page (the level words and the data badges): kept in
- * the main bundle so they never wait for a language table. Everything else is in i18n/strings.ts.
+ * The level words and the data badges: kept in the main bundle so they never wait for a language table (the
+ * pre-JS painter and the first frame use them). Everything else is in i18n/strings.ts.
  */
 export const dict = {
   'level.normal': { hi: 'सामान्य', en: 'Normal' },
@@ -126,40 +125,21 @@ export function translate(lang: Lang, key: Key, vars?: Record<string, string | n
   return format(s, vars);
 }
 
-/** One string in both languages, for the pages that always show both (the family link, the approval link). */
-export function both(key: Key, vars?: Record<string, string | number>): Entry {
-  return { hi: translate('hi', key, vars), en: translate('en', key, vars) };
-}
-
-let bothLoading: Promise<void> | null = null;
-
-/** Suspends until both tables are in: for pages that call both(). */
-export function useBothLangs(): void {
-  if (!tables.hi || !tables.en) use((bothLoading ??= Promise.all([loadLang('hi'), loadLang('en')]).then(() => undefined)));
-}
-
-/** The officer tools: the console, audit, roster, sign-in and the one-tap approval link. */
-const STAFF_PATH = /^\/(console|audit|roster|login)(\/|$)|^\/a\//;
+/** Which area a page belongs to; it only picks the first-visit language (store.ts). */
+export { scopeFor };
 
 /**
- * Which remembered language a page uses: villager pages (report, tracking) default to Hindi, the officer
- * tools to English, and the public pages to the browser's language (store.ts).
+ * The one language of the whole site (store.ts): every page shows only it, and a switch on any page applies to
+ * every page.
  */
-export function scopeFor(pathname: string): LangScope {
-  if (pathname.startsWith('/report') || pathname.startsWith('/t/') || pathname === '/t') return 'villager';
-  return STAFF_PATH.test(pathname) ? 'staff' : 'public';
-}
-
 export function useT() {
-  const { pathname } = useLocation();
-  const scope = scopeFor(pathname);
-  const lang = usePrefs((s) => s.lang[scope]);
+  const lang = usePrefs((s) => s.lang);
   const setLang = usePrefs((s) => s.setLang);
-  // A page in a language whose table has not arrived (another area's choice) waits for it, inside Suspense.
+  // A language whose table has not arrived yet waits for it, inside Suspense.
   if (!tables[lang]) use(loadLang(lang));
   const t = (key: Key, vars?: Record<string, string | number>) => translate(lang, key, vars);
   const pick = (e: Entry) => e[lang];
   // A switch fetches the table first, so the page never blanks while it arrives.
-  const switchTo = (l: Lang) => void loadLang(l).then(() => setLang(scope, l), () => setLang(scope, l));
-  return { t, lang, scope, pick, setLang: switchTo, other: (lang === 'hi' ? 'en' : 'hi') as Lang };
+  const switchTo = (l: Lang) => void loadLang(l).then(() => setLang(l), () => setLang(l));
+  return { t, lang, pick, setLang: switchTo, other: (lang === 'hi' ? 'en' : 'hi') as Lang };
 }

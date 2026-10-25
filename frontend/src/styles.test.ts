@@ -33,7 +33,7 @@ describe('design tokens', () => {
 
   it('every stylesheet but tokens.css passes the lint', async () => {
     const { lintCss } = await load();
-    const findings = sheets.filter((f) => f !== 'tokens.css').flatMap((f) => lintCss(readFileSync(join(dir, f), 'utf8'), f));
+    const findings = sheets.filter((f) => f !== 'tokens.css' && f !== 'water.css').flatMap((f) => lintCss(readFileSync(join(dir, f), 'utf8'), f));
     expect(findings).toEqual([]);
   });
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
-    <meta name="theme-color" content="#f7f5f0" />
+    <meta name="theme-color" content="#eef5fb" />
     <title>Pukaar पुकार · flood warnings for Himalayan villages</title>
     <meta name="description" content="The call that reaches the village before the river does. नदी से पहले गाँव तक पहुँचने वाली पुकार।" />
     <script>
@@ -13,6 +13,7 @@
         var t = localStorage.getItem('pukaar.theme');
         if (t !== 'light' && t !== 'dark' && /^\/(?:$|village\/|report|t\/|safe\/|live)/.test(location.pathname)) t = 'light';
         if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        if (/^\/(console|login)(\/|$)/.test(location.pathname)) document.documentElement.setAttribute('data-console', '');
       } catch (e) {}
     </script>
     <!-- pk:boot -->

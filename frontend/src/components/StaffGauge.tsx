@@ -239,7 +239,7 @@ export function StaffReview({ report, canEdit, onUpdated }: { report: Report; ca
       onUpdated(await api.confirmStaffReading(report.id, body));
     } catch (e) {
       const ae = e instanceof ApiError ? e : new ApiError(0, null);
-      setErr((lang === 'hi' && ae.messageHi) || ae.messageEn);
+      setErr(ae.messageIn(lang));
     } finally {
       setBusy(false);
     }
@@ -394,7 +394,7 @@ export function StaffGaugeSetup({ villageId, onCreated, onCancel }: { villageId:
       onCreated(g);
     } catch (e) {
       const ae = e instanceof ApiError ? e : new ApiError(0, null);
-      setErr((lang === 'hi' && ae.messageHi) || ae.messageEn);
+      setErr(ae.messageIn(lang));
     } finally {
       setSaving(false);
     }

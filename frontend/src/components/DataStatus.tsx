@@ -9,18 +9,12 @@ type V = { level: Level; live_level?: Level; replay?: boolean; data_status?: Dat
 
 /** "No data" / "Data late" in place of a Normal that nobody can vouch for. Never green. */
 export function DataBadge({ kind, size = 'sm', plain = false }: { kind: 'stale' | 'unavailable'; size?: 'sm' | 'md' | 'lg'; plain?: boolean }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const Icon = kind === 'unavailable' ? CloudOff : Clock;
   return (
     <span className={`level-badge lv-nodata lb-${size}${plain ? ' lb-plain' : ''}`} data-level="unknown">
       <Icon className="lb-icon" aria-hidden="true" />
-      <span className="lb-words">
-        <span lang="hi">{kind === 'unavailable' ? 'डेटा नहीं' : 'डेटा देर से'}</span>
-        <span className="lb-sep" aria-hidden="true">
-          ·
-        </span>
-        <span lang="en">{kind === 'unavailable' ? t('data.badge.none') : t('data.badge.late')}</span>
-      </span>
+      <span className="lb-words" lang={lang}>{kind === 'unavailable' ? t('data.badge.none') : t('data.badge.late')}</span>
     </span>
   );
 }
@@ -66,12 +60,12 @@ export function DataStatusNote({ v, compact = false }: { v: V; compact?: boolean
 
 /** During a replay a Normal live village shows the replay's level; the live one is said beside it. */
 export function LiveLevelNote({ v, compact = false }: { v: V; compact?: boolean }) {
-  const { t, lang } = useT();
+  const { t } = useT();
   const live = liveLevelIfDifferent(v);
   if (!live) return null;
   return (
     <span className={`live-level-note${compact ? ' is-compact' : ''}`}>
-      {t('data.livelevel')} <LevelBadge level={live} size="sm" plain both={!compact} lang={lang} />
+      {t('data.livelevel')} <LevelBadge level={live} size="sm" plain />
       {v.replay && <span className="lln-why">{t('data.replayshown')}</span>}
     </span>
   );

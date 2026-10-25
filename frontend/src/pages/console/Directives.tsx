@@ -52,7 +52,7 @@ export function Directives({ villages, poll }: { villages: Village[]; poll: Poll
               <option value="">—</option>
               {villages.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {v.name} · {v.name_hi}
+                  {lang === 'hi' ? v.name_hi || v.name : v.name}
                 </option>
               ))}
             </select>
@@ -80,7 +80,7 @@ export function Directives({ villages, poll }: { villages: Village[]; poll: Poll
       {err && (err.isDenied ? <DeniedNote error={err} /> : <ErrorState error={err} compact />)}
       {done && (
         <p className="ok-text" role="status">
-          {t('console.directive.done')}: <span lang="hi">{done.text_hi}</span>
+          {t('console.directive.done')}: {lang === 'en' && done.text_en ? <span>{done.text_en}</span> : <span lang="hi">{done.text_hi}</span>}
         </p>
       )}
       {active.length > 0 && (
@@ -92,7 +92,7 @@ export function Directives({ villages, poll }: { villages: Village[]; poll: Poll
                 <p className="dc-top">
                   <strong>{pick(enumLabels.directiveType[d.type])}</strong> · {vname(d.village_id)}
                 </p>
-                <p lang="hi">{d.text_hi}</p>
+                {lang === 'en' && d.text_en ? <p>{d.text_en}</p> : <p lang="hi">{d.text_hi}</p>}
                 <p className="small muted">
                   {d.issued_by} · {fmtAgo(d.issued_at, lang)}
                 </p>

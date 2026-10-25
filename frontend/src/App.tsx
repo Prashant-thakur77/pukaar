@@ -2,6 +2,7 @@ import { Component, lazy, Suspense, type ComponentType, type ReactNode } from 'r
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Shell, { BareShell } from './components/Shell';
 import { SkeletonCards } from './components/States';
+import { usePrefs } from './store';
 
 /**
  * After a deploy, a tab (or a service worker) still running the previous build asks for chunk files that no
@@ -32,11 +33,12 @@ class PageBoundary extends Component<{ children: ReactNode }, { failed: boolean 
   }
   render() {
     if (!this.state.failed) return this.props.children;
+    const hi = usePrefs.getState().lang === 'hi';
     return (
       <div className="wrap" style={{ padding: '64px 16px', textAlign: 'center' }}>
-        <p className="eyebrow">पुकार · Pukaar</p>
-        <h1 className="display-3">कुछ गड़बड़ हुई · Something went wrong</h1>
-        <p className="muted">Reload to get the latest version. In an emergency, call 112.</p>
+        <p className="eyebrow">{hi ? 'पुकार' : 'Pukaar'}</p>
+        <h1 className="display-3">{hi ? 'कुछ गड़बड़ हुई' : 'Something went wrong'}</h1>
+        <p className="muted">{hi ? 'नया रूप पाने के लिए पन्ना फिर से खोलें। आपात स्थिति में 112 पर कॉल करें।' : 'Reload to get the latest version. In an emergency, call 112.'}</p>
         <button type="button" className="btn btn-accent" onClick={() => window.location.reload()}>
           Reload
         </button>

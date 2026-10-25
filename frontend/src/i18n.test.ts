@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { both, dict as core, enumLabels, format, langReady, loadLang, scopeFor, translate } from './i18n';
+import { dict as core, enumLabels, format, langReady, loadLang, scopeFor, translate } from './i18n';
 import { strings } from './i18n/strings';
 import { LEVEL_WORDS } from './lib/answerText';
 import hiTable from 'virtual:pk-strings/hi';
@@ -49,13 +49,13 @@ describe('i18n', () => {
     for (const k of Object.keys(core)) expect(k in strings, k).toBe(false);
   });
 
-  it('translates from the loaded tables, and both() gives the two languages', async () => {
+  it('translates from the loaded tables', async () => {
     await loadLang('hi');
     await loadLang('en');
     expect(langReady('hi') && langReady('en')).toBe(true);
     expect(translate('hi', 'nav.status')).toBe(strings['nav.status'].hi);
     expect(translate('en', 'level.critical')).toBe('Critical');
-    expect(both('village.do')).toEqual(strings['village.do']);
+    expect(translate('en', 'village.do')).toBe(strings['village.do'].en);
   });
 
   it('says the level words the boot painter says (lib/answerText.ts)', () => {
@@ -82,6 +82,7 @@ describe('default language', () => {
     vi.restoreAllMocks();
     vi.resetModules();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   async function freshPrefs(languages: string[]) {
@@ -103,17 +104,51 @@ describe('default language', () => {
     expect(browserLang()).toBe('en');
   });
 
-  it('starts villager pages in Hindi, public pages in the browser language and staff pages in English', async () => {
-    expect((await freshPrefs(['en-US'])).lang).toEqual({ villager: 'hi', public: 'en', staff: 'en' });
-    expect((await freshPrefs(['hi-IN'])).lang).toEqual({ villager: 'hi', public: 'hi', staff: 'en' });
+  /** A new tab opened on `path`: no language for this tab yet. */
+  async function firstVisit(path: string) {
+    sessionStorage.clear();
+    return (await import('./store')).initialLang(path);
+  }
+
+  it('starts a first visit in the entry page\'s default: Hindi for villagers, the browser on public pages, English for officers', async () => {
+    await freshPrefs(['en-US']);
+    expect(await firstVisit('/report')).toBe('hi');
+    expect(await firstVisit('/t/PK42')).toBe('hi');
+    expect(await firstVisit('/')).toBe('en');
+    expect(await firstVisit('/console/inbox')).toBe('en');
+    await freshPrefs(['hi-IN']);
+    expect(await firstVisit('/village/thunag')).toBe('hi');
+    expect(await firstVisit('/a/tok123')).toBe('en');
   });
 
-  it('remembers a choice per scope over the default', async () => {
+  it('holds one language for the whole site: the store has a single value, not one per area', async () => {
+    const prefs = await freshPrefs(['en-US']);
+    expect(typeof prefs.lang).toBe('string');
+  });
+
+  it('keeps a visit in the language it started in, even after a reload on another page', async () => {
+    sessionStorage.clear();
+    window.history.replaceState(null, '', '/report');
+    expect((await freshPrefs(['en-US'])).lang).toBe('hi');
+    // The villager taps through to the home page and reloads it: a public page, whose default would be English.
+    window.history.replaceState(null, '', '/');
+    expect((await freshPrefs(['en-US'])).lang).toBe('hi');
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('a switch on any page sets every area, so no page flips back on the next visit', async () => {
+    const prefs = await freshPrefs(['en-US']);
+    prefs.setLang('hi');
+    for (const scope of ['villager', 'public', 'staff']) expect(localStorage.getItem(`pukaar.lang.${scope}`), scope).toBe('hi');
+    expect((await import('./store')).usePrefs.getState().lang).toBe('hi');
+    for (const p of ['/report', '/', '/console', '/a/x']) expect(await firstVisit(p), p).toBe('hi');
+  });
+
+  it('remembers an older per-area choice for the page a visit starts on', async () => {
     localStorage.setItem('pukaar.lang.villager', 'en');
     localStorage.setItem('pukaar.lang.public', 'hi');
-    expect((await freshPrefs(['en-US'])).lang).toEqual({ villager: 'en', public: 'hi', staff: 'en' });
-    const prefs = await freshPrefs(['en-US']);
-    prefs.setLang('public', 'en');
-    expect(localStorage.getItem('pukaar.lang.public')).toBe('en');
+    await freshPrefs(['en-US']);
+    expect(await firstVisit('/report')).toBe('en');
+    expect(await firstVisit('/live')).toBe('hi');
   });
 });

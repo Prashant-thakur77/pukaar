@@ -17,7 +17,7 @@ const mins = (v: number | null | undefined, lang: Lang) => (v == null ? DASH : `
 
 export const TEN: { n: number; key: string; title: Txt; how: Txt }[] = [
   { n: 1, key: 'coverage', title: { en: 'Coverage', hi: 'पहुँच का दायरा' }, how: { en: 'Registered phones ÷ households on the village list', hi: 'जुड़े फ़ोन ÷ गाँव की सूची के घर' } },
-  { n: 2, key: 'reach', title: { en: 'Confirmed reach', hi: 'पुष्टि वाली पहुँच' }, how: { en: 'Pressed “मिल गया” within 15, 30, 60 min of the first send', hi: 'पहले संदेश के 15, 30, 60 मिनट में “मिल गया” दबाया' } },
+  { n: 2, key: 'reach', title: { en: 'Confirmed reach', hi: 'पुष्टि वाली पहुँच' }, how: { en: 'Pressed “Got it” within 15, 30, 60 min of the first send', hi: 'पहले संदेश के 15, 30, 60 मिनट में “मिल गया” दबाया' } },
   { n: 3, key: 'assisted', title: { en: 'Assisted households', hi: 'मदद वाले घर' }, how: { en: 'Confirmed in 30 min, or checked by their named neighbour', hi: '30 मिनट में पुष्टि, या पड़ोसी ने जाकर देखा' } },
   { n: 4, key: 'chain', title: { en: 'Time chain', hi: 'समय की कड़ी' }, how: { en: 'First signal → rule → officer asked → approved → first send → first confirmation (median)', hi: 'पहला संकेत → नियम → अधिकारी से पूछा → मंज़ूरी → पहला संदेश → पहली पुष्टि (मध्य)' } },
   { n: 5, key: 'lead', title: { en: 'Lead time achieved', hi: 'मिला हुआ समय' }, how: { en: 'First send to when harm began, where a real flood was recorded', hi: 'पहले संदेश से नुक़सान शुरू होने तक, जहाँ असली बाढ़ दर्ज हुई' } },

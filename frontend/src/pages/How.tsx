@@ -25,21 +25,24 @@ import '../styles/explain.css';
  */
 
 type Txt = { hi: string; en: string };
-type Source = { label: string; href: string };
+type Source = { label: string; hi?: string; href: string };
+const srcLabel = (s: Source, lang: 'hi' | 'en') => (lang === 'hi' && s.hi) || s.label;
 const GITHUB = 'https://github.com/Prashant-thakur77/pukaar';
 const KARNALI: Source = {
-  label: 'Rai et al. 2020, Karnali flood EWS, Nepal',
+  label: 'Rai et al. 2020, Karnali flood EWS, Nepal', hi: 'Rai और साथी 2020, कर्णाली की बाढ़ चेतावनी, नेपाल',
   href: 'https://www.dpnet.org.np/public/uploads/files/CBA%20of%20EWS%20in%20Karnali%20Feb%202020%202021-09-12%2010-18-25.pdf',
 };
 const BIHAR: Source = { label: 'Jagnani & Pande 2024', href: 'https://bpb-us-w2.wpmucdn.com/campuspress.yale.edu/dist/7/2986/files/2024/04/Google_Floods-bcdf49042e23059a.pdf' };
 const PDNA_2023: Source = {
-  label: 'NDMA PDNA 2023, via The Tribune',
+  label: 'NDMA PDNA 2023, via The Tribune', hi: 'NDMA PDNA 2023, The Tribune के ज़रिए',
   href: 'https://www.tribuneindia.com/news/himachal/himachal-pradesh-floods-climate-change-illegal-construction-greenery-loss-increasing-disaster-risk-in-himalayas-says-ndma-report-586698',
 };
-const CUMISKEY: Source = { label: 'Cumiskey et al. 2015', href: 'https://doi.org/10.1108/IJDRBE-08-2014-0062' };
-const BAUDOIN: Source = { label: 'Baudoin et al. 2016', href: 'https://doi.org/10.1007/s13753-016-0085-6' };
+const CUMISKEY: Source = { label: 'Cumiskey et al. 2015', hi: 'Cumiskey और साथी 2015', href: 'https://doi.org/10.1108/IJDRBE-08-2014-0062' };
+const BAUDOIN: Source = { label: 'Baudoin et al. 2016', hi: 'Baudoin और साथी 2016', href: 'https://doi.org/10.1007/s13753-016-0085-6' };
 
-type Step = { title: Txt; what: Txt; aws: string; why?: Txt; src?: Source };
+/** The engineers' line: AWS and library names stay as they are; any plain words around them are translated. */
+type Step = { title: Txt; what: Txt; aws: string | Txt; why?: Txt; src?: Source };
+const txt = (x: string | Txt, lang: 'hi' | 'en') => (typeof x === 'string' ? x : x[lang]);
 
 const LOOP: Step[] = [
   {
@@ -70,7 +73,7 @@ const LOOP: Step[] = [
   {
     title: { hi: 'हिंदी में संदेश, जाँचा हुआ', en: 'A Hindi message, checked' },
     what: { hi: 'संदेश में कोई संख्या या जगह रिकॉर्ड से बाहर हो तो वह रुकता है, और तय हिंदी ढाँचा काम आता है।', en: 'If the message has any number or place not in the record it is stopped, and a fixed Hindi template is used.' },
-    aws: 'Bedrock (Nova) via Strands · checker · fallback',
+    aws: { en: 'Bedrock (Nova) via Strands · checker · fallback', hi: 'Bedrock (Nova), Strands के ज़रिए · जाँच · तय ढाँचा' },
   },
   {
     title: { hi: 'एक इंसान की मंज़ूरी', en: 'One person approves' },
@@ -88,7 +91,7 @@ const LOOP: Step[] = [
     src: CUMISKEY,
   },
   {
-    title: { hi: '“मिल गया”, वरना दोबारा', en: '“मिल गया”, or sent again' },
+    title: { hi: '“मिल गया”, वरना दोबारा', en: '“Got it”, or sent again' },
     what: { hi: 'एक टैप बताता है कि चेतावनी पहुँची; पुष्टि न आए तो दोबारा भेजी जाती है।', en: 'One tap says the alert arrived; no confirmation, and it is sent again.' },
     aws: 'API Gateway · DynamoDB · CloudWatch',
     why: { hi: '“चेतावनी तभी असरदार है जब वह मिले, समझी जाए और उस पर क़दम उठे।”', en: '“A warning cannot be considered effective until it is received, understood and responded to.”' },
@@ -106,18 +109,18 @@ const WHY_NUMBERS: { num: string; cap: Txt; src: Source }[] = [
   {
     num: '46.5%',
     cap: { hi: 'ज़्यादा संभावना कि चेतावनी पानी से पहले पहुँचे, जब हर पंचायत में प्रशिक्षित स्वयंसेवक हों (बिहार)', en: 'more likely to get a warning before the water, with trained volunteers in each panchayat (Bihar)' },
-    src: { label: BIHAR.label, href: BIHAR.href },
+    src: BIHAR,
   },
-  { num: '~500', cap: { hi: 'जानें गईं, हिमाचल के 2023 के मानसून में', en: 'lives lost in Himachal’s 2023 monsoon' }, src: { label: PDNA_2023.label, href: PDNA_2023.href } },
+  { num: '~500', cap: { hi: 'जानें गईं, हिमाचल के 2023 के मानसून में', en: 'lives lost in Himachal’s 2023 monsoon' }, src: PDNA_2023 },
 ];
 
-const PATH: { hi: string; en: string; id: string }[] = [
+const PATH: { hi: string; en: string; id: string | Txt }[] = [
   { hi: 'नदी गेज', en: 'River gauge', id: 'ESP32 + JSN-SR04T' },
   { hi: 'सुरक्षित कनेक्शन', en: 'Secure link', id: 'AWS IoT Core · MQTT · X.509' },
-  { hi: 'छँटाई', en: 'Filter', id: 'Topic rule pukaar/gauge/+/+/reading' },
-  { hi: 'जाँच और दर्ज', en: 'Check and store', id: 'Ingest Lambda · ≤5 min old' },
-  { hi: 'नियम', en: 'Rules', id: 'risk_rules · 3 marks per village' },
-  { hi: 'चेतावनी', en: 'Alert', id: 'officer approves' },
+  { hi: 'छँटाई', en: 'Filter', id: { en: 'Topic rule pukaar/gauge/+/+/reading', hi: 'टॉपिक नियम pukaar/gauge/+/+/reading' } },
+  { hi: 'जाँच और दर्ज', en: 'Check and store', id: { en: 'Ingest Lambda · ≤5 min old', hi: 'Ingest Lambda · 5 मिनट से ज़्यादा पुराना नहीं' } },
+  { hi: 'नियम', en: 'Rules', id: { en: 'risk_rules · 3 marks per village', hi: 'risk_rules · हर गाँव पर 3 निशान' } },
+  { hi: 'चेतावनी', en: 'Alert', id: { en: 'officer approves', hi: 'अधिकारी मंज़ूर करता है' } },
 ];
 
 function Ext({ href, children, className = '' }: { href: string; children: ReactNode; className?: string }) {
@@ -150,11 +153,11 @@ function Loop() {
     <section id="loop" className="xp-chapter" aria-labelledby="loop-h">
       <p className="xp-chap-n">{hi ? 'अध्याय 1' : 'Chapter 1'}</p>
       <h2 id="loop-h" className="xp-h2">
-        {hi ? 'चक्र: पूर्वानुमान से “मिल गया” तक' : 'The loop: from a forecast to “मिल गया”'}
+        {hi ? 'चक्र: पूर्वानुमान से “मिल गया” तक' : 'The loop: from a forecast to “Got it”'}
       </h2>
       <ol className="xp-steps" data-tour="how-loop">
         {LOOP.map((s, i) => (
-          <li key={s.aws}>
+          <li key={txt(s.aws, 'en')}>
             <span className="xp-step-n" aria-hidden="true">
               {i + 1}
             </span>
@@ -175,13 +178,13 @@ function Loop() {
               <blockquote className="xp-quote">
                 <p>{s.why[lang]}</p>
                 <footer>
-                  <Ext href={s.src.href}>{s.src.label}</Ext>
+                  <Ext href={s.src.href}>{srcLabel(s.src, lang)}</Ext>
                 </footer>
               </blockquote>
             )}
             <Disclosure summary={forEngineers(lang)}>
               <p className="xp-chips" translate="no">
-                {s.aws}
+                {txt(s.aws, lang)}
               </p>
             </Disclosure>
           </li>
@@ -194,7 +197,7 @@ function Loop() {
             <span className="xp-num">{n.num}</span>
             <span className="xp-p">{n.cap[lang]}</span>
             <Ext href={n.src.href} className="xp-src">
-              {n.src.label}
+              {srcLabel(n.src, lang)}
             </Ext>
           </li>
         ))}
@@ -322,7 +325,7 @@ function GaugeCard({ v }: { v: SensorVillage }) {
   return (
     <li className="xp-gauge">
       <p className="xp-gauge-name">
-        <span lang="hi">{v.name_hi}</span> {!hi && <span className="xp-en">{v.name}</span>}
+        <span>{hi ? v.name_hi || v.name : v.name}</span>
         {v.simulated && <span className="xp-tag">{hi ? 'सिम्युलेटेड' : 'Simulated'}</span>}
       </p>
       <p className="xp-gauge-now">
@@ -435,14 +438,14 @@ function Sensors({ data, error, refresh }: { data: SensorBoard | null; error: Pa
       </p>
       <ol className="xp-path" aria-label={hi ? 'गेज से चेतावनी तक' : 'From the gauge to the alert'}>
         {PATH.map((p) => (
-          <li key={p.id}>{p[lang]}</li>
+          <li key={p.en}>{p[lang]}</li>
         ))}
       </ol>
       <Disclosure summary={`${forEngineers(lang)}: ${hi ? 'रास्ता और हार्डवेयर' : 'the path and the hardware'}`}>
         <ol className="xp-path-ids" translate="no">
           {PATH.map((p) => (
-            <li key={p.id}>
-              {p.en}: {p.id}
+            <li key={p.en}>
+              {p[lang]}: {txt(p.id, lang)}
             </li>
           ))}
         </ol>

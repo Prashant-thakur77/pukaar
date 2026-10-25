@@ -91,6 +91,25 @@ export class ApiError extends Error {
   get isRetry() {
     return this.status === 503;
   }
+
+  /**
+   * The message in the page's language. Most server messages are English only; a Hindi page never shows them
+   * and says the plain Hindi line for the status instead.
+   */
+  messageIn(lang: 'hi' | 'en'): string {
+    if (lang === 'en') return this.messageEn;
+    if (this.messageHi) return this.messageHi;
+    const s = this.status;
+    if (s === 0) return 'सर्वर से संपर्क नहीं हो पा रहा।';
+    if (s === 401) return 'फिर से साइन इन करें।';
+    if (s === 403) return 'आपके खाते को यह करने की अनुमति नहीं है।';
+    if (s === 404) return 'यह नहीं मिला।';
+    if (s === 409) return 'इस पर पहले ही फ़ैसला हो चुका है।';
+    if (s === 400 || s === 422) return 'भरी हुई जानकारी में कुछ ग़लत है। जाँचकर फिर भेजें।';
+    if (s === 429) return 'बहुत जल्दी-जल्दी भेजा गया। थोड़ी देर बाद फिर कोशिश करें।';
+    if (s === 503) return 'अभी जवाब नहीं मिला। थोड़ी देर में फिर कोशिश करें।';
+    return 'कुछ गड़बड़ हुई। फिर कोशिश करें।';
+  }
 }
 
 function readDetail(status: number, detail: unknown): { code: string | null; en: string; hi: string | null } {

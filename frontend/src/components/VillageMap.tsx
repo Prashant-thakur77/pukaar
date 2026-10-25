@@ -144,6 +144,12 @@ const NARROW_PX = 560;
 const DEM_TILES = ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'];
 const DEM_ATTRIBUTION =
   'Elevation: <a href="https://registry.opendata.aws/terrain-tiles/">Terrain Tiles on AWS</a> (<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">sources</a>)';
+const OSM_ATTRIBUTION = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+/** The same credits in Hindi: the map is made again on a language switch (VillageMap below), so they follow it. */
+const ATTRIBUTION_HI = {
+  osm: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> योगदानकर्ता',
+  dem: 'ऊँचाई: <a href="https://registry.opendata.aws/terrain-tiles/">Terrain Tiles on AWS</a> (<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">स्रोत</a>)',
+};
 const TERRAIN_EXAGGERATION = 1.5;
 const PITCH_3D = 60;
 
@@ -155,7 +161,7 @@ const OSM_STYLE = {
       tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
       maxzoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      attribution: OSM_ATTRIBUTION,
     },
     // Two DEM sources: MapLibre recommends separate ones for terrain and hillshade.
     dem: { type: 'raster-dem' as const, tiles: DEM_TILES, encoding: 'terrarium' as const, tileSize: 256, maxzoom: 14, attribution: DEM_ATTRIBUTION },
@@ -218,11 +224,52 @@ function default3d(compact?: boolean): boolean {
  * in 3D, keep it in 2D too.
  */
 function styleFor(shade: boolean) {
-  return { ...OSM_STYLE, layers: OSM_STYLE.layers.map((l) => (l.id === 'hillshade' ? { ...l, layout: { visibility: shade ? ('visible' as const) : ('none' as const) } } : l)) };
+  const hi = usePrefs.getState().lang === 'hi';
+  const sources = hi
+    ? { ...OSM_STYLE.sources, osm: { ...OSM_STYLE.sources.osm, attribution: ATTRIBUTION_HI.osm }, dem: { ...OSM_STYLE.sources.dem, attribution: ATTRIBUTION_HI.dem } }
+    : OSM_STYLE.sources;
+  return { ...OSM_STYLE, sources, layers: OSM_STYLE.layers.map((l) => (l.id === 'hillshade' ? { ...l, layout: { visibility: shade ? ('visible' as const) : ('none' as const) } } : l)) };
 }
 
-/** MapLibre + OSM raster. Markers are real buttons rendered through portals. */
-export function VillageMap({
+/** MapLibre's own control labels in Hindi (its built-in ones are English). */
+const MAP_LOCALE_HI: Record<string, string> = {
+  'AttributionControl.ToggleAttribution': 'नक्शे के स्रोत दिखाएँ या छिपाएँ',
+  'AttributionControl.MapFeedback': 'नक्शे पर राय दें',
+  'FullscreenControl.Enter': 'पूरी स्क्रीन पर देखें',
+  'FullscreenControl.Exit': 'पूरी स्क्रीन बंद करें',
+  'GeolocateControl.FindMyLocation': 'मेरी जगह ढूँढें',
+  'GeolocateControl.LocationNotAvailable': 'जगह नहीं मिल रही',
+  'LogoControl.Title': 'MapLibre का निशान',
+  'Map.Title': 'नक्शा',
+  'Marker.Title': 'नक्शे पर निशान',
+  'NavigationControl.ResetBearing': 'नक्शा फिर उत्तर की ओर करें',
+  'NavigationControl.ZoomIn': 'पास से देखें',
+  'NavigationControl.ZoomOut': 'दूर से देखें',
+  'Popup.Close': 'बंद करें',
+  'ScaleControl.Feet': 'फ़ुट',
+  'ScaleControl.Meters': 'मी',
+  'ScaleControl.Kilometers': 'किमी',
+  'ScaleControl.Miles': 'मील',
+  'ScaleControl.NauticalMiles': 'समुद्री मील',
+  'GlobeControl.Enable': 'गोला दिखाएँ',
+  'GlobeControl.Disable': 'गोला बंद करें',
+  'TerrainControl.Enable': 'पहाड़ों की ऊँचाई दिखाएँ',
+  'TerrainControl.Disable': 'पहाड़ों की ऊँचाई बंद करें',
+  'CooperativeGesturesHandler.WindowsHelpText': 'नक्शा बड़ा-छोटा करने के लिए Ctrl दबाकर स्क्रॉल करें',
+  'CooperativeGesturesHandler.MacHelpText': 'नक्शा बड़ा-छोटा करने के लिए ⌘ दबाकर स्क्रॉल करें',
+  'CooperativeGesturesHandler.MobileHelpText': 'नक्शा हिलाने के लिए दो उँगलियाँ इस्तेमाल करें',
+};
+
+/**
+ * MapLibre + OSM raster. Markers are real buttons rendered through portals. MapLibre sets its control labels
+ * once, when the map is made, so a language switch makes the map again (keyed on the language).
+ */
+export function VillageMap(props: Props) {
+  const lang = usePrefs((s) => s.lang);
+  return <VillageMapIn key={lang} {...props} />;
+}
+
+function VillageMapIn({
   villages,
   highlight = NO_IDS,
   points = NO_POINTS,
@@ -301,6 +348,7 @@ export function VillageMap({
           zoom: 8,
           attributionControl: { compact: true },
           cooperativeGestures: compact ?? false,
+          ...(usePrefs.getState().lang === 'hi' ? { locale: MAP_LOCALE_HI } : {}),
           maxPitch: 75,
         });
         m.addControl(new ml.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right');
@@ -620,7 +668,7 @@ export function VillageMap({
               {t('map.safe.legend.blocked')}
             </span>
           )}
-          <span className="sl-attrib">© OpenStreetMap contributors (ODbL)</span>
+          <span className="sl-attrib">{lang === 'hi' ? '© OpenStreetMap योगदानकर्ता (ODbL)' : '© OpenStreetMap contributors (ODbL)'}</span>
         </div>
       )}
       {safePlaces.map(({ key, place, villageId }) => {
@@ -640,7 +688,7 @@ export function VillageMap({
         // A Normal with no data behind it is drawn grey, never green.
         const known = levelIsKnown(v);
         const Icon = known ? LEVEL_ICON[v.level] : CloudOff;
-        const lvWord = known ? `${dict[`level.${v.level}`].hi} / ${dict[`level.${v.level}`].en}` : `${dict['data.badge.none'].hi} / ${dict['data.badge.none'].en}`;
+        const lvWord = known ? dict[`level.${v.level}`][lang] : dict['data.badge.none'][lang];
         const name = lang === 'hi' ? v.name_hi : v.name;
         const hl = highlight.includes(v.id);
         return createPortal(

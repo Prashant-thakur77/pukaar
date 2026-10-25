@@ -17,7 +17,7 @@ const DEMO: { username: string; label: Key }[] = [
 ];
 
 export default function Login() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const nav = useNavigate();
   const loc = useLocation();
   const signIn = useAuth((s) => s.signIn);
@@ -100,12 +100,8 @@ export default function Login() {
           <i />
         </div>
         <Lehar className="login-art-orn" />
-        <p lang="hi" className="login-art-word">
-          पुकार
-        </p>
-        <p className="login-art-tag" lang="hi">
-          नदी से पहले, गाँव तक।
-        </p>
+        <p className="login-art-word">{lang === 'hi' ? 'पुकार' : 'Pukaar'}</p>
+        <p className="login-art-tag">{t('shell.footer.line')}</p>
       </section>
       <section className="login-panel">
         <div className="login-box">

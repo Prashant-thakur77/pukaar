@@ -21,7 +21,7 @@ function StatusPill({ status }: { status: SafePlace['ledger']['status'] }) {
 
 function errText(e: unknown, lang: 'hi' | 'en'): string {
   const ae = e instanceof ApiError ? e : new ApiError(0, null);
-  return lang === 'hi' && ae.messageHi ? ae.messageHi : ae.messageEn;
+  return ae.messageIn(lang);
 }
 
 function placeName(p: SafePlace, lang: 'hi' | 'en'): string {
@@ -40,7 +40,6 @@ function PlaceCard({ place, villageId, editable, named, onSaved, onMarkBlocked }
   const [busy, setBusy] = useState<ShelterState | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const name = placeName(place, lang);
-  const other = lang === 'hi' ? place.name : place.name_hi;
   const l = place.ledger;
   const blocks = place.route_blocks ?? [];
 
@@ -67,7 +66,6 @@ function PlaceCard({ place, villageId, editable, named, onSaved, onMarkBlocked }
         </span>
         <div className="wtg-names">
           <h3 lang={lang}>{name}</h3>
-          {other && other !== name && <p className="small muted">{other}</p>}
           <p className="wtg-kind small">
             <Tent aria-hidden="true" /> {lang === 'hi' ? place.kind_hi : place.kind_en}
           </p>

@@ -1,11 +1,82 @@
-/* गाँवों का हाल: status first, the story below. */
+/* The home page: the hero (the call that reaches the village before the river), the status and the village list,
+   then the sections. Colours, gradients, the night sky and the art are in water.css; this file is layout. */
 
-.home-status {
-  display: grid; gap: var(--sp-5);
-  padding-top: var(--sp-5); padding-bottom: var(--sp-7);
+/* ---------- the hero ---------- */
+.home-hero { position: relative; isolation: isolate; color: var(--ink); }
+.home-hero-in {
+  display: grid; gap: var(--sp-7); align-items: start;
+  padding-top: var(--sp-7); padding-bottom: calc(var(--sp-8) + 40px);
 }
-.home-region { font-size: var(--t-small); color: var(--ink-3); font-weight: 600; }
-.home-h1 { font-size: var(--t-h1); line-height: var(--lh-h1); font-weight: 700; margin-top: var(--sp-1); max-width: 18em; }
+.home-hero-copy { display: grid; justify-items: start; min-width: 0; }
+.home-kicker { margin-bottom: var(--sp-4); }
+.home-hero-h1 { font-size: var(--t-hero); line-height: var(--lh-hero); }
+.home-hero-h1 span { display: block; }
+.home-hero-lead { font-size: var(--t-lead); line-height: var(--lh-lead); color: var(--ink-2); max-width: 36em; margin-top: var(--sp-5); }
+.home-hero-ctas { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-6); }
+.home-ghost {
+  display: inline-flex; align-items: center; gap: var(--sp-3);
+  min-height: var(--tap-primary); padding: var(--sp-2) var(--sp-5);
+  border-radius: var(--r-pill); border: 1px solid var(--line-strong); color: var(--ink);
+  font-size: var(--t-body); font-weight: 600; text-decoration: none;
+  transition: background-color var(--dur-quick) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.home-ghost:active { transform: scale(0.98); }
+.home-ghost svg { width: 20px; height: 20px; }
+.home-hero-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-top: var(--sp-5); }
+.home-live {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  min-height: var(--tap); padding: 0 var(--sp-4);
+  border-radius: var(--r-pill); border: 1px solid var(--line); color: var(--ink);
+  font-size: var(--t-small); font-weight: 600; text-decoration: none;
+}
+.home-live svg { width: 18px; height: 18px; color: var(--ink-3); }
+.home-live-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--lv-line); flex: none; }
+.home-tour { margin: 0; }
+
+/* The three floating cards: decoration that repeats facts said elsewhere on the page. */
+.home-float { display: none; position: relative; height: 480px; }
+.hf-card { position: absolute; display: grid; gap: var(--sp-2); border-radius: var(--r-2); padding: var(--sp-5); }
+.hf-lead { left: 0; top: 0; width: 260px; }
+.hf-ticket { right: 0; top: 190px; width: 340px; }
+.hf-count { left: 0; top: 440px; width: 220px; }
+.hf-num { font-family: var(--font-display); font-size: var(--t-num-xl); line-height: var(--lh-num); }
+.hf-num small { font-size: var(--t-h3); margin-left: var(--sp-1); }
+.hf-cap { font-size: var(--t-small); line-height: var(--lh-small); }
+.hf-eyebrow { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--t-small); font-weight: 600; }
+.hf-text { font-size: var(--t-body); line-height: var(--lh-body); }
+.hf-row { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); margin-top: var(--sp-1); }
+.hf-play, .hf-ack { display: inline-flex; align-items: center; min-height: 32px; padding: 0 var(--sp-3); border-radius: var(--r-pill); font-size: var(--t-small); font-weight: 700; }
+
+/* ---------- section heads: the wave mark, a serif title, one line under it ---------- */
+.sec-head { display: grid; justify-items: center; text-align: center; gap: var(--sp-3); margin: 0 auto var(--sp-7); max-width: 46em; }
+.sec-orn { width: 92px; }
+.sec-h { font-size: var(--t-h1); line-height: var(--lh-h1); }
+.sec-sub { font-size: var(--t-lead); line-height: var(--lh-lead); color: var(--ink-2); }
+.home-sec { padding: var(--section) 0; }
+.home-center { display: flex; justify-content: center; margin-top: var(--sp-6); }
+.home-pill {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  min-height: var(--tap); padding: 0 var(--sp-5); border-radius: var(--r-pill);
+  border: 1px solid var(--line); color: var(--ink); font-size: var(--t-body); font-weight: 600; text-decoration: none;
+  transition: background-color var(--dur-quick) var(--ease-out), border-color var(--dur-quick) var(--ease-out);
+}
+.home-pill svg { width: 18px; height: 18px; }
+.home-card { border-radius: var(--r-2); border: 1px solid var(--line); padding: var(--sp-6); }
+.home-card-h { font-size: var(--t-h2); line-height: var(--lh-h2); }
+
+/* ---------- the status and the village list: one card with the answer and the list, one with the valley ---------- */
+.home-status {
+  position: relative;
+  display: grid; gap: var(--sp-5);
+  padding-top: var(--sp-7); padding-bottom: var(--sp-7);
+  scroll-margin-top: var(--header-h);
+}
+/* Explicit rows, so the card drawn behind the answer and the list (water.css) shares their cells on a phone too. */
+.home-now { grid-row: 1; grid-column: 1; }
+.home-pick { grid-row: 2; grid-column: 1; }
+.home-lede { grid-row: 3; grid-column: 1; }
+.home-region { font-size: var(--t-small); color: var(--accent-text); font-weight: 600; }
+.home-h1 { font-size: var(--t-h1); line-height: var(--lh-h1); margin-top: var(--sp-1); max-width: 18em; }
 .home-ok { color: var(--lv-normal-ink); white-space: nowrap; }
 .home-ok svg.lucide { display: inline-block; width: 0.8em; height: 0.8em; stroke-width: 2.6; vertical-align: -0.06em; margin-right: 0.15em; }
 .home-lead { font-size: var(--t-lead); line-height: var(--lh-lead); color: var(--ink-2); margin-top: var(--sp-2); }
@@ -17,62 +88,147 @@
 .lvb.lv-critical .home-banner-go { color: inherit; }
 .home-banner-go svg { width: 20px; height: 20px; }
 
-.home-h2 { font-size: var(--t-h2); line-height: var(--lh-h2); font-weight: 700; }
+.home-h2 { font-size: var(--t-h2); line-height: var(--lh-h2); }
 .home-pick .home-h2 { font-size: var(--t-h3); line-height: var(--lh-h3); margin-bottom: var(--sp-3); }
 .vrows-wait { min-height: calc(5 * 57px); padding: var(--sp-4); color: var(--ink-3); font-size: var(--t-body); }
 .home-acts { display: grid; gap: var(--sp-2); justify-items: start; margin-top: var(--sp-4); }
 .home-report {
-  display: flex; align-items: center; gap: var(--sp-3); width: 100%;
-  min-height: var(--tap-primary); padding: var(--sp-2) var(--sp-4);
-  background: var(--accent); color: var(--on-accent); border-radius: var(--r-2);
-  font-size: var(--t-body); font-weight: 700; text-decoration: none;
+  display: inline-flex; align-items: center; gap: var(--sp-3);
+  min-height: var(--tap-primary); padding: var(--sp-2) var(--sp-5);
+  background: var(--accent); color: var(--on-accent); border-radius: var(--r-pill);
+  font-size: var(--t-body); font-weight: 600; text-decoration: none;
   transition: transform var(--dur-press) var(--ease-out);
 }
 .home-report:active { transform: scale(0.98); }
-.home-report svg { width: 24px; height: 24px; flex: none; }
-.home-report-en { display: block; font-size: var(--t-small); font-weight: 400; }
-
-/* ---------- the story: the valley (S2, components/ValleyMap.tsx) and the line ---------- */
-.home-lede { border-top: 1px solid var(--line); padding-top: var(--sp-6); margin-top: var(--sp-3); }
-.home-lede .vm { margin-bottom: var(--sp-5); }
-.home-display {
-  font-family: var(--font-display); font-weight: 400;
-  font-size: var(--t-display); line-height: var(--lh-display); color: var(--ink);
-}
+.home-report svg { width: 22px; height: 22px; flex: none; }
+.home-lede .vm { margin-bottom: 0; }
 .home-para { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-2); max-width: 34em; margin-top: var(--sp-3); }
 
-/* ---------- the story bands ---------- */
-.home-band { padding: var(--section) 0; border-top: 1px solid var(--line); }
-.home-steps { display: grid; gap: var(--sp-5); margin: var(--sp-5) 0; counter-reset: step; }
-.home-steps li { display: grid; grid-template-columns: 48px 1fr; column-gap: var(--sp-3); align-items: start; }
-.home-steps svg { grid-row: span 2; width: 40px; height: 40px; padding: 8px; border-radius: 50%; background: var(--accent-tint); color: var(--accent-text); }
-.home-steps h3 { font-size: var(--t-h3); line-height: var(--lh-h3); font-weight: 700; }
-.home-steps p { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-2); margin-top: var(--sp-1); max-width: 30em; }
-.home-split { display: grid; gap: var(--sp-3); }
-.home-num {
-  font-size: var(--t-num-xl); line-height: var(--lh-num); font-weight: 600; color: var(--accent-text);
-  font-variant-numeric: tabular-nums;
-}
-.home-num span { font-size: var(--t-h3); font-weight: 600; margin-left: var(--sp-2); color: var(--ink-2); }
-.home-band .go-link { margin-top: var(--sp-2); }
+/* ---------- built on ---------- */
+.home-built { padding: var(--sp-6) 0; }
+.home-built-k { text-align: center; font-size: var(--t-small); font-weight: 600; color: var(--ink-3); letter-spacing: var(--track-label); text-transform: uppercase; }
+.home-built-k:lang(hi) { letter-spacing: 0; text-transform: none; }
+.home-built-row { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-3) var(--sp-8); margin-top: var(--sp-4); }
+.home-built-row li { font-family: var(--font-display); font-size: var(--t-h2); line-height: 1.2; color: var(--ink-3); }
+
+/* ---------- so far: a metrics card, label left and number right ---------- */
+.home-metrics { display: grid; border-radius: var(--r-2); border: 1px solid var(--line); padding: var(--sp-2) var(--sp-6); max-width: 880px; margin: 0 auto; }
+.home-metric { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-5); padding: var(--sp-4) 0; }
+.home-metric + .home-metric { border-top: 1px solid var(--line); }
+.home-metric-label { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-2); max-width: 32em; }
+.home-metric-num { font-family: var(--font-display); font-size: var(--t-h1); line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- watch, approve, call: three art tiles ---------- */
+.home-tiles { display: grid; gap: var(--sp-5); }
+.home-tile { position: relative; display: grid; align-content: start; gap: var(--sp-3); padding: var(--sp-3) var(--sp-3) var(--sp-6); border-radius: var(--r-2); border: 1px solid var(--line); }
+.home-tile > :not(.home-art) { margin-inline: var(--sp-3); }
+.home-art { position: relative; display: grid; place-items: center; height: 180px; border-radius: var(--r-2); overflow: hidden; margin-bottom: var(--sp-3); }
+.home-art svg { position: relative; z-index: 1; width: 64px; height: 64px; padding: 16px; border-radius: 50%; stroke-width: 1.8; }
+.home-tile-n { position: absolute; top: var(--sp-5); right: var(--sp-5); z-index: 1; font-family: var(--font-display); font-size: var(--t-h3); }
+.home-tile h3 { font-family: var(--font-display); font-size: var(--t-h2); line-height: var(--lh-h2); }
+.home-tile p { font-size: var(--t-body); line-height: var(--lh-body); color: var(--ink-2); }
+
+/* ---------- why this matters: a copy card beside an art panel ---------- */
+.home-fact { display: grid; gap: var(--sp-3); }
+.home-fact-copy { display: grid; align-content: start; gap: var(--sp-2); }
+.home-fact-src { margin-top: var(--sp-3); font-size: var(--t-small); color: var(--ink-3); }
+.home-fact-src a { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: var(--tap); color: var(--accent-text); font-weight: 600; }
+.home-fact-src svg { width: 16px; height: 16px; }
+.home-fact-art { position: relative; display: grid; align-content: end; gap: var(--sp-1); min-height: 320px; padding: var(--sp-6); border-radius: var(--r-2); overflow: hidden; }
+.home-fact-script { position: absolute; inset: var(--sp-4); font-family: var(--font-serif); font-size: var(--t-h2); line-height: 1.7; word-break: break-all; pointer-events: none; }
+.home-fact-date { position: relative; font-family: var(--font-display); font-size: var(--t-display); line-height: var(--lh-display); }
+.home-fact-place { position: relative; font-size: var(--t-body); }
+
+/* ---------- the proof: a card with the number, the line and the chart ---------- */
+.home-proof { display: grid; gap: var(--sp-6); align-items: center; }
+.home-proof .home-pill { margin-top: var(--sp-5); }
+.home-num { font-family: var(--font-display); font-size: var(--t-num-xl); line-height: var(--lh-num); color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.home-num span { font-size: var(--t-h3); margin-left: var(--sp-2); color: var(--ink-2); }
 /* The story's still frame: its box is held, so nothing below moves when the chart arrives. */
-.home-frame { min-height: 236px; margin-top: var(--sp-4); max-width: 640px; }
+.home-frame { min-height: 236px; max-width: 640px; width: 100%; }
+
+/* ---------- code decides ---------- */
+.home-thesis { text-align: center; }
+.home-thesis .wrap { display: grid; justify-items: center; gap: var(--sp-5); }
+.home-thesis-lines { display: grid; gap: 0.06em; font-family: var(--font-display); font-size: var(--t-hero); line-height: var(--lh-hero); }
+
+/* ---------- the cost: rows ---------- */
+.home-cost { max-width: 880px; margin: 0 auto; display: grid; gap: var(--sp-5); justify-items: start; }
+.home-rows { width: 100%; margin: 0; }
+.home-rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-5); padding: var(--sp-4) 0; }
+.home-rows > div + div { border-top: 1px solid var(--line); }
+.home-rows dt { font-size: var(--t-body); color: var(--ink-2); }
+.home-rows dd { margin: 0; font-family: var(--font-display); font-size: var(--t-h1); line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ---------- report from your phone: the dark panel ---------- */
+.home-cta { display: grid; gap: var(--sp-6); align-items: center; padding: var(--sp-7) var(--sp-6); border-radius: var(--r-2); overflow: hidden; }
+.home-cta-copy { display: grid; justify-items: start; gap: var(--sp-4); }
+.home-cta-h { font-size: var(--t-h1); line-height: var(--lh-h1); }
+.home-cta-copy p { font-size: var(--t-lead); line-height: var(--lh-lead); max-width: 30em; }
+.home-qr { display: flex; flex-wrap: wrap; gap: var(--sp-5); align-items: center; padding: var(--sp-5); border-radius: var(--r-2); }
+.home-qr-title { font-family: var(--font-display); font-size: var(--t-h3); line-height: var(--lh-h3); }
+.home-qr-body { margin-top: var(--sp-1); }
+.home-qr-url { margin-top: var(--sp-3); font-family: var(--font-mono); font-size: var(--t-small); word-break: break-all; }
 .home + .ft { margin-top: 0; }
 
 @media (min-width: 1024px) {
+  .home-hero-in { grid-template-columns: minmax(0, 7fr) minmax(400px, 5fr); padding-top: var(--sp-8); }
+  .home-float { display: block; }
   .home-status {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
     grid-template-areas: 'now lede' 'pick lede';
-    column-gap: var(--sp-8); row-gap: var(--sp-5);
-    padding-top: var(--sp-7);
-    align-items: start;
+    column-gap: var(--sp-5); row-gap: 0;
+    padding-top: var(--sp-8);
+    align-items: stretch;
   }
   .home-now { grid-area: now; }
   .home-pick { grid-area: pick; }
-  .home-lede { grid-area: lede; border-top: 0; padding-top: 0; margin-top: 0; }
-  .home-steps { grid-template-columns: repeat(3, 1fr); gap: var(--sp-6); }
-  .home-steps li { grid-template-columns: 1fr; row-gap: var(--sp-3); }
-  .home-steps svg { grid-row: auto; width: 48px; height: 48px; padding: 10px; }
-  .home-split { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--sp-8); align-items: start; }
-  .home-report { width: auto; }
+  .home-lede { grid-area: lede; }
+  .home-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .home-fact { grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); }
+  .home-proof { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); padding: var(--sp-7); }
+  .home-cta { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); padding: var(--sp-8); }
+}
+
+/* ---------- built on: the names drift by (water.css runs the drift; still under reduced motion) ---------- */
+.home-marquee { overflow: hidden; margin-top: var(--sp-4); }
+.home-marquee-row { display: flex; width: max-content; gap: var(--sp-8); padding-inline: var(--sp-4); }
+.home-marquee-row li { font-family: var(--font-display); font-size: var(--t-h2); line-height: 1.2; color: var(--ink-3); white-space: nowrap; }
+
+/* ---------- inside Pukaar: the framed tab panel ---------- */
+.show { padding: 8px; }
+.show-tabs { display: flex; overflow-x: auto; gap: 2px; border-radius: var(--r-2) var(--r-2) 0 0; }
+.show-tab {
+  flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  min-height: var(--tap); padding: 0 var(--sp-5); border: 0; background: none; cursor: pointer;
+  font-size: var(--t-body); font-weight: 500; color: var(--ink-2);
+}
+.show-tab svg { width: 20px; height: 20px; }
+.show-tab[aria-selected='true'] { color: var(--accent-text); }
+.show-panel { display: grid; gap: var(--sp-6); align-items: center; padding: var(--sp-6); border-radius: 0 0 var(--r-2) var(--r-2); min-height: 420px; }
+.show-copy { display: grid; justify-items: start; gap: var(--sp-3); }
+.show-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; }
+.show-icon svg { width: 26px; height: 26px; }
+.show-copy h3 { font-family: var(--font-display); font-size: var(--t-h1); line-height: var(--lh-h1); }
+.show-copy p { font-size: var(--t-lead); line-height: var(--lh-lead); color: var(--ink-2); max-width: 30em; }
+.show-art { display: grid; place-items: center; }
+.sa-card { width: min(380px, 100%); display: grid; gap: var(--sp-2); padding: var(--sp-5); border-radius: var(--r-2); }
+.sa-k { font-size: var(--t-small); color: var(--ink-3); }
+.sa-level { font-family: var(--font-display); font-size: var(--t-h1); line-height: 1.1; color: var(--lv-ink); }
+.sa-line { font-size: var(--t-body); font-weight: 600; }
+.sa-acts { display: grid; gap: var(--sp-2); margin-top: var(--sp-2); counter-reset: sa; }
+.sa-acts li { counter-increment: sa; display: grid; grid-template-columns: 28px 1fr; gap: var(--sp-2); font-size: var(--t-small); line-height: var(--lh-small); }
+.sa-acts li::before { content: counter(sa); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-weight: 700; }
+.sa-quote { font-size: var(--t-body); line-height: var(--lh-body); padding-left: var(--sp-3); }
+.sa-hold { display: grid; place-items: center; min-height: var(--tap); margin-top: var(--sp-2); border-radius: var(--r-pill); font-weight: 600; font-size: var(--t-small); }
+.sa-bubble { display: grid; gap: var(--sp-2); padding: var(--sp-4); border-radius: var(--r-2); }
+.sa-bubble p { font-size: var(--t-body); line-height: var(--lh-body); }
+.sa-play { font-family: var(--font-mono); font-size: var(--t-small); font-weight: 700; }
+.sa-ack { justify-self: end; display: inline-flex; align-items: center; min-height: 36px; padding: 0 var(--sp-4); border-radius: var(--r-pill); font-weight: 600; font-size: var(--t-small); }
+.sa-ways { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); margin-top: var(--sp-2); }
+.sa-ways span { display: grid; justify-items: center; gap: var(--sp-2); padding: var(--sp-4) var(--sp-2); border-radius: var(--r-2); font-size: var(--t-small); font-weight: 600; }
+.sa-ways svg { width: 28px; height: 28px; }
+
+@media (min-width: 1024px) {
+  .show-panel { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); padding: var(--sp-8); }
 }

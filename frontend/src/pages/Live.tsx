@@ -212,7 +212,7 @@ export default function Live() {
                       {a.replay && <ReplayChip />}
                     </div>
                     <p className="ar-name">
-                      <span lang="hi">{a.village_name_hi}</span> <span className="muted">· {a.village_name}</span>
+                      {lang === 'hi' ? a.village_name_hi || a.village_name : a.village_name}
                     </p>
                     <DeliveryChips approved={a.approved} delivered={a.delivered_count} acked={a.acknowledged_count} status={a.status} />
                     <p className="small muted">{fmtAgo(a.created_at, lang)}</p>

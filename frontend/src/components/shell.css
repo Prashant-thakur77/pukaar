@@ -100,7 +100,8 @@
   max-width: var(--w-content); margin: 0 auto; padding: var(--sp-6) var(--gutter) var(--sp-4);
   display: grid; gap: var(--sp-5); grid-template-columns: 1fr 1fr;
 }
-.ft-brand { grid-column: 1 / -1; display: grid; gap: var(--sp-2); justify-items: start; }
+.ft-brand { grid-column: 1 / -1; display: grid; gap: var(--sp-2); justify-items: start; align-content: start; }
+.ft-brand .call112 { align-self: start; }
 .ft-line { font-size: var(--t-h3); line-height: var(--lh-h3); font-weight: 700; color: var(--ink); }
 .ft-lead { font-size: var(--t-small); line-height: var(--lh-small); max-width: 40ch; }
 .ft-col { display: grid; align-content: start; }

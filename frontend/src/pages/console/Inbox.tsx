@@ -30,6 +30,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { AlertStatusChip, DeliveryChips, ReplayChip } from '../../components/Chips';
 import { LevelIcon } from '../../components/Level';
 import { ListenButton } from '../../components/ListenButton';
+import { QuotedAlert } from '../../components/QuotedAlert';
 import { SirenPanel } from '../../components/SirenPanel';
 import { Snackbar, type SnackbarMsg } from '../../components/Snackbar';
 import { DeniedNote, ErrorState, Skeleton } from '../../components/States';
@@ -78,8 +79,7 @@ const EV_ICON: Record<EvidenceLine['kind'], LucideIcon> = {
   official: Landmark,
 };
 
-const levelHi = (l: Alert['level']) => dict[`level.${l}`].hi;
-const levelEn = (l: Alert['level']) => dict[`level.${l}`].en;
+const levelIn = (l: Alert['level'], lang: Lang) => dict[`level.${l}`][lang];
 const villageName = (a: Pick<Alert, 'village_name' | 'village_name_hi'>, lang: Lang) => (lang === 'hi' ? a.village_name_hi : a.village_name);
 
 /** "03:10 IST" today; "11 Oct, 22:11 IST" on another day (India time either way). */
@@ -92,7 +92,7 @@ function when(iso: string, lang: Lang): string {
 }
 
 export default function Inbox() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const c = useConsole();
   const { alertId } = useParams();
   const [params, setParams] = useSearchParams();
@@ -145,10 +145,10 @@ export default function Inbox() {
         go(step(ids, null, 1), true);
       } catch (e) {
         const err = e instanceof ApiError ? e : new ApiError(0, null);
-        setSnack({ id: Date.now(), text: err.messageEn });
+        setSnack({ id: Date.now(), text: err.messageIn(lang) });
       }
     },
-    [active, go, t],
+    [active, go, t, lang],
   );
   const wake = (id: string) => {
     const next = { ...snoozes };
@@ -293,7 +293,7 @@ function QueueRow({ alert: a, selected, now, village }: { alert: Alert; selected
       <span className="ib-row-top">
         <span className="ib-level">
           <LevelIcon level={a.level} className="ib-level-icon" />
-          <span lang="hi">{levelHi(a.level)}</span>
+          <span>{levelIn(a.level, lang)}</span>
         </span>
         <span className="ib-village">{villageName(a, lang)}</span>
         {pending && a.level === 'critical' && <span className="ib-urgent">{t('inbox.urgent')}</span>}
@@ -398,10 +398,7 @@ function DecisionPanel({
         <div className="dp-title-row">
           <h2 id="dp-h" className="dp-title">
             <LevelIcon level={alert.level} className="dp-level-icon" />
-            <span lang="hi" className="dp-level">
-              {levelHi(alert.level)}
-            </span>
-            {lang === 'en' && <span className="dp-level-en">{levelEn(alert.level)}</span>}
+            <span className="dp-level">{levelIn(alert.level, lang)}</span>
             <span className="dp-sep" aria-hidden="true">
               ·
             </span>
@@ -427,7 +424,7 @@ function DecisionPanel({
           <DeniedNote error={err} />
         ) : err.isLate ? (
           <p className="dp-note is-warn" role="alert">
-            {(lang === 'hi' && err.messageHi) || err.messageEn}
+            {err.messageIn(lang)}
           </p>
         ) : err.isRetry ? (
           <p className="dp-note is-warn" role="alert">
@@ -452,17 +449,11 @@ function DecisionPanel({
           />
         ) : (
           <>
-            <blockquote className="dp-msg" lang="hi">
-              {alert.text_hi}
-            </blockquote>
+            <QuotedAlert hi={alert.text_hi} en={alert.text_en} />
             <div className="dp-msg-tools">
               <ListenButton alertId={alert.id} hasAudio={alert.has_audio} />
               <DraftCheckLine alert={alert} />
             </div>
-            <details className="dp-en">
-              <summary>{t('decide.english')}</summary>
-              <p lang="en">{alert.text_en}</p>
-            </details>
           </>
         )}
       </Section>
@@ -623,13 +614,13 @@ function MiniRiver({ village }: { village: Village }) {
 }
 
 function DraftCheckLine({ alert }: { alert: Alert }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const passed = alert.draft_check?.passed;
   const edited = /edited by/.test(alert.draft_check?.reason ?? '');
   const Icon = passed ? CircleCheck : ShieldAlert;
   const word = edited ? t('decide.edit.saved') : passed ? t('console.check.pass') : t('console.check.template');
   return (
-    <span className={`dp-check ${passed ? 'ok-text' : 'warn-text'}`} title={alert.draft_check?.reason}>
+    <span className={`dp-check ${passed ? 'ok-text' : 'warn-text'}`} title={lang === 'en' ? alert.draft_check?.reason : undefined}>
       <Icon aria-hidden="true" /> {t('decide.check')}: {word}
     </span>
   );
@@ -641,7 +632,7 @@ function Audience({ alert, village }: { alert: Alert; village: Village | null })
   const devs = usePoll(() => sirenApi.villageDevices(alert.village_id), [alert.village_id], 60000);
   const sirens = (devs.data?.devices ?? []).filter((d) => d.kind === 'siren');
   const sounds = alert.level === 'warning' || alert.level === 'critical';
-  const lvl = lang === 'hi' ? levelHi(alert.level) : levelEn(alert.level);
+  const lvl = levelIn(alert.level, lang);
   return (
     <dl className="dp-aud">
       <div>
@@ -716,7 +707,7 @@ function EditMessage({ alert, onDone }: { alert: Alert; onDone: (updated: boolea
       onDone(true);
     } catch (e) {
       const ae = e instanceof ApiError ? e : new ApiError(0, null);
-      setErr((lang === 'hi' && ae.messageHi) || ae.messageEn);
+      setErr(ae.messageIn(lang));
     } finally {
       setBusy(false);
     }
@@ -746,7 +737,7 @@ function EditMessage({ alert, onDone }: { alert: Alert; onDone: (updated: boolea
       </label>
       <label className="field">
         <span className="field-label">{t('decide.edit.en')}</span>
-        <textarea lang="en" rows={3} value={en} onChange={(e) => setEn(e.target.value)} maxLength={600} />
+        <textarea lang="en" data-quoted-sample="" rows={3} value={en} onChange={(e) => setEn(e.target.value)} maxLength={600} />
       </label>
       {err && (
         <p className="dp-note is-bad" role="alert">
@@ -799,7 +790,7 @@ function PradhanLock({ alert, onDone }: { alert: Alert; onDone: () => void }) {
 
 /** Local stack only: open the one-tap approval link the asked officer would get on Telegram (for demos). */
 function DevLink({ alertId }: { alertId: string }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [err, setErr] = useState<string | null>(null);
   const open = async () => {
     setErr(null);
@@ -819,7 +810,7 @@ function DevLink({ alertId }: { alertId: string }) {
       } else window.location.assign(path);
     } catch (e) {
       w?.close();
-      setErr(e instanceof ApiError ? e.messageEn : 'error');
+      setErr(e instanceof ApiError ? e.messageIn(lang) : lang === 'hi' ? 'कुछ गड़बड़ हुई' : 'error');
     }
   };
   return (
@@ -878,9 +869,7 @@ function SentPanel({ alert, onBack }: { alert: Alert; onBack: (() => void) | nul
       <header className="dp-head">
         <h2 id="sp-h" className="dp-title">
           <LevelIcon level={alert.level} className="dp-level-icon" />
-          <span lang="hi" className="dp-level">
-            {levelHi(alert.level)}
-          </span>
+          <span className="dp-level">{levelIn(alert.level, lang)}</span>
           <span className="dp-sep" aria-hidden="true">
             ·
           </span>
@@ -894,9 +883,7 @@ function SentPanel({ alert, onBack }: { alert: Alert; onBack: (() => void) | nul
         </p>
       </header>
       <Section title={t('decide.sent.msg')}>
-        <blockquote className="dp-msg" lang="hi">
-          {alert.text_hi}
-        </blockquote>
+        <QuotedAlert hi={alert.text_hi} en={alert.text_en} />
       </Section>
       <Record alert={alert} />
     </article>

@@ -40,7 +40,7 @@ export default function Track() {
       ) : data ? (
         <section className="card track-card">
           <p className="track-village">
-            <span lang="hi">{data.village_name_hi}</span> <span className="muted">· {data.village_name}</span>
+            {lang === 'hi' ? data.village_name_hi || data.village_name : data.village_name}
           </p>
           <p className="muted">
             {pick(enumLabels.reportType[data.report_type])} · {fmtTime(data.created_at, lang)}

@@ -59,7 +59,7 @@ export function MineSection() {
           {mine.map((v) => (
             <li key={v.id} className={`myv-row lv-${levelIsKnown(v) ? v.level : 'nodata'}`}>
               <p className="myv-name">
-                <span lang="hi">{v.name_hi}</span> <span className="tk-en">{v.name}</span>
+                <span lang={lang}>{lang === 'hi' ? v.name_hi || v.name : v.name}</span>
               </p>
               <p className="myv-level">
                 <ShownLevel v={v} size="md" plain />

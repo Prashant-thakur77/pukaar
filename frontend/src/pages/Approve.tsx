@@ -9,7 +9,8 @@ import { ListenButton } from '../components/ListenButton';
 import { ReplayChip } from '../components/Chips';
 import { DeniedNote, ErrorState, Skeleton } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
-import { both, dict, useBothLangs, type Key } from '../i18n';
+import { dict, useT, type Key } from '../i18n';
+import { QuotedAlert } from '../components/QuotedAlert';
 import { RiverNow } from '../components/RiverNow';
 import { useNow } from '../hooks/useMedia';
 import { evidenceLines } from '../lib/evidence';
@@ -21,15 +22,10 @@ import { expiryMs, fmtDuration } from '../lib/format';
 import type { Alert } from '../types';
 import '../styles/console.css';
 
-/** Both languages on every line: an officer may read either. */
+/** One line in the page's language (the switch in the bare header changes it). */
 function Bi({ k, vars }: { k: Key; vars?: Record<string, string | number> }) {
-  const f = (s: string) => s.replace(/\{(\w+)\}/g, (_, n: string) => String(vars?.[n] ?? ''));
-  return (
-    <>
-      <span lang="hi">{f(both(k).hi)}</span>
-      <span className="bi-en">{f(both(k).en)}</span>
-    </>
-  );
+  const { t } = useT();
+  return <>{t(k, vars)}</>;
 }
 
 function useCountdown(iso: string | number | undefined) {
@@ -43,6 +39,8 @@ function useCountdown(iso: string | number | undefined) {
 }
 
 function LatePage({ error, timedOut }: { error?: ApiError | null; timedOut?: boolean }) {
+  const { t, lang } = useT();
+  const body = lang === 'hi' ? error?.messageHi || t('approve.late.body') : error?.messageEn && error.status === 409 ? error.messageEn : t('approve.late.body');
   return (
     <section className="approve-end is-late" role="alert">
       <span className="result-icon" aria-hidden="true">
@@ -51,13 +49,10 @@ function LatePage({ error, timedOut }: { error?: ApiError | null; timedOut?: boo
       <h1 className="result-title">
         <Bi k={timedOut ? 'approve.timeout.title' : 'approve.late.title'} />
       </h1>
-      <p className="result-body">
-        {error?.messageHi ? <span lang="hi">{error.messageHi}</span> : <span lang="hi">{both('approve.late.body').hi}</span>}
-        <span className="bi-en">{error?.messageEn && error.status === 409 ? error.messageEn : both('approve.late.body').en}</span>
-      </p>
+      <p className="result-body">{body}</p>
       <p>
         <Link to="/console/inbox" className="go-link">
-          <span lang="hi">कंसोल में देखें</span> <span className="bi-en">See it in the console</span>
+          {lang === 'hi' ? 'कंसोल में देखें' : 'See it in the console'}
         </Link>
       </p>
     </section>
@@ -75,8 +70,7 @@ function InvalidPage() {
         <Bi k="approve.invalid" />
       </h1>
       <p className="result-body">
-        <span lang="hi">{both('approve.invalid.body').hi}</span>
-        <span className="bi-en">{both('approve.invalid.body').en}</span>
+        <Bi k="approve.invalid.body" />
       </p>
     </section>
   );
@@ -85,8 +79,7 @@ function InvalidPage() {
 const isInvalid = (e: ApiError | null | undefined) => Boolean(e && (e.code === 'invalid' || e.status === 400 || e.status === 404 || e.status === 401));
 
 export default function Approve() {
-  // Every line is in both languages: wait for both tables (i18n.ts).
-  useBothLangs();
+  const { t, lang } = useT();
   const { token = '' } = useParams();
   const { data, error, loading, refresh } = usePoll(() => api.approval(token), [token], 0);
   const [confirm, setConfirm] = useState<'approve' | 'decline' | null>(null);
@@ -154,9 +147,9 @@ export default function Approve() {
       {data && !result && (
         <ConfirmDialog
           open={confirm !== null}
-          title={`${both('approve.decline').hi} · ${both('approve.decline').en}`}
-          confirmLabel="हाँ, अस्वीकार · Yes, decline"
-          cancelLabel="रद्द · Cancel"
+          title={t('approve.decline')}
+          confirmLabel={lang === 'hi' ? 'हाँ, अस्वीकार करें' : 'Yes, decline'}
+          cancelLabel={t('common.cancel')}
           tone="danger"
           busy={busy}
           sheet
@@ -175,7 +168,8 @@ export default function Approve() {
 /**
  * The decision, laid out as the console's on a phone (spec 4.9, 4.13): the level and village on the level's own
  * banner, why (the river line and the evidence in words), exactly what will be sent and to whom, then hold to
- * approve stuck to the thumb with Decline under it. Every line in Hindi, the English under it.
+ * approve stuck to the thumb with Decline under it. In the page's language; the spoken Hindi message is quoted
+ * word for word on an English page too, with its English meaning (QuotedAlert).
  */
 function Decision({ a, left, busy, actErr, onApprove, onDecline }: {
   a: Alert;
@@ -185,11 +179,12 @@ function Decision({ a, left, busy, actErr, onApprove, onDecline }: {
   onApprove: () => Promise<unknown>;
   onDecline: () => void;
 }) {
+  const { t, lang } = useT();
+  const hi = lang === 'hi';
   const now = useNow(30_000);
   const Icon = LEVEL_ICON[a.level];
   const river = usePoll(() => api.villageNow(a.village_id), [a.village_id], 0);
-  const evHi = evidenceLines(a.decision_trace, 'hi');
-  const evEn = evidenceLines(a.decision_trace, 'en');
+  const ev = evidenceLines(a.decision_trace, lang);
   const fallback = a.reasoning_model === 'rule-fallback';
   const waited = waitedMinutes(a.created_at, now);
   const obs = river.data?.river?.points?.length ? toPoints(river.data.river.points) : [];
@@ -205,19 +200,15 @@ function Decision({ a, left, busy, actErr, onApprove, onDecline }: {
         </p>
         <h1 id="ota-h" className="ota-title">
           <Icon aria-hidden="true" className="ota-icon" />
-          <span lang="hi">
-            {dict[`level.${a.level}`].hi} · {a.village_name_hi}
-          </span>
-          <span className="bi-en">
-            {dict[`level.${a.level}`].en} · {a.village_name}
+          <span>
+            {dict[`level.${a.level}`][lang]} · {hi ? a.village_name_hi || a.village_name : a.village_name}
           </span>
         </h1>
         <p className="ota-sub">
-          <span lang="hi">
-            {fmtNumber(a.recipients_count, 'hi')} लोगों तक · {fmtNumber(waited, 'hi')} मिनट से इंतज़ार
-          </span>
-          <span className="bi-en">
-            To {fmtNumber(a.recipients_count, 'en')} people · waiting {waited} min
+          <span>
+            {hi
+              ? `${fmtNumber(a.recipients_count, 'hi')} लोगों तक · ${fmtNumber(waited, 'hi')} मिनट से इंतज़ार`
+              : `To ${fmtNumber(a.recipients_count, 'en')} people · waiting ${waited} min`}
           </span>
           {a.replay && <ReplayChip />}
         </p>
@@ -229,14 +220,13 @@ function Decision({ a, left, busy, actErr, onApprove, onDecline }: {
             <Bi k="decide.why" />
           </h2>
           {th && obs.length > 1 && (
-            <RiverNow observed={obs} thresholds={th} unit="m³/s" title="नदी अभी · The river now" headingId="ota-river" heading="h3" height={140} ladder={false} replay={a.replay} />
+            <RiverNow observed={obs} thresholds={th} unit="m³/s" title={hi ? 'नदी अभी' : 'The river now'} headingId="ota-river" heading="h3" height={140} ladder={false} replay={a.replay} />
           )}
-          {evHi.length > 0 && (
+          {ev.length > 0 && (
             <ul className="dp-ev ota-ev">
-              {evHi.slice(0, 3).map((l, i) => (
+              {ev.slice(0, 3).map((l, i) => (
                 <li key={i} className={l.level ? `lv-${l.level}` : ''}>
-                  <span lang="hi">{l.text}</span>
-                  {evEn[i] && <span className="bi-en">{evEn[i].text}</span>}
+                  <span>{l.text}</span>
                 </li>
               ))}
             </ul>
@@ -247,9 +237,7 @@ function Decision({ a, left, busy, actErr, onApprove, onDecline }: {
           <h2 className="dp-sec-h">
             <Bi k="decide.send" />
           </h2>
-          <blockquote className="dp-msg" lang="hi">
-            {a.text_hi}
-          </blockquote>
+          <QuotedAlert hi={a.text_hi} en={a.text_en} />
           <div className="dp-msg-tools">
             <ListenButton alertId={a.id} hasAudio={a.has_audio} />
             {fallback && (
@@ -258,12 +246,6 @@ function Decision({ a, left, busy, actErr, onApprove, onDecline }: {
               </p>
             )}
           </div>
-          <details className="dp-en">
-            <summary>
-              <span lang="hi">अंग्रेज़ी में</span> <span className="bi-en">In English</span>
-            </summary>
-            <p lang="en">{a.text_en}</p>
-          </details>
         </section>
 
         <section className="dp-sec">
@@ -273,8 +255,9 @@ function Decision({ a, left, busy, actErr, onApprove, onDecline }: {
           <p className="ota-whom">
             <Users aria-hidden="true" />
             <span>
-              <span lang="hi">{fmtNumber(a.recipients_count, 'hi')} पंजीकृत लोग · कॉल, SMS और Telegram</span>
-              <span className="bi-en">{fmtNumber(a.recipients_count, 'en')} registered people · call, SMS and Telegram</span>
+              {hi
+                ? `${fmtNumber(a.recipients_count, 'hi')} जुड़े हुए लोग · कॉल, SMS और Telegram`
+                : `${fmtNumber(a.recipients_count, 'en')} registered people · call, SMS and Telegram`}
             </span>
           </p>
         </section>
@@ -292,21 +275,20 @@ function Decision({ a, left, busy, actErr, onApprove, onDecline }: {
           disabled={busy}
           onConfirm={onApprove}
           text={{
-            idle: `${both('decide.hold.idle').hi} · ${both('decide.hold.idle').en}`,
-            holding: both('decide.hold.holding').hi,
-            almost: both('decide.hold.almost').hi,
-            sending: `${both('decide.hold.sending').hi} · ${both('decide.hold.sending').en}`,
-            done: `${both('decide.hold.done').hi} · ${both('decide.hold.done').en}`,
-            hint: `${both('decide.hold.hint').hi}. ${both('decide.hold.hint').en}`,
-            confirmQ: `${both('decide.confirm.q').hi} · ${both('decide.confirm.q').en}`,
-            confirmYes: 'हाँ, भेजें · Yes, send',
-            confirmNo: 'रद्द · Cancel',
+            idle: t('decide.hold.idle'),
+            holding: t('decide.hold.holding'),
+            almost: t('decide.hold.almost'),
+            sending: t('decide.hold.sending'),
+            done: t('decide.hold.done'),
+            hint: t('decide.hold.hint'),
+            confirmQ: t('decide.confirm.q'),
+            confirmYes: t('decide.confirm.yes'),
+            confirmNo: t('common.cancel'),
           }}
         />
         <button type="button" className="btn btn-ghost btn-decline ota-decline" onClick={onDecline} disabled={busy}>
           <X aria-hidden="true" />
-          <span lang="hi">{both('approve.decline').hi}</span>
-          <span className="bi-en">{both('approve.decline').en}</span>
+          <span>{t('approve.decline')}</span>
         </button>
       </div>
     </article>

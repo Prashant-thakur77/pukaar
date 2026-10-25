@@ -71,7 +71,7 @@ export function TenMetrics() {
         </table>
       </div>
       <p className="pl-asof">
-        {en ? 'From the API, GET /public/pilot-metrics, at ' : 'API से, GET /public/pilot-metrics, समय '}
+        {en ? 'From the API, GET /public/pilot-metrics, at ' : 'सीधे API से, समय '}
         <span translate="no">{fmtTime(t.as_of, lang)}</span>
       </p>
     </>

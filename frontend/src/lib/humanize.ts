@@ -71,7 +71,9 @@ export function humanizeSummary(summary: string, lang: Lang, type?: ReportType, 
     return lang === 'hi' ? `${tl} की सूचना · ख़तरा: ${sl}` : `${tl} reported · severity ${sl.toLowerCase()}`;
   }
   if (s === 'photo or voice report without text') return lang === 'hi' ? 'फ़ोटो या आवाज़ वाली सूचना, लिखा हुआ कुछ नहीं' : 'Photo or voice report, no text';
-  if (!s && type) return `${enumLabels.reportType[type][lang]}${severity ? ` · ${enumLabels.severity[severity][lang]}` : ''}`;
+  // A free-text English summary is never shown on a Hindi page: the report's type and severity say it instead.
+  const english = s && lang === 'hi' && !/[ऀ-ॿ]/.test(s);
+  if ((!s || english) && type) return `${enumLabels.reportType[type][lang]}${severity ? ` · ${enumLabels.severity[severity][lang]}` : ''}`;
   return s;
 }
 

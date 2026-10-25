@@ -102,7 +102,8 @@ function AlertDetails({ alert }: { alert: Alert }) {
 }
 
 function AlertCard({ alert, signedIn }: { alert: Alert; signedIn: boolean }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const enText = lang === 'en' && alert.text_en;
   const [open, setOpen] = useState(false);
   return (
     <li className={`alert-card lv-${alert.level}`}>
@@ -112,10 +113,9 @@ function AlertCard({ alert, signedIn }: { alert: Alert; signedIn: boolean }) {
         {alert.reasoning_model === 'rule-fallback' && <span className="chip chip-warn">{t('console.model.fallback')}</span>}
         {alert.replay && <ReplayChip />}
       </div>
-      <p className="ac-text" lang="hi">
-        {alert.text_hi}
+      <p className="ac-text" lang={enText ? undefined : 'hi'}>
+        {enText || alert.text_hi}
       </p>
-      <p className="small muted">{alert.text_en}</p>
       <div className="ac-row">
         <DeliveryChips approved={alert.approved} delivered={alert.delivered_count} acked={alert.acknowledged_count} status={alert.status} />
         <ListenButton alertId={alert.id} hasAudio={alert.has_audio} />
@@ -379,7 +379,7 @@ function Evidence({ village, trace, traceReplay, gauge, soil, river, onChanged }
                 <span>{r.type ? pick(enumLabels.reportType[r.type]) : '—'}</span>
                 <span className="muted">{r.severity ? pick(enumLabels.severity[r.severity]) : ''}</span>
                 {r.state && <ReportStateChip state={r.state} />}
-                <span className="small muted">weight {r.weight ?? '—'}</span>
+                <span className="small muted">{lang === 'hi' ? 'वज़न' : 'weight'} {r.weight ?? '—'}</span>
               </li>
             ))}
           </ul>
@@ -484,7 +484,7 @@ export default function VillagePage() {
             why={why}
             title={
               <>
-                <span lang="hi">{now.name_hi}</span> <span className="lvb-en" lang="en">{now.name}</span>
+                <span>{lang === 'hi' ? now.name_hi || now.name : now.name}</span>
                 <span className="lvb-en"> · {districtLine(now.district, lang)}</span>
               </>
             }
@@ -556,10 +556,13 @@ export default function VillagePage() {
                     <p className="dc-top">
                       <strong>{pick(enumLabels.directiveType[d.type])}</strong> · {fmtAgo(d.issued_at, lang)}
                     </p>
-                    <p lang="hi" className="dc-hi">
-                      {d.text_hi}
-                    </p>
-                    <p className="small muted">{d.text_en}</p>
+                    {lang === 'en' && d.text_en ? (
+                      <p className="dc-hi">{d.text_en}</p>
+                    ) : (
+                      <p lang="hi" className="dc-hi">
+                        {d.text_hi}
+                      </p>
+                    )}
                   </li>
                 ))}
             </ul>
@@ -642,11 +645,11 @@ export default function VillagePage() {
                     const hi = e.note_hi ?? e.text_hi;
                     const en = e.note_en ?? e.text_en ?? e.title;
                     const useHi = lang === 'hi' && hi;
-                    return <p lang={useHi ? 'hi' : 'en'}>{useHi ? hi : en ?? hi ?? ''}</p>;
+                    return <p lang={useHi || !en ? 'hi' : 'en'}>{useHi ? hi : en ?? hi ?? ''}</p>;
                   })()}
                   {e.source_url ? (
                     <a className="small link" href={e.source_url} target="_blank" rel="noreferrer">
-                      {e.source ?? 'Source'} ↗
+                      {e.source ?? (lang === 'hi' ? 'स्रोत' : 'Source')} ↗
                     </a>
                   ) : e.source ? (
                     <p className="small muted">{e.source}</p>

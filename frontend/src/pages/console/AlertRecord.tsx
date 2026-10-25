@@ -46,7 +46,7 @@ export function AfterActionLinks({ alert: a }: { alert: Alert }) {
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (e) {
       win?.close();
-      setErr(e instanceof ApiError ? (lang === 'hi' && e.messageHi) || e.messageEn : t('console.aar.error'));
+      setErr(e instanceof ApiError ? e.messageIn(lang) : t('console.aar.error'));
     } finally {
       setBusy(false);
     }
@@ -90,7 +90,7 @@ export function OutcomePicker({ alert: a }: { alert: Alert }) {
       const updated = await api.setAlertOutcome(a.id, o, iso);
       setValue(updated.outcome ?? o);
     } catch (e) {
-      setErr(e instanceof ApiError ? (lang === 'hi' && e.messageHi) || e.messageEn : t('console.aar.error'));
+      setErr(e instanceof ApiError ? e.messageIn(lang) : t('console.aar.error'));
     } finally {
       setBusy(false);
     }
@@ -138,7 +138,7 @@ export function Deliveries({ alertId }: { alertId: string }) {
     match: (e) => e.data.alert_id === alertId,
   });
   if (loading && !data) return <Skeleton lines={2} />;
-  if (error && !data) return <p className="small bad-text">{error.messageEn}</p>;
+  if (error && !data) return <p className="small bad-text">{error.messageIn(lang)}</p>;
   const ds = data?.deliveries ?? [];
   if (!ds.length) return <p className="small muted">{t('console.deliveries.none')}</p>;
   return (
@@ -185,8 +185,10 @@ export function AlertMetricsPanel({ alertId }: { alertId: string }) {
   const { lang } = useT();
   const { data, error, loading } = usePoll(() => api.alertMetrics(alertId), [alertId], 60000);
   if (loading && !data) return <Skeleton lines={3} />;
-  if (error && !data) return <p className="small bad-text">{error.messageEn}</p>;
+  if (error && !data) return <p className="small bad-text">{error.messageIn(lang)}</p>;
   if (!data) return null;
+  // An answer without the timeline (an old API, or a mock) shows as "not measured" instead of breaking the page.
+  if (!data.time_chain || !data.confirmed_reach) return <p className="small muted">{lang === 'hi' ? 'इस चेतावनी का अभी कोई माप नहीं।' : 'No measurements for this alert yet.'}</p>;
   const kind =
     data.kind === 'live'
       ? null

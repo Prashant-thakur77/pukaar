@@ -25,7 +25,7 @@ import {
 import { api } from '../../api';
 import { useHandOff } from '../../boot/handoff';
 import { LivePill } from '../../components/LivePill';
-import { Call112, PukaarMark } from '../../components/Shell';
+import { Call112, LangSwitch, PukaarMark } from '../../components/Shell';
 import { useDocumentPrefs } from '../../hooks/useDocumentPrefs';
 import { usePoll, type PollState } from '../../hooks/usePoll';
 import { useT, type Key } from '../../i18n';
@@ -375,7 +375,7 @@ function DistrictPick() {
 }
 
 function ConsoleHeader({ pendingN }: { pendingN: number }) {
-  const { t, lang, setLang, other } = useT();
+  const { t, lang } = useT();
   const c = useConsole();
   const signOut = useAuth((s) => s.signOut);
   const theme = usePrefs((s) => s.theme);
@@ -385,26 +385,22 @@ function ConsoleHeader({ pendingN }: { pendingN: number }) {
   const themeLabel = `${t('shell.theme')}: ${t(`shell.theme.${theme}`)}`;
   // The tab's title counts what waits, so a background tab still says it.
   useEffect(() => {
-    const base = `${t('cs.brand')} · पुकार Pukaar`;
+    const base = `${t('cs.brand')} · ${lang === 'hi' ? 'पुकार' : 'Pukaar'}`;
     document.title = pendingN ? `(${pendingN}) ${base}` : base;
-  }, [pendingN, t]);
+  }, [pendingN, t, lang]);
   return (
     <header className="cs-hd">
       <div className="cs-hd-in">
-        <Link to="/console/inbox" className="cs-brand" aria-label={`पुकार Pukaar ${t('cs.brand')}`}>
+        <Link to="/console/inbox" className="cs-brand" aria-label={`${lang === 'hi' ? 'पुकार' : 'Pukaar'} ${t('cs.brand')}`}>
           <PukaarMark size={28} />
-          <span className="wm-hi" lang="hi">
-            पुकार
-          </span>
+          <span className="wm-hi">{lang === 'hi' ? 'पुकार' : 'Pukaar'}</span>
           <span className="cs-brand-word">{c.officer ? t('cs.brand') : t('console.title.pradhan')}</span>
         </Link>
         <DistrictPick />
         <OnDuty />
         <div className="cs-tools">
           <LivePill header />
-          <button type="button" className="hd-icon hd-lang" onClick={() => setLang(other)} aria-label={t('shell.lang')} title={t('shell.lang')}>
-            <span lang={other}>{lang === 'hi' ? 'EN' : 'हि'}</span>
-          </button>
+          <LangSwitch />
           <button type="button" className="hd-icon cs-desk" onClick={() => setTheme(nextTheme)} aria-label={themeLabel} title={themeLabel}>
             <ThemeIcon aria-hidden="true" />
           </button>

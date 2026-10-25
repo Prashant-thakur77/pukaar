@@ -3,19 +3,13 @@ import { CircleAlert, Phone, ShieldCheck } from 'lucide-react';
 import { api } from '../api';
 import { Skeleton } from '../components/States';
 import { usePoll } from '../hooks/usePoll';
-import { both, format, useBothLangs, type Key } from '../i18n';
+import { useT, type Key } from '../i18n';
 import '../styles/Safe.css';
 
-/** Both languages at once: the person who opens a family link may read either. */
-function Both({ k, vars, as: Tag = 'p', className = '' }: { k: Key; vars?: Record<string, string>; as?: 'p' | 'h1' | 'span'; className?: string }) {
-  return (
-    <Tag className={className}>
-      <span lang="hi">{format(both(k).hi, vars)}</span>
-      <span className="safe-en" lang="en">
-        {format(both(k).en, vars)}
-      </span>
-    </Tag>
-  );
+/** One line in the page's language (the header's switch changes it). */
+function Line({ k, vars, as: Tag = 'p', className = '' }: { k: Key; vars?: Record<string, string>; as?: 'p' | 'h1' | 'span'; className?: string }) {
+  const { t } = useT();
+  return <Tag className={className}>{t(k, vars)}</Tag>;
 }
 
 /** Times are shown in India time, where the village is, and say so. */
@@ -31,8 +25,7 @@ function dayIST(iso: string, locale: string): string {
  * the time and the village: no phone number, no location beyond the village.
  */
 export default function Safe() {
-  // Every line is in both languages: wait for both tables (i18n.ts).
-  useBothLangs();
+  const { t, lang } = useT();
   const { token = '' } = useParams();
   const { data, error, loading } = usePoll(() => api.safe(token), [token], 0);
 
@@ -54,8 +47,8 @@ export default function Safe() {
         <WaterLines />
         <div className="safe-card is-quiet" role="alert">
           <CircleAlert className="safe-icon-quiet" aria-hidden="true" />
-          <Both k={title} as="h1" className="safe-title-sm" />
-          <Both k={body} className="safe-why" />
+          <Line k={title} as="h1" className="safe-title-sm" />
+          <Line k={body} className="safe-why" />
           <Call112 />
         </div>
       </div>
@@ -68,36 +61,26 @@ export default function Safe() {
     <div className="safe-page">
       <WaterLines />
       <article className="safe-card" aria-labelledby="safe-h">
-        <p className="safe-eyebrow">
-          <span lang="hi">{both('safe.eyebrow').hi}</span>
-          <span aria-hidden="true"> · </span>
-          <span lang="en">{both('safe.eyebrow').en}</span>
-        </p>
+        <p className="safe-eyebrow">{t('safe.eyebrow')}</p>
         <div className="safe-mark" aria-hidden="true">
           <span className="safe-ring" />
           <ShieldCheck />
         </div>
         <h1 id="safe-h" className="safe-title">
-          <span lang="hi">
-            {name ?? both('safe.someone').hi} {both('safe.marked').hi}
-          </span>
-          <span className="safe-en" lang="en">
-            {name ?? both('safe.someone').en} {both('safe.marked').en}
-          </span>
+          {name ?? t('safe.someone')} {t('safe.marked')}
         </h1>
         <p className="safe-when">
           <time dateTime={data.at}>{at}</time>
-          <span lang="hi">{data.village_name_hi}</span>
           <span className="safe-sep" aria-hidden="true">·</span>
-          <span lang="en">{data.village_name}</span>
+          <span>{lang === 'hi' ? data.village_name_hi || data.village_name : data.village_name}</span>
         </p>
         <p className="safe-date">
-          <span lang="hi">{dayIST(data.at, 'hi-IN')}</span> · <span lang="en">{dayIST(data.at, 'en-IN')}</span> · IST
+          {dayIST(data.at, lang === 'hi' ? 'hi-IN' : 'en-IN')} · IST
         </p>
-        {data.exercise && <Both k="safe.exercise" className="safe-flag" />}
-        {data.simulated && <Both k="safe.simulated" className="safe-flag" />}
-        <Both k="safe.why" className="safe-why" />
-        <Both k="safe.privacy" className="safe-privacy" />
+        {data.exercise && <Line k="safe.exercise" className="safe-flag" />}
+        {data.simulated && <Line k="safe.simulated" className="safe-flag" />}
+        <Line k="safe.why" className="safe-why" />
+        <Line k="safe.privacy" className="safe-privacy" />
         <Call112 />
       </article>
     </div>
@@ -105,13 +88,11 @@ export default function Safe() {
 }
 
 function Call112() {
+  const { t } = useT();
   return (
     <a className="safe-112" href="tel:112">
       <Phone aria-hidden="true" />
-      <span lang="hi">{both('safe.call112').hi}</span>
-      <span className="safe-en" lang="en">
-        {both('safe.call112').en}
-      </span>
+      <span>{t('safe.call112')}</span>
     </a>
   );
 }

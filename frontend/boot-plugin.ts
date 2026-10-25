@@ -22,8 +22,8 @@ import type { PkAssets } from './src/boot/pk-assets';
 
 const BOOT_ENTRY = fileURLToPath(new URL('./src/boot/boot.ts', import.meta.url));
 const FALLBACK_ENTRY = fileURLToPath(new URL('./src/boot/fallback.ts', import.meta.url));
-/** The painter's budget, gzipped. */
-const BOOT_MAX_GZ = 9 * 1024;
+/** The painter's budget, gzipped: the village answer, and on / the hero with the status under it. */
+const BOOT_MAX_GZ = 10 * 1024;
 /** The critical CSS budget, gzipped (spec 7: HTML + CSS about 14 kB). */
 const CRITICAL_MAX_GZ = 12 * 1024;
 /** The pages the painter draws: their CSS joins the entry's in the critical cut. */

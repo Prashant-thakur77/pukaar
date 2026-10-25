@@ -84,28 +84,18 @@ export function LevelBanner({ level, unknown = false, means, title, why, childre
   const { lang } = useT();
   const shown: BannerLevel = unknown ? 'nodata' : level;
   const Icon = unknown ? CloudOff : LEVEL_ICON[level];
-  const word = unknown ? (lang === 'hi' ? 'डेटा नहीं मिल रहा' : 'No data') : dict[`level.${level}`].hi;
-  const en = unknown ? 'No data' : dict[`level.${level}`].en;
+  const hi = lang === 'hi';
+  const word = unknown ? (hi ? 'डेटा नहीं मिल रहा' : 'No data') : dict[`level.${level}`][lang];
   return (
     <section className={`lvb lv-${shown}`} aria-labelledby={id} aria-live={level === 'critical' ? 'assertive' : 'polite'} aria-atomic="true">
       <div className="lvb-head">
         <Icon className="lvb-icon" aria-hidden="true" />
         <p className="lvb-word">
-          <span lang="hi">{word}</span>
+          <span>{word}</span>
         </p>
         <LevelMeter level={level} unknown={unknown} />
       </div>
-      {lang === 'en' ? (
-        <p className="lvb-sub" lang="en">
-          {unknown ? 'No data · do not rely on “Normal”' : `${en} · ${means.en}`}
-        </p>
-      ) : (
-        <p className="lvb-sub">
-          {!unknown && <span lang="en">{en}</span>}
-          {!unknown && <span aria-hidden="true"> · </span>}
-          <span lang="hi">{unknown ? '‘सामान्य’ पर भरोसा न करें' : means.hi}</span>
-        </p>
-      )}
+      <p className="lvb-sub">{unknown ? (hi ? '‘सामान्य’ पर भरोसा न करें' : 'Do not rely on “Normal”') : means[lang]}</p>
       <H className="lvb-place" id={id}>
         {title}
       </H>
@@ -115,9 +105,9 @@ export function LevelBanner({ level, unknown = false, means, title, why, childre
   );
 }
 
-/** C3: at most three numbered lines, Hindi first and the English under it. */
+/** C3: at most three numbered lines, in the page's language. */
 export function ActionList({ lines, level, children }: { lines: ActionLine[]; level: BannerLevel; children?: ReactNode }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   return (
     <section className={`acts lv-${level}`} aria-labelledby="acts-h">
       <h2 id="acts-h" className="acts-h">
@@ -126,12 +116,7 @@ export function ActionList({ lines, level, children }: { lines: ActionLine[]; le
       <ol className="acts-list">
         {lines.slice(0, 3).map((l) => (
           <li key={l.en}>
-            <span className="acts-hi" lang="hi">
-              {l.hi}
-            </span>
-            <span className="acts-en" lang="en">
-              {l.en}
-            </span>
+            <span className="acts-hi">{l[lang]}</span>
           </li>
         ))}
       </ol>
@@ -154,13 +139,13 @@ export function StickyActionBar({ level, place, whereHref = '#where' }: { level:
       <nav className={`sab lv-${level}`} aria-label={lang === 'hi' ? 'अभी के लिए' : 'Right now'}>
         {level === 'critical' && (
           <a href="tel:112" className="sab-btn sab-112" aria-label={t('shell.call112.aria')}>
-            <Phone aria-hidden="true" /> <span lang="hi">112 पर कॉल करें</span>
+            <Phone aria-hidden="true" /> <span>{lang === 'hi' ? '112 पर कॉल करें' : 'Call 112'}</span>
           </a>
         )}
         <a href={whereHref} className="sab-btn sab-where">
           <Mountain aria-hidden="true" />
           <span className="sab-text">
-            <span lang="hi">कहाँ जाएँ</span>
+            <span>{lang === 'hi' ? 'कहाँ जाएँ' : 'Where to go'}</span>
             {line && level === 'warning' && <span className="sab-place"> · {line}</span>}
           </span>
           <ChevronRight aria-hidden="true" className="sab-go" />
@@ -180,6 +165,8 @@ export interface RowVillage {
 
 /** C7: one 56 px row per village; the whole row is the link. Highest level first, then by name. */
 export function VillageRows({ villages, label, hot = null, onHot, sub }: { villages: RowVillage[]; label: string; hot?: string | null; onHot?: (id: string | null) => void; sub?: Record<string, ReactNode> }) {
+  const { lang } = useT();
+  const hi = lang === 'hi';
   const sorted = [...villages].sort((a, b) => levelStep(b.level) - levelStep(a.level) || a.name.localeCompare(b.name));
   return (
     <ul className="vrows" aria-label={label}>
@@ -197,12 +184,12 @@ export function VillageRows({ villages, label, hot = null, onHot, sub }: { villa
               onBlur={onHot && (() => onHot(null))}
             >
               <span className="vrow-name">
-                <span lang="hi">{v.name_hi}</span> <span className="vrow-en" lang="en">{v.name}</span>
+                <strong lang={lang}>{hi ? v.name_hi || v.name : v.name}</strong>
                 {sub?.[v.id] && <span className="vrow-sub">{sub[v.id]}</span>}
               </span>
               <span className="vrow-level">
                 <Icon aria-hidden="true" />
-                <span lang="hi">{v.unknown ? 'डेटा नहीं' : dict[`level.${v.level}`].hi}</span>
+                <span>{v.unknown ? dict['data.badge.none'][lang] : dict[`level.${v.level}`][lang]}</span>
               </span>
               <ChevronRight aria-hidden="true" className="vrow-go" />
             </Link>

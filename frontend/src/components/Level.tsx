@@ -1,24 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
-import { dict } from '../i18n';
+import { dict, useT } from '../i18n';
 import { LEVEL_ICON } from '../lib/levels';
+import { usePrefs, type Lang } from '../store';
 import type { Level } from '../types';
 
 interface Props {
   level: Level;
   size?: 'sm' | 'md' | 'lg';
-  /** Show both Hindi and English words (default). */
-  both?: boolean;
-  lang?: 'hi' | 'en';
+  /** The word's language; the site's language when left out. */
+  lang?: Lang;
   /** A ledger word: icon and word in the level's ink, no box. One pill per item at most. */
   plain?: boolean;
 }
 
-/** Level is always icon + word + colour, never colour alone. Flashes when it changes. */
-export function LevelBadge({ level, size = 'md', both = true, lang = 'en', plain = false }: Props) {
+/** Level is always icon + word + colour, never colour alone. One word, in the page's language. Flashes when it changes. */
+export function LevelBadge({ level, size = 'md', lang, plain = false }: Props) {
+  const siteLang = usePrefs((s) => s.lang);
   const Icon = LEVEL_ICON[level];
-  const key = `level.${level}` as const;
-  const hi = dict[key].hi;
-  const en = dict[key].en;
+  const word = dict[`level.${level}`][lang ?? siteLang];
   const prev = useRef(level);
   const [flash, setFlash] = useState(false);
   useEffect(() => {
@@ -32,17 +31,9 @@ export function LevelBadge({ level, size = 'md', both = true, lang = 'en', plain
   return (
     <span className={`level-badge lv-${level} lb-${size}${plain ? ' lb-plain' : ''}${flash ? ' is-flash' : ''}`} data-level={level}>
       <Icon className="lb-icon" aria-hidden="true" key={level} />
-      {both ? (
-        <span className="lb-words">
-          <span lang="hi">{hi}</span>
-          <span className="lb-sep" aria-hidden="true">·</span>
-          <span lang="en">{en}</span>
-        </span>
-      ) : (
-        <span className="lb-words" lang={lang}>
-          {lang === 'hi' ? hi : en}
-        </span>
-      )}
+      <span className="lb-words" lang={lang ?? siteLang}>
+        {word}
+      </span>
     </span>
   );
 }
@@ -53,9 +44,10 @@ export function LevelIcon({ level, className }: { level: Level; className?: stri
 }
 
 export function LevelLegend() {
+  const { lang } = useT();
   const levels: Level[] = ['normal', 'watch', 'warning', 'critical'];
   return (
-    <ul className="legend" aria-label="Levels / स्तर">
+    <ul className="legend" aria-label={lang === 'hi' ? 'स्तर' : 'Levels'}>
       {levels.map((l) => (
         <li key={l}>
           <LevelBadge level={l} size="sm" />

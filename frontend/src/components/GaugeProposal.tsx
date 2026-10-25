@@ -12,6 +12,7 @@ const LEVELS = ['watch', 'warning', 'critical'] as const;
 /** Percentile curve of the gauge's own record on an exceedance axis, with current and proposed lines. */
 function PercentileChart({ p }: { p: GaugeProposal }) {
   const { t, lang } = useT();
+  const cmw = lang === 'hi' ? 'सेमी' : 'cm';
   // One SVG unit = one CSS pixel, so labels stay readable from a phone to a desktop.
   const box = useRef<HTMLElement>(null);
   const [W, setW] = useState(640);
@@ -87,7 +88,7 @@ function PercentileChart({ p }: { p: GaugeProposal }) {
         {curve.map((c) => (
           <g key={c.p} className="gp-pt">
             <circle cx={x(c.p)} cy={y(c.cm)} r={10} className="gp-hit">
-              <title>{`p${c.p}: ${fmtNumber(c.cm, lang, 1)} cm`}</title>
+              <title>{`p${c.p}: ${fmtNumber(c.cm, lang, 1)} ${cmw}`}</title>
             </circle>
             {[p.percentiles.watch, p.percentiles.warning, p.percentiles.critical].includes(c.p) && <circle cx={x(c.p)} cy={y(c.cm)} r={4.5} className="gp-dot" />}
           </g>
@@ -100,13 +101,14 @@ function PercentileChart({ p }: { p: GaugeProposal }) {
 
 export function GaugeProposalPanel({ villageId, canAccept, onAccepted }: { villageId: string; canAccept: boolean; onAccepted: () => void }) {
   const { t, lang } = useT();
+  const cmw = lang === 'hi' ? 'सेमी' : 'cm';
   // Readings arrive every minute; recompute on demand rather than on a timer.
   const { data: p, error, loading, refresh } = usePoll(() => api.gaugeProposal(villageId), [villageId], 0);
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const load = () => void refresh();
-  const err = saveErr ?? (error ? (lang === 'hi' && error.messageHi) || error.messageEn : null);
+  const err = saveErr ?? (error ? error.messageIn(lang) : null);
 
   async function accept() {
     if (!p?.proposed) return;
@@ -120,7 +122,7 @@ export function GaugeProposalPanel({ villageId, canAccept, onAccepted }: { villa
       load();
     } catch (e) {
       const ae = e instanceof ApiError ? e : new ApiError(0, null);
-      setSaveErr((lang === 'hi' && ae.messageHi) || ae.messageEn);
+      setSaveErr(ae.messageIn(lang));
       if (ae.status === 409) load();
     } finally {
       setSaving(false);
@@ -182,13 +184,13 @@ export function GaugeProposalPanel({ villageId, canAccept, onAccepted }: { villa
                           <th scope="row">
                             <span className={`gp-swatch lv-${l}`} aria-hidden="true" /> {levelWord(l, lang)}
                           </th>
-                          <td data-label={t('learn.col.now')}>{p.current ? `${fmtNumber(p.current[`${l}_cm`], lang, 0)} cm` : '—'}</td>
+                          <td data-label={t('learn.col.now')}>{p.current ? `${fmtNumber(p.current[`${l}_cm`], lang, 0)} ${cmw}` : '—'}</td>
                           <td data-label={t('learn.col.proposed')}>
-                            <strong>{fmtNumber(p.proposed![`${l}_cm`], lang, 0)} cm</strong>
+                            <strong>{fmtNumber(p.proposed![`${l}_cm`], lang, 0)} {cmw}</strong>
                             {adj && <span className="small muted"> · {t('learn.floor', { r: adj.rule })}</span>}
                           </td>
                           <td className="small" data-label={t('learn.col.raw')}>
-                            p{p.percentiles[l]} = {fmtNumber(p.raw![l], lang, 1)} cm
+                            p{p.percentiles[l]} = {fmtNumber(p.raw![l], lang, 1)} {cmw}
                           </td>
                         </tr>
                       );

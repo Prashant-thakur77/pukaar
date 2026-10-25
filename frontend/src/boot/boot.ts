@@ -84,8 +84,16 @@ function lsSet(key: string, v: string): void {
   }
 }
 
-/** The language the React page will use (store.ts): the remembered choice for this area, else the browser's. */
+/** The language the React page will use (store.ts initialLang): this tab's choice, the remembered one, else the default. */
 function pickLang(): Lang {
+  // A choice made earlier in this tab holds across a reload (store.ts VISIT_LANG_KEY).
+  let visit: string | null = null;
+  try {
+    visit = sessionStorage.getItem('pukaar.lang.visit');
+  } catch {
+    /* storage blocked */
+  }
+  if (visit === 'hi' || visit === 'en') return visit;
   const scope = /^\/(report|t\/|t$)/.test(path) ? 'villager' : /^\/(console|audit|roster|login)(\/|$)|^\/a\//.test(path) ? 'staff' : 'public';
   const v = ls(`pukaar.lang.${scope}`);
   if (v === 'hi' || v === 'en') return v;
@@ -146,6 +154,9 @@ const ICONS: Record<string, string> = {
   'chevron-down': '<path d="m6 9 6 6 6-6"/>',
   'arrow-left': '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
   mountain: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>',
+  'arrow-up-right': '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+  'arrow-down': '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+  compass: '<path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/><circle cx="12" cy="12" r="10"/>',
   phone: '<path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/>',
   mic: '<path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/>',
   map: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
@@ -175,7 +186,7 @@ const T = {
   proof: ['सबूत और पायलट', 'Proof and pilot'],
   officer: ['अधिकारी', 'Officers'],
   console: ['अधिकारी', 'Console'],
-  langAria: ['भाषा बदलें: English', 'Switch language: हिन्दी'],
+  langAria: ['अंग्रेज़ी में देखें', 'Switch to Hindi'],
   menu: ['मेन्यू खोलें', 'Open menu'],
   call: ['112 पर आपातकालीन कॉल करें', 'Call emergency number 112'],
   skip: ['सीधे सामग्री पर जाएँ', 'Skip to content'],
@@ -187,7 +198,7 @@ const T = {
 const tr = (k: keyof typeof T) => T[k][lang === 'hi' ? 0 : 1];
 
 function call112(): HTMLElement {
-  return h('a', { href: 'tel:112', class: 'call112', 'aria-label': tr('call') }, icon('phone'), h('span', { lang: 'hi', class: 'c112-hi' }, 'आपातकाल'), h('span', { class: 'c112-num' }, '112'));
+  return h('a', { href: 'tel:112', class: 'call112', 'aria-label': tr('call') }, icon('phone'), h('span', { class: 'c112-hi' }, lang === 'hi' ? 'आपातकाल' : 'Emergency'), h('span', { class: 'c112-num' }, '112'));
 }
 
 /* ---------- the header (Shell.tsx's, without what needs React) ---------- */
@@ -197,10 +208,15 @@ function header(): HTMLElement {
   const navLink = (href: string, label: string, caret = false) =>
     h('a', { href, class: `hd-link${(href === '/' ? path === '/' : path.startsWith(href)) ? ' is-active' : ''}`, ...(href === path ? { 'aria-current': 'page' } : {}) }, label, caret && ' ', caret && icon('chevron-down', 'hd-caret'));
   const other: Lang = lang === 'hi' ? 'en' : 'hi';
-  const langBtn = h('button', { type: 'button', class: 'hd-icon hd-lang', 'aria-label': tr('langAria'), title: tr('langAria') }, h('span', { lang: other }, lang === 'hi' ? 'EN' : 'हि'));
+  const langBtn = h('button', { type: 'button', class: 'hd-icon hd-lang', 'aria-label': tr('langAria'), title: tr('langAria') }, h('span', { lang: other, 'aria-hidden': 'true' }, lang === 'hi' ? 'EN' : 'हि'));
   langBtn.addEventListener('click', () => {
     lang = other;
-    lsSet('pukaar.lang.public', other);
+    for (const scope of ['public', 'villager', 'staff']) lsSet(`pukaar.lang.${scope}`, other);
+    try {
+      sessionStorage.setItem('pukaar.lang.visit', other);
+    } catch {
+      /* storage blocked */
+    }
     paint();
   });
   // The theme, as Shell's ThemeButton: system, light, dark, round again (store.ts applyTheme's rule).
@@ -233,8 +249,8 @@ function header(): HTMLElement {
     h(
       'div',
       { class: 'hd-inner' },
-      h('a', { href: '/', class: 'hd-brand', 'aria-label': 'पुकार Pukaar: गाँवों का हाल · village status' }, brand()),
-      h('nav', { class: 'hd-nav', 'aria-label': 'Main' }, navLink('/', tr('status')), navLink('/report', tr('report')), navLink('/how', tr('how')), navLink('/proof', tr('proof'), true)),
+      h('a', { href: '/', class: 'hd-brand', 'aria-label': lang === 'hi' ? 'पुकार: गाँवों का हाल' : 'Pukaar: village status' }, brand()),
+      h('nav', { class: 'hd-nav', 'aria-label': lang === 'hi' ? 'मुख्य' : 'Main' }, navLink('/', tr('status')), navLink('/report', tr('report')), navLink('/how', tr('how')), navLink('/proof', tr('proof'), true)),
       h(
         'div',
         { class: 'hd-tools' },
@@ -253,7 +269,7 @@ function brand(): HTMLElement {
   for (const [k, v] of [['class', 'pk-mark'], ['width', '28'], ['height', '28'], ['viewBox', '0 0 32 32'], ['aria-hidden', 'true'], ['focusable', 'false']]) s.setAttribute(k, v);
   s.innerHTML =
     '<circle cx="16" cy="16" r="16" fill="var(--accent)"/><path d="M4.5 22.5 11 12.5l3.6 5.2L19 10l8.5 12.5z" fill="var(--on-accent)"/><path d="M4 25.6c2 0 2-1.2 4-1.2s2 1.2 4 1.2 2-1.2 4-1.2 2 1.2 4 1.2 2-1.2 4-1.2 2 1.2 4 1.2" fill="none" stroke="var(--on-accent)" stroke-width="1.6" stroke-linecap="round"/><path d="M8.2 9.6a4 4 0 0 1 0-4.6M5.6 11.4a7.2 7.2 0 0 1 0-8.2" fill="none" stroke="var(--on-accent)" stroke-width="1.6" stroke-linecap="round"/>';
-  return h('span', { class: 'wordmark' }, s, h('span', { lang: 'hi', class: 'wm-hi' }, 'पुकार'), h('span', { class: 'wm-en', lang: 'en' }, 'Pukaar'));
+  return h('span', { class: 'wordmark' }, s, lang === 'hi' ? h('span', { class: 'wm-hi' }, 'पुकार') : h('span', { class: 'wm-hi' }, 'Pukaar'));
 }
 
 /* ---------- the answer pieces (components/Answer.tsx) ---------- */
@@ -277,16 +293,13 @@ function freshness(at: string | null, offline: boolean, opts: { every?: boolean;
 
 function banner(level: Level, unknown: boolean, means: ActionLine, title: Kid[], heading: 'h1' | 'h2', id: string | null, extra: Kid[]): HTMLElement {
   const shown = unknown ? 'nodata' : level;
-  const word = unknown ? (lang === 'hi' ? 'डेटा नहीं मिल रहा' : 'No data') : LEVEL_WORDS[level].hi;
-  const en = unknown ? 'No data' : LEVEL_WORDS[level].en;
-  const sub =
-    lang === 'en'
-      ? h('p', { class: 'lvb-sub', lang: 'en' }, unknown ? 'No data · do not rely on “Normal”' : `${en} · ${means.en}`)
-      : h('p', { class: 'lvb-sub' }, !unknown && h('span', { lang: 'en' }, en), !unknown && h('span', { 'aria-hidden': 'true' }, ' · '), h('span', { lang: 'hi' }, unknown ? '‘सामान्य’ पर भरोसा न करें' : means.hi));
+  const hi = lang === 'hi';
+  const word = unknown ? (hi ? 'डेटा नहीं मिल रहा' : 'No data') : LEVEL_WORDS[level][lang];
+  const sub = h('p', { class: 'lvb-sub' }, unknown ? (hi ? '‘सामान्य’ पर भरोसा न करें' : 'Do not rely on “Normal”') : means[lang]);
   return h(
     'section',
     { class: `lvb lv-${shown}`, ...(id ? { 'aria-labelledby': id } : {}), 'aria-live': level === 'critical' ? 'assertive' : 'polite', 'aria-atomic': 'true' },
-    h('div', { class: 'lvb-head' }, icon(unknown ? 'cloud-off' : LEVEL_ICON[level], 'lvb-icon'), h('p', { class: 'lvb-word' }, h('span', { lang: 'hi' }, word)), meter(level, unknown)),
+    h('div', { class: 'lvb-head' }, icon(unknown ? 'cloud-off' : LEVEL_ICON[level], 'lvb-icon'), h('p', { class: 'lvb-word' }, word), meter(level, unknown)),
     sub,
     h(heading, { class: 'lvb-place', ...(id ? { id } : {}) }, ...title),
     ...extra,
@@ -317,7 +330,7 @@ function villageAnswer(now: Now, offline: boolean): HTMLElement {
         now.level,
         unknown,
         now.means ?? MEANS[now.level],
-        [h('span', { lang: 'hi' }, now.name_hi), ' ', h('span', { class: 'lvb-en', lang: 'en' }, now.name), h('span', { class: 'lvb-en' }, ` · ${districtLine(now.district, lang)}`)],
+        [h('span', null, hi ? now.name_hi : now.name), h('span', { class: 'lvb-en' }, ` · ${districtLine(now.district, lang)}`)],
         'h1',
         'v-title',
         [freshness(now.checked_at, offline, { every: true })],
@@ -326,7 +339,7 @@ function villageAnswer(now: Now, offline: boolean): HTMLElement {
         'section',
         { class: `acts lv-${shown}`, 'aria-labelledby': 'acts-h' },
         h('h2', { id: 'acts-h', class: 'acts-h' }, hi ? 'अभी क्या करें' : 'What to do now'),
-        h('ol', { class: 'acts-list' }, ...lines.map((l) => h('li', null, h('span', { class: 'acts-hi', lang: 'hi' }, l.hi), h('span', { class: 'acts-en', lang: 'en' }, l.en)))),
+        h('ol', { class: 'acts-list' }, ...lines.map((l) => h('li', null, h('span', { class: 'acts-hi' }, l[lang])))),
         h('div', { class: 'acts-more' }, urgent ? h('span', { class: 'vtop-112' }, call112()) : goLink('#where', 'mountain', hi ? 'ऊँची जगह और रास्ता देखें' : 'See the high place and the route')),
       ),
     ),
@@ -354,8 +367,8 @@ function villageAnswer(now: Now, offline: boolean): HTMLElement {
       h(
         'nav',
         { class: `sab lv-${now.level}`, 'aria-label': hi ? 'अभी के लिए' : 'Right now' },
-        now.level === 'critical' && h('a', { href: 'tel:112', class: 'sab-btn sab-112', 'aria-label': tr('call') }, icon('phone'), ' ', h('span', { lang: 'hi' }, '112 पर कॉल करें')),
-        h('a', { href: '#where', class: 'sab-btn sab-where' }, icon('mountain'), h('span', { class: 'sab-text' }, h('span', { lang: 'hi' }, 'कहाँ जाएँ'), line && now.level === 'warning' && h('span', { class: 'sab-place' }, ` · ${line}`)), icon('chevron-right', 'sab-go')),
+        now.level === 'critical' && h('a', { href: 'tel:112', class: 'sab-btn sab-112', 'aria-label': tr('call') }, icon('phone'), ' ', h('span', null, hi ? '112 पर कॉल करें' : 'Call 112')),
+        h('a', { href: '#where', class: 'sab-btn sab-where' }, icon('mountain'), h('span', { class: 'sab-text' }, h('span', null, hi ? 'कहाँ जाएँ' : 'Where to go'), line && now.level === 'warning' && h('span', { class: 'sab-place' }, ` · ${line}`)), icon('chevron-right', 'sab-go')),
       ),
     );
   }
@@ -384,12 +397,12 @@ function valley(villages: OvVillage[]): HTMLElement {
   s.innerHTML =
     '<path class="valley-ridge" d="M0 92 L58 50 L104 78 L160 30 L214 66 L276 38 L330 74 L392 28 L452 70 L506 44 L560 80 L604 58 L640 76"/><path class="valley-ridge is-far" d="M0 128 L70 96 L132 118 L198 82 L262 112 L330 90 L398 120 L470 92 L540 124 L640 104"/><path class="valley-river" d="M20 98 C 60 104, 76 116, 96 112 S 150 138, 190 146 S 268 176, 318 168 S 390 146, 420 150 S 520 196, 566 196 S 620 214, 640 218"/>' +
     placed.map((v) => `<circle class="valley-dot lv-${known(v) ? v.level : 'nodata'}" cx="${SPOTS[v.id][0]}" cy="${SPOTS[v.id][1]}" r="8"/>`).join('');
-  const fig = h('figure', { class: 'valley', 'aria-label': 'पाँच गाँव, ब्यास घाटी · The five villages in the Beas valley' }, s);
+  const fig = h('figure', { class: 'valley', 'aria-label': lang === 'hi' ? 'पाँच गाँव, ब्यास घाटी' : 'The five villages in the Beas valley' }, s);
   for (const v of placed) {
     const [x, y] = SPOTS[v.id];
-    const label = h('span', { 'aria-hidden': 'true', class: `valley-label${y > 160 ? ' is-below' : ''}` }, h('span', { lang: 'hi' }, v.name_hi));
-    if (v.level !== 'normal') label.append(h('span', { class: `valley-level lv-${v.level}`, lang: 'hi' }, ` · ${LEVEL_WORDS[v.level].hi}`));
-    if (!known(v)) label.append(h('span', { class: 'valley-level lv-nodata', lang: 'hi' }, ' · डेटा नहीं'));
+    const label = h('span', { 'aria-hidden': 'true', class: `valley-label${y > 160 ? ' is-below' : ''}` }, h('span', null, lang === 'hi' ? v.name_hi : v.name));
+    if (v.level !== 'normal') label.append(h('span', { class: `valley-level lv-${v.level}` }, ` · ${LEVEL_WORDS[v.level][lang]}`));
+    if (!known(v)) label.append(h('span', { class: 'valley-level lv-nodata' }, lang === 'hi' ? ' · डेटा नहीं' : ' · No data'));
     label.style.left = `${(x / 640) * 100}%`;
     label.style.top = `${(y / 260) * 100}%`;
     fig.append(label);
@@ -397,29 +410,92 @@ function valley(villages: OvVillage[]): HTMLElement {
   return fig;
 }
 
+/** The kicker's wave mark (components/Art.tsx Lehar), so the hero's first line does not move at the hand-over. */
+function lehar(): Element {
+  const s = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  for (const [k, v] of [['class', 'lehar'], ['viewBox', '0 0 160 32'], ['width', '80'], ['height', '16'], ['aria-hidden', 'true'], ['focusable', 'false']]) s.setAttribute(k, v);
+  s.innerHTML =
+    '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path class="lehar-line" d="M3 27 H40 M120 27 H157"/><path d="M30 27 C 40 27, 46 23, 48 17 C 50 11, 58 9, 62 13 C 65 16, 63 21, 59 21 C 56 21, 55 18, 57 16"/><path d="M130 27 C 120 27, 114 23, 112 17 C 110 11, 102 9, 98 13 C 95 16, 97 21, 101 21 C 104 21, 105 18, 103 16"/><path d="M68 27 L80 10 L92 27"/><path d="M75 17.5 L78 19.5 L80 16.8 L82 19.5 L85 17.5"/><path class="lehar-call" d="M75 6.5 A6 6 0 0 1 85 6.5 M71.5 3.5 A11 11 0 0 1 88.5 3.5"/></g>';
+  return s;
+}
+
 function home(villages: OvVillage[] | null, offline: boolean): HTMLElement {
   const hi = lang === 'hi';
   const vs = villages ?? [];
   const n = vs.length;
   const rank = (l: Level) => levelStep(l);
+  const name = (v: OvVillage) => (hi ? v.name_hi : v.name);
   const raised = vs.filter((v) => rank(v.level) >= 2).sort((a, b) => rank(b.level) - rank(a.level));
   const unknown = vs.filter((v) => !known(v));
   const checkedAt = vs.reduce<string | null>((m, v) => (v.data_ok_at && (!m || v.data_ok_at > m) ? v.data_ok_at : m), null);
-  const now = h('div', { class: 'home-now' }, h('p', { class: 'home-region' }, hi ? 'हिमाचल · मंडी और हमीरपुर' : 'Himachal · Mandi and Hamirpur'));
+
+  // The hero (Landing.tsx's): the promise, the two actions and the live line. The floating cards wait
+  // for the app; the cards sit beside the copy on a desk and are not drawn on a phone.
+  const live = !villages
+    ? ['lv-nodata', hi ? 'गाँवों की जाँच हो रही है…' : 'Checking the villages…']
+    : raised.length > 0
+      ? [`lv-${raised[0].level}`, hi ? `${name(raised[0])}: ${LEVEL_WORDS[raised[0].level].hi}${raised.length > 1 ? ` और ${raised.length - 1} गाँव` : ''}` : `${name(raised[0])}: ${LEVEL_WORDS[raised[0].level].en}${raised.length > 1 ? ` and ${raised.length - 1} more` : ''}`]
+      : unknown.length > 0
+        ? ['lv-nodata', hi ? `${unknown.length} गाँव का डेटा नहीं मिल रहा` : `No data for ${unknown.length} ${unknown.length === 1 ? 'village' : 'villages'}`]
+        : ['lv-normal', hi ? `सभी ${n} गाँव सामान्य` : `All ${n} villages at Normal`];
+  const hero = h(
+    'section',
+    { class: 'home-hero', 'aria-labelledby': 'hero-h' },
+    h(
+      'div',
+      { class: 'wrap-wide home-hero-in' },
+      h(
+        'div',
+        { class: 'home-hero-copy', 'data-tour': 'hero' },
+        h('p', { class: 'kicker home-kicker' }, lehar(), hi ? 'हिमाचल प्रदेश · मंडी और हमीरपुर' : 'Himachal Pradesh · Mandi and Hamirpur'),
+        h(
+          'h1',
+          { id: 'hero-h', class: 'home-hero-h1' },
+          h('span', null, hi ? 'नदी से पहले,' : 'The call that'),
+          ' ',
+          h('span', null, hi ? 'गाँव तक पहुँचने' : 'reaches the village'),
+          ' ',
+          h('span', { class: 'home-hero-blue' }, hi ? 'वाली पुकार।' : 'before the river.'),
+        ),
+        h(
+          'p',
+          { class: 'home-hero-lead' },
+          hi
+            ? 'पुकार हर 15 मिनट बारिश और नदी का पूर्वानुमान पढ़ता है। ख़तरा दिखे तो एक अधिकारी एक टैप में चेतावनी मंज़ूर करता है, और गाँव के लिए जुड़े हर फ़ोन पर वह हिंदी में बोलकर पहुँचती है।'
+            : 'Every 15 minutes Pukaar reads the rain and river forecasts. When danger shows, an officer approves the alert with one tap, and every phone registered for the village hears it spoken in Hindi.',
+        ),
+        h(
+          'div',
+          { class: 'home-hero-ctas' },
+          h('a', { href: '/report', class: 'home-report' }, icon('mic'), h('span', null, hi ? 'पानी बढ़ रहा है? सूचना दें' : 'Water rising? Report it')),
+          h('a', { href: '/live', class: 'home-ghost' }, h('span', null, hi ? 'लाइव नक्शा' : 'Live map'), icon('arrow-up-right')),
+        ),
+        h(
+          'div',
+          { class: 'home-hero-row' },
+          h('a', { href: '#villages', class: `home-live ${live[0]}` }, h('span', { class: 'home-live-dot', 'aria-hidden': 'true' }), h('span', null, live[1]), icon('arrow-down')),
+          // The tour needs the app: its pill holds its place until React draws the real button.
+          h('span', { class: 'tour-pill home-tour', 'aria-hidden': 'true' }, icon('compass'), hi ? '60 सेकंड का टूर देखें' : 'Take the 60-second tour'),
+        ),
+      ),
+    ),
+  );
+
+  const now = h('div', { class: 'home-now' }, h('p', { class: 'home-region' }, tr('status')));
   if (!villages) {
-    now.append(h('h1', { id: 'home-h', class: 'home-h1' }, tr('status')), h('p', { class: 'home-wait' }, hi ? 'हर गाँव का हाल आ रहा है…' : 'Getting each village’s level…'));
+    now.append(h('h2', { id: 'home-h', class: 'home-h1' }, tr('status')), h('p', { class: 'home-wait' }, hi ? 'हर गाँव का हाल आ रहा है…' : 'Getting each village’s level…'));
   } else if (raised.length === 0) {
     const ok = () => h('span', { class: 'home-ok' }, icon('circle-check'), hi ? 'सामान्य' : 'Normal');
-    const h1 = h('h1', { id: 'home-h', class: 'home-h1' });
-    if (unknown.length > 0) h1.append(hi ? `${unknown.length} गाँव का डेटा नहीं मिल रहा` : `No data for ${unknown.length} ${unknown.length === 1 ? 'village' : 'villages'}`);
-    else if (hi) h1.append(`आज सब ${n} गाँव `, ok(), ' हैं।');
-    else h1.append(`All ${n} villages are at `, ok(), '.');
-    now.append(h1);
+    const h2 = h('h2', { id: 'home-h', class: 'home-h1' });
+    if (unknown.length > 0) h2.append(hi ? `${unknown.length} गाँव का डेटा नहीं मिल रहा` : `No data for ${unknown.length} ${unknown.length === 1 ? 'village' : 'villages'}`);
+    else if (hi) h2.append(`आज सब ${n} गाँव `, ok(), ' हैं।');
+    else h2.append(`All ${n} villages are at `, ok(), '.');
+    now.append(h2);
     if (unknown.length > 0) now.append(h('p', { class: 'home-lead' }, hi ? '‘सामान्य’ पर भरोसा न करें; नदी पर ख़ुद नज़र रखें।' : 'Do not rely on “Normal”; watch the river yourself.'));
     now.append(freshness(checkedAt, offline, { next: true }));
   } else {
     now.append(
-      h('h1', { id: 'home-h', class: 'sr-only' }, tr('status')),
+      h('h2', { id: 'home-h', class: 'sr-only' }, tr('status')),
       h(
         'div',
         { class: 'home-banners' },
@@ -428,10 +504,10 @@ function home(villages: OvVillage[] | null, offline: boolean): HTMLElement {
             v.level,
             false,
             MEANS[v.level],
-            [h('a', { href: `/village/${encodeURIComponent(v.id)}`, class: 'home-banner-link' }, h('span', { lang: 'hi' }, v.name_hi), ' ', h('span', { class: 'lvb-en', lang: 'en' }, v.name), h('span', { class: 'home-banner-go' }, `${hi ? 'क्या करें' : 'What to do'} `, icon('chevron-right')))],
+            [h('a', { href: `/village/${encodeURIComponent(v.id)}`, class: 'home-banner-link' }, h('span', null, name(v)), h('span', { class: 'home-banner-go' }, `${hi ? 'क्या करें' : 'What to do'} `, icon('chevron-right')))],
             'h2',
             null,
-            [h('p', { class: 'lvb-why' }, h('span', { lang: 'hi' }, LEAD[v.level].hi))],
+            [h('p', { class: 'lvb-why' }, h('span', null, LEAD[v.level][lang]))],
           ),
         ),
       ),
@@ -452,8 +528,8 @@ function home(villages: OvVillage[] | null, offline: boolean): HTMLElement {
             h(
               'a',
               { href: `/village/${encodeURIComponent(v.id)}`, class: `vrow lv-${k ? v.level : 'nodata'}` },
-              h('span', { class: 'vrow-name' }, h('span', { lang: 'hi' }, v.name_hi), ' ', h('span', { class: 'vrow-en', lang: 'en' }, v.name)),
-              h('span', { class: 'vrow-level' }, icon(k ? LEVEL_ICON[v.level] : 'cloud-off'), h('span', { lang: 'hi' }, k ? LEVEL_WORDS[v.level].hi : 'डेटा नहीं')),
+              h('span', { class: 'vrow-name' }, h('span', null, name(v))),
+              h('span', { class: 'vrow-level' }, icon(k ? LEVEL_ICON[v.level] : 'cloud-off'), h('span', null, k ? LEVEL_WORDS[v.level][lang] : hi ? 'डेटा नहीं' : 'No data')),
               icon('chevron-right', 'vrow-go'),
             ),
           );
@@ -463,32 +539,18 @@ function home(villages: OvVillage[] | null, offline: boolean): HTMLElement {
   const pick = h(
     'div',
     { class: 'home-pick' },
-    h('h2', { class: 'home-h2' }, hi ? 'अपना गाँव चुनें' : 'Choose your village'),
+    h('h3', { class: 'home-h2' }, hi ? 'अपना गाँव चुनें' : 'Choose your village'),
     rows,
-    h(
-      'div',
-      { class: 'home-acts' },
-      h('a', { href: '/report', class: 'home-report' }, icon('mic'), h('span', null, h('span', { lang: 'hi' }, 'पानी बढ़ रहा है? सूचना दें'), !hi && h('span', { class: 'home-report-en', lang: 'en' }, 'Water rising? Report it'))),
-      goLink('/live', 'map', hi ? 'नक्शे पर देखें' : 'See on the map'),
-    ),
+    h('div', { class: 'home-acts' }, goLink('/live', 'map', hi ? 'नक्शे पर देखें' : 'See on the map')),
   );
-  const lede = h(
-    'div',
-    { class: 'home-lede' },
-    valley(vs),
-    h('h2', { id: 'story-h', class: 'home-display', lang: 'hi' }, 'नदी से पहले, गाँव तक।'),
-    h(
-      'p',
-      { class: 'home-para' },
-      hi
-        ? 'पुकार हर 15 मिनट बारिश और नदी का पूर्वानुमान पढ़ता है। ख़तरा दिखे तो एक अधिकारी चेतावनी मंज़ूर करता है, और वह हिंदी में बोलकर गाँव के लिए जुड़े हर फ़ोन पर जाती है।'
-        : 'Every 15 minutes Pukaar reads the rain and river forecasts. When danger shows, an officer approves the alert, and it goes out spoken in Hindi to every phone registered for the village.',
-    ),
-  );
-  // The valley and the serif line sit beside the status on a desk; on a phone they are below the fold, and the
-  // display font they need would only compete with the answer, so the app draws them.
+  // The valley sits beside the status on a desk; on a phone it is below the fold, so the app draws it.
   const wide = W.__pkCut != null || (typeof matchMedia === 'function' && matchMedia('(min-width: 1024px)').matches);
-  return h('div', { class: 'home' }, h('section', { class: 'home-status wrap', 'aria-labelledby': 'home-h' }, now, pick, wide && lede));
+  return h(
+    'div',
+    { class: 'home' },
+    hero,
+    h('section', { class: 'home-status wrap', id: 'villages', 'aria-labelledby': 'home-h' }, now, pick, wide && h('div', { class: 'home-lede' }, valley(vs))),
+  );
 }
 
 /* ---------- painting ---------- */
@@ -502,7 +564,7 @@ let shown: Shown | null = null;
 function body(): HTMLElement {
   if (villageId) return shown?.data ? villageAnswer(shown.data as Now, shown.offline) : villageWait();
   if (isHome) return home(shown?.data ? (shown.data as { villages: OvVillage[] }).villages : null, Boolean(shown?.offline));
-  return h('p', { class: 'boot-wait', lang: 'hi' }, 'पुकार खुल रहा है… ', h('span', { lang: 'en' }, 'Opening Pukaar…'));
+  return h('p', { class: 'boot-wait' }, lang === 'hi' ? 'पुकार खुल रहा है…' : 'Opening Pukaar…');
 }
 
 function paint(): void {

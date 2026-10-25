@@ -1,5 +1,7 @@
 Noto Sans Devanagari (noto-sans-devanagari-*.woff2, subset to wght 400-700): Copyright 2022 The Noto Project Authors (https://github.com/notofonts/devanagari)
 Copyright 2020 The Indigo Project Authors (https://github.com/TiroTypeworks/Indigo)
+Newsreader (newsreader-latin-360-560.woff2, Latin, instanced to wght 360-560): Copyright 2020 The Newsreader Project Authors (https://github.com/productiontype/Newsreader)
+Figtree (figtree-latin-wght.woff2, Latin, wght 300-900): Copyright 2022 The Figtree Project Authors (https://github.com/erikdkennedy/figtree)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

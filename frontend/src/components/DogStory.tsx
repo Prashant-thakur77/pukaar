@@ -4,12 +4,12 @@ import { Reveal } from './Reveal';
 
 /** Sourced story: The Tribune, 9 July 2025 (checked 2026-10-22). The quote is the villager's own words. */
 const DOG = {
-  source: 'The Tribune, 9 Jul 2025',
+  source: { en: 'The Tribune, 9 Jul 2025', hi: 'The Tribune, 9 जुलाई 2025' },
   url: 'https://www.tribuneindia.com/news/himachal/pet-dog-emerges-saviour-in-mandi-village-saves-60-lives-amid-monsoon-fury',
 };
 /** The IMD red alert for Mandi on 30 June 2025 (ANI, via Business Standard). */
 const RED_ALERT = {
-  source: 'Business Standard, 30 Jun 2025',
+  source: { en: 'Business Standard, 30 Jun 2025', hi: 'Business Standard, 30 जून 2025' },
   url: 'https://www.business-standard.com/india-news/red-alert-issued-in-mandi-beas-river-flooded-after-heavy-rainfall-125063000167_1.html',
 };
 
@@ -17,7 +17,7 @@ function Quote() {
   const { lang } = useT();
   return (
     <blockquote className="dog-quote">
-      <p lang="en">“Can we trust a dog to warn us next time?”</p>
+      <p>{lang === 'hi' ? '“अगली बार भी क्या हम कुत्ते के भरोसे ही रहें?”' : '“Can we trust a dog to warn us next time?”'}</p>
       <footer>{lang === 'hi' ? 'मोहन, सियाठी गाँव, मंडी' : 'Mohan, Siyathi village, Mandi'}</footer>
     </blockquote>
   );
@@ -39,7 +39,7 @@ export function DogStory({ variant = 'full' }: { variant?: 'full' | 'quote' }) {
               ? '30 जून 2025 की रात सियाठी के 60 से ज़्यादा लोगों को एक कुत्ते के भौंकने से समय पर निकलने का मौका मिला। यह पन्ना जाँचता है कि पुकार कितनी पहले चेतावनी देता।'
               : 'On the night of 30 June 2025 a dog’s barking got more than 60 people in Siyathi out in time. This page checks how much earlier Pukaar would have warned.'}{' '}
             <a className="dog-src-link" href={DOG.url} target="_blank" rel="noreferrer">
-              {DOG.source} <ArrowUpRight aria-hidden="true" />
+              {DOG.source[lang]} <ArrowUpRight aria-hidden="true" />
             </a>
           </p>
         </div>
@@ -67,11 +67,11 @@ export function DogStory({ variant = 'full' }: { variant?: 'full' | 'quote' }) {
           <p className="fact-src dog-src">
             {lang === 'hi' ? 'स्रोत' : 'Sources'}:{' '}
             <a href={DOG.url} target="_blank" rel="noreferrer">
-              {DOG.source} <ArrowUpRight aria-hidden="true" />
+              {DOG.source[lang]} <ArrowUpRight aria-hidden="true" />
             </a>
             {' · '}
             <a href={RED_ALERT.url} target="_blank" rel="noreferrer">
-              {RED_ALERT.source} <ArrowUpRight aria-hidden="true" />
+              {RED_ALERT.source[lang]} <ArrowUpRight aria-hidden="true" />
             </a>
           </p>
         </Reveal>

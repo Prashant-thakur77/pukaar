@@ -87,7 +87,7 @@ function ChecklistPanel({ villageId, initial }: { villageId: string; initial: Ch
     } catch (err) {
       setList((c) => withItem(c, item, !done));
       const e = err as ApiError;
-      setError(lang === 'hi' && e?.messageHi ? e.messageHi : e?.isDenied ? e.messageEn : t('ready.save.error'));
+      setError(lang === 'hi' && e?.messageHi ? e.messageHi : e?.isDenied ? e.messageIn(lang) : t('ready.save.error'));
     } finally {
       setBusy(null);
     }

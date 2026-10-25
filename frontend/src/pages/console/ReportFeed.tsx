@@ -110,7 +110,8 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
                 </p>
                 <p className="rc-summary">{humanizeSummary(r.summary_en, lang, r.report_type, r.severity) || r.text}</p>
                 {r.transcript && (
-                  <p className="rc-transcript" lang="hi">
+                  /* The villager's own words, quoted as they spoke them; the summary above says them in the page's language. */
+                  <p className="rc-transcript" lang="hi" data-quoted-sample="">
                     “{r.transcript}”
                   </p>
                 )}
@@ -129,8 +130,8 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
                   />
                 ) : null}
                 <div className="rc-media">
-                  {r.photo_url && !r.staff_reading && <img src={r.photo_url} alt={`Photo: ${r.summary_en || r.report_type}`} loading="lazy" />}
-                  {r.audio_url && <audio src={r.audio_url} controls preload="none" aria-label="रिपोर्ट की आवाज़ सुनें (Play report audio)" />}
+                  {r.photo_url && !r.staff_reading && <img src={r.photo_url} alt={`${lang === 'hi' ? 'फ़ोटो' : 'Photo'}: ${humanizeSummary(r.summary_en, lang, r.report_type, r.severity) || pick(enumLabels.reportType[r.report_type])}`} loading="lazy" />}
+                  {r.audio_url && <audio src={r.audio_url} controls preload="none" aria-label={lang === 'hi' ? 'सूचना की आवाज़ सुनें' : 'Play the report audio'} />}
                 </div>
                 {(r.flags.length > 0 || masked.length > 0) && (
                   <p className="rc-flags">
@@ -155,7 +156,7 @@ export function ReportFeed({ poll, villages, canEdit = true }: { poll: PollState
                 )}
                 {r.parser_source && <p className="small muted">{t('console.parser', { p: r.parser_source })}</p>}
                 {canEdit && (
-                <div className="rc-actions" role="group" aria-label="Set report state">
+                <div className="rc-actions" role="group" aria-label={lang === 'hi' ? 'सूचना की स्थिति बदलें' : 'Set report state'}>
                   {ACTIONS.map((a) => (
                     <button
                       key={a.state}

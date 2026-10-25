@@ -50,11 +50,11 @@ export function ListenButton({ alertId, big, hasAudio }: { alertId: string; big?
         type="button"
         className={`btn ${big ? 'btn-lg' : 'btn-sm'} btn-listen${state === 'playing' ? ' is-playing' : ''}`}
         onClick={toggle}
-        aria-label={state === 'playing' ? 'आवाज़ रोकें (Pause)' : 'चेतावनी सुनें (Listen to the Hindi alert)'}
+        aria-label={state === 'playing' ? t('common.pause.aria') : t('common.listen.aria')}
         aria-pressed={state === 'playing'}
       >
         {state === 'loading' ? <LoaderCircle className="spin" aria-hidden="true" /> : state === 'playing' ? <Pause aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
-        <span lang="hi">सुनें</span>
+        <span>{t('common.listen')}</span>
         {state === 'playing' && <span className="eq" aria-hidden="true"><i /><i /><i /></span>}
       </button>
       {state === 'none' && <span className="muted small" role="status">{t('common.audio.none')}</span>}

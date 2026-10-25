@@ -33,29 +33,34 @@ import type { Lang } from '../store';
 import '../styles/story.css';
 import '../styles/explain.css';
 
+// The hero's three figures, from the same estimates as the sections below (lib/pilotCost.ts), never typed by hand.
+const GLANCE_ALL_IN = fmtRupeesAbout(scaleCost(SCALES.district).perVillage);
+const GLANCE_MESSAGING = fmtRupees(estimatePilotCost(DEFAULT_COST_INPUTS).perSeason);
+
 type Txt = { hi: string; en: string };
-type Source = { label: string; href: string };
+type Source = { label: string; hi?: string; href: string };
+const srcLabel = (s: Source, lang: Lang) => (lang === 'hi' && s.hi) || s.label;
 
 /** The day the list prices below were read from each provider's page. */
 const CHECKED = '2026-10-22';
 const GITHUB = 'https://github.com/Prashant-thakur77/pukaar';
 
 const SRC = {
-  plivo: { label: 'Plivo, India voice pricing', href: 'https://www.plivo.com/voice/pricing/in/' },
-  awsVoice: { label: 'AWS End User Messaging pricing', href: 'https://aws.amazon.com/end-user-messaging/pricing/' },
-  msg91: { label: 'MSG91 SMS pricing (excl. 18% GST)', href: 'https://www.msg91.com/in/pricing' },
-  telegram: { label: 'Telegram Bot API FAQ', href: 'https://core.telegram.org/bots/faq' },
-  polly: { label: 'Amazon Polly pricing', href: 'https://aws.amazon.com/polly/pricing/' },
-  dlt1: { label: 'Message Central, India SMS rules', href: 'https://www.messagecentral.com/sms-guideline/india' },
-  dlt2: { label: 'Infobip, DLT registration', href: 'https://www.infobip.com/docs/essentials/asia-registration/dlt-registration' },
-  census: { label: 'Mandi district, Census 2011 (villageinfo.org)', href: 'https://villageinfo.org/district/mandi' },
-  vsl: { label: 'Indian value of a statistical life (ISEC WP 407)', href: 'https://econpapers.repec.org/RePEc:sch:wpaper:407' },
-  hallegatte: { label: 'Hallegatte 2012, World Bank WPS 6058', href: 'http://documents1.worldbank.org/curated/en/190261468181486694/txt/WPS6058.txt' },
+  plivo: { label: 'Plivo, India voice pricing', hi: 'Plivo, भारत में कॉल की दरें', href: 'https://www.plivo.com/voice/pricing/in/' },
+  awsVoice: { label: 'AWS End User Messaging pricing', hi: 'AWS End User Messaging की दरें', href: 'https://aws.amazon.com/end-user-messaging/pricing/' },
+  msg91: { label: 'MSG91 SMS pricing (excl. 18% GST)', hi: 'MSG91, SMS की दरें (18% GST के बिना)', href: 'https://www.msg91.com/in/pricing' },
+  telegram: { label: 'Telegram Bot API FAQ', hi: 'Telegram Bot API: आम सवाल', href: 'https://core.telegram.org/bots/faq' },
+  polly: { label: 'Amazon Polly pricing', hi: 'Amazon Polly की दरें', href: 'https://aws.amazon.com/polly/pricing/' },
+  dlt1: { label: 'Message Central, India SMS rules', hi: 'Message Central, भारत में SMS के नियम', href: 'https://www.messagecentral.com/sms-guideline/india' },
+  dlt2: { label: 'Infobip, DLT registration', hi: 'Infobip, DLT पंजीकरण', href: 'https://www.infobip.com/docs/essentials/asia-registration/dlt-registration' },
+  census: { label: 'Mandi district, Census 2011 (villageinfo.org)', hi: 'ज़िला मंडी, जनगणना 2011 (villageinfo.org)', href: 'https://villageinfo.org/district/mandi' },
+  vsl: { label: 'Indian value of a statistical life (ISEC WP 407)', hi: 'एक सांख्यिकीय जीवन का भारतीय मूल्य (ISEC WP 407)', href: 'https://econpapers.repec.org/RePEc:sch:wpaper:407' },
+  hallegatte: { label: 'Hallegatte 2012, World Bank WPS 6058', hi: 'Hallegatte 2012, विश्व बैंक WPS 6058', href: 'http://documents1.worldbank.org/curated/en/190261468181486694/txt/WPS6058.txt' },
   karnali: {
-    label: 'Rai et al. 2020, Karnali flood EWS',
+    label: 'Rai et al. 2020, Karnali flood EWS', hi: 'Rai और साथी 2020, कर्णाली की बाढ़ चेतावनी',
     href: 'https://www.dpnet.org.np/public/uploads/files/CBA%20of%20EWS%20in%20Karnali%20Feb%202020%202021-09-12%2010-18-25.pdf',
   },
-  sdmf: { label: 'MHA SDMF guidelines, 2022', href: 'https://srcodisha.nic.in/dmrule/SDMF%20Guidelines.pdf' },
+  sdmf: { label: 'MHA SDMF guidelines, 2022', hi: 'गृह मंत्रालय, SDMF के नियम, 2022', href: 'https://srcodisha.nic.in/dmrule/SDMF%20Guidelines.pdf' },
 } satisfies Record<string, Source>;
 
 function Ext({ href, children, className = 'xp-src' }: { href: string; children: ReactNode; className?: string }) {
@@ -131,7 +136,7 @@ const LINE_LABEL: Record<CostLineKey, Txt> = {
   voice: { en: 'Voice call to every number', hi: 'हर नंबर पर वॉइस कॉल' },
   recall: { en: 'Re-call to those who did not confirm', hi: 'जिन्होंने पुष्टि नहीं की, उन्हें दोबारा कॉल' },
   sms: { en: 'Hindi SMS copy', hi: 'हिंदी SMS' },
-  telegram: { en: 'Telegram, with “मिल गया”', hi: 'Telegram, “मिल गया” के साथ' },
+  telegram: { en: 'Telegram, with “Got it”', hi: 'Telegram, “मिल गया” के साथ' },
   gst: { en: 'GST', hi: 'GST' },
 };
 
@@ -161,7 +166,7 @@ function CostField({ f, value, onChange, lang }: { f: Field; value: string; onCh
         <span className="pl-src">
           {f.src.map((s) => (
             <Ext key={s.href} href={s.href}>
-              {s.label}
+              {srcLabel(s, lang)}
             </Ext>
           ))}
         </span>
@@ -275,8 +280,8 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
                 {en
                   ? 'Telegram: free (Bot API). Polly, the Hindi voice: synthesised once per alert, under ₹1 an event, so not added. '
                   : 'Telegram: मुफ़्त (Bot API)। Polly, हिंदी आवाज़: हर चेतावनी पर एक बार बनती है, ₹1 से कम, इसलिए जोड़ी नहीं। '}
-                <Ext href={SRC.telegram.href}>{SRC.telegram.label}</Ext>
-                <Ext href={SRC.polly.href}>{SRC.polly.label}</Ext>
+                <Ext href={SRC.telegram.href}>{srcLabel(SRC.telegram, lang)}</Ext>
+                <Ext href={SRC.polly.href}>{srcLabel(SRC.polly, lang)}</Ext>
               </p>
               {group(en ? 'Scale' : 'पैमाना', SCALE_FIELDS)}
               <button type="button" className="btn btn-ghost pl-reset" onClick={() => setDraft(toDraft(DEFAULT_COST_INPUTS))}>
@@ -307,7 +312,7 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
                   <td data-label={en ? 'Source' : 'स्रोत'}>
                     {lineSrc[l.key].map((s) => (
                       <Ext key={s.href} href={s.href}>
-                        {s.label}
+                        {srcLabel(s, lang)}
                       </Ext>
                     ))}
                     <span className="pl-checked">{checked}</span>
@@ -333,7 +338,7 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
               {en
                 ? `If the Hindi alert and the “press 1” prompt run past a minute, each answered call bills 2 minutes on a 1-minute pulse: +${fmtRupees(long.extra)} a season here (+${fmtNumber(long.share * 100, lang, 0)}%). The alert’s length has to be measured before the price is quoted. `
                 : `अगर हिंदी चेतावनी और “1 दबाएँ” एक मिनट से लंबे हों, तो 1 मिनट की पल्स पर हर उठाई गई कॉल के 2 मिनट लगते हैं: यहाँ एक मानसून में +${fmtRupees(long.extra)} (+${fmtNumber(long.share * 100, lang, 0)}%)। क़ीमत बताने से पहले चेतावनी की लंबाई मापनी होगी। `}
-              <Ext href={SRC.plivo.href}>{SRC.plivo.label}</Ext>
+              <Ext href={SRC.plivo.href}>{srcLabel(SRC.plivo, lang)}</Ext>
             </span>
           </li>
           <li>
@@ -342,7 +347,7 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
               {en
                 ? `${fmtRupees(FIXED_TELECOM.numberRentalPerMonth)} a month for the calling number (${fmtRupees(FIXED_TELECOM.numberRentalPerMonth * 12)} a year), once per deployment, not per village. `
                 : `कॉल करने वाले नंबर का ${fmtRupees(FIXED_TELECOM.numberRentalPerMonth)} महीना (${fmtRupees(FIXED_TELECOM.numberRentalPerMonth * 12)} साल), हर तैनाती पर एक बार, हर गाँव पर नहीं। `}
-              <Ext href={SRC.plivo.href}>{SRC.plivo.label}</Ext>
+              <Ext href={SRC.plivo.href}>{srcLabel(SRC.plivo, lang)}</Ext>
             </span>
           </li>
           <li>
@@ -351,8 +356,8 @@ function CostSection({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
               {en
                 ? `${fmtRupees(FIXED_TELECOM.dltOneOff)} once per sending entity, plus ${fmtRupees(FIXED_TELECOM.dltPerHeaderYear)} a year per header. The sending entity must be the DDMA, not Pukaar. `
                 : `भेजने वाली संस्था के लिए एक बार ${fmtRupees(FIXED_TELECOM.dltOneOff)}, हर हेडर ${fmtRupees(FIXED_TELECOM.dltPerHeaderYear)} सालाना। भेजने वाली संस्था DDMA होनी चाहिए, पुकार नहीं। `}
-              <Ext href={SRC.dlt1.href}>{SRC.dlt1.label}</Ext>
-              <Ext href={SRC.dlt2.href}>{SRC.dlt2.label}</Ext>
+              <Ext href={SRC.dlt1.href}>{srcLabel(SRC.dlt1, lang)}</Ext>
+              <Ext href={SRC.dlt2.href}>{srcLabel(SRC.dlt2, lang)}</Ext>
               <span className="pl-checked">{checked}</span>
             </span>
           </li>
@@ -496,7 +501,7 @@ const LIVE: Txt[] = [
   { en: 'The 15-minute sweep and the risk rules, per village', hi: 'हर 15 मिनट की जाँच और हर गाँव के जोखिम नियम' },
   { en: 'One-tap approval, escalating to the next officer', hi: 'एक टैप मंज़ूरी, जवाब न मिले तो अगले अधिकारी को' },
   { en: 'The spoken Hindi alert (Polly)', hi: 'बोलकर हिंदी चेतावनी (Polly)' },
-  { en: 'Telegram with “मिल गया” and a re-send to anyone who has not', hi: 'Telegram पर “मिल गया”, और जिसने नहीं दबाया उसे दोबारा' },
+  { en: 'Telegram with “Got it” and a re-send to anyone who has not', hi: 'Telegram पर “मिल गया”, और जिसने नहीं दबाया उसे दोबारा' },
   { en: 'A CAP 1.2 feed, the format SACHET reads', hi: 'CAP 1.2 फ़ीड, जिस मानक को SACHET पढ़ता है' },
   { en: 'The “Are you safe?” roll-call', hi: '“क्या आप सुरक्षित हैं?” हाज़िरी' },
   { en: 'Safe places, walking routes and road blocks', hi: 'सुरक्षित जगहें, पैदल रास्ते और बंद सड़कें' },
@@ -539,7 +544,7 @@ function RealSection() {
                 <Ext href={`${GITHUB}#built-versus-planned`} className="pl-inline">
                   README
                 </Ext>{' '}
-                के “Built versus planned” में है।
+                के “क्या बना, क्या बाक़ी” वाले हिस्से में है।
               </>
             )
           }
@@ -600,7 +605,7 @@ const PLAN: { when: Txt; title: Txt; what: Txt; metrics: Txt[] }[] = [
     },
     metrics: [
       { en: 'Households enrolled, of all households', hi: 'कुल घरों में से जुड़े घर' },
-      { en: 'Drill: share reached and share who pressed “मिल गया”', hi: 'अभ्यास: कितनों तक पहुँचा, कितनों ने “मिल गया” दबाया' },
+      { en: 'Drill: share reached and share who pressed “Got it”', hi: 'अभ्यास: कितनों तक पहुँचा, कितनों ने “मिल गया” दबाया' },
       { en: 'Median minutes to confirm', hi: 'पुष्टि तक का मध्य समय (मिनट)' },
       { en: 'Could name their safe place (3 questions by phone)', hi: 'अपनी सुरक्षित जगह बता सके (फ़ोन पर 3 सवाल)' },
     ],
@@ -613,7 +618,7 @@ const PLAN: { when: Txt; title: Txt; what: Txt; metrics: Txt[] }[] = [
       hi: 'मानसून में असली चेतावनी, बाक़ी समय हर महीने अभ्यास; हर एक की बाद की रिपोर्ट; AWS बिल और कंपनियों के बिल पढ़े गए।',
     },
     metrics: [
-      { en: 'Lead time: level rise to the first “मिल गया”', hi: 'स्तर बढ़ने से पहले “मिल गया” तक का समय' },
+      { en: 'Lead time: level rise to the first “Got it”', hi: 'स्तर बढ़ने से पहले “मिल गया” तक का समय' },
       { en: 'Approval time and auto-sends', hi: 'मंज़ूरी का समय और अपने-आप भेजी गई चेतावनियाँ' },
       { en: 'False alarms and misses, against what happened', hi: 'जो हुआ उससे मिलाकर ग़लत चेतावनियाँ और छूटी घटनाएँ' },
       { en: 'Measured cost per village', hi: 'हर गाँव का मापा गया ख़र्च' },
@@ -729,7 +734,7 @@ function PaysSection() {
               {en
                 ? `${fmtRupeesShort(DISTRICT_COST, lang)} a year ÷ ₹1.5 crore, the lowest Indian value of a statistical life found. `
                 : `${fmtRupeesShort(DISTRICT_COST, lang)} सालाना ÷ ₹1.5 करोड़, एक सांख्यिकीय जीवन का सबसे कम भारतीय मूल्य। `}
-              <Ext href={SRC.vsl.href}>{SRC.vsl.label}</Ext>
+              <Ext href={SRC.vsl.href}>{srcLabel(SRC.vsl, lang)}</Ext>
             </figcaption>
           </figure>
           <div className="pl-pays-side">
@@ -752,15 +757,15 @@ function PaysSection() {
               {en
                 ? 'A company’s CSR for the pilot (disaster management, Schedule VII item xii), then the DDMA or the State Disaster Mitigation Fund through GeM, dam operators for the villages below their spillways, and HP-READY at state scale. '
                 : 'पायलट के लिए किसी कंपनी का CSR (आपदा प्रबंधन, अनुसूची VII मद xii), फिर GeM के ज़रिए DDMA या राज्य आपदा न्यूनीकरण कोष, बाँध चलाने वाली कंपनियाँ अपने स्पिलवे के नीचे के गाँवों के लिए, और राज्य के पैमाने पर HP-READY। '}
-              <Ext href={SRC.sdmf.href}>{SRC.sdmf.label}</Ext>
+              <Ext href={SRC.sdmf.href}>{srcLabel(SRC.sdmf, lang)}</Ext>
             </p>
             <p className="pl-pays-line">
               <span className="pl-pays-k">{en ? 'For context only' : 'सिर्फ़ संदर्भ के लिए'}</span>
               {en
                 ? 'Published ratios come from hours or days of warning: 4–36 for weather services and warning in developing countries, and 24–73 for a river-flood warning in Nepal with 2.75 hours of lead. A flash flood gives minutes, so Pukaar does not borrow them. '
                 : 'छपे हुए अनुपात घंटों या दिनों की चेतावनी से आते हैं: विकासशील देशों में मौसम सेवा और चेतावनी के लिए 4–36, और नेपाल में 2.75 घंटे पहले वाली नदी-बाढ़ चेतावनी के लिए 24–73। अचानक बाढ़ में मिनट मिलते हैं, इसलिए पुकार इन्हें उधार नहीं लेता। '}
-              <Ext href={SRC.hallegatte.href}>{SRC.hallegatte.label}</Ext>
-              <Ext href={SRC.karnali.href}>{SRC.karnali.label}</Ext>
+              <Ext href={SRC.hallegatte.href}>{srcLabel(SRC.hallegatte, lang)}</Ext>
+              <Ext href={SRC.karnali.href}>{srcLabel(SRC.karnali, lang)}</Ext>
             </p>
           </div>
         </div>
@@ -865,6 +870,25 @@ export default function Pilot() {
             </ol>
           </nav>
         </div>
+        <aside className="xp-hero-art" aria-labelledby="pl-glance-h">
+          <h2 id="pl-glance-h" className="xp-art-k">
+            {en ? 'The pilot at a glance' : 'पायलट एक नज़र में'}
+          </h2>
+          <dl className="xp-art-rows">
+            <div>
+              <dt>{en ? 'All in, per village, per year' : 'सब मिलाकर, प्रति गाँव, प्रति वर्ष'}</dt>
+              <dd>{GLANCE_ALL_IN}</dd>
+            </div>
+            <div>
+              <dt>{en ? 'Messages alone, per village, per monsoon' : 'सिर्फ़ संदेश, प्रति गाँव, प्रति मानसून'}</dt>
+              <dd>{GLANCE_MESSAGING}</dd>
+            </div>
+            <div>
+              <dt>{en ? 'The plan, start to finish' : 'योजना, शुरू से आख़िर तक'}</dt>
+              <dd>{en ? '90 days' : '90 दिन'}</dd>
+            </div>
+          </dl>
+        </aside>
       </header>
       <CostSection draft={draft} setDraft={setDraft} />
       <PaysSection />

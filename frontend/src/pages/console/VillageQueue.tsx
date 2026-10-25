@@ -28,11 +28,11 @@ export function VillageQueue({ poll }: { poll: PollState<Village[]> }) {
             <span className="q-rank">{i + 1}</span>
             <span className="q-main">
               <span className="q-name">
-                <span lang="hi">{v.name_hi}</span> <span className="muted">· {v.name}</span>
+                {lang === 'hi' ? v.name_hi || v.name : v.name}
               </span>
               <span className="q-badges">
                 <ShownLevel v={v} plain />
-                {v.open_alert_id && <span className="q-open" role="img" title="Open alert" aria-label="Open alert" />}
+                {v.open_alert_id && <span className="q-open" role="img" title={t('queue.open.alert')} aria-label={t('queue.open.alert')} />}
                 {v.readiness?.state === 'get_ready' && (
                   <span className="q-ready" title={t('ready.soft')}>
                     {t('ready.get')}

@@ -102,7 +102,7 @@ svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2.2; displ
 
 /* ---------- buttons ---------- */
 .btn {
-  --bg-b: var(--surface); --fg-b: var(--ink); --bd-b: var(--line-strong);
+  --bg-b: var(--surface-2); --fg-b: var(--ink); --bd-b: transparent;
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   min-height: var(--tap); padding: 10px 20px; border-radius: var(--r-pill);
   background: var(--bg-b); color: var(--fg-b); border: 1.5px solid var(--bd-b);

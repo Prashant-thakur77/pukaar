@@ -97,7 +97,7 @@ export function DutyHandover({ district }: { district: string }) {
               {saved}
             </p>
           )}
-          {err && (err.isDenied ? <DeniedNote error={err} /> : <p className="dp-note is-bad" role="alert">{(hi && err.messageHi) || err.messageEn}</p>)}
+          {err && (err.isDenied ? <DeniedNote error={err} /> : <p className="dp-note is-bad" role="alert">{err.messageIn(hi ? 'hi' : 'en')}</p>)}
         </>
       ) : null}
       <Digest district={district} />

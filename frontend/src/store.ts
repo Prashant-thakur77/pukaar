@@ -60,23 +60,33 @@ export const useAuth = create<AuthState>((set) => ({
   },
 }));
 
-/* ---------- preferences: language per area, theme ---------- */
+/* ---------- preferences: one language for the whole site, theme ---------- */
 
 export type Lang = 'hi' | 'en';
-/** villager: /report and /t; public: the open pages; staff: the officer tools. */
+/** villager: /report and /t; public: the open pages; staff: the officer tools. Only the first-visit default differs. */
 export type LangScope = 'villager' | 'public' | 'staff';
 export type ThemePref = 'system' | 'light' | 'dark';
+export const LANG_SCOPES: LangScope[] = ['villager', 'public', 'staff'];
 
 interface PrefState {
-  lang: Record<LangScope, Lang>;
+  /** The one language every page shows. */
+  lang: Lang;
   theme: ThemePref;
-  setLang: (scope: LangScope, lang: Lang) => void;
+  /** Sets the language everywhere: every page and area, now and on the next visit. */
+  setLang: (lang: Lang) => void;
   setTheme: (theme: ThemePref) => void;
 }
 
-function initialLang(scope: LangScope, fallback: Lang): Lang {
-  const v = readLS(`pukaar.lang.${scope}`);
-  return v === 'hi' || v === 'en' ? v : fallback;
+/** The officer tools: the console, audit, roster, sign-in and the one-tap approval link. */
+const STAFF_PATH = /^\/(console|audit|roster|login)(\/|$)|^\/a\//;
+
+/**
+ * Which area a page belongs to. It only picks the first-visit default: villager pages (report, tracking) start
+ * in Hindi, the officer tools in English, the public pages in the browser's language.
+ */
+export function scopeFor(pathname: string): LangScope {
+  if (pathname.startsWith('/report') || pathname.startsWith('/t/') || pathname === '/t') return 'villager';
+  return STAFF_PATH.test(pathname) ? 'staff' : 'public';
 }
 
 /** The browser's first language: any Hindi locale (hi, hi-IN, hi-Latn) reads Hindi, everything else English. */
@@ -84,6 +94,48 @@ export function browserLang(): Lang {
   if (typeof navigator === 'undefined') return 'en';
   const first = navigator.languages?.[0] ?? navigator.language ?? '';
   return /^hi(-|$)/i.test(first) ? 'hi' : 'en';
+}
+
+const SCOPE_DEFAULT: Record<LangScope, () => Lang> = { villager: () => 'hi', public: browserLang, staff: () => 'en' };
+
+/** This tab's language, so a reload on another page keeps the visit in one language (sessionStorage). */
+export const VISIT_LANG_KEY = 'pukaar.lang.visit';
+
+function readSession(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeSession(key: string, value: string) {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    /* storage blocked: the store still holds it for this page */
+  }
+}
+
+/**
+ * The language of the whole visit, decided on the page it starts on: this tab's language if it has one, else
+ * the remembered choice, else that area's default (Hindi for a villager arriving from an SMS link, the browser's
+ * language on the public pages, English for officers). It then holds on every page until the visitor switches,
+ * so the site never changes language between pages. A choice is stored under every area's key (the pre-JS
+ * painter reads them) and as this tab's language.
+ */
+export function initialLang(pathname = typeof location === 'undefined' ? '/' : location.pathname): Lang {
+  const visit = readSession(VISIT_LANG_KEY);
+  if (visit === 'hi' || visit === 'en') return visit;
+  const scope = scopeFor(pathname);
+  const v = readLS(`pukaar.lang.${scope}`);
+  return v === 'hi' || v === 'en' ? v : SCOPE_DEFAULT[scope]();
+}
+
+function startLang(): Lang {
+  const lang = initialLang();
+  writeSession(VISIT_LANG_KEY, lang);
+  return lang;
 }
 
 function initialTheme(): ThemePref {
@@ -106,14 +158,13 @@ export function applyTheme(theme: ThemePref, pathname = typeof location === 'und
   else root.setAttribute('data-theme', resolved);
 }
 
-export const usePrefs = create<PrefState>((set, get) => ({
-  // Each area remembers its own choice. Without one: Hindi for villagers (report, tracking), the browser's
-  // language on the public pages, English in the officer tools.
-  lang: { villager: initialLang('villager', 'hi'), public: initialLang('public', browserLang()), staff: initialLang('staff', 'en') },
+export const usePrefs = create<PrefState>((set) => ({
+  lang: startLang(),
   theme: initialTheme(),
-  setLang: (scope, lang) => {
-    writeLS(`pukaar.lang.${scope}`, lang);
-    set({ lang: { ...get().lang, [scope]: lang } });
+  setLang: (lang) => {
+    for (const scope of LANG_SCOPES) writeLS(`pukaar.lang.${scope}`, lang);
+    writeSession(VISIT_LANG_KEY, lang);
+    set({ lang });
   },
   setTheme: (theme) => {
     writeLS('pukaar.theme', theme === 'system' ? null : theme);

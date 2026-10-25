@@ -31,6 +31,11 @@ describe('report summary humanizer', () => {
   it('keeps free-text summaries', () => {
     expect(humanizeSummary('Water over the Thunag bridge deck', 'en')).toBe('Water over the Thunag bridge deck');
   });
+
+  it('never shows an English free-text summary on a Hindi page: the type and severity say it', () => {
+    expect(humanizeSummary('Water over the Thunag bridge deck', 'hi', 'bridge_unsafe', 'high')).toBe('पुल असुरक्षित · ज़्यादा');
+    expect(humanizeSummary('पुल पर पानी', 'hi', 'bridge_unsafe')).toBe('पुल पर पानी');
+  });
 });
 
 describe('guardrail screen labels', () => {

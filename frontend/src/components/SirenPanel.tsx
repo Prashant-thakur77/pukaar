@@ -33,7 +33,7 @@ interface AlertLike extends AlertSirenFields {
 }
 
 function errText(e: unknown, lang: Lang): string {
-  if (e instanceof ApiError) return (lang === 'hi' && e.messageHi) || e.messageEn;
+  if (e instanceof ApiError) return e.messageIn(lang);
   return st(lang, 'error');
 }
 

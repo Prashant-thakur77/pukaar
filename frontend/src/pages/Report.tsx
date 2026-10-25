@@ -190,7 +190,7 @@ export default function Report() {
       if (ae.isNetwork || ae.status >= 500 || ae.status === 408 || ae.status === 429) {
         await queue();
       } else {
-        setErr(t('report.error', { m: (lang === 'hi' && ae.messageHi) || ae.messageEn }));
+        setErr(t('report.error', { m: ae.messageIn(lang) }));
         setPhase({ k: 'compose' });
       }
     }
@@ -309,7 +309,7 @@ export default function Report() {
               <option value="">{t('report.village.pick')}</option>
               {villages.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {lang === 'hi' ? `${v.name_hi} (${v.name})` : `${v.name} (${v.name_hi})`}
+                  {lang === 'hi' ? v.name_hi || v.name : v.name}
                 </option>
               ))}
             </select>

@@ -107,10 +107,10 @@ function MeasuredBody({ m }: { m: PilotMetrics }) {
                 : 'सब अभ्यासों का जोड़; बिना फ़ोन वाले डेमो नाम नहीं गिने'
           }
         />
-        <Measure value={share(d, lang)} label={en ? 'Pressed “मिल गया”' : '“मिल गया” दबाया'} />
+        <Measure value={share(d, lang)} label={en ? 'Pressed “Got it”' : '“मिल गया” दबाया'} />
         <Measure
           value={minutes(d.median_minutes_first_ack, lang)}
-          label={en ? 'Median, send to first “मिल गया”' : 'मध्य समय, भेजने से पहले “मिल गया” तक'}
+          label={en ? 'Median, send to first “Got it”' : 'मध्य समय, भेजने से पहले “मिल गया” तक'}
         />
       </ul>
       <h3 className="pl-h3">{en ? 'Live flood alerts' : 'असली बाढ़ चेतावनियाँ'}</h3>
@@ -125,10 +125,10 @@ function MeasuredBody({ m }: { m: PilotMetrics }) {
       <ul className="pl-stats">
         <Measure value={fmtNumber(l.alerts, lang)} label={en ? 'Live alerts sent' : 'भेजी गई असली चेतावनियाँ'} note={en ? 'Never replays, never drills' : 'रीप्ले और अभ्यास नहीं'} />
         <Measure value={fmtNumber(l.reached, lang)} label={en ? 'Phones reached' : 'फ़ोन तक पहुँचे'} />
-        <Measure value={share(l, lang)} label={en ? 'Pressed “मिल गया”' : '“मिल गया” दबाया'} />
+        <Measure value={share(l, lang)} label={en ? 'Pressed “Got it”' : '“मिल गया” दबाया'} />
         <Measure
           value={minutes(l.median_minutes_first_ack, lang)}
-          label={en ? 'Median, send to first “मिल गया”' : 'मध्य समय, भेजने से पहले “मिल गया” तक'}
+          label={en ? 'Median, send to first “Got it”' : 'मध्य समय, भेजने से पहले “मिल गया” तक'}
         />
       </ul>
       )}
@@ -136,7 +136,7 @@ function MeasuredBody({ m }: { m: PilotMetrics }) {
       {m.false_alarms && m.false_alarms.closed_alerts > 0 && <FalseAlarms fa={m.false_alarms} />}
 
       <p className="pl-asof">
-        {en ? 'From the API, GET /public/pilot-metrics, at ' : 'API से, GET /public/pilot-metrics, समय '}
+        {en ? 'From the API, GET /public/pilot-metrics, at ' : 'सीधे API से, समय '}
         <span translate="no">{fmtTime(m.as_of, lang)}</span>
       </p>
     </>

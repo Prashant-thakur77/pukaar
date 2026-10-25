@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Layers } from 'lucide-react';
 import { ApiError } from '../../api';
 import { HoldToConfirm } from '../../components/HoldToConfirm';
+import { DISTRICT_HI } from '../../lib/answerText';
+import { QuotedAlert } from '../../components/QuotedAlert';
 import { LevelIcon } from '../../components/Level';
 import { ReplayChip } from '../../components/Chips';
 import { DeniedNote, ErrorState, Skeleton } from '../../components/States';
@@ -99,7 +101,7 @@ function Review({ group: g, canDecide, onDone }: { group: AlertGroup; canDecide:
     <>
       <p className="dp-sub">
         <span>
-          {hi ? `${g.district}: ${g.count} गाँव एक साथ, कारण ${g.cause_hi}` : `${g.district}: ${g.count} villages together, from ${g.cause_en}`}
+          {hi ? `${DISTRICT_HI[g.district] ?? g.district}: ${g.count} गाँव एक साथ, कारण ${g.cause_hi}` : `${g.district}: ${g.count} villages together, from ${g.cause_en}`}
         </span>
         <span>
           {istClock(g.shared.first_at)}–{istClock(g.shared.last_at)} IST
@@ -133,8 +135,7 @@ function Review({ group: g, canDecide, onDone }: { group: AlertGroup; canDecide:
             <li key={v.alert_id} className={`grp-village lv-${v.level}${off ? ' is-declined' : ''}`}>
               <p className="grp-village-head">
                 <LevelIcon level={v.level} />
-                <span lang="hi">{dict[`level.${v.level}`].hi}</span>
-                {!hi && <span>{dict[`level.${v.level}`].en}</span>}
+                <span>{dict[`level.${v.level}`][lang]}</span>
                 <span aria-hidden="true">·</span>
                 <span>{name}</span>
                 <span className="dp-aud-sub">{hi ? `${v.recipients_count} लोग` : `${v.recipients_count} people`}</span>
@@ -142,13 +143,7 @@ function Review({ group: g, canDecide, onDone }: { group: AlertGroup; canDecide:
                   {hi ? 'अकेले खोलें' : 'Open alone'}
                 </Link>
               </p>
-              <blockquote className="dp-msg" lang="hi">
-                {v.text_hi}
-              </blockquote>
-              <details className="dp-en">
-                <summary>{hi ? 'अंग्रेज़ी में' : 'In English'}</summary>
-                <p lang="en">{v.text_en}</p>
-              </details>
+              <QuotedAlert hi={v.text_hi} en={v.text_en} />
               {canDecide && (
                 <fieldset className="grp-choice">
                   <legend className="sr-only">{name}</legend>
@@ -243,7 +238,7 @@ export function GroupBanner({ district }: { district: string }) {
       <Layers aria-hidden="true" />
       <p>
         {hi
-          ? `${g.district} के ${g.count} गाँव एक साथ प्रतीक्षा में (${g.cause_hi})।`
+          ? `${DISTRICT_HI[g.district] ?? g.district} के ${g.count} गाँव एक साथ प्रतीक्षा में (${g.cause_hi})।`
           : `${g.count} villages of ${g.district} are waiting together (${g.cause_en}).`}
       </p>
       <Link className="btn btn-sm btn-accent" to={groupPath(g)}>

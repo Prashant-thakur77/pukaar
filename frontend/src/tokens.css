@@ -63,6 +63,8 @@
 
   /* ---------- type: scale. Mobile under 640, desktop from 1024, clamp() between. ---------- */
   --t-level: clamp(40px, 13.333px + 4.1667vw, 56px);
+  /* The home hero and the thesis lines only. */
+  --t-hero: clamp(40px, 10px + 4.4vw, 76px);
   --t-display: clamp(40px, 6.25vw, 64px);
   --t-h1: clamp(30px, 6.667px + 3.6458vw, 44px);
   --t-h2: clamp(24px, 14px + 1.5625vw, 30px);
@@ -77,6 +79,7 @@
 
   /* Line heights: Latin here, Devanagari under :lang(hi) below (the matras need the room). */
   --lh-level: 1.15;
+  --lh-hero: 1.0;
   --lh-display: 1.08;
   --lh-h1: 1.18;
   --lh-h2: 1.22;
@@ -194,6 +197,7 @@
 /* ---------- Devanagari line heights: taller, for the matras above and below the line ---------- */
 :lang(hi) {
   --lh-level: 1.4;
+  --lh-hero: 1.3;
   --lh-display: 1.36;
   --lh-h1: 1.42;
   --lh-h2: 1.48;
@@ -206,6 +210,8 @@
 }
 :lang(en) {
   --lh-level: 1.15;
+  --lh-hero: 1.0;
+  --lh-hero: 1.0;
   --lh-display: 1.08;
   --lh-h1: 1.18;
   --lh-h2: 1.22;

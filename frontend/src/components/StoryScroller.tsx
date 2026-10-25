@@ -65,7 +65,7 @@ function StepText({ s, lang }: { s: StoryStep; lang: Lang }) {
         : `The forecast went past ${n(STORY_BANDS.warning, 1)} mm (“very heavy”), up to ${n(STORY_PEAK_RAIN, 1)} mm. That day the Beas flood crossed nearby Pandoh, taking a bridge and homes.${PANDOH_LEAD != null ? ` There, Pukaar’s Watch would have come ${PANDOH_LEAD} hours earlier.` : ''}`,
       src: [
         { label: hi ? 'पुराने मौसम पूर्वानुमान (Open-Meteo)' : 'Archived weather forecasts (Open-Meteo)', href: url(STORY_SOURCES.rain) },
-        { label: 'Newslaundry, 8 Aug 2023', href: PANDOH_SRC },
+        { label: hi ? 'Newslaundry, 8 अगस्त 2023' : 'Newslaundry, 8 Aug 2023', href: PANDOH_SRC },
       ],
     },
     peak: {
@@ -108,7 +108,7 @@ function Five({ t }: { t: number }) {
           return (
             <li key={v.id} className={`lv-${v.level}`}>
               <Icon aria-hidden="true" />
-              <span lang="hi">{v.name_hi}</span>
+              <span>{lang === 'hi' ? v.name_hi : v.name}</span>
               <span className="sr-only">{dict[`level.${v.level}`][lang]}</span>
             </li>
           );

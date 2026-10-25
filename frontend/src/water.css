@@ -1,0 +1,713 @@
+/*
+ * The public skin: clean paper and ink by day, a blueprint navy at night, one indigo accent, hairline cards, serif
+ * headlines and soft dawn glows (after the calm of sarvam.ai). It dresses every page except the officer pages
+ * (/console/*, /login: html[data-console]), which keep the look of tokens.css. Like tokens.css this file may hold raw
+ * colours, gradients and blurs (scripts/check-tokens.mjs lints the rest and checks the contrast of the two palettes
+ * below). Load order: last, after editorial.css; the :root prefix outranks the page stylesheets.
+ *
+ * Type: headlines in Newsreader (Latin) and Tiro Devanagari Hindi (Hindi), body in Figtree with Noto Sans Devanagari.
+ * The hero, the fact panel and the closing panel are always night, in both themes.
+ */
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 360 560;
+  font-display: swap;
+  src: url('./fonts/newsreader-latin-360-560.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+20B9, U+2122, U+2190-2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: fallback;
+  src: url('./fonts/figtree-latin-wght.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2190-2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------- day: paper, ink and one indigo ---------- */
+:root {
+  --font-ui: 'Figtree', 'Noto Sans Devanagari', 'Noto Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Newsreader', 'Tiro Devanagari Hindi', Georgia, serif;
+  --r-1: 10px;
+  --r-2: 18px;
+
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f3f4f7;
+  --ink: #1b1e27;
+  --ink-2: #474e5e;
+  --ink-3: #5f6677;
+  --line: #e7e8ee;
+  --line-strong: #858c9b;
+  --accent: #3a4fd0;
+  --accent-text: #3144bd;
+  --on-accent: #ffffff;
+  --accent-tint: #eef0fc;
+  --focus-ring: #1b1e27;
+  /* Critical is a deep wine, not a siren red: still the darkest, most urgent level, and apart from Warning's orange. */
+  --lv-critical-fill: #8d1d43;
+  --lv-critical-on: #ffffff;
+  --lv-critical-tint: #f9e8ee;
+  --lv-critical-ink: #7f1a3d;
+  --lv-critical-line: #8d1d43;
+
+  --navy-grad: linear-gradient(180deg, #3a3f5c 0%, #1e2033 100%);
+  --navy-ink: #ffffff;
+  --card-shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 16px 36px -22px rgb(16 24 40 / 0.18);
+  --glow: radial-gradient(55% 60% at 50% -18%, rgb(129 160 233 / 0.55), transparent 70%),
+    radial-gradient(30% 38% at 50% -12%, rgb(255 190 150 / 0.5), transparent 70%);
+  --night-panel: radial-gradient(90% 120% at 85% -10%, #34407a 0%, transparent 55%),
+    radial-gradient(70% 90% at 0% 110%, #1d3a5f 0%, transparent 60%),
+    linear-gradient(160deg, #141a33 0%, #0c1222 100%);
+  --mountains: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 120' preserveAspectRatio='none'%3E%3Cpath d='M0 120 L0 78 L46 52 L78 70 L120 30 L160 62 L196 44 L236 72 L278 26 L322 64 L360 48 L400 70 L400 120Z' fill='%23ffffff' fill-opacity='.55'/%3E%3Cpath d='M0 120 L0 96 L60 80 L110 94 L170 72 L230 92 L290 78 L350 96 L400 86 L400 120Z' fill='%23ffffff' fill-opacity='.85'/%3E%3C/svg%3E");
+  --valley-art: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%239cc0dc' stroke-opacity='.28' stroke-width='1.2'%3E%3Cpath d='M0 64 L70 46 L120 58 L180 30 L250 52 L330 40 L420 60 L500 34 L560 18 L620 40 L700 50 L780 28 L860 46 L940 36 L1020 22 L1090 44 L1200 38'/%3E%3Cpath d='M0 92 C150 80 300 100 450 90 S750 78 900 90 S1100 98 1200 88'/%3E%3Cpath d='M0 108 C200 100 400 114 600 106 S1000 100 1200 108'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ---------- night: the blueprint navy, and the hero, the fact panel and the closing panel in both themes ---------- */
+:root[data-theme='dark'],
+:root :is(.home-hero, .home-fact-art, .home-cta, .intro) {
+  color-scheme: dark;
+  --bg: #070c16;
+  --surface: #0e1626;
+  --surface-2: #152036;
+  --ink: #eef1f8;
+  --ink-2: #b3bccd;
+  --ink-3: #959fb4;
+  --line: #222d44;
+  --line-strong: #5a6680;
+  --accent: #8ea0ff;
+  --accent-text: #a5b3ff;
+  --on-accent: #0b1020;
+  --accent-tint: #18214a;
+  --focus-ring: #070c16;
+  --scrim: rgb(0 0 0 / 0.6);
+  --elev-overlay: 0 0 0 1px var(--line);
+  --lv-normal-ink: #5bd08f;
+  --lv-normal-tint: color-mix(in srgb, #1c7a4c 18%, #0e1626);
+  --lv-watch-ink: #ffd43b;
+  --lv-watch-tint: color-mix(in srgb, #ffd43b 14%, #0e1626);
+  --lv-warning-ink: #ff9a4d;
+  --lv-warning-tint: color-mix(in srgb, #f27a1f 14%, #0e1626);
+  --lv-critical-ink: #ff8fb1;
+  --lv-critical-tint: color-mix(in srgb, #8d1d43 30%, #0e1626);
+  --lv-critical-edge: #ff8fb1;
+  --lv-nodata-ink: #eef1f8;
+  --lv-nodata-tint: color-mix(in srgb, #5a6570 22%, #0e1626);
+  --lv-normal-line: #5bd08f;
+  --lv-watch-line: #ffd43b;
+  --lv-warning-line: #ff9a4d;
+  --lv-critical-line: #ff8fb1;
+  --lv-nodata-line: #959fb4;
+  --card-shadow: 0 0 0 1px rgb(255 255 255 / 0.02), 0 24px 48px -28px rgb(0 0 0 / 0.8);
+  --glow: radial-gradient(55% 60% at 50% -18%, rgb(70 92 190 / 0.5), transparent 70%),
+    radial-gradient(30% 38% at 50% -12%, rgb(120 90 160 / 0.35), transparent 70%);
+  --mountains: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 120' preserveAspectRatio='none'%3E%3Cpath d='M0 120 L0 78 L46 52 L78 70 L120 30 L160 62 L196 44 L236 72 L278 26 L322 64 L360 48 L400 70 L400 120Z' fill='%230e1626' fill-opacity='.55'/%3E%3Cpath d='M0 120 L0 96 L60 80 L110 94 L170 72 L230 92 L290 78 L350 96 L400 86 L400 120Z' fill='%230e1626' fill-opacity='.9'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #070c16;
+    --surface: #0e1626;
+    --surface-2: #152036;
+    --ink: #eef1f8;
+    --ink-2: #b3bccd;
+    --ink-3: #959fb4;
+    --line: #222d44;
+    --line-strong: #5a6680;
+    --accent: #8ea0ff;
+    --accent-text: #a5b3ff;
+    --on-accent: #0b1020;
+    --accent-tint: #18214a;
+    --focus-ring: #070c16;
+    --lv-normal-tint: color-mix(in srgb, #1c7a4c 18%, #0e1626);
+    --lv-watch-tint: color-mix(in srgb, #ffd43b 14%, #0e1626);
+    --lv-warning-tint: color-mix(in srgb, #f27a1f 14%, #0e1626);
+    --lv-critical-ink: #ff8fb1;
+    --lv-critical-tint: color-mix(in srgb, #8d1d43 30%, #0e1626);
+    --lv-critical-edge: #ff8fb1;
+    --lv-critical-line: #ff8fb1;
+    --lv-nodata-ink: #eef1f8;
+    --lv-nodata-tint: color-mix(in srgb, #5a6570 22%, #0e1626);
+    --lv-nodata-line: #959fb4;
+    --card-shadow: 0 0 0 1px rgb(255 255 255 / 0.02), 0 24px 48px -28px rgb(0 0 0 / 0.8);
+    --glow: radial-gradient(55% 60% at 50% -18%, rgb(70 92 190 / 0.5), transparent 70%),
+      radial-gradient(30% 38% at 50% -12%, rgb(120 90 160 / 0.35), transparent 70%);
+    --mountains: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 120' preserveAspectRatio='none'%3E%3Cpath d='M0 120 L0 78 L46 52 L78 70 L120 30 L160 62 L196 44 L236 72 L278 26 L322 64 L360 48 L400 70 L400 120Z' fill='%230e1626' fill-opacity='.55'/%3E%3Cpath d='M0 120 L0 96 L60 80 L110 94 L170 72 L230 92 L290 78 L350 96 L400 86 L400 120Z' fill='%230e1626' fill-opacity='.9'/%3E%3C/svg%3E");
+  }
+}
+
+/* ---------- the page: paper, and a dawn glow at the top of every page ---------- */
+:root body { background-color: var(--bg); }
+:root .page { background: var(--glow) top center / 100% 720px no-repeat; }
+
+/* ---------- headlines: the serif, light and tight, as in a well-set book ---------- */
+:root :is(h1, h2:not(.home-kicker-plain, .xp-art-k), .home-display, .display-3, .xp-h1, .xp-h2, .how-h, .pl-h3, .ft-line, .sec-h, .home-h1, .home-h2, .lvb-place) {
+  font-family: var(--font-display);
+  font-weight: 450;
+  font-synthesis: none;
+}
+:root :is(h1, h2, .home-display, .display-3, .xp-h1, .xp-h2, .how-h, .sec-h, .home-h1):lang(en) { letter-spacing: -0.02em; }
+:root :is(h1, h2, h3):lang(hi) { font-weight: 400; }
+:root h3 { font-weight: 600; }
+
+/* ---------- header: white glass, hairline, a navy 112 pill ---------- */
+:root .hd {
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  backdrop-filter: blur(16px) saturate(1.3);
+  border-bottom-color: var(--line);
+}
+:root .wm-hi, :root .wm-en { font-family: var(--font-display); font-weight: 500; font-size: var(--t-h3); color: var(--ink); }
+:root .hd-link { font-weight: 500; color: var(--ink-2); }
+:root .hd-link:hover { background: var(--surface-2); color: var(--ink); }
+:root .hd-link.is-active { color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+:root .call112 { background: var(--navy-grad); color: var(--navy-ink); outline: 0; box-shadow: none; font-weight: 600; }
+:root .call112:hover { filter: brightness(1.15); }
+:root[data-theme='dark'] .call112 { background: #eef1f8; color: #141a33; }
+
+/* ---------- cards: white, hairline, a whisper of shadow ---------- */
+:root :is(.card, .panel, .vrows, .how-card, .sn-card, .ev-card, .trend-card, .village-tile, .measure, .scenario, .home-card, .home-metrics, .home-tile, .home-pill) {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--card-shadow);
+}
+:root .home-pill { box-shadow: none; }
+/* The village page's actions: a card of its own under the level banner. */
+:root .acts { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); box-shadow: var(--card-shadow); padding: var(--sp-5) var(--sp-5) var(--sp-4); }
+:root .home-pill:hover { background: var(--surface-2); }
+:root .vrow:hover, :root .vrow.is-hot { background: var(--surface-2); }
+:root .vrow-go { color: var(--line-strong); }
+
+/* ---------- the main action: a navy pill ---------- */
+:root :is(.home-report, .btn-accent) {
+  background: var(--navy-grad);
+  color: var(--navy-ink);
+  border-color: transparent;
+  border-radius: var(--r-pill);
+  box-shadow: 0 10px 24px -14px rgb(30 32 51 / 0.8);
+}
+:root .btn-accent:hover:not(:disabled) { border-color: transparent; filter: brightness(1.15); }
+/* On night grounds the main action turns paper-white. */
+:root :is(.home-hero, .home-cta) .home-report,
+:root[data-theme='dark'] :is(.home-report, .btn-accent) { background: #eef1f8; color: #141a33; box-shadow: 0 10px 30px -14px rgb(142 160 255 / 0.6); }
+
+/* ---------- the home hero: the valley at night, in both themes ---------- */
+:root .home-hero { color: var(--ink); background: #070c16; }
+:root .home-hero::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: radial-gradient(1200px 640px at 78% -10%, #1f2f5e 0%, transparent 62%), radial-gradient(900px 520px at 0% 30%, #0f2240 0%, transparent 60%), linear-gradient(180deg, #070c16 0%, #0a1222 55%, #0e1626 100%);
+}
+:root .home-hero::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 120px;
+  background: var(--valley-art) bottom / 100% 120px no-repeat;
+}
+:root .home-hero-h1 { font-weight: 420; }
+:root .home-hero-blue { color: var(--accent); }
+:root .home-ghost { background: rgb(238 241 248 / 0.06); border-color: rgb(238 241 248 / 0.3); }
+:root .home-ghost:hover { background: rgb(238 241 248 / 0.12); }
+:root .home-live { background: rgb(238 241 248 / 0.06); border-color: rgb(238 241 248 / 0.16); }
+:root .home-live:hover { background: rgb(238 241 248 / 0.12); }
+:root .home-live-dot { box-shadow: 0 0 0 4px color-mix(in srgb, var(--lv-line) 25%, transparent); }
+:root .kicker { color: var(--accent-text); }
+
+/* The floating cards: an indigo number card, the Telegram alert as glass, a paper card. */
+:root .hf-card { box-shadow: 0 30px 60px -24px rgb(0 0 0 / 0.7); }
+:root .hf-lead { background: linear-gradient(140deg, #c3cdfd 0%, #8ea0ff 55%, #6278f0 100%); color: #0b1020; transform: rotate(-2deg); }
+:root .hf-ticket {
+  background: rgb(14 22 38 / 0.74);
+  border: 1px solid rgb(165 179 255 / 0.22);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+:root .hf-ticket .hf-eyebrow { color: var(--ink-2); }
+:root .hf-ticket .home-live-dot { background: #5bd08f; }
+:root .hf-text { color: var(--ink); border-left: 3px solid var(--accent); padding-left: 12px; }
+:root .hf-play { background: rgb(238 241 248 / 0.1); color: var(--ink); font-family: var(--font-mono); }
+:root .hf-ack { background: #eef1f8; color: #141a33; }
+:root .hf-count { background: #fafafa; color: #1b1e27; transform: rotate(1.5deg); }
+
+/* ---------- the status: one card for the answer and the list, one for the valley ---------- */
+:root .home-status::before {
+  content: '';
+  grid-area: 1 / 1 / 3 / 2;
+  z-index: -1;
+  border-radius: var(--r-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--card-shadow);
+}
+:root .home-status { isolation: isolate; }
+:root .home-now { padding: var(--sp-6) var(--sp-6) var(--sp-3); }
+:root .home-pick { padding: var(--sp-3) var(--sp-6) var(--sp-6); }
+:root .home-pick .vrows { box-shadow: none; }
+:root .home-lede {
+  align-self: start;
+  border-radius: var(--r-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--card-shadow);
+  padding: var(--sp-5);
+}
+@media (min-width: 1024px) {
+  /* The valley stays in view beside the banners and the list. */
+  :root .home-lede { position: sticky; top: calc(var(--header-h) + var(--sp-5)); }
+}
+:root .tour-pill { border: 1px solid var(--line); background: var(--surface); color: var(--ink); box-shadow: none; }
+:root .home-hero .tour-pill { border-color: rgb(238 241 248 / 0.16); background: rgb(238 241 248 / 0.06); color: var(--ink); }
+
+/* ---------- section art ---------- */
+:root .home-art-1 { background: radial-gradient(120% 100% at 50% 120%, #9fb2f6 0%, #d9e1fd 52%, #f4f6ff 100%); }
+:root .home-art-2 { background: radial-gradient(120% 100% at 50% 120%, #8fd0d9 0%, #d6f0f1 52%, #f3fbfb 100%); }
+:root .home-art-3 { background: radial-gradient(120% 100% at 50% 120%, #ffb98f 0%, #ffe3d1 52%, #fff6f0 100%); }
+:root .home-art::after { content: ''; position: absolute; inset: auto 0 0 0; height: 70px; background: var(--mountains) bottom / 100% 100% no-repeat; }
+:root .home-art svg { background: rgb(255 255 255 / 0.78); color: #1b1e27; box-shadow: 0 10px 30px -12px rgb(16 24 40 / 0.35); }
+:root[data-theme='dark'] .home-art { filter: saturate(0.8) brightness(0.55); }
+:root .home-tile-n { color: rgb(27 30 39 / 0.45); }
+:root .home-fact-art { background: var(--night-panel); color: var(--ink); }
+:root .home-fact-script { color: rgb(238 241 248 / 0.07); }
+:root .home-fact-place { color: var(--ink-2); }
+:root .home-thesis-lines span { color: var(--line-strong); }
+:root .home-thesis-blue { color: var(--accent-text) !important; }
+:root .sec-orn { color: var(--accent-text); }
+:root .home-cta { background: var(--night-panel); color: var(--ink); box-shadow: 0 30px 70px -40px rgb(20 26 51 / 0.9); }
+:root .home-cta-copy p { color: var(--ink-2); }
+:root .home-qr { background: #ffffff; color: #1b1e27; }
+:root .home-qr-body { color: #474e5e; }
+:root .home-qr-url { color: #3144bd; }
+
+/* ---------- footer: paper, and the name set huge at its foot ---------- */
+:root .ft { background: var(--bg); border-top-color: var(--line); position: relative; overflow: hidden; }
+:root .ft::after {
+  content: 'Pukaar';
+  display: block;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 450;
+  font-size: clamp(96px, 22vw, 340px);
+  line-height: 0.8;
+  letter-spacing: -0.04em;
+  margin-top: var(--sp-6);
+  color: transparent;
+  background: linear-gradient(180deg, #8ea0ff 0%, #c9d1ff 45%, rgb(250 250 250 / 0) 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  pointer-events: none;
+}
+:root[lang='hi'] .ft::after { content: 'पुकार'; font-family: 'Tiro Devanagari Hindi', serif; line-height: 1.1; letter-spacing: 0; }
+:root[data-theme='dark'] .ft::after { background: linear-gradient(180deg, #3a4fd0 0%, #18214a 60%, rgb(7 12 22 / 0) 95%); -webkit-background-clip: text; background-clip: text; }
+
+/* ---------- motion: the hero, the cards, the intro and the reveals (all off under reduced motion, tokens.css) ---------- */
+
+/* The drawn valley behind the hero (components/Valley.tsx): ridges that drift on scroll, stars, a flowing river. */
+.hero-valley { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; --py: 0; pointer-events: none; }
+.hero-valley .v-layer { will-change: transform; }
+.hero-valley .v-l1 { transform: translateY(calc(var(--py) * 0.1px)); }
+.hero-valley .v-l2 { transform: translateY(calc(var(--py) * 0.04px)); }
+.hero-valley .v-l3 { transform: translateY(calc(var(--py) * -0.02px)); }
+.hero-valley .v-l4 { transform: translateY(calc(var(--py) * -0.08px)); }
+.hero-valley .v-stars { animation: twinkle 6s ease-in-out infinite alternate; }
+.hero-valley .v-lights circle { animation: twinkle 2.8s ease-in-out infinite alternate; }
+.hero-valley .v-river-line { stroke-dasharray: 60 30; animation: flow 6s linear infinite; }
+.hero-valley .v-echo path { opacity: 0; transform-box: fill-box; transform-origin: center; }
+.hero-valley .v-echo .echo-l { animation: echo-left 1.8s ease-in-out 0.6s forwards; }
+.hero-valley .v-echo .echo-r { animation: echo-right 1.8s ease-in-out 2.4s forwards; }
+.home-hero.is-waiting .v-echo path, .home-hero.is-waiting .hh-line, .home-hero.is-waiting .hf-card { animation-play-state: paused; }
+@keyframes twinkle { from { opacity: 0.6; } to { opacity: 1; } }
+@keyframes flow { to { stroke-dashoffset: -900; } }
+@keyframes echo-left { 0% { opacity: 0.8; transform: translateX(0) scale(1); } 100% { opacity: 0; transform: translateX(-520px) scale(2.2); } }
+@keyframes echo-right { 0% { opacity: 0.5; transform: translateX(0) scale(1); } 100% { opacity: 0; transform: translateX(520px) scale(2.2); } }
+
+/* The 3D valley (components/HeroScene.tsx) fades in over the drawn one once it has drawn a frame. */
+.hero-3d { position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity 1.2s var(--ease-out); }
+.hero-3d.is-ready { opacity: 1; }
+.hero-3d canvas { display: block; width: 100% !important; height: 100% !important; }
+.hero-3d::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgb(6 17 31 / 0.78) 0%, rgb(6 17 31 / 0.35) 55%, rgb(6 17 31 / 0.1) 100%);
+}
+.hero-terrain-note {
+  position: absolute; left: var(--gutter); bottom: var(--sp-3); z-index: 1; max-width: 60ch; margin: 0;
+  font-size: var(--t-small); line-height: 1.4; color: rgb(234 244 251 / 0.66);
+}
+@media (max-width: 1023px) { .hero-terrain-note { display: none; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The headline rises in line by line, behind the intro. */
+  .is-entering .hh-line { opacity: 0; transform: translateY(0.35em); animation: hh-in 700ms var(--ease-out) forwards; }
+  .is-entering .hh-line:nth-child(2) { animation-delay: 90ms; }
+  .is-entering .hh-line:nth-child(3) { animation-delay: 180ms; }
+  /* The floating cards come in, then bob gently. */
+  .hf-card { opacity: 0; animation: hf-in 800ms var(--ease-out) forwards, hf-bob 6s ease-in-out infinite; }
+  .hf-lead { animation-delay: 420ms, 1.2s; }
+  .hf-ticket { animation-delay: 560ms, 2.2s; }
+  .hf-count { animation-delay: 700ms, 3.1s; }
+  /* Live dots ping. */
+  .home-live-dot { position: relative; }
+  .home-live-dot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: inherit; animation: dot-ping 1.8s ease-out infinite; }
+  /* Each page rises in a touch on arrival. */
+  :root .page { animation: page-in 0.35s var(--ease-out); }
+  /* Step cards lift under the pointer. */
+  .home-steps li { transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out); }
+  .home-steps li:hover { transform: translateY(-4px); }
+  /* Reveals (components/Reveal.tsx): only what started below the fold, once. */
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.8s var(--ease-out) var(--d, 0ms), transform 0.9s var(--ease-out) var(--d, 0ms); }
+  .reveal-slide { transform: translateX(-6vw); }
+  .reveal.is-in { opacity: 1; transform: none; }
+}
+@keyframes hh-in { to { opacity: 1; transform: none; } }
+@keyframes hf-in { from { opacity: 0; transform: translateY(26px) scale(0.97); } to { opacity: 1; } }
+@keyframes hf-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
+@keyframes dot-ping { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(2.8); opacity: 0; } }
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* The intro (Landing.tsx Intro): the Beas draws itself, the villages light, the mark lands, the stage dissolves. */
+.intro {
+  position: fixed; inset: 0; z-index: 90; cursor: pointer; display: grid; place-items: center;
+  background: radial-gradient(ellipse 70% 60% at 50% 48%, #12304e 0%, #081828 45%, #06111f 100%);
+  animation: intro-out 420ms var(--ease-in-out) 2600ms forwards;
+}
+.intro::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-radial-gradient(circle at 50% 48%, rgb(234 244 251 / 0.025) 0 1px, transparent 1px 46px); }
+.intro-stage { position: relative; width: min(680px, 88vw); display: grid; place-items: center; }
+.intro-river { width: 100%; overflow: visible; animation: ir-settle 600ms var(--ease-out) 1650ms forwards; }
+.ir-ridge { fill: none; stroke: rgb(156 192 220 / 0.3); stroke-width: 1.2; stroke-dasharray: 2 6; opacity: 0; animation: fade-in 700ms ease 150ms forwards; }
+.ir-line { fill: none; stroke: #4fb3ff; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 8px rgb(79 179 255 / 0.55)); animation: ir-draw 1100ms cubic-bezier(0.65, 0, 0.35, 1) 100ms forwards; }
+.ir-village { opacity: 0; transform-box: fill-box; transform-origin: center; animation: ir-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; fill: #8ad0ff; }
+.ir-village .ir-ring { fill: none; stroke: #8ad0ff; stroke-width: 2; transform-box: fill-box; transform-origin: center; opacity: 0; animation: ir-ring 1100ms var(--ease-out) forwards; }
+.intro-brand { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 6px; text-align: center; pointer-events: none; }
+.intro-mark { opacity: 0; transform: scale(0.4); animation: intro-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) 1650ms forwards; }
+.intro-word { font-family: var(--font-display); font-weight: 800; color: #eaf4fb; font-size: clamp(52px, 11vw, 104px); line-height: 1.15; opacity: 0; transform: translateY(14px); animation: intro-rise 480ms var(--ease-out) 1850ms forwards; }
+.intro-tag { font-family: var(--font-ui); font-weight: 600; font-size: 16px; color: #a9c8e0; max-width: 46ch; opacity: 0; transform: translateY(10px); animation: intro-rise 480ms var(--ease-out) 2060ms forwards; }
+.intro-dashes { display: inline-flex; gap: 6px; margin-top: 10px; opacity: 0; animation: fade-in 200ms ease 2150ms forwards; }
+.intro-dashes i { width: 18px; height: 2px; border-radius: 2px; background: #a9c8e0; opacity: 0.35; animation: intro-dash 900ms ease-in-out 2150ms infinite; }
+.intro-dashes i:nth-child(2) { background: #4fb3ff; animation-delay: 2300ms; }
+.intro-dashes i:nth-child(3) { background: #ff7a85; animation-delay: 2450ms; }
+.intro-skip {
+  position: absolute; right: 22px; bottom: 22px; min-height: 44px; padding: 0 16px; border-radius: var(--r-pill);
+  background: transparent; border: 1px solid rgb(234 244 251 / 0.3); color: #a9c8e0; font-family: var(--font-ui); font-weight: 700; font-size: 16px;
+  display: inline-flex; gap: 8px; align-items: center; cursor: pointer;
+}
+.intro-skip:hover { border-color: #4fb3ff; color: #8ad0ff; }
+.intro-skip svg { width: 16px; height: 16px; }
+@keyframes ir-draw { to { stroke-dashoffset: 0; } }
+@keyframes ir-pop { from { opacity: 0; transform: scale(0.2); } to { opacity: 1; transform: none; } }
+@keyframes ir-ring { 0% { opacity: 0.9; transform: scale(1); } 100% { opacity: 0; transform: scale(4.2); } }
+@keyframes ir-settle { to { opacity: 0.28; transform: translateY(38px) scale(0.92); } }
+@keyframes intro-pop { 0% { opacity: 0; transform: scale(0.4) rotate(-12deg); } 100% { opacity: 1; transform: none; } }
+@keyframes intro-rise { to { opacity: 1; transform: none; } }
+@keyframes intro-dash { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes fade-in { to { opacity: 1; } }
+@keyframes intro-out { to { opacity: 0; filter: blur(6px); transform: scale(1.04); visibility: hidden; } }
+:root .tour-pill:hover { background: var(--surface-2); border-style: solid; border-color: var(--line-strong); }
+
+/* ---------- the other public pages ---------- */
+/* Paper panels let the page's glow through, and every label reads in sentence case (as on sarvam.ai). */
+:root :is(.report, .how-loop, .band-paper, .story-dog) { background: transparent; }
+:root .page :not(.home-built-k) { text-transform: none; }
+:root .page .eyebrow { letter-spacing: 0; }
+
+/* ---------- header: navigation in the middle, officers as a soft pill (as on sarvam.ai) ---------- */
+@media (min-width: 1024px) {
+  :root .hd-nav { margin-inline: auto; }
+  :root .hd-tools { margin-left: 0; }
+}
+:root .hd-tools > .hd-link,
+:root .hd-tools .hd-user .hd-link { background: var(--surface-2); border-radius: var(--r-pill); padding: 0 var(--sp-4); color: var(--ink); }
+:root .hd-tools > .hd-link:hover { background: var(--line); }
+:root .hd-tools > .hd-link.is-active { box-shadow: inset 0 0 0 1px var(--ink); }
+
+/* On a night page the navy pills turn paper-white, so they stay the brightest thing on screen. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .call112,
+  :root:not([data-theme='light']) :is(.home-report, .btn-accent) { background: #eef1f8; color: #141a33; }
+}
+:root[data-theme='dark'] .call112 { background: #eef1f8; color: #141a33; }
+
+/* ---------- sample data: a quiet chip, not a banner ---------- */
+:root .sample-ribbon { background: var(--surface-2); border-bottom: 1px solid var(--line); padding: 6px 12px; }
+:root .sample-ribbon :is(strong, span:not(.sr-only)) { background: var(--accent-tint); color: var(--accent-text); border-radius: var(--r-pill); padding: 2px 12px; font-weight: 600; }
+
+/* ---------- story heroes: an art card where a page has no picture of its own ---------- */
+:root .xp-hero-art {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: var(--sp-4);
+  padding: var(--sp-6) var(--sp-6) calc(var(--sp-8) + 40px);
+  border-radius: var(--r-2);
+  overflow: hidden;
+  background: radial-gradient(120% 100% at 50% 120%, #9fb2f6 0%, #d9e1fd 52%, #f4f6ff 100%);
+  color: #1b1e27;
+  box-shadow: var(--card-shadow);
+}
+:root .xp-hero-art::after { content: ''; position: absolute; inset: auto 0 0 0; height: 90px; background: var(--mountains) bottom / 100% 100% no-repeat; }
+:root .xp-art-k { font-family: var(--font-ui); font-size: var(--t-small); font-weight: 600; color: #3144bd; }
+:root .xp-art-rows { margin: 0; position: relative; z-index: 1; display: grid; background: rgb(255 255 255 / 0.72); border-radius: var(--r-2); padding: var(--sp-1) var(--sp-5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+:root .xp-art-rows > div { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-4); padding: var(--sp-3) 0; }
+:root .xp-art-rows > div + div { border-top: 1px solid rgb(27 30 39 / 0.1); }
+:root .xp-art-rows dt { font-size: var(--t-small); color: #474e5e; }
+:root .xp-art-rows dd { margin: 0; font-family: var(--font-display); font-size: var(--t-h2); line-height: 1.1; white-space: nowrap; }
+:root[data-theme='dark'] .xp-hero-art { filter: saturate(0.85) brightness(0.92); }
+
+/* The village page's sticky action: the same navy pill as every main action (paper-white at night). */
+:root .sab-where { background: var(--navy-grad); color: var(--navy-ink); border-radius: var(--r-pill); }
+:root[data-theme='dark'] .sab-where { background: #eef1f8; color: #141a33; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .sab-where { background: #eef1f8; color: #141a33; }
+}
+
+/* ---------- the officer console: the same paper, glow and type ---------- */
+.cs-main { background: var(--glow) top center / 100% 560px no-repeat; }
+.cs-hd { background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); border-bottom-color: var(--line); }
+.cs-brand-word { font-family: var(--font-display); font-weight: 500; }
+.cs-rail { background: var(--bg); }
+.cs-rail a[aria-current='page'], .cs-rail .is-active { background: var(--accent-tint); color: var(--accent-text); }
+/* Officer sign-in: the art panel as a dawn tile with the valley at its foot. */
+.login-art {
+  background: radial-gradient(120% 90% at 50% 115%, #9fb2f6 0%, #d9e1fd 50%, #f4f6ff 100%);
+  isolation: isolate;
+}
+.login-art::after { background: var(--mountains) bottom / 100% 220px no-repeat; opacity: 1; mix-blend-mode: normal; }
+.login-art-word { color: #1b1e27; }
+:root[data-theme='dark'] .login-art { background: radial-gradient(120% 90% at 50% 115%, #34407a 0%, #141a33 60%, #0c1222 100%); }
+:root[data-theme='dark'] .login-art-word { color: #eef1f8; }
+
+/* ---------- built on: a slow drift with soft edges ---------- */
+.home-marquee { -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  .home-marquee-row { animation: marquee 38s linear infinite; }
+  .home-marquee:hover .home-marquee-row { animation-play-state: paused; }
+}
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+/* ---------- inside Pukaar: a grey frame, tabs, and a periwinkle stage (after sarvam.ai's product frame) ---------- */
+.show { background: #e8eaf0; box-shadow: var(--card-shadow); }
+:root[data-theme='dark'] .show { background: #1a2338; }
+.show-tabs { background: var(--surface-2); }
+.show-tab:hover { background: var(--surface); }
+.show-tab[aria-selected='true'] { background: var(--surface); box-shadow: inset 0 -2px 0 var(--accent); }
+.show-panel {
+  background:
+    radial-gradient(40% 70% at 0% 50%, rgb(129 160 233 / 0.55), transparent 70%),
+    radial-gradient(40% 70% at 100% 50%, rgb(129 160 233 / 0.55), transparent 70%),
+    radial-gradient(60% 50% at 50% 0%, rgb(255 190 150 / 0.25), transparent 70%),
+    var(--surface);
+}
+.show-icon { background: var(--accent-tint); color: var(--accent-text); }
+.sa-card { background: var(--surface); border: 1px solid var(--line); box-shadow: 0 30px 60px -30px rgb(30 32 51 / 0.45); color: var(--ink); }
+.sa-acts li::before { background: var(--lv-warning-fill); color: var(--lv-warning-on); }
+.sa-quote { border-left: 3px solid var(--accent); color: var(--ink-2); }
+.sa-hold { border: 2px solid var(--lv-normal-fill); color: var(--lv-normal-ink); }
+.sa-chat { background: linear-gradient(180deg, #e9eefb, #f7f9ff); }
+:root[data-theme='dark'] .sa-chat { background: linear-gradient(180deg, #18213a, #0e1626); }
+.sa-bubble { background: var(--surface); box-shadow: 0 1px 2px rgb(16 24 40 / 0.08); }
+.sa-ack { background: var(--navy-grad); color: var(--navy-ink); }
+.sa-ways span { background: var(--surface-2); color: var(--ink-2); }
+.sa-ways span.is-on { background: var(--navy-grad); color: var(--navy-ink); }
+.show { border-radius: 26px; }
+.sa-bubble { border-bottom-left-radius: 4px; }
+/* Serif headings inside cards keep the light weight of the section titles. */
+:is(.home-tile h3, .show-copy h3, .sa-level, .xp-art-rows dd) { font-weight: 450; }
+
+/* ---------- wider, centred layout on big screens (sarvam.ai runs about 1200 px) ---------- */
+@media (min-width: 1280px) {
+  :root { --w-content: 1200px; }
+}
+
+/* The closing panel: everything on one centre line, the QR card beneath. */
+:root .home-cta { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+:root .home-cta-copy { justify-items: center; }
+:root .home-cta-copy p { margin-inline: auto; }
+:root .home-qr { justify-content: center; text-align: left; max-width: 560px; }
+
+/* ---------- footer: columns across the full width, the name edge to edge ---------- */
+@media (min-width: 1024px) {
+  .ft-inner { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--sp-8); }
+  .ft-col:last-child { justify-self: end; }
+}
+.ft-credits { justify-content: space-between; }
+.ft::after {
+  font-size: 25vw !important;
+  line-height: 0.74 !important;
+  margin-top: var(--sp-7) !important;
+  margin-bottom: -0.12em;
+  white-space: nowrap;
+}
+:root[lang='hi'] .ft::after { font-size: 22vw !important; line-height: 1 !important; margin-bottom: -0.2em; }
+/* ---------- art: Himalayan ranges, river contours and ribbons (drawn for Pukaar; after sarvam.ai's illustrated sections) ---------- */
+/* Defined on the app root once React has drawn into it (the pre-JS painter leaves it empty), so the art stays out of
+ * the critical CSS. */
+#root:has(> *) {
+  --art-range-day: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 280' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g0' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23e3e8fd'/%3E%3Cstop offset='1' stop-color='%23f4f6ff'/%3E%3C/linearGradient%3E%3ClinearGradient id='g1' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23c9d4fb'/%3E%3Cstop offset='1' stop-color='%23e9eefd'/%3E%3C/linearGradient%3E%3ClinearGradient id='g2' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23a9b9f5'/%3E%3Cstop offset='1' stop-color='%23d3dcfb'/%3E%3C/linearGradient%3E%3ClinearGradient id='g3' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fafafa'/%3E%3Cstop offset='1' stop-color='%23fafafa'/%3E%3C/linearGradient%3E%3ClinearGradient id='m' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffffff' stop-opacity='0'/%3E%3Cstop offset='1' stop-color='%23ffffff' stop-opacity='.7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 280 L0 68 L10 57 L20 49 L30 62 L40 72 L50 88 L60 81 L70 76 L80 64 L90 56 L100 65 L110 71 L120 76 L130 76 L140 86 L150 91 L160 89 L170 81 L180 76 L190 70 L200 64 L210 59 L220 55 L230 64 L240 70 L250 78 L260 84 L270 93 L280 102 L290 87 L300 77 L310 68 L320 60 L330 49 L340 47 L350 50 L360 59 L370 70 L380 79 L390 81 L400 89 L410 99 L420 90 L430 90 L440 94 L450 97 L460 99 L470 103 L480 115 L490 115 L500 125 L510 124 L520 131 L530 131 L540 133 L550 140 L560 138 L570 146 L580 150 L590 148 L600 151 L610 148 L620 143 L630 134 L640 130 L650 124 L660 111 L670 109 L680 98 L690 93 L700 92 L710 86 L720 80 L730 73 L740 67 L750 61 L760 63 L770 68 L780 78 L790 84 L800 88 L810 97 L820 102 L830 101 L840 91 L850 78 L860 70 L870 55 L880 66 L890 82 L900 90 L910 102 L920 120 L930 129 L940 143 L950 150 L960 154 L970 153 L980 153 L990 159 L1000 159 L1010 154 L1020 150 L1030 155 L1040 152 L1050 149 L1060 150 L1070 148 L1080 141 L1090 134 L1100 125 L1110 121 L1120 115 L1130 106 L1140 107 L1150 98 L1160 92 L1170 91 L1180 87 L1190 78 L1200 78 L1210 80 L1220 84 L1230 88 L1240 99 L1250 102 L1260 107 L1270 108 L1280 115 L1290 116 L1300 126 L1310 130 L1320 132 L1330 136 L1340 144 L1350 146 L1360 147 L1370 145 L1380 149 L1390 145 L1400 147 L1410 154 L1420 154 L1430 151 L1440 154 L1440 280Z' fill='url%28%23g0%29'/%3E%3Cpath d='M6 58 L20 49 L34 58 L26 56 L20 60 L15 56Z M76 65 L90 56 L104 65 L96 63 L90 67 L85 63Z M206 64 L220 55 L234 64 L226 62 L220 66 L215 62Z M326 56 L340 47 L354 56 L346 54 L340 58 L335 54Z M736 70 L750 61 L764 70 L756 68 L750 72 L745 68Z M856 64 L870 55 L884 64 L876 62 L870 66 L865 62Z' fill='%23ffffff' fill-opacity='.8'/%3E%3Cpath d='M0 280 L0 146 L10 136 L20 124 L30 110 L40 108 L50 95 L60 87 L70 87 L80 96 L90 111 L100 111 L110 112 L120 115 L130 125 L140 134 L150 138 L160 146 L170 154 L180 154 L190 159 L200 158 L210 148 L220 142 L230 133 L240 128 L250 127 L260 115 L270 119 L280 112 L290 105 L300 107 L310 101 L320 102 L330 101 L340 106 L350 114 L360 117 L370 128 L380 129 L390 134 L400 138 L410 143 L420 138 L430 131 L440 131 L450 123 L460 124 L470 115 L480 119 L490 119 L500 124 L510 134 L520 138 L530 140 L540 152 L550 152 L560 146 L570 138 L580 129 L590 112 L600 109 L610 98 L620 104 L630 109 L640 127 L650 132 L660 140 L670 146 L680 155 L690 157 L700 158 L710 152 L720 148 L730 138 L740 134 L750 139 L760 136 L770 132 L780 130 L790 125 L800 122 L810 122 L820 122 L830 115 L840 119 L850 121 L860 121 L870 126 L880 131 L890 132 L900 134 L910 143 L920 137 L930 141 L940 143 L950 147 L960 154 L970 158 L980 166 L990 165 L1000 176 L1010 177 L1020 178 L1030 180 L1040 179 L1050 183 L1060 185 L1070 184 L1080 185 L1090 182 L1100 184 L1110 175 L1120 176 L1130 179 L1140 176 L1150 174 L1160 172 L1170 174 L1180 165 L1190 164 L1200 169 L1210 169 L1220 174 L1230 175 L1240 174 L1250 177 L1260 173 L1270 181 L1280 183 L1290 175 L1300 180 L1310 184 L1320 180 L1330 184 L1340 178 L1350 173 L1360 172 L1370 172 L1380 175 L1390 173 L1400 173 L1410 166 L1420 168 L1430 166 L1440 171 L1440 280Z' fill='url%28%23g1%29'/%3E%3Cpath d='M46 96 L60 87 L74 96 L66 94 L60 98 L55 94Z M596 107 L610 98 L624 107 L616 105 L610 109 L605 105Z' fill='%23ffffff' fill-opacity='.6'/%3E%3Crect x='0' y='150' width='1440' height='70' fill='url%28%23m%29'/%3E%3Cpath d='M0 280 L0 170 L10 162 L20 161 L30 154 L40 148 L50 145 L60 135 L70 138 L80 137 L90 143 L100 145 L110 145 L120 139 L130 136 L140 142 L150 142 L160 148 L170 156 L180 163 L190 172 L200 179 L210 181 L220 179 L230 170 L240 169 L250 161 L260 159 L270 153 L280 156 L290 165 L300 166 L310 163 L320 169 L330 168 L340 176 L350 183 L360 182 L370 186 L380 195 L390 202 L400 205 L410 201 L420 205 L430 211 L440 211 L450 213 L460 214 L470 208 L480 213 L490 208 L500 205 L510 202 L520 193 L530 193 L540 184 L550 183 L560 176 L570 174 L580 170 L590 161 L600 160 L610 161 L620 154 L630 158 L640 155 L650 149 L660 155 L670 160 L680 157 L690 168 L700 172 L710 171 L720 178 L730 182 L740 186 L750 187 L760 185 L770 190 L780 189 L790 193 L800 195 L810 194 L820 199 L830 199 L840 197 L850 204 L860 203 L870 192 L880 187 L890 187 L900 182 L910 172 L920 165 L930 164 L940 151 L950 156 L960 163 L970 170 L980 178 L990 183 L1000 181 L1010 192 L1020 193 L1030 201 L1040 196 L1050 195 L1060 194 L1070 192 L1080 184 L1090 187 L1100 184 L1110 179 L1120 174 L1130 174 L1140 174 L1150 172 L1160 182 L1170 187 L1180 188 L1190 189 L1200 195 L1210 196 L1220 197 L1230 198 L1240 204 L1250 201 L1260 196 L1270 195 L1280 197 L1290 197 L1300 199 L1310 203 L1320 206 L1330 207 L1340 202 L1350 205 L1360 204 L1370 213 L1380 209 L1390 211 L1400 209 L1410 211 L1420 205 L1430 211 L1440 206 L1440 280Z' fill='url%28%23g2%29'/%3E%3Cpath d='M0 248 C 180 226 320 240 470 232 S 780 214 940 228 S 1240 246 1440 230 L1440 280 L0 280Z' fill='url%28%23g3%29'/%3E%3Cpath d='M-10 262 C 200 248 330 270 540 258 S 880 240 1060 254 S 1320 272 1450 258' fill='none' stroke='%23c7d2fb' stroke-width='10' stroke-linecap='round' stroke-opacity='.7'/%3E%3Cpath d='M-10 262 C 200 248 330 270 540 258 S 880 240 1060 254 S 1320 272 1450 258' fill='none' stroke='%234f68e0' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  --art-range-night: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 280' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g0' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%231c2650'/%3E%3Cstop offset='1' stop-color='%230d1428'/%3E%3C/linearGradient%3E%3ClinearGradient id='g1' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%2322306a'/%3E%3Cstop offset='1' stop-color='%23101a36'/%3E%3C/linearGradient%3E%3ClinearGradient id='g2' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%232c3c80'/%3E%3Cstop offset='1' stop-color='%23141f40'/%3E%3C/linearGradient%3E%3ClinearGradient id='g3' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23070c16'/%3E%3Cstop offset='1' stop-color='%23070c16'/%3E%3C/linearGradient%3E%3ClinearGradient id='m' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%233a4a8c' stop-opacity='0'/%3E%3Cstop offset='1' stop-color='%233a4a8c' stop-opacity='.7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 280 L0 68 L10 57 L20 49 L30 62 L40 72 L50 88 L60 81 L70 76 L80 64 L90 56 L100 65 L110 71 L120 76 L130 76 L140 86 L150 91 L160 89 L170 81 L180 76 L190 70 L200 64 L210 59 L220 55 L230 64 L240 70 L250 78 L260 84 L270 93 L280 102 L290 87 L300 77 L310 68 L320 60 L330 49 L340 47 L350 50 L360 59 L370 70 L380 79 L390 81 L400 89 L410 99 L420 90 L430 90 L440 94 L450 97 L460 99 L470 103 L480 115 L490 115 L500 125 L510 124 L520 131 L530 131 L540 133 L550 140 L560 138 L570 146 L580 150 L590 148 L600 151 L610 148 L620 143 L630 134 L640 130 L650 124 L660 111 L670 109 L680 98 L690 93 L700 92 L710 86 L720 80 L730 73 L740 67 L750 61 L760 63 L770 68 L780 78 L790 84 L800 88 L810 97 L820 102 L830 101 L840 91 L850 78 L860 70 L870 55 L880 66 L890 82 L900 90 L910 102 L920 120 L930 129 L940 143 L950 150 L960 154 L970 153 L980 153 L990 159 L1000 159 L1010 154 L1020 150 L1030 155 L1040 152 L1050 149 L1060 150 L1070 148 L1080 141 L1090 134 L1100 125 L1110 121 L1120 115 L1130 106 L1140 107 L1150 98 L1160 92 L1170 91 L1180 87 L1190 78 L1200 78 L1210 80 L1220 84 L1230 88 L1240 99 L1250 102 L1260 107 L1270 108 L1280 115 L1290 116 L1300 126 L1310 130 L1320 132 L1330 136 L1340 144 L1350 146 L1360 147 L1370 145 L1380 149 L1390 145 L1400 147 L1410 154 L1420 154 L1430 151 L1440 154 L1440 280Z' fill='url%28%23g0%29'/%3E%3Cpath d='M6 58 L20 49 L34 58 L26 56 L20 60 L15 56Z M76 65 L90 56 L104 65 L96 63 L90 67 L85 63Z M206 64 L220 55 L234 64 L226 62 L220 66 L215 62Z M326 56 L340 47 L354 56 L346 54 L340 58 L335 54Z M736 70 L750 61 L764 70 L756 68 L750 72 L745 68Z M856 64 L870 55 L884 64 L876 62 L870 66 L865 62Z' fill='%23c9d4fb' fill-opacity='.8'/%3E%3Cpath d='M0 280 L0 146 L10 136 L20 124 L30 110 L40 108 L50 95 L60 87 L70 87 L80 96 L90 111 L100 111 L110 112 L120 115 L130 125 L140 134 L150 138 L160 146 L170 154 L180 154 L190 159 L200 158 L210 148 L220 142 L230 133 L240 128 L250 127 L260 115 L270 119 L280 112 L290 105 L300 107 L310 101 L320 102 L330 101 L340 106 L350 114 L360 117 L370 128 L380 129 L390 134 L400 138 L410 143 L420 138 L430 131 L440 131 L450 123 L460 124 L470 115 L480 119 L490 119 L500 124 L510 134 L520 138 L530 140 L540 152 L550 152 L560 146 L570 138 L580 129 L590 112 L600 109 L610 98 L620 104 L630 109 L640 127 L650 132 L660 140 L670 146 L680 155 L690 157 L700 158 L710 152 L720 148 L730 138 L740 134 L750 139 L760 136 L770 132 L780 130 L790 125 L800 122 L810 122 L820 122 L830 115 L840 119 L850 121 L860 121 L870 126 L880 131 L890 132 L900 134 L910 143 L920 137 L930 141 L940 143 L950 147 L960 154 L970 158 L980 166 L990 165 L1000 176 L1010 177 L1020 178 L1030 180 L1040 179 L1050 183 L1060 185 L1070 184 L1080 185 L1090 182 L1100 184 L1110 175 L1120 176 L1130 179 L1140 176 L1150 174 L1160 172 L1170 174 L1180 165 L1190 164 L1200 169 L1210 169 L1220 174 L1230 175 L1240 174 L1250 177 L1260 173 L1270 181 L1280 183 L1290 175 L1300 180 L1310 184 L1320 180 L1330 184 L1340 178 L1350 173 L1360 172 L1370 172 L1380 175 L1390 173 L1400 173 L1410 166 L1420 168 L1430 166 L1440 171 L1440 280Z' fill='url%28%23g1%29'/%3E%3Cpath d='M46 96 L60 87 L74 96 L66 94 L60 98 L55 94Z M596 107 L610 98 L624 107 L616 105 L610 109 L605 105Z' fill='%23c9d4fb' fill-opacity='.6'/%3E%3Crect x='0' y='150' width='1440' height='70' fill='url%28%23m%29'/%3E%3Cpath d='M0 280 L0 170 L10 162 L20 161 L30 154 L40 148 L50 145 L60 135 L70 138 L80 137 L90 143 L100 145 L110 145 L120 139 L130 136 L140 142 L150 142 L160 148 L170 156 L180 163 L190 172 L200 179 L210 181 L220 179 L230 170 L240 169 L250 161 L260 159 L270 153 L280 156 L290 165 L300 166 L310 163 L320 169 L330 168 L340 176 L350 183 L360 182 L370 186 L380 195 L390 202 L400 205 L410 201 L420 205 L430 211 L440 211 L450 213 L460 214 L470 208 L480 213 L490 208 L500 205 L510 202 L520 193 L530 193 L540 184 L550 183 L560 176 L570 174 L580 170 L590 161 L600 160 L610 161 L620 154 L630 158 L640 155 L650 149 L660 155 L670 160 L680 157 L690 168 L700 172 L710 171 L720 178 L730 182 L740 186 L750 187 L760 185 L770 190 L780 189 L790 193 L800 195 L810 194 L820 199 L830 199 L840 197 L850 204 L860 203 L870 192 L880 187 L890 187 L900 182 L910 172 L920 165 L930 164 L940 151 L950 156 L960 163 L970 170 L980 178 L990 183 L1000 181 L1010 192 L1020 193 L1030 201 L1040 196 L1050 195 L1060 194 L1070 192 L1080 184 L1090 187 L1100 184 L1110 179 L1120 174 L1130 174 L1140 174 L1150 172 L1160 182 L1170 187 L1180 188 L1190 189 L1200 195 L1210 196 L1220 197 L1230 198 L1240 204 L1250 201 L1260 196 L1270 195 L1280 197 L1290 197 L1300 199 L1310 203 L1320 206 L1330 207 L1340 202 L1350 205 L1360 204 L1370 213 L1380 209 L1390 211 L1400 209 L1410 211 L1420 205 L1430 211 L1440 206 L1440 280Z' fill='url%28%23g2%29'/%3E%3Cpath d='M0 248 C 180 226 320 240 470 232 S 780 214 940 228 S 1240 246 1440 230 L1440 280 L0 280Z' fill='url%28%23g3%29'/%3E%3Cpath d='M-10 262 C 200 248 330 270 540 258 S 880 240 1060 254 S 1320 272 1450 258' fill='none' stroke='%2334407a' stroke-width='10' stroke-linecap='round' stroke-opacity='.7'/%3E%3Cpath d='M-10 262 C 200 248 330 270 540 258 S 880 240 1060 254 S 1320 272 1450 258' fill='none' stroke='%238ea0ff' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  --art-contours-day: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Cg fill='none' stroke='%237f97ef' stroke-opacity='0.4' stroke-width='1.1'%3E%3Cpath d='M324 300 L325 301 L325 302 L325 304 L325 306 L325 307 L325 309 L324 310 L323 311 L322 312 L320 313 L319 314 L317 315 L315 315 L314 315 L312 316 L310 316 L309 316 L308 316 L306 317 L305 317 L304 318 L302 318 L301 319 L300 320 L298 320 L296 320 L295 321 L293 321 L291 320 L290 320 L288 319 L287 319 L285 318 L284 317 L283 316 L282 315 L281 314 L280 313 L279 312 L278 310 L277 309 L276 308 L276 307 L275 305 L275 304 L275 302 L275 301 L276 300 L276 298 L277 297 L278 296 L279 295 L279 294 L280 293 L281 291 L281 290 L281 289 L282 288 L282 286 L283 285 L283 284 L284 282 L285 281 L286 280 L288 279 L289 278 L291 277 L293 277 L294 277 L296 277 L298 277 L300 278 L301 278 L303 279 L304 280 L306 280 L307 281 L308 281 L310 282 L311 282 L312 283 L314 284 L315 285 L316 285 L317 286 L318 287 L319 288 L320 290 L320 291 L321 292 L321 293 L322 294 L322 296 L323 297 L324 298 L324 300Z'/%3E%3Cpath d='M350 300 L350 302 L349 305 L349 308 L348 311 L347 314 L346 316 L345 319 L343 321 L341 324 L339 326 L336 327 L334 329 L331 330 L328 331 L324 332 L321 332 L319 333 L316 333 L313 334 L311 335 L308 336 L305 337 L303 338 L300 340 L296 341 L293 342 L290 343 L286 344 L282 344 L279 343 L275 342 L272 340 L269 338 L267 336 L265 334 L263 331 L262 328 L261 325 L260 322 L259 320 L258 317 L257 315 L256 312 L256 310 L255 307 L254 305 L254 302 L253 300 L253 297 L253 294 L254 292 L255 289 L256 287 L257 284 L258 282 L259 280 L261 277 L262 275 L264 272 L265 270 L267 267 L269 265 L271 262 L273 260 L276 258 L279 256 L282 255 L285 254 L289 254 L293 254 L296 255 L300 256 L303 258 L306 259 L308 261 L311 263 L313 264 L316 266 L318 267 L321 268 L323 269 L326 270 L329 271 L332 272 L335 273 L338 274 L340 276 L343 278 L345 280 L347 283 L348 285 L349 288 L350 291 L350 294 L350 297 L350 300Z'/%3E%3Cpath d='M377 300 L375 304 L373 308 L370 312 L368 315 L365 319 L363 322 L361 326 L358 329 L356 332 L354 335 L351 339 L348 342 L345 345 L342 347 L338 350 L334 352 L330 354 L326 355 L322 356 L318 358 L313 359 L309 360 L304 361 L300 362 L295 363 L290 364 L285 365 L279 365 L274 365 L269 364 L263 363 L259 361 L254 358 L251 354 L248 350 L246 346 L244 342 L243 337 L242 333 L241 329 L241 324 L241 321 L240 317 L239 314 L237 310 L236 307 L234 303 L232 300 L230 296 L229 292 L228 287 L228 283 L228 279 L229 274 L230 270 L233 266 L235 263 L239 259 L242 256 L246 253 L250 250 L254 248 L258 245 L262 243 L266 241 L271 239 L275 238 L280 236 L285 236 L290 235 L295 236 L300 237 L304 238 L309 240 L313 242 L317 244 L321 246 L324 248 L328 250 L331 252 L335 254 L339 255 L344 256 L348 258 L353 259 L358 261 L363 263 L367 266 L371 269 L375 273 L377 277 L379 281 L380 286 L380 290 L379 295 L377 300Z'/%3E%3Cpath d='M403 300 L400 305 L396 311 L392 315 L387 320 L383 324 L379 328 L375 332 L372 336 L369 340 L367 344 L365 349 L362 354 L360 359 L357 364 L353 369 L349 373 L344 377 L339 381 L333 384 L326 386 L320 387 L313 388 L306 388 L300 388 L293 387 L286 386 L280 385 L274 383 L267 382 L261 380 L255 377 L249 375 L244 372 L239 368 L234 364 L230 359 L227 354 L225 349 L223 344 L221 338 L220 333 L220 328 L219 323 L218 319 L216 314 L214 309 L212 305 L209 300 L207 294 L204 289 L202 283 L200 277 L200 270 L200 264 L202 258 L204 252 L208 247 L213 242 L219 239 L225 235 L232 233 L239 231 L245 230 L252 228 L258 227 L264 226 L270 225 L276 224 L282 223 L288 222 L294 221 L300 220 L306 220 L312 220 L318 221 L324 222 L330 223 L335 225 L341 228 L346 230 L351 233 L357 235 L362 238 L367 241 L373 244 L378 247 L384 251 L389 255 L394 259 L398 264 L402 270 L405 275 L406 281 L406 287 L405 294 L403 300Z'/%3E%3Cpath d='M423 300 L421 306 L418 313 L414 319 L410 325 L405 331 L401 336 L396 341 L392 346 L388 351 L384 356 L381 361 L378 367 L375 374 L371 381 L367 387 L363 394 L357 400 L350 406 L343 410 L335 414 L326 416 L317 417 L308 416 L300 414 L291 412 L283 408 L275 404 L268 400 L262 396 L255 392 L249 388 L243 384 L237 380 L231 377 L225 373 L219 369 L213 365 L208 360 L203 355 L198 350 L195 344 L192 338 L189 332 L187 326 L185 319 L183 313 L182 306 L181 300 L179 293 L178 286 L177 278 L176 271 L176 263 L177 256 L179 248 L182 241 L187 234 L192 229 L199 224 L207 220 L215 217 L224 215 L233 214 L242 213 L250 213 L258 213 L265 212 L272 212 L279 211 L286 209 L293 208 L300 205 L307 203 L315 201 L323 199 L331 198 L340 198 L348 199 L356 200 L364 203 L372 207 L378 211 L384 216 L390 221 L395 227 L400 233 L404 239 L408 245 L412 252 L415 258 L418 265 L421 272 L422 278 L423 285 L423 293 L423 300Z'/%3E%3Cpath d='M435 300 L436 307 L436 315 L436 323 L435 331 L432 339 L429 346 L426 353 L421 360 L416 367 L411 374 L406 380 L400 386 L394 393 L388 400 L382 406 L375 413 L368 419 L360 425 L351 430 L341 434 L331 437 L321 438 L310 438 L300 437 L289 433 L280 429 L271 424 L263 418 L256 411 L249 405 L242 400 L236 394 L230 390 L223 386 L216 382 L208 378 L200 375 L192 371 L183 367 L175 362 L167 356 L160 349 L154 342 L150 334 L147 326 L145 317 L144 308 L145 300 L146 291 L149 282 L151 274 L154 266 L157 258 L161 250 L165 242 L170 235 L175 228 L181 221 L187 215 L195 209 L203 204 L212 201 L221 198 L230 196 L239 194 L249 193 L258 193 L266 192 L275 191 L283 190 L291 188 L300 186 L308 183 L318 180 L328 178 L338 175 L349 174 L360 174 L371 175 L381 177 L391 181 L400 187 L407 193 L414 201 L418 210 L422 218 L425 227 L426 236 L428 245 L428 253 L429 261 L430 269 L432 277 L433 284 L434 292 L435 300Z'/%3E%3Cpath d='M448 300 L451 308 L454 317 L457 327 L459 337 L461 347 L461 357 L459 367 L456 377 L451 387 L444 395 L437 403 L428 410 L418 417 L408 422 L398 427 L388 431 L377 435 L366 439 L356 442 L345 445 L334 447 L322 449 L311 449 L300 449 L288 447 L277 445 L267 441 L257 436 L248 431 L239 425 L231 419 L224 413 L216 407 L208 402 L200 397 L192 393 L183 388 L173 384 L162 379 L152 373 L141 367 L132 360 L123 351 L116 342 L111 332 L109 321 L108 310 L110 300 L113 289 L118 279 L125 270 L132 261 L140 253 L148 245 L155 238 L162 231 L169 224 L176 217 L182 210 L188 203 L195 197 L202 190 L210 184 L218 178 L227 173 L237 169 L247 165 L257 162 L267 160 L278 159 L289 157 L300 156 L310 155 L322 155 L333 154 L345 154 L357 154 L369 155 L381 157 L393 160 L404 164 L415 170 L424 177 L431 186 L437 195 L441 206 L444 216 L445 227 L445 237 L445 248 L444 257 L444 266 L444 275 L444 283 L446 291 L448 300Z'/%3E%3Cpath d='M473 300 L475 309 L478 320 L481 331 L485 342 L487 355 L488 367 L488 380 L485 392 L481 404 L474 415 L465 425 L454 433 L442 440 L428 445 L414 448 L400 450 L386 451 L372 451 L359 451 L347 452 L335 452 L323 452 L311 453 L300 454 L288 455 L276 455 L264 455 L252 454 L240 452 L228 449 L216 445 L205 441 L195 435 L185 429 L175 422 L165 415 L156 408 L147 401 L137 393 L128 385 L119 377 L110 367 L102 358 L95 347 L89 336 L86 324 L84 312 L85 300 L89 288 L94 276 L102 266 L111 256 L120 247 L131 239 L141 232 L150 225 L159 218 L167 212 L174 204 L180 197 L187 188 L193 179 L199 170 L206 160 L215 151 L224 142 L235 135 L246 129 L259 124 L272 121 L286 119 L300 119 L313 121 L326 124 L339 127 L352 131 L364 135 L376 140 L388 145 L399 151 L410 157 L420 164 L430 171 L439 179 L447 188 L454 197 L459 207 L463 218 L466 229 L468 239 L468 250 L469 260 L469 270 L470 280 L471 290 L473 300Z'/%3E%3Cpath d='M513 300 L514 312 L514 324 L514 336 L513 349 L512 362 L511 375 L508 388 L504 402 L499 414 L491 427 L482 438 L470 447 L457 455 L443 461 L427 465 L411 467 L395 467 L380 467 L365 465 L350 464 L337 462 L324 461 L312 461 L300 462 L287 464 L274 466 L261 469 L246 471 L231 473 L216 474 L200 473 L185 471 L170 467 L157 460 L144 453 L133 444 L123 433 L115 422 L108 410 L102 398 L96 386 L92 374 L88 362 L84 349 L81 337 L79 325 L78 312 L78 300 L79 287 L82 275 L86 263 L92 252 L100 241 L108 231 L117 222 L127 213 L136 205 L146 198 L154 189 L162 181 L170 172 L178 162 L185 152 L194 141 L203 130 L213 119 L225 109 L238 100 L252 93 L267 88 L283 86 L300 86 L316 88 L331 93 L346 100 L359 108 L371 117 L383 126 L393 136 L403 145 L412 154 L422 162 L431 170 L441 177 L451 185 L460 193 L470 201 L479 210 L487 220 L494 230 L500 241 L505 252 L508 264 L511 276 L512 288 L513 300Z'/%3E%3Cpath d='M562 300 L561 314 L558 329 L553 343 L546 357 L539 370 L531 382 L523 395 L514 406 L505 418 L495 429 L485 440 L474 450 L461 459 L448 467 L434 474 L419 479 L404 483 L389 485 L373 486 L358 486 L343 486 L328 486 L314 485 L300 486 L285 487 L271 488 L256 490 L240 493 L223 495 L205 496 L187 497 L169 495 L151 492 L134 486 L118 478 L105 468 L94 456 L85 442 L79 427 L75 411 L74 396 L73 380 L74 366 L75 351 L77 338 L78 325 L78 312 L78 300 L78 287 L78 274 L78 262 L79 249 L81 235 L84 222 L89 210 L95 197 L102 186 L111 175 L121 164 L131 154 L142 145 L154 135 L165 126 L177 117 L190 108 L203 99 L217 90 L232 83 L248 76 L265 71 L282 68 L300 68 L317 69 L334 74 L350 80 L365 89 L378 99 L390 110 L401 122 L411 133 L420 144 L428 155 L437 164 L447 172 L457 180 L469 187 L481 195 L494 202 L508 211 L521 221 L532 231 L543 243 L551 256 L558 270 L561 285 L562 300Z'/%3E%3Cpath d='M603 300 L602 317 L597 333 L589 349 L579 364 L566 378 L552 390 L538 401 L523 411 L509 421 L496 430 L483 439 L471 448 L460 457 L448 467 L436 476 L424 486 L411 495 L397 503 L382 510 L367 516 L350 521 L334 524 L317 526 L300 526 L282 526 L265 525 L248 524 L230 523 L213 521 L195 518 L176 515 L158 511 L140 506 L122 499 L106 490 L91 480 L78 467 L68 453 L61 437 L56 421 L54 404 L54 387 L56 371 L59 355 L63 340 L66 326 L69 313 L70 300 L70 287 L69 273 L67 260 L64 245 L62 230 L60 214 L60 198 L62 181 L67 165 L73 150 L83 135 L95 123 L108 111 L124 102 L141 94 L158 88 L176 83 L193 78 L211 75 L229 72 L247 70 L264 68 L282 67 L300 67 L317 67 L335 70 L352 73 L368 79 L384 85 L398 94 L412 103 L424 113 L436 124 L446 134 L457 145 L467 155 L479 164 L490 173 L503 182 L517 191 L531 201 L546 211 L560 223 L574 236 L585 250 L594 266 L600 283 L603 300Z'/%3E%3C/g%3E%3C/svg%3E");
+  --art-contours-night: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Cg fill='none' stroke='%238ea0ff' stroke-opacity='0.22' stroke-width='1.1'%3E%3Cpath d='M324 300 L325 301 L325 302 L325 304 L325 306 L325 307 L325 309 L324 310 L323 311 L322 312 L320 313 L319 314 L317 315 L315 315 L314 315 L312 316 L310 316 L309 316 L308 316 L306 317 L305 317 L304 318 L302 318 L301 319 L300 320 L298 320 L296 320 L295 321 L293 321 L291 320 L290 320 L288 319 L287 319 L285 318 L284 317 L283 316 L282 315 L281 314 L280 313 L279 312 L278 310 L277 309 L276 308 L276 307 L275 305 L275 304 L275 302 L275 301 L276 300 L276 298 L277 297 L278 296 L279 295 L279 294 L280 293 L281 291 L281 290 L281 289 L282 288 L282 286 L283 285 L283 284 L284 282 L285 281 L286 280 L288 279 L289 278 L291 277 L293 277 L294 277 L296 277 L298 277 L300 278 L301 278 L303 279 L304 280 L306 280 L307 281 L308 281 L310 282 L311 282 L312 283 L314 284 L315 285 L316 285 L317 286 L318 287 L319 288 L320 290 L320 291 L321 292 L321 293 L322 294 L322 296 L323 297 L324 298 L324 300Z'/%3E%3Cpath d='M350 300 L350 302 L349 305 L349 308 L348 311 L347 314 L346 316 L345 319 L343 321 L341 324 L339 326 L336 327 L334 329 L331 330 L328 331 L324 332 L321 332 L319 333 L316 333 L313 334 L311 335 L308 336 L305 337 L303 338 L300 340 L296 341 L293 342 L290 343 L286 344 L282 344 L279 343 L275 342 L272 340 L269 338 L267 336 L265 334 L263 331 L262 328 L261 325 L260 322 L259 320 L258 317 L257 315 L256 312 L256 310 L255 307 L254 305 L254 302 L253 300 L253 297 L253 294 L254 292 L255 289 L256 287 L257 284 L258 282 L259 280 L261 277 L262 275 L264 272 L265 270 L267 267 L269 265 L271 262 L273 260 L276 258 L279 256 L282 255 L285 254 L289 254 L293 254 L296 255 L300 256 L303 258 L306 259 L308 261 L311 263 L313 264 L316 266 L318 267 L321 268 L323 269 L326 270 L329 271 L332 272 L335 273 L338 274 L340 276 L343 278 L345 280 L347 283 L348 285 L349 288 L350 291 L350 294 L350 297 L350 300Z'/%3E%3Cpath d='M377 300 L375 304 L373 308 L370 312 L368 315 L365 319 L363 322 L361 326 L358 329 L356 332 L354 335 L351 339 L348 342 L345 345 L342 347 L338 350 L334 352 L330 354 L326 355 L322 356 L318 358 L313 359 L309 360 L304 361 L300 362 L295 363 L290 364 L285 365 L279 365 L274 365 L269 364 L263 363 L259 361 L254 358 L251 354 L248 350 L246 346 L244 342 L243 337 L242 333 L241 329 L241 324 L241 321 L240 317 L239 314 L237 310 L236 307 L234 303 L232 300 L230 296 L229 292 L228 287 L228 283 L228 279 L229 274 L230 270 L233 266 L235 263 L239 259 L242 256 L246 253 L250 250 L254 248 L258 245 L262 243 L266 241 L271 239 L275 238 L280 236 L285 236 L290 235 L295 236 L300 237 L304 238 L309 240 L313 242 L317 244 L321 246 L324 248 L328 250 L331 252 L335 254 L339 255 L344 256 L348 258 L353 259 L358 261 L363 263 L367 266 L371 269 L375 273 L377 277 L379 281 L380 286 L380 290 L379 295 L377 300Z'/%3E%3Cpath d='M403 300 L400 305 L396 311 L392 315 L387 320 L383 324 L379 328 L375 332 L372 336 L369 340 L367 344 L365 349 L362 354 L360 359 L357 364 L353 369 L349 373 L344 377 L339 381 L333 384 L326 386 L320 387 L313 388 L306 388 L300 388 L293 387 L286 386 L280 385 L274 383 L267 382 L261 380 L255 377 L249 375 L244 372 L239 368 L234 364 L230 359 L227 354 L225 349 L223 344 L221 338 L220 333 L220 328 L219 323 L218 319 L216 314 L214 309 L212 305 L209 300 L207 294 L204 289 L202 283 L200 277 L200 270 L200 264 L202 258 L204 252 L208 247 L213 242 L219 239 L225 235 L232 233 L239 231 L245 230 L252 228 L258 227 L264 226 L270 225 L276 224 L282 223 L288 222 L294 221 L300 220 L306 220 L312 220 L318 221 L324 222 L330 223 L335 225 L341 228 L346 230 L351 233 L357 235 L362 238 L367 241 L373 244 L378 247 L384 251 L389 255 L394 259 L398 264 L402 270 L405 275 L406 281 L406 287 L405 294 L403 300Z'/%3E%3Cpath d='M423 300 L421 306 L418 313 L414 319 L410 325 L405 331 L401 336 L396 341 L392 346 L388 351 L384 356 L381 361 L378 367 L375 374 L371 381 L367 387 L363 394 L357 400 L350 406 L343 410 L335 414 L326 416 L317 417 L308 416 L300 414 L291 412 L283 408 L275 404 L268 400 L262 396 L255 392 L249 388 L243 384 L237 380 L231 377 L225 373 L219 369 L213 365 L208 360 L203 355 L198 350 L195 344 L192 338 L189 332 L187 326 L185 319 L183 313 L182 306 L181 300 L179 293 L178 286 L177 278 L176 271 L176 263 L177 256 L179 248 L182 241 L187 234 L192 229 L199 224 L207 220 L215 217 L224 215 L233 214 L242 213 L250 213 L258 213 L265 212 L272 212 L279 211 L286 209 L293 208 L300 205 L307 203 L315 201 L323 199 L331 198 L340 198 L348 199 L356 200 L364 203 L372 207 L378 211 L384 216 L390 221 L395 227 L400 233 L404 239 L408 245 L412 252 L415 258 L418 265 L421 272 L422 278 L423 285 L423 293 L423 300Z'/%3E%3Cpath d='M435 300 L436 307 L436 315 L436 323 L435 331 L432 339 L429 346 L426 353 L421 360 L416 367 L411 374 L406 380 L400 386 L394 393 L388 400 L382 406 L375 413 L368 419 L360 425 L351 430 L341 434 L331 437 L321 438 L310 438 L300 437 L289 433 L280 429 L271 424 L263 418 L256 411 L249 405 L242 400 L236 394 L230 390 L223 386 L216 382 L208 378 L200 375 L192 371 L183 367 L175 362 L167 356 L160 349 L154 342 L150 334 L147 326 L145 317 L144 308 L145 300 L146 291 L149 282 L151 274 L154 266 L157 258 L161 250 L165 242 L170 235 L175 228 L181 221 L187 215 L195 209 L203 204 L212 201 L221 198 L230 196 L239 194 L249 193 L258 193 L266 192 L275 191 L283 190 L291 188 L300 186 L308 183 L318 180 L328 178 L338 175 L349 174 L360 174 L371 175 L381 177 L391 181 L400 187 L407 193 L414 201 L418 210 L422 218 L425 227 L426 236 L428 245 L428 253 L429 261 L430 269 L432 277 L433 284 L434 292 L435 300Z'/%3E%3Cpath d='M448 300 L451 308 L454 317 L457 327 L459 337 L461 347 L461 357 L459 367 L456 377 L451 387 L444 395 L437 403 L428 410 L418 417 L408 422 L398 427 L388 431 L377 435 L366 439 L356 442 L345 445 L334 447 L322 449 L311 449 L300 449 L288 447 L277 445 L267 441 L257 436 L248 431 L239 425 L231 419 L224 413 L216 407 L208 402 L200 397 L192 393 L183 388 L173 384 L162 379 L152 373 L141 367 L132 360 L123 351 L116 342 L111 332 L109 321 L108 310 L110 300 L113 289 L118 279 L125 270 L132 261 L140 253 L148 245 L155 238 L162 231 L169 224 L176 217 L182 210 L188 203 L195 197 L202 190 L210 184 L218 178 L227 173 L237 169 L247 165 L257 162 L267 160 L278 159 L289 157 L300 156 L310 155 L322 155 L333 154 L345 154 L357 154 L369 155 L381 157 L393 160 L404 164 L415 170 L424 177 L431 186 L437 195 L441 206 L444 216 L445 227 L445 237 L445 248 L444 257 L444 266 L444 275 L444 283 L446 291 L448 300Z'/%3E%3Cpath d='M473 300 L475 309 L478 320 L481 331 L485 342 L487 355 L488 367 L488 380 L485 392 L481 404 L474 415 L465 425 L454 433 L442 440 L428 445 L414 448 L400 450 L386 451 L372 451 L359 451 L347 452 L335 452 L323 452 L311 453 L300 454 L288 455 L276 455 L264 455 L252 454 L240 452 L228 449 L216 445 L205 441 L195 435 L185 429 L175 422 L165 415 L156 408 L147 401 L137 393 L128 385 L119 377 L110 367 L102 358 L95 347 L89 336 L86 324 L84 312 L85 300 L89 288 L94 276 L102 266 L111 256 L120 247 L131 239 L141 232 L150 225 L159 218 L167 212 L174 204 L180 197 L187 188 L193 179 L199 170 L206 160 L215 151 L224 142 L235 135 L246 129 L259 124 L272 121 L286 119 L300 119 L313 121 L326 124 L339 127 L352 131 L364 135 L376 140 L388 145 L399 151 L410 157 L420 164 L430 171 L439 179 L447 188 L454 197 L459 207 L463 218 L466 229 L468 239 L468 250 L469 260 L469 270 L470 280 L471 290 L473 300Z'/%3E%3Cpath d='M513 300 L514 312 L514 324 L514 336 L513 349 L512 362 L511 375 L508 388 L504 402 L499 414 L491 427 L482 438 L470 447 L457 455 L443 461 L427 465 L411 467 L395 467 L380 467 L365 465 L350 464 L337 462 L324 461 L312 461 L300 462 L287 464 L274 466 L261 469 L246 471 L231 473 L216 474 L200 473 L185 471 L170 467 L157 460 L144 453 L133 444 L123 433 L115 422 L108 410 L102 398 L96 386 L92 374 L88 362 L84 349 L81 337 L79 325 L78 312 L78 300 L79 287 L82 275 L86 263 L92 252 L100 241 L108 231 L117 222 L127 213 L136 205 L146 198 L154 189 L162 181 L170 172 L178 162 L185 152 L194 141 L203 130 L213 119 L225 109 L238 100 L252 93 L267 88 L283 86 L300 86 L316 88 L331 93 L346 100 L359 108 L371 117 L383 126 L393 136 L403 145 L412 154 L422 162 L431 170 L441 177 L451 185 L460 193 L470 201 L479 210 L487 220 L494 230 L500 241 L505 252 L508 264 L511 276 L512 288 L513 300Z'/%3E%3Cpath d='M562 300 L561 314 L558 329 L553 343 L546 357 L539 370 L531 382 L523 395 L514 406 L505 418 L495 429 L485 440 L474 450 L461 459 L448 467 L434 474 L419 479 L404 483 L389 485 L373 486 L358 486 L343 486 L328 486 L314 485 L300 486 L285 487 L271 488 L256 490 L240 493 L223 495 L205 496 L187 497 L169 495 L151 492 L134 486 L118 478 L105 468 L94 456 L85 442 L79 427 L75 411 L74 396 L73 380 L74 366 L75 351 L77 338 L78 325 L78 312 L78 300 L78 287 L78 274 L78 262 L79 249 L81 235 L84 222 L89 210 L95 197 L102 186 L111 175 L121 164 L131 154 L142 145 L154 135 L165 126 L177 117 L190 108 L203 99 L217 90 L232 83 L248 76 L265 71 L282 68 L300 68 L317 69 L334 74 L350 80 L365 89 L378 99 L390 110 L401 122 L411 133 L420 144 L428 155 L437 164 L447 172 L457 180 L469 187 L481 195 L494 202 L508 211 L521 221 L532 231 L543 243 L551 256 L558 270 L561 285 L562 300Z'/%3E%3Cpath d='M603 300 L602 317 L597 333 L589 349 L579 364 L566 378 L552 390 L538 401 L523 411 L509 421 L496 430 L483 439 L471 448 L460 457 L448 467 L436 476 L424 486 L411 495 L397 503 L382 510 L367 516 L350 521 L334 524 L317 526 L300 526 L282 526 L265 525 L248 524 L230 523 L213 521 L195 518 L176 515 L158 511 L140 506 L122 499 L106 490 L91 480 L78 467 L68 453 L61 437 L56 421 L54 404 L54 387 L56 371 L59 355 L63 340 L66 326 L69 313 L70 300 L70 287 L69 273 L67 260 L64 245 L62 230 L60 214 L60 198 L62 181 L67 165 L73 150 L83 135 L95 123 L108 111 L124 102 L141 94 L158 88 L176 83 L193 78 L211 75 L229 72 L247 70 L264 68 L282 67 L300 67 L317 67 L335 70 L352 73 L368 79 L384 85 L398 94 L412 103 L424 113 L436 124 L446 134 L457 145 L467 155 L479 164 L490 173 L503 182 L517 191 L531 201 L546 211 L560 223 L574 236 L585 250 L594 266 L600 283 L603 300Z'/%3E%3C/g%3E%3C/svg%3E");
+  --art-ribbon-day: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 400' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%235b74e6' stroke-linecap='round'%3E%3Cpath d='M-20 300 C 200 240 360 360 620 290 S 1000 180 1180 240 S 1380 320 1460 280' stroke-opacity='0.45' stroke-width='2.0'/%3E%3Cpath d='M-20 318 C 220 260 380 378 640 308 S 1020 198 1200 260 S 1400 338 1460 300' stroke-opacity='0.35' stroke-width='1.7'/%3E%3Cpath d='M-20 336 C 240 280 400 396 660 326 S 1040 216 1220 280 S 1420 356 1460 320' stroke-opacity='0.25' stroke-width='1.4'/%3E%3Cpath d='M-20 354 C 260 300 420 414 680 344 S 1060 234 1240 300 S 1440 374 1460 340' stroke-opacity='0.15' stroke-width='1.1'/%3E%3C/g%3E%3C/svg%3E");
+  --art-ribbon-night: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 400' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%238ea0ff' stroke-linecap='round'%3E%3Cpath d='M-20 300 C 200 240 360 360 620 290 S 1000 180 1180 240 S 1380 320 1460 280' stroke-opacity='0.35' stroke-width='2.0'/%3E%3Cpath d='M-20 318 C 220 260 380 378 640 308 S 1020 198 1200 260 S 1400 338 1460 300' stroke-opacity='0.27' stroke-width='1.7'/%3E%3Cpath d='M-20 336 C 240 280 400 396 660 326 S 1040 216 1220 280 S 1420 356 1460 320' stroke-opacity='0.20' stroke-width='1.4'/%3E%3Cpath d='M-20 354 C 260 300 420 414 680 344 S 1060 234 1240 300 S 1440 374 1460 340' stroke-opacity='0.12' stroke-width='1.1'/%3E%3C/g%3E%3C/svg%3E");
+  --art-range: var(--art-range-day);
+  --art-contours: var(--art-contours-day);
+  --art-ribbon: var(--art-ribbon-day);
+}
+:root[data-theme='dark'] #root:has(> *), #root :is(.home-hero, .home-fact-art, .home-cta) { --art-range: var(--art-range-night); --art-contours: var(--art-contours-night); --art-ribbon: var(--art-ribbon-night); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) #root:has(> *) { --art-range: var(--art-range-night); --art-contours: var(--art-contours-night); --art-ribbon: var(--art-ribbon-night); }
+}
+
+/* Every page: a contour study in the top corner and the ranges at its foot, behind the content. */
+#root .page { position: relative; isolation: isolate; overflow-x: clip; padding-bottom: 220px; }
+#root .page::before {
+  content: ''; position: absolute; z-index: -1; top: 60px; right: -160px; width: 560px; height: 560px;
+  background: var(--art-contours) center / contain no-repeat; pointer-events: none; opacity: 0.85;
+}
+#root .page::after {
+  content: ''; position: absolute; z-index: -1; left: 0; right: 0; bottom: 0; height: 280px;
+  background: var(--art-range) bottom / 100% 100% no-repeat; pointer-events: none;
+}
+#root .home ~ * , #root .page:has(.home) { padding-bottom: 0; }
+#root .page:has(.home)::before { display: none; }
+
+/* Home: the ranges rise behind the status cards. */
+#root .home-status::after {
+  content: ''; position: absolute; z-index: -2; left: 50%; width: 100vw; margin-left: -50vw; bottom: -40px; height: 300px;
+  background: var(--art-range) bottom / 100% 100% no-repeat; pointer-events: none;
+}
+/* Home: contour columns either side of the counters (as sarvam.ai sets scripts beside a section). */
+#root .home-sec:has(.home-metrics) { position: relative; isolation: isolate; overflow: clip; }
+#root .home-sec:has(.home-metrics)::before {
+  content: ''; position: absolute; z-index: -1; inset: 0;
+  background: var(--art-contours) left -200px center / 480px auto no-repeat, var(--art-contours) right -200px center / 480px auto no-repeat;
+  pointer-events: none;
+}
+/* Home: the river runs behind the three tiles, and behind the thesis. */
+#root .home-sec:has(.home-tiles), #root .home-thesis { position: relative; isolation: isolate; }
+#root .home-sec:has(.home-tiles)::before, #root .home-thesis::before {
+  content: ''; position: absolute; z-index: -1; inset: 10% 0; background: var(--art-ribbon) center / 100% 100% no-repeat; pointer-events: none;
+}
+/* Home: night ranges at the foot of the closing panel. */
+#root .home-cta { background: var(--art-range) bottom / 100% 40% no-repeat, var(--night-panel); }
+#root .home-fact-art { background: var(--art-range) bottom / 100% 55% no-repeat, var(--night-panel); }
+
+/* Story pages: ranges under the page header. */
+#root .xp-hero { position: relative; isolation: isolate; }
+#root .xp-hero::after {
+  content: ''; position: absolute; z-index: -1; left: 50%; width: 100vw; margin-left: -50vw; bottom: 0; height: 200px;
+  background: var(--art-range) bottom / 100% 100% no-repeat; opacity: 0.75; pointer-events: none;
+}
+/* Village page: ranges behind the answer. */
+#root .vtop { position: relative; isolation: isolate; }
+#root .vtop::after {
+  content: ''; position: absolute; z-index: -1; left: 50%; width: 100vw; margin-left: -50vw; bottom: -60px; height: 240px;
+  background: var(--art-range) bottom / 100% 100% no-repeat; opacity: 0.7; pointer-events: none;
+}
+/* Officer console: a quiet contour study in the corner; sign-in art uses the ranges. */
+#root .cs-main { background: var(--art-contours) right -180px top -120px / 560px auto no-repeat, var(--glow) top center / 100% 560px no-repeat; }
+#root .login-art::after { background: var(--art-range) bottom / 100% 240px no-repeat; }
+
+/* ---------- controls, as on sarvam.ai: quiet fields, grey tracks with a raised white choice, soft pills ---------- */
+input:not([type='radio']):not([type='file']):not([type='checkbox']), select, textarea {
+  border-width: 1px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.04);
+}
+input:not([type='radio']):not([type='checkbox']):hover, select:hover, textarea:hover { border-color: var(--ink-3); }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
+:root .field-label { font-weight: 600; }
+input[type='checkbox'] { accent-color: var(--accent); }
+
+/* Segmented controls: one grey track, the chosen option lifted in white. */
+:root .seg { background: var(--surface-2); border: 0; border-radius: 14px; padding: 4px; gap: 4px; }
+:root .seg-btn, :root .seg-opt { border: 0; border-radius: 10px; background: transparent; color: var(--ink-2); font-weight: 500; }
+:root .seg-btn:hover, .seg-opt:hover { color: var(--ink); }
+:root .seg-btn.is-on, :root .seg-opt.is-on { background: var(--surface); color: var(--ink); border-color: transparent; box-shadow: 0 1px 2px rgb(16 24 40 / 0.08), 0 4px 12px -6px rgb(16 24 40 / 0.18); font-weight: 600; }
+:root[data-theme='dark'] :is(.seg-btn, .seg-opt).is-on { background: #222d44; }
+
+/* Buttons: the default is a soft grey pill (app.css .btn); ghost is a hairline pill; the main action stays navy. */
+.btn-ghost { --bd-b: var(--line); }
+
+/* Tables: hairline rows and quiet headers, inside a white card (sarvam.ai's data tables). */
+:root .page table { border-collapse: collapse; background: var(--surface); }
+:root .page :is(th, td) { border-left: 0; border-right: 0; border-top: 0; border-bottom: 1px solid var(--line); padding: 12px 14px; }
+:root .page thead th { font-size: var(--t-small); font-weight: 500; color: var(--ink-3); background: var(--surface-2); border-bottom: 1px solid var(--line); text-align: left; }
+:root .page tbody tr:hover td { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+:root .page tbody tr:last-child :is(td, th) { border-bottom: 0; }
+
+/* Not found: the card becomes a dawn tile with the ranges at its foot. */
+:root .nf-card { background: radial-gradient(120% 100% at 50% 120%, #9fb2f6 0%, #d9e1fd 52%, #f4f6ff 100%); border: 0; box-shadow: var(--card-shadow); position: relative; overflow: hidden; isolation: isolate; color: #1b1e27; }
+:root .nf-card::after { content: ''; position: absolute; z-index: -1; inset: auto 0 0 0; height: 55%; background: var(--art-range-day) bottom / 100% 100% no-repeat; }
+:root[data-theme='dark'] .nf-card { background: var(--night-panel); color: #eef1f8; }
+:root[data-theme='dark'] .nf-card::after { background-image: var(--art-range-night); }
+
+/* ---------- refinements measured from sarvam.ai's inner pages ---------- */
+/* Cards: white, a faint hairline, radius 16, no shadow; a clickable card warms to a pale indigo on hover. */
+:root { --card-shadow: 0 0 0 0 transparent; --hair: #f0f0f2; }
+:root[data-theme='dark'] { --hair: #1c2639; }
+:root :is(.card, .panel, .vrows, .how-card, .sn-card, .ev-card, .trend-card, .village-tile, .measure, .scenario, .home-card, .home-metrics, .home-tile, .acts) { border-color: var(--hair); border-radius: 16px; }
+:root :is(a.card, .home-tile, .how-card, .village-tile) { transition: background-color 150ms ease, border-color 150ms ease, transform 250ms cubic-bezier(0, 0, 0.2, 1); }
+:root :is(a.card, .home-tile, .how-card, .village-tile):hover { background: #fafcff; border-color: #d2dff9; }
+:root[data-theme='dark'] :is(a.card, .home-tile, .how-card, .village-tile):hover { background: #111a2c; border-color: #2c3c80; }
+
+/* Buttons: the dark pill and the grey pill, each with sarvam's inset bevel and 350 ms ease. */
+:root :is(.home-report, .btn-accent, .call112, .sab-where, .sa-ack) {
+  background-color: #2a2c33;
+  background-image: none;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), inset 0 -2px 0 rgb(0 0 0 / 0.2);
+  transition: background-color 350ms cubic-bezier(0.2, 0, 0, 1), box-shadow 350ms cubic-bezier(0.2, 0, 0, 1), transform 350ms cubic-bezier(0.2, 0, 0, 1);
+}
+:root :is(.home-report, .btn-accent, .call112, .sab-where):hover { background-image: radial-gradient(80px circle at 50% 0%, rgb(255 255 255 / 0.18), transparent); filter: none; }
+:root :is(.home-hero, .home-cta) .home-report, :root[data-theme='dark'] :is(.home-report, .btn-accent, .call112, .sab-where) {
+  background-color: #f5f5f5; color: #1f1f1f;
+  box-shadow: inset 0 2px 0 rgb(200 200 200 / 0.1), inset 0 -1px 0 rgb(0 0 0 / 0.05);
+}
+:root :is(.home-pill, .tour-pill, .hd-tools > .hd-link) {
+  background: #f5f5f5; border-color: transparent; color: #1f1f1f;
+  box-shadow: inset 0 2px 0 rgb(200 200 200 / 0.1), inset 0 -1px 0 rgb(0 0 0 / 0.05);
+  transition: background-color 350ms cubic-bezier(0.2, 0, 0, 1);
+}
+:root :is(.home-pill, .tour-pill, .hd-tools > .hd-link):hover { background: #ffffff; }
+:root[data-theme='dark'] :is(.home-pill, .tour-pill, .hd-tools > .hd-link) { background: #152036; color: #eef1f8; }
+:root .home-hero .tour-pill { background: rgb(238 241 248 / 0.08); color: var(--ink); box-shadow: none; }
+:focus-visible { outline-color: #556adc; }
+
+/* List rows: lift a pixel, title turns indigo, the chevron sits in a grey circle. */
+:root .vrow { transition: transform 250ms cubic-bezier(0, 0, 0.2, 1), background-color 150ms ease; }
+:root .vrow:hover { transform: translateY(-1px); }
+:root .vrow:hover .vrow-name { color: var(--accent-text); }
+:root .vrow-go { width: 32px; height: 32px; padding: 6px; border-radius: 50%; background: var(--surface-2); color: var(--ink-2); }
+
+/* Page heroes: the wave mark above the title (sarvam's paisley), and the title un-blurs as it arrives. */
+:root .xp-hero-text::before {
+  content: ''; display: block; width: 92px; height: 18px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 32'%3E%3Cg fill='none' stroke='%233144bd' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath opacity='.55' d='M3 27 H40 M120 27 H157'/%3E%3Cpath d='M30 27 C 40 27, 46 23, 48 17 C 50 11, 58 9, 62 13 C 65 16, 63 21, 59 21 C 56 21, 55 18, 57 16'/%3E%3Cpath d='M130 27 C 120 27, 114 23, 112 17 C 110 11, 102 9, 98 13 C 95 16, 97 21, 101 21 C 104 21, 105 18, 103 16'/%3E%3Cpath d='M68 27 L80 10 L92 27'/%3E%3Cpath d='M75 17.5 L78 19.5 L80 16.8 L82 19.5 L85 17.5'/%3E%3Cpath d='M75 6.5 A6 6 0 0 1 85 6.5 M71.5 3.5 A11 11 0 0 1 88.5 3.5'/%3E%3C/g%3E%3C/svg%3E") left center / contain no-repeat;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root .xp-h1 { animation: unblur 1s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both; }
+  .reveal { transform: translateY(20px); transition: opacity 600ms cubic-bezier(0.25, 1, 0.5, 1) var(--d, 0ms), transform 600ms cubic-bezier(0.25, 1, 0.5, 1) var(--d, 0ms); }
+}
+@keyframes unblur { from { filter: blur(12px); transform: translateY(10px); opacity: 0; } to { filter: none; transform: none; opacity: 1; } }
+
+/* Skeletons: soft grey bars that breathe. */
+:root .skel { background: #f5f5f5; background-image: none; border-radius: 4px; animation: skel-breathe 2s ease-in-out infinite; }
+:root[data-theme='dark'] .skel { background: #152036; }
+@keyframes skel-breathe { 50% { opacity: 0.5; } }
+
+/* The closing panel: sarvam's night-to-periwinkle band. */
+#root .home-cta { background: var(--art-range) bottom / 100% 34% no-repeat, linear-gradient(180deg, #13121e 0%, #2c3470 62%, #a5bbfc 135%); }
+
+/* The page ends as a rounded panel over a soft grey footer, whose columns get quiet headings. */
+#root .page { border-radius: 0 0 32px 32px; background-color: var(--bg); box-shadow: 0 1px 0 var(--hair); }
+:root .ft { background: linear-gradient(180deg, #f3f4f7, #eceef3); border-top: 0; margin-top: -32px; padding-top: 32px; }
+:root[data-theme='dark'] .ft { background: linear-gradient(180deg, #0b1322, #070c16); }
+:root .ft-col::before { content: attr(aria-label); display: block; margin-bottom: var(--sp-2); font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+:root[lang='hi'] .ft-col::before { font-family: var(--font-ui); font-size: var(--t-small); letter-spacing: 0; text-transform: none; }
+#root .page { z-index: 1; }

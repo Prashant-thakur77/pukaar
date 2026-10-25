@@ -10,6 +10,7 @@ import { DeniedNote, ErrorState, Skeleton } from '../../components/States';
 import { usePoll } from '../../hooks/usePoll';
 import { useT } from '../../i18n';
 import { fmtNumber } from '../../lib/format';
+import { DISTRICT_HI } from '../../lib/answerText';
 import { addDays, approvalTimes, chainRole, dayLabel, emptyShifts, isCurrent, istClock, nobodyOnDuty, shiftWindow, todayIST, validUsername } from '../../lib/roster';
 import { gapWord } from '../../lib/pilotTen';
 import { useAuth } from '../../store';
@@ -161,7 +162,7 @@ function DutyRow({ duty: d, onChanged }: { duty: OnDuty; onChanged: () => void }
   return (
     <li className={`rs-now-row${empty ? ' is-empty' : ''}`}>
       <p className="rs-district">
-        <span className="rs-district-name">{d.district}</span>
+        <span className="rs-district-name">{lang === 'hi' ? DISTRICT_HI[d.district] ?? d.district : d.district}</span>
         <span className="rs-shift">
           {t(d.shift === 'day' ? 'roster.shift.day' : 'roster.shift.night')} · {shiftWindow(d.starts_at, d.ends_at)}
         </span>
@@ -245,7 +246,7 @@ function Week({ view, start, onGo, onChanged }: { view: RosterView; start: strin
       key={`${editing.date}-${editing.shift}`}
       district={view.district}
       editing={editing}
-      title={`${shiftName(editing.shift)} · ${dayLabel(editing.date, lang)} · ${view.district}`}
+      title={`${shiftName(editing.shift)} · ${dayLabel(editing.date, lang)} · ${lang === 'hi' ? DISTRICT_HI[view.district] ?? view.district : view.district}`}
       officers={view.officers}
       onDone={(msg) => { setEditing(null); setSaved(msg); onChanged(); }}
       onCancel={() => setEditing(null)}
@@ -270,7 +271,7 @@ function Week({ view, start, onGo, onChanged }: { view: RosterView; start: strin
               <select id={selectId} value={view.district} onChange={(e) => { setEditing(null); onGo({ district: e.target.value }); }}>
                 {view.districts.map((d) => (
                   <option key={d} value={d}>
-                    {d}
+                    {lang === 'hi' ? DISTRICT_HI[d] ?? d : d}
                   </option>
                 ))}
               </select>

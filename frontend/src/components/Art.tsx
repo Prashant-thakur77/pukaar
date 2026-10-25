@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { usePrefs } from '../store';
 
 /*
  * Hand-drawn line art for Pukaar, all original and all decoration (aria-hidden, currentColor strokes).
@@ -115,13 +116,18 @@ export function ValleyLine({ className = '', quiet = false }: { className?: stri
   );
 }
 
-/** A quiet field of Hindi words about water, set like type on a press bed. Decoration only. */
-const WORDS = ['नदी', 'पानी', 'बारिश', 'पुकार', 'गाँव', 'पुल', 'ढलान', 'बादल', 'धारा', 'सुरक्षित', 'मिल गया', 'ब्यास'];
+/** A quiet field of words about water, set like type on a press bed, in the page's language. Decoration only. */
+const WORDS = {
+  hi: ['नदी', 'पानी', 'बारिश', 'पुकार', 'गाँव', 'पुल', 'ढलान', 'बादल', 'धारा', 'सुरक्षित', 'मिल गया', 'ब्यास'],
+  en: ['river', 'water', 'rain', 'Pukaar', 'village', 'bridge', 'slope', 'cloud', 'stream', 'safe', 'got it', 'Beas'],
+};
 export function WordField({ className = '' }: { className?: string }) {
+  const lang = usePrefs((s) => s.lang);
+  const words = WORDS[lang];
   return (
-    <div className={`word-field ${className}`} aria-hidden="true" lang="hi">
+    <div className={`word-field ${className}`} aria-hidden="true">
       {Array.from({ length: 4 }, (_, row) => (
-        <span key={row}>{[...WORDS.slice(row * 3), ...WORDS.slice(0, row * 3)].join(' · ')}</span>
+        <span key={row}>{[...words.slice(row * 3), ...words.slice(0, row * 3)].join(' · ')}</span>
       ))}
     </div>
   );

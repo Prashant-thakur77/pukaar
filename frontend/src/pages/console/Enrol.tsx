@@ -16,6 +16,7 @@ import {
 } from '../../lib/reach';
 import { useConsole } from './consoleContext';
 import { Page } from './Sections';
+import { DISTRICT_HI } from '../../lib/answerText';
 import '../../styles/reach.css';
 
 /*
@@ -93,7 +94,7 @@ export default function Enrol() {
           <select className="input-lg" value={vid} onChange={(e) => setVillageId(e.target.value)}>
             {villages.map((v) => (
               <option key={v.id} value={v.id}>
-                {hi ? v.name_hi : v.name} ({v.district})
+                {hi ? v.name_hi || v.name : v.name} ({hi ? DISTRICT_HI[v.district] ?? v.district : v.district})
               </option>
             ))}
           </select>
@@ -106,8 +107,17 @@ export default function Enrol() {
 
         <details className="enr-sec" open>
           <summary>{hi ? 'सुनाने वाली सूचना' : 'The notice to read aloud'}</summary>
-          <p lang="hi">{NOTICE_HI}</p>
-          <p lang="en">{NOTICE_EN}</p>
+          {hi ? (
+            <p>{NOTICE_HI}</p>
+          ) : (
+            /* Read aloud in Hindi, word for word: quoted, with its English meaning. */
+            <div data-quoted-sample="">
+              <p lang="hi">{NOTICE_HI}</p>
+              <p>
+                <strong>In English:</strong> {NOTICE_EN}
+              </p>
+            </div>
+          )}
         </details>
 
         <HouseholdForm
@@ -327,7 +337,7 @@ function HouseholdForm({ villageId, editing, onSaved, onCancel }: { villageId: s
           {done}
         </p>
       )}
-      {err && (err.isDenied ? <DeniedNote error={err} /> : <p className="dp-note is-bad" role="alert">{(hi && err.messageHi) || err.messageEn}</p>)}
+      {err && (err.isDenied ? <DeniedNote error={err} /> : <p className="dp-note is-bad" role="alert">{err.messageIn(hi ? 'hi' : 'en')}</p>)}
     </form>
   );
 }
@@ -388,7 +398,16 @@ function BulkImport({ villageId, onDone }: { villageId: string; onDone: () => vo
       </h2>
       <p className="dp-meta">
         {hi
-          ? 'स्तंभ: name, phone, assisted, consent method, given by, consent date। पहले जाँच होती है; कुछ भी तब तक नहीं जुड़ता जब तक आप हर पंक्ति की सहमति की पुष्टि न करें।'
+          ? (
+            <>
+              {/* The file's own column names, which the import reads as they are. */}
+              स्तंभ (फ़ाइल में ठीक इन्हीं नामों से):{' '}
+              <code lang="en" data-quoted-sample="">
+                name, phone, assisted, consent method, given by, consent date
+              </code>
+              । पहले जाँच होती है; कुछ भी तब तक नहीं जुड़ता जब तक आप हर पंक्ति की सहमति की पुष्टि न करें।
+            </>
+          )
           : 'Columns: name, phone, assisted, consent method, given by, consent date. A preview comes first; nothing is stored until you attest the consent of each row.'}
       </p>
       <label className="field" htmlFor="enr-file">
@@ -410,7 +429,7 @@ function BulkImport({ villageId, onDone }: { villageId: string; onDone: () => vo
       <div className="enr-grid">
         <label className="field" htmlFor="enr-source">
           <span className="field-label">{hi ? 'सूची का नाम' : 'Name of the list'}</span>
-          <input id="enr-source" value={source} onChange={(e) => setSource(e.target.value)} placeholder="Panchayat household list 2026" maxLength={80} />
+          <input id="enr-source" value={source} onChange={(e) => setSource(e.target.value)} placeholder={hi ? 'पंचायत की घरों की सूची 2026' : 'Panchayat household list 2026'} maxLength={80} />
         </label>
       </div>
       <p className="dp-meta">{hi ? 'जिन पंक्तियों में सहमति नहीं लिखी, उनके लिए:' : 'For rows that do not say how consent was given:'}</p>
@@ -420,7 +439,7 @@ function BulkImport({ villageId, onDone }: { villageId: string; onDone: () => vo
           {hi ? 'जाँचें' : 'Preview'}
         </button>
       </div>
-      {err && (err.isDenied ? <DeniedNote error={err} /> : <p className="dp-note is-bad" role="alert">{(hi && err.messageHi) || err.messageEn}</p>)}
+      {err && (err.isDenied ? <DeniedNote error={err} /> : <p className="dp-note is-bad" role="alert">{err.messageIn(hi ? 'hi' : 'en')}</p>)}
       {preview && (
         <>
           <p className="dp-meta" role="status">

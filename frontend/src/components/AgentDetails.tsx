@@ -36,8 +36,8 @@ const TOOL_EXAMPLES: Record<string, Txt> = {
   get_safe_places: { en: 'Where is the nearest safe place for Janjehli?', hi: 'जंजैहली के लिए सबसे पास सुरक्षित जगह कहाँ है?' },
   rank_villages: { en: 'Which village needs attention first?', hi: 'किस गाँव पर पहले ध्यान दें?' },
   query_readings: { en: 'Show rain and river for Gohar', hi: 'गोहर में बारिश और नदी दिखाओ' },
-  query_alerts: { en: 'How many alerts are on record?', hi: 'कितने alert दर्ज हैं?' },
-  query_deliveries: { en: 'Which phones never said “मिल गया”?', hi: 'किन फ़ोन से “मिल गया” नहीं आया?' },
+  query_alerts: { en: 'How many alerts are on record?', hi: 'कितनी चेतावनियाँ दर्ज हैं?' },
+  query_deliveries: { en: 'Which phones never said “Got it”?', hi: 'किन फ़ोन से “मिल गया” नहीं आया?' },
   query_reports: { en: 'How many reports in the last 24 hours, by village?', hi: 'पिछले 24 घंटे में गाँववार कितनी रिपोर्ट?' },
   village_stats: { en: 'Compare Pandoh with its past floods', hi: 'पंडोह की पिछली बाढ़ों से तुलना करो' },
 };
@@ -208,7 +208,7 @@ export function Traces() {
             className={`ag-pick${t.alert_id === current.alert_id ? ' is-on' : ''}`}
             onClick={() => setPick(t.alert_id)}
           >
-            <LevelBadge level={t.level} size="sm" both={false} lang={lang} plain={t.level !== 'critical'} />
+            <LevelBadge level={t.level} size="sm" plain={t.level !== 'critical'} />
             <span className="ag-pick-name">{en ? t.village_name : t.village_name_hi}</span>
             <span className="ag-pick-time">{fmtAgo(t.created_at, lang)}</span>
             {t.replay && <span className="ag-flag">{en ? 'Replay' : 'रीप्ले'}</span>}

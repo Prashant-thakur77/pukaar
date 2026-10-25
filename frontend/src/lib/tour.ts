@@ -54,9 +54,9 @@ export const TOUR_STEPS: TourStep[] = [
     targets: [
       {
         sel: '[data-tour="funnel"]',
-        title: { en: 'From draft to “मिल गया”', hi: 'मसौदे से “मिल गया” तक' },
+        title: { en: 'From draft to “Got it”', hi: 'मसौदे से “मिल गया” तक' },
         body: {
-          en: 'Every alert is counted: drafted, approved by an officer, delivered to a phone, and confirmed when someone taps “मिल गया”.',
+          en: 'Every alert is counted: drafted, approved by an officer, delivered to a phone, and confirmed when someone taps “Got it”.',
           hi: 'हर चेतावनी गिनी जाती है: मसौदा बना, अधिकारी ने मंज़ूर किया, फ़ोन तक पहुँची, और किसी ने “मिल गया” दबाकर पुष्टि की।',
         },
       },
@@ -82,7 +82,7 @@ export const TOUR_STEPS: TourStep[] = [
         sel: '[data-tour="tte"]',
         title: { en: 'Time to ear', hi: 'कान तक का समय' },
         body: {
-          en: 'A stopwatch from the level rising to the first spoken alert on a phone and the first “मिल गया”. Every mark is a recorded timestamp.',
+          en: 'A stopwatch from the level rising to the first spoken alert on a phone and the first “Got it”. Every mark is a recorded timestamp.',
           hi: 'स्तर बढ़ने से फ़ोन पर पहली बोली गई चेतावनी और पहले “मिल गया” तक की घड़ी। हर निशान एक दर्ज समय है।',
         },
       },

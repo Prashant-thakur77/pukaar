@@ -17,6 +17,8 @@ const HERE = import.meta.url.startsWith('file:') ? dirname(fileURLToPath(import.
 const ROOT = join(HERE, '..');
 const SRC = join(ROOT, 'src');
 const TOKENS = join(SRC, 'tokens.css');
+// The water skin holds its own palette, gradients and blurs, like tokens.css.
+const WATER = join(SRC, 'water.css');
 
 const NAMED = /\b(white|black|red|green|blue|yellow|orange|gray|grey|silver|navy|teal|purple|crimson|gold|maroon)\b/i;
 const RAW_COLOUR = /#[0-9a-f]{3,8}\b|\b(rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/i;
@@ -90,6 +92,20 @@ export function tokenValues(code = readFileSync(TOKENS, 'utf8')) {
   return { light, dark: { ...light, ...block(":root[data-theme='dark'] {") } };
 }
 
+/** The water skin's two palettes, over the token values they do not set (the level colours). */
+export function waterValues(code = readFileSync(WATER, 'utf8')) {
+  const base = tokenValues();
+  const block = (sel) => {
+    const i = code.indexOf(sel);
+    const j = code.indexOf('}', i);
+    return Object.fromEntries([...code.slice(i, j).matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\b/gi)].map((m) => [m[1], m[2].toLowerCase()]));
+  };
+  return {
+    'water-light': { ...base.light, ...block('/* ---------- day:') },
+    'water-dark': { ...base.dark, ...block('/* ---------- night:') },
+  };
+}
+
 // [foreground, background, minimum]: 4.5 for text, 3 for large text and non-text (lines, bars, outlines).
 const PAIRS = [
   ['ink', 'bg', 4.5], ['ink', 'surface', 4.5], ['ink-2', 'bg', 4.5], ['ink-3', 'bg', 4.5], ['ink-3', 'surface', 4.5], ['ink-3', 'surface-2', 4.5],
@@ -111,12 +127,12 @@ export function contrastReport(values = tokenValues()) {
 
 const isMain = Boolean(process.argv[1]) && import.meta.url.startsWith('file:') && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
-  const files = walk(SRC).filter((f) => f !== TOKENS);
+  const files = walk(SRC).filter((f) => f !== TOKENS && f !== WATER);
   const findings = files.flatMap((f) => lintCss(readFileSync(f, 'utf8'), relative(ROOT, f)));
   let failed = findings.length > 0;
   for (const f of findings) console.log(f);
   if (process.argv.includes('--contrast')) {
-    for (const r of contrastReport()) {
+    for (const r of [...contrastReport(), ...contrastReport(waterValues())]) {
       console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.theme.padEnd(5)} ${r.fg.padEnd(16)} on ${r.bg.padEnd(16)} ${r.ratio.toFixed(2)} (min ${r.min})`);
       if (!r.ok) failed = true;
     }

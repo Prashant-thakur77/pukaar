@@ -92,7 +92,7 @@ function Board({ id, onChanged }: { id: string; onChanged: () => void }) {
       onChanged();
     } catch (er) {
       const e = er instanceof ApiError ? er : new ApiError(0, null);
-      setNote({ ok: false, text: lang === 'hi' && e.messageHi ? e.messageHi : e.messageEn });
+      setNote({ ok: false, text: e.messageIn(lang) });
     } finally {
       setBusy(false);
     }
@@ -102,7 +102,7 @@ function Board({ id, onChanged }: { id: string; onChanged: () => void }) {
     <section className={`rc-board${rc.need_help > 0 ? ' has-help' : ''}`} aria-label={t('rollcall.title')}>
       <header className="rc-head">
         <h3 className="rc-village">
-          <span lang="hi">{rc.village_name_hi}</span> <span className="muted">· {rc.village_name}</span>
+          {lang === 'hi' ? rc.village_name_hi || rc.village_name : rc.village_name}
         </h3>
         <span className={`chip ${rc.open ? 'chip-good' : 'chip-muted'}`}>{rc.open ? t('rollcall.state.open') : t('rollcall.state.closed')}</span>
         {rc.exercise && <span className="chip chip-warn">{t('rollcall.exercise')}</span>}
@@ -252,7 +252,7 @@ function OpenForm({ villages, onOpened }: { villages: Village[]; onOpened: (id: 
             <option value="">—</option>
             {villages.map((x) => (
               <option key={x.id} value={x.id}>
-                {x.name} · {x.name_hi}
+                {lang === 'hi' ? x.name_hi || x.name : x.name}
               </option>
             ))}
           </select>

@@ -98,33 +98,41 @@ export function PukaarMark({ size = 30 }: { size?: number }) {
   );
 }
 
+/** The name in the page's language only: पुकार in Hindi, Pukaar in English. */
 export function Wordmark() {
+  const lang = usePrefs((s) => s.lang);
   return (
     <span className="wordmark">
       <PukaarMark size={28} />
-      <span lang="hi" className="wm-hi">
-        पुकार
-      </span>
-      <span className="wm-en" lang="en">
-        Pukaar
-      </span>
+      <span className="wm-hi">{lang === 'hi' ? 'पुकार' : 'Pukaar'}</span>
     </span>
   );
 }
 
 /** 112, a real tel: link, in the header on every route. The sticky bar and the footer reuse it. */
 export function Call112({ compact = false }: { compact?: boolean }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   return (
     <a href="tel:112" className={`call112${compact ? ' is-compact' : ''}`} aria-label={t('shell.call112.aria')}>
       <Phone aria-hidden="true" />
-      {!compact && (
-        <span lang="hi" className="c112-hi">
-          आपातकाल
-        </span>
-      )}
+      {!compact && <span className="c112-hi">{lang === 'hi' ? 'आपातकाल' : 'Emergency'}</span>}
       <span className="c112-num">112</span>
     </a>
+  );
+}
+
+/**
+ * The one language switch, the same on every header: it changes the whole site. Its label names the other
+ * language in that language (the usual switcher convention); its accessible name is in the current one.
+ */
+export function LangSwitch() {
+  const { t, lang, setLang, other } = useT();
+  return (
+    <button type="button" className="hd-icon hd-lang" onClick={() => setLang(other)} aria-label={t('shell.lang')} title={t('shell.lang')}>
+      <span lang={other} aria-hidden="true">
+        {lang === 'hi' ? 'EN' : 'हि'}
+      </span>
+    </button>
   );
 }
 
@@ -169,7 +177,7 @@ function MenuSheet({ onClose }: { onClose: () => void }) {
           <X aria-hidden="true" />
         </button>
       </div>
-      <nav aria-label="Main" className="sheet-nav">
+      <nav aria-label={t('nav.main')} className="sheet-nav">
         <NavLink to="/" end className={row}>
           {t('nav.status')}
         </NavLink>
@@ -214,7 +222,7 @@ function MenuSheet({ onClose }: { onClose: () => void }) {
 }
 
 function Header() {
-  const { t, lang, setLang, other } = useT();
+  const { t, lang } = useT();
   const user = useAuth((s) => s.user);
   const signOut = useAuth((s) => s.signOut);
   const { pathname } = useLocation();
@@ -226,10 +234,10 @@ function Header() {
   return (
     <header className="hd">
       <div className="hd-inner">
-        <Link to="/" className="hd-brand" aria-label="पुकार Pukaar: गाँवों का हाल · village status">
+        <Link to="/" className="hd-brand" aria-label={lang === 'hi' ? 'पुकार: गाँवों का हाल' : 'Pukaar: village status'}>
           <Wordmark />
         </Link>
-        <nav className="hd-nav" aria-label="Main">
+        <nav className="hd-nav" aria-label={t('nav.main')}>
           <NavLink to="/" end className={({ isActive }) => `hd-link${isActive ? ' is-active' : ''}`}>
             {t('nav.status')}
           </NavLink>
@@ -257,9 +265,7 @@ function Header() {
               {t('nav.officer')}
             </NavLink>
           )}
-          <button type="button" className="hd-icon hd-lang" onClick={() => setLang(other)} aria-label={t('shell.lang')} title={t('shell.lang')}>
-            <span lang={other}>{lang === 'hi' ? 'EN' : 'हि'}</span>
-          </button>
+          <LangSwitch />
           <span className="hd-desk">
             <ThemeButton />
           </span>
@@ -303,8 +309,8 @@ function SampleRibbon() {
   const { t } = useT();
   if (!sample) return null;
   return (
-    <aside className="sample-ribbon" aria-label="Sample data" title={t('shell.sample.note')}>
-      <strong lang="en">Sample data</strong> <span lang="hi">नमूना डेटा</span>
+    <aside className="sample-ribbon" aria-label={t('shell.sample')} title={t('shell.sample.note')}>
+      <strong>{t('shell.sample')}</strong>
       <span className="sr-only">{t('shell.sample.note')}</span>
     </aside>
   );
@@ -368,9 +374,7 @@ function Footer() {
     <footer className="ft">
       <div className="ft-inner">
         <div className="ft-brand">
-          <p className="ft-line" lang="hi">
-            नदी से पहले, गाँव तक।
-          </p>
+          <p className="ft-line">{t('shell.footer.line')}</p>
           <p className="ft-lead">{t('shell.footer')}</p>
           <Call112 />
         </div>
@@ -401,7 +405,7 @@ function Footer() {
         </nav>
       </div>
       <p className="ft-credits">
-        <span>{t('shell.footer.data')}</span> <span>© 2026 Pukaar · {en ? 'Built in Himachal' : 'हिमाचल में बना'}</span>
+        <span>{t('shell.footer.data')}</span> <span>© 2026 {en ? 'Pukaar · Built in Himachal' : 'पुकार · हिमाचल में बना'}</span>
       </p>
     </footer>
   );
@@ -448,6 +452,7 @@ export function BareShell() {
             <Wordmark />
           </span>
           <div className="hd-tools">
+            <LangSwitch />
             <Call112 />
           </div>
         </div>

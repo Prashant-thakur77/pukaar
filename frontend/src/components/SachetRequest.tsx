@@ -96,13 +96,13 @@ export function SachetRequest({ alert }: { alert: Alert }) {
             >
               {RADII.map((r) => (
                 <option key={r} value={r}>
-                  {r} km
+                  {r} {hi ? 'किमी' : 'km'}
                 </option>
               ))}
             </select>
           </label>
           <p className="field-label">{hi ? 'हिंदी (सेल ब्रॉडकास्ट)' : 'Hindi (cell broadcast)'}</p>
-          <p className="sachet-text" lang="hi">
+          <p className="sachet-text" lang="hi" data-quoted-sample="">
             {pkg.text_hi}
           </p>
           <p className="sachet-meta">
@@ -110,7 +110,7 @@ export function SachetRequest({ alert }: { alert: Alert }) {
             {hi ? 'पेज' : pkg.limits.hi.pages === 1 ? 'page' : 'pages'} ({pkg.limits.hi.encoding})
           </p>
           <p className="field-label">{hi ? 'अंग्रेज़ी (सेल ब्रॉडकास्ट)' : 'English (cell broadcast)'}</p>
-          <p className="sachet-text" lang="en">
+          <p className="sachet-text" lang="en" data-quoted-sample="">
             {pkg.text_en}
           </p>
           <p className="sachet-meta">

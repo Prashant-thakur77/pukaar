@@ -5,6 +5,7 @@ import { api, ApiError } from '../../api';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { HoldToConfirm } from '../../components/HoldToConfirm';
 import { ListenButton } from '../../components/ListenButton';
+import { QuotedAlert } from '../../components/QuotedAlert';
 import { QRCode } from '../../components/QRCode';
 import { Snackbar, type SnackbarMsg } from '../../components/Snackbar';
 import { DeniedNote, ErrorState, Skeleton } from '../../components/States';
@@ -73,7 +74,7 @@ export default function LiveDemo() {
 
   const title = en ? 'Live demo' : 'लाइव डेमो';
   const lead = en
-    ? 'Jurors join from their own phones; you approve one practice alert as the duty officer; their phones get the spoken Hindi alert with the “मिल गया” button. Practice only: the demo village is not a real place and is counted nowhere else.'
+    ? 'Jurors join from their own phones; you approve one practice alert as the duty officer; their phones get the spoken Hindi alert with the “Got it” button. Practice only: the demo village is not a real place and is counted nowhere else.'
     : 'निर्णायक अपने फ़ोन से जुड़ते हैं; आप ड्यूटी अधिकारी की तरह एक अभ्यास संदेश मंज़ूर करते हैं; उनके फ़ोन पर बोला हुआ हिंदी संदेश “मिल गया” बटन के साथ आता है। केवल अभ्यास: डेमो गाँव असली जगह नहीं है और कहीं और गिना नहीं जाता।';
 
   if (poll.loading && !d) {
@@ -99,11 +100,11 @@ export default function LiveDemo() {
   return (
     <Page title={title} lead={lead} wide>
       <p className="dm-banner" role="note">
-        <strong lang="hi">अभ्यास / DEMO</strong> {en ? '— not a real warning. Names and chat ids are erased within' : '— असली चेतावनी नहीं। नाम और चैट आईडी'} {d.keep_hours}{' '}
+        <strong>{en ? 'Practice' : 'अभ्यास'}</strong> {en ? '— not a real warning. Names and chat ids are erased within' : '— असली चेतावनी नहीं। नाम और चैट आईडी'} {d.keep_hours}{' '}
         {en ? 'hours; this screen shows counts only.' : 'घंटे में मिटा दिए जाते हैं; यह स्क्रीन केवल गिनती दिखाती है।'}
       </p>
       {!d.enabled && <p className="dm-note is-warn">{en ? 'The live demo is off on this stack (PUKAAR_LIVE_DEMO).' : 'इस स्टैक पर लाइव डेमो बंद है।'}</p>}
-      {err && (err.isDenied ? <DeniedNote error={err} /> : <p className="dm-note is-warn" role="alert">{(lang === 'hi' && err.messageHi) || err.messageEn}</p>)}
+      {err && (err.isDenied ? <DeniedNote error={err} /> : <p className="dm-note is-warn" role="alert">{err.messageIn(lang)}</p>)}
 
       <div className="dm-grid">
         <section className="dm-card dm-join" aria-labelledby="dm-join-h">
@@ -145,7 +146,7 @@ export default function LiveDemo() {
           <dl className="dm-counts" aria-live="polite">
             <Count k={en ? 'Joined' : 'जुड़े'} v={`${fmtNumber(d.joined, lang)}`} sub={`/ ${d.max_people}`} />
             <Count k={en ? 'Delivered' : 'पहुँचा'} v={a ? fmtNumber(a.delivered, lang) : '—'} sub={a ? `/ ${fmtNumber(a.targeted, lang)}` : ''} />
-            <Count k={en ? 'Confirmed “मिल गया”' : '“मिल गया” दबाया'} v={a ? fmtNumber(a.confirmed, lang) : '—'} />
+            <Count k={en ? 'Confirmed “Got it”' : '“मिल गया” दबाया'} v={a ? fmtNumber(a.confirmed, lang) : '—'} />
             <Count k={en ? 'First confirmation' : 'पहली पुष्टि'} v={secs(a?.seconds.first_sent_to_first_ack, lang)} sub={en ? 'after it was sent' : 'भेजने के बाद'} />
             <Count k={en ? 'Median confirmation' : 'मध्य पुष्टि'} v={secs(a?.seconds.first_sent_to_median_ack, lang)} sub={en ? 'after it was sent' : 'भेजने के बाद'} />
           </dl>
@@ -211,7 +212,7 @@ function Timeline({ a, lang }: { a: DemoAlert; lang: Lang }) {
   const steps: { k: string; at: string | null; gap: number | null }[] = [
     { k: en ? 'Approved' : 'मंज़ूर', at: a.times.approved, gap: null },
     { k: en ? 'Sent' : 'भेजा', at: a.times.first_sent, gap: a.seconds.approved_to_first_sent },
-    { k: en ? 'First “मिल गया”' : 'पहला “मिल गया”', at: a.times.first_ack, gap: a.seconds.first_sent_to_first_ack },
+    { k: en ? 'First “Got it”' : 'पहला “मिल गया”', at: a.times.first_ack, gap: a.seconds.first_sent_to_first_ack },
   ];
   return (
     <ol className="dm-steps" aria-label={en ? 'Timeline' : 'समय-रेखा'}>
@@ -252,17 +253,11 @@ function Decision({ a, canRun, onDone }: { a: DemoAlert; canRun: boolean; onDone
       <h2 id="dm-msg-h" className="dm-h">
         {en ? 'The practice alert' : 'अभ्यास संदेश'} · <span className="dm-status">{(status as Record<string, string>)[a.status] ?? a.status}</span>
       </h2>
-      <blockquote className="dm-msg" lang="hi">
-        {a.text_hi}
-      </blockquote>
+      <QuotedAlert hi={a.text_hi} en={a.text_en} />
       <div className="dm-actions">
         <ListenButton alertId={a.id} hasAudio={a.has_audio} />
         <Link to={`/console/inbox/${encodeURIComponent(a.id)}`}>{en ? 'Open it in the inbox' : 'इनबॉक्स में खोलें'}</Link>
       </div>
-      <details className="dp-en">
-        <summary>{t('decide.english')}</summary>
-        <p lang="en">{a.text_en}</p>
-      </details>
       {pending && canRun && (
         <HoldToConfirm
           className="dm-hold"
@@ -280,7 +275,7 @@ function Decision({ a, canRun, onDone }: { a: DemoAlert; canRun: boolean; onDone
           }}
         />
       )}
-      {err && (err.isDenied ? <DeniedNote error={err} /> : <p className="dm-note is-warn" role="alert">{(lang === 'hi' && err.messageHi) || err.messageEn}</p>)}
+      {err && (err.isDenied ? <DeniedNote error={err} /> : <p className="dm-note is-warn" role="alert">{err.messageIn(lang)}</p>)}
     </section>
   );
 }

@@ -8,6 +8,7 @@ import { EmptyState, Skeleton } from '../components/States';
 import { useT, type Key } from '../i18n';
 import { fmtDate, fmtNumber, fmtTime } from '../lib/format';
 import { levelRank } from '../lib/levels';
+import { villageNameIn } from '../lib/villageNames';
 import scores from '../data/scores.json';
 import { LEVELS, type Backtest, type BacktestScenario, type BacktestVillage, type Level } from '../types';
 import { Measured } from '../components/Measured';
@@ -38,8 +39,7 @@ function Scenario({ sc }: { sc: BacktestScenario }) {
       <header className="sc-head">
         <div>
           <h3 className="sc-title">
-            <span lang="hi">{sc.title_hi ?? sc.title}</span>
-            <span className="sc-title-en">{sc.title}</span>
+            <span>{lang === 'hi' ? sc.title_hi ?? sc.title : sc.title}</span>
           </h3>
           <p className="small muted">
             {fmtDate(sc.start, lang)} → {fmtDate(sc.end, lang)}
@@ -55,7 +55,7 @@ function Scenario({ sc }: { sc: BacktestScenario }) {
       <ul className="sc-bars" aria-hidden="true">
         {sc.villages.map((v) => (
           <li key={v.village_id} className={`lv-${reached(v)}`}>
-            <span className="scb-name">{v.village}</span>
+            <span className="scb-name">{villageNameIn(v.village_id, v.village, lang)}</span>
             <span className="scb-track">
               {LEVELS.map((l) => (
                 <i key={l} className={levelRank(l) <= levelRank(reached(v)) && l !== 'normal' ? `on lv-${l}` : ''} />
@@ -65,7 +65,7 @@ function Scenario({ sc }: { sc: BacktestScenario }) {
         ))}
       </ul>
       <ScenarioCards sc={sc} />
-      <div className="table-wrap bt-table" tabIndex={0} role="region" aria-label={sc.title}>
+      <div className="table-wrap bt-table" tabIndex={0} role="region" aria-label={lang === 'hi' ? sc.title_hi ?? sc.title : sc.title}>
         <table className="data-table stack-sm">
           <thead>
             <tr>
@@ -82,7 +82,7 @@ function Scenario({ sc }: { sc: BacktestScenario }) {
           <tbody>
             {sc.villages.map((v) => (
               <tr key={v.village_id}>
-                <th scope="row">{v.village}</th>
+                <th scope="row">{villageNameIn(v.village_id, v.village, lang)}</th>
                 <td data-label={t('impact.bt.reached')}>
                   <LevelBadge level={reached(v)} size="sm" plain={reached(v) !== 'critical'} />
                 </td>
@@ -107,7 +107,7 @@ function Scenario({ sc }: { sc: BacktestScenario }) {
                     {v.peak_discharge_day && <span className="small muted"> · {fmtDate(v.peak_discharge_day, lang)}</span>}
                   </span>
                 </td>
-                <td className="nowrap" data-label={t('impact.bt.rain')}>{fmtNumber(v.max_rain_24h_mm, lang, 1)} mm</td>
+                <td className="nowrap" data-label={t('impact.bt.rain')}>{fmtNumber(v.max_rain_24h_mm, lang, 1)} {lang === 'hi' ? 'मिमी' : 'mm'}</td>
               </tr>
             ))}
           </tbody>
@@ -124,7 +124,8 @@ function Scenario({ sc }: { sc: BacktestScenario }) {
                   <a href={href} target="_blank" rel="noreferrer" className="xp-src">
                     {SRC_WORD[k]?.[lang] ?? k}: {href.replace(/^https?:\/\//, '').split('/')[0]} <ArrowUpRight aria-hidden="true" className="xp-ext" />
                   </a>
-                  <span className="xp-td-sub">{v.slice(href.length).trim().replace(/^\(|\)$/g, '')}</span>
+                  {/* What was read, in the API's own parameter words: English pages only. */}
+                  {lang === 'en' && <span className="xp-td-sub">{v.slice(href.length).trim().replace(/^\(|\)$/g, '')}</span>}
                 </li>
               );
             })}
@@ -146,7 +147,7 @@ function ScenarioCards({ sc }: { sc: BacktestScenario }) {
       {sc.villages.map((v) => (
         <li key={v.village_id} className={`lv-${reached(v)}`}>
           <p className="bt-card-name">
-            <span>{v.village}</span>
+            <span>{villageNameIn(v.village_id, v.village, lang)}</span>
             <LevelBadge level={reached(v)} size="sm" plain={reached(v) !== 'critical'} />
           </p>
           <dl className="bt-card-facts">
@@ -214,8 +215,7 @@ function Scores() {
             <div key={sc.name} className="scenario card score-card">
               <header className="sc-head">
                 <h3 className="sc-title">
-                  <span lang="hi">{sc.title_hi ?? sc.title}</span>
-                  <span className="sc-title-en">{sc.title}</span>
+                  <span>{lang === 'hi' ? sc.title_hi ?? sc.title : sc.title}</span>
                 </h3>
                 <p className="small muted">{t('impact.sc.scored', { n: sc.configs[0]?.scored ?? 0 })}</p>
               </header>
@@ -247,12 +247,12 @@ function Scores() {
 
 const STORY_FIVE = scores.scenarios.find((x) => x.name === 'himachal_2023_07')!.soil_effect;
 
-const SOURCES: { label: string; href: string }[] = [
-  { label: 'Open-Meteo, archived weather forecasts', href: 'https://historical-forecast-api.open-meteo.com/v1/forecast' },
-  { label: 'Open-Meteo flood API (GloFAS v4)', href: 'https://flood-api.open-meteo.com/v1/flood' },
-  { label: 'Newslaundry, 8 Aug 2023: Pandoh', href: 'https://www.newslaundry.com/2023/08/08/our-lives-are-set-back-25-years-in-himachal-a-village-loses-everything-to-floods-2' },
-  { label: 'The ground truth, with every source (data/ground_truth.json)', href: 'https://github.com/Prashant-thakur77/pukaar/blob/main/data/ground_truth.json' },
-  { label: 'The back-test script and its output (data/backtest.json)', href: 'https://github.com/Prashant-thakur77/pukaar/blob/main/data/backtest.json' },
+const SOURCES: { label: { hi: string; en: string }; href: string }[] = [
+  { label: { en: 'Open-Meteo, archived weather forecasts', hi: 'Open-Meteo, पुराने मौसम पूर्वानुमान' }, href: 'https://historical-forecast-api.open-meteo.com/v1/forecast' },
+  { label: { en: 'Open-Meteo flood API (GloFAS v4)', hi: 'Open-Meteo का बाढ़ API (GloFAS v4)' }, href: 'https://flood-api.open-meteo.com/v1/flood' },
+  { label: { en: 'Newslaundry, 8 Aug 2023: Pandoh', hi: 'Newslaundry, 8 अगस्त 2023: पंडोह' }, href: 'https://www.newslaundry.com/2023/08/08/our-lives-are-set-back-25-years-in-himachal-a-village-loses-everything-to-floods-2' },
+  { label: { en: 'The ground truth, with every source (data/ground_truth.json)', hi: 'असल में क्या हुआ, हर स्रोत के साथ (data/ground_truth.json)' }, href: 'https://github.com/Prashant-thakur77/pukaar/blob/main/data/ground_truth.json' },
+  { label: { en: 'The back-test script and its output (data/backtest.json)', hi: 'बैक-टेस्ट की स्क्रिप्ट और उसका नतीजा (data/backtest.json)' }, href: 'https://github.com/Prashant-thakur77/pukaar/blob/main/data/backtest.json' },
 ];
 
 export default function Proof() {
@@ -291,7 +291,7 @@ export default function Proof() {
           </b>
           <p className="xp-p">
             {hi
-              ? `पाँच में से ${fmtNumber(crit, lang)} गाँव ‘गंभीर’ तक पहुँचा${critName ? ` (${critName})` : ''}; बाक़ी ‘सतर्क’ या ‘चेतावनी’ पर रहे, या शांत।`
+              ? `पाँच में से ${fmtNumber(crit, lang)} गाँव ‘गंभीर’ तक पहुँचा${critName ? ` (${villageNameIn(critName.toLowerCase(), critName, lang)})` : ''}; बाक़ी ‘सतर्क’ या ‘चेतावनी’ पर रहे, या शांत।`
               : `${crit} of the five villages reached Critical${critName ? ` (${critName})` : ''}; the rest stayed at Watch or Warning, or calm.`}
           </p>
         </div>
@@ -330,7 +330,7 @@ export default function Proof() {
           <p className="xp-p">
             {hi
               ? 'सिर्फ़ असली रिकॉर्ड: भेजे गए अभ्यास, असली चेतावनियाँ, “मिल गया”। जो मापा नहीं गया, वह यही कहता है।'
-              : 'Real records only: drills sent, live alerts, “मिल गया”. Where nothing is measured, it says so.'}
+              : 'Real records only: drills sent, live alerts, “Got it”. Where nothing is measured, it says so.'}
           </p>
           <Measured />
         </div>
@@ -381,7 +381,7 @@ export default function Proof() {
           {SOURCES.map((x) => (
             <li key={x.href}>
               <a href={x.href} target="_blank" rel="noreferrer" className="xp-src">
-                {x.label} <ArrowUpRight aria-hidden="true" className="xp-ext" />
+                {x.label[lang]} <ArrowUpRight aria-hidden="true" className="xp-ext" />
               </a>
             </li>
           ))}
